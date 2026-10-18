@@ -1,0 +1,36 @@
+# Local-only credentials. Generated once per cluster and kept in local Terraform state
+# (gitignored). Alphanumeric only so they embed safely in connection URIs.
+
+locals {
+  passwords = toset([
+    "pg_superuser",
+    "pg_airflow",
+    "pg_warehouse",
+    "pg_marquez",
+    "minio_root",
+    "airflow_admin",
+    "airflow_api_secret",
+    "airflow_jwt_secret",
+  ])
+}
+
+resource "random_password" "this" {
+  for_each = local.passwords
+  length   = 32
+  special  = false
+}
+
+# Fernet keys must be url-safe base64 of exactly 32 bytes.
+resource "random_bytes" "airflow_fernet" {
+  length = 32
+}
+
+locals {
+  pw = { for k, v in random_password.this : k => v.result }
+
+  airflow_fernet_key = replace(replace(random_bytes.airflow_fernet.base64, "+", "-"), "/", "_")
+
+  postgres_host = "postgres.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local"
+  minio_host    = "minio.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local"
+  minio_user    = "dip-admin"
+}

@@ -226,7 +226,7 @@ Two other workflows run alongside it: `ci.yml` (lint with ruff, type-check with 
 
 ### 7.1 LLMs
 
-- **Primary model: `claude-haiku-5-5`**, set in config (`config/llm.yaml`, overridable with `DIP_LLM_MODEL`). The key is read from `ANTHROPIC_API_KEY` in `.env`. The model is checked with the Models API (`GET /v1/models/claude-haiku-5-5`) at setup time and in `make doctor`. If the check fails, startup fails with a clear message and does not silently switch models.
+- **Primary model: `claude-haiku-5-5`**, set in config (`config/llm.toml`, overridable with `DIP_LLM_MODEL`). The key is read from `ANTHROPIC_API_KEY` in `.env`. The model is checked with the Models API (`GET /v1/models/claude-haiku-5-5`) at setup time and by `python scripts/check_model.py`. If the check fails, startup fails with a clear message and does not silently switch models.
 - **Free fallbacks**, behind one provider interface, are tried in order when a call hits a rate limit, an outage or a missing key: Google Gemini free tier, then Groq free tier, then OpenRouter `:free` models. Evals run against each provider, and the report shows any quality gap.
 - `.env` is listed in `.gitignore` from the first commit, and `.env.example` is committed.
 
@@ -292,3 +292,6 @@ docs/             runbooks/ demos/ adr/
 ## 11. Decisions log
 
 - 2026-10-18: Plan approved. Model `claude-haiku-5-5`, kept in config. Repo is public. Read-only MCP tools in Stage 3. Contract-author agent due 2026-12-31.
+- 2026-10-18: Official MinIO images are no longer published on Docker Hub or quay.io. We use Chainguard's MinIO build from upstream source (`cgr.dev/chainguard/minio`, AGPLv3), pinned by digest. If Chainguard ever drops it, the fallback is to build MinIO from source in `images/minio/`.
+- 2026-10-18: Measured the core profile at **2.6 GiB** for the kind node with everything running, against an estimate of 4.5 GB in §5. Kubernetes is pinned to v1.35.8 to stay within kubectl 1.34's version-skew window.
+- 2026-10-18: The LLM config is `config/llm.toml` (Python's built-in `tomllib`, so no YAML dependency).
