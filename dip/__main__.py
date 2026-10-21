@@ -4,6 +4,7 @@
   land <feed> <files...>       copy local files into the landing bucket
   intake                       process everything in the landing bucket
   vocab-load                   download (pinned, checksummed) and load the OMOP vocabulary
+  deid-key-install             store DIP_DEID_KEY for the de-identified tier
   dbt <args...>                run dbt against the warehouse, e.g. `dbt build`
 
 Storage is a local directory (`--store-dir`, default ./data/store) unless S3 settings are
@@ -60,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("intake")
     vocab = sub.add_parser("vocab-load")
     vocab.add_argument("--cache-dir", type=Path, default=Path("data/cache"))
+    sub.add_parser("deid-key-install")
     dbt = sub.add_parser("dbt")
     dbt.add_argument("dbt_args", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
@@ -86,6 +88,11 @@ def main(argv: list[str] | None = None) -> int:
 
         concepts, maps_to = vocab.load(_warehouse().conn, vocab.fetch(args.cache_dir))
         print(f"loaded {concepts} concepts and {maps_to} 'Maps to' relationships into vocab")
+    elif args.command == "deid-key-install":
+        from dip.deid import install_key
+
+        fp = install_key(_warehouse().conn, os.environ.get("DIP_DEID_KEY"))
+        print(f"de-identification key installed (fingerprint {fp})")
     elif args.command == "dbt":
         from dip.dbt_runner import run_dbt
 

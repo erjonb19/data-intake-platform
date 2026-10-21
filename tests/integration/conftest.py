@@ -10,7 +10,17 @@ import pytest
 from dip.warehouse import Warehouse
 
 DSN = os.environ.get("DIP_TEST_DSN")
-OWNED_SCHEMAS = ("bronze", "ops", "silver", "omop", "vocab", "dbt")
+OWNED_SCHEMAS = (
+    "bronze",
+    "ops",
+    "ops_secret",
+    "silver",
+    "omop",
+    "deid",
+    "omop_shareable",
+    "vocab",
+    "dbt",
+)
 
 
 def _fresh_warehouse():

@@ -6,6 +6,7 @@ locals {
     "airflow-fernet-key"     = { "fernet-key" = local.airflow_fernet_key }
     "airflow-api-secret-key" = { "api-secret-key" = local.pw["airflow_api_secret"] }
     "airflow-jwt-secret"     = { "jwt-secret" = local.pw["airflow_jwt_secret"] }
+    "dip-deid"               = { key = local.pw["dip_deid_key"] }
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod
     # (including KubernetesExecutor task pods) via the chart's `secret` list.

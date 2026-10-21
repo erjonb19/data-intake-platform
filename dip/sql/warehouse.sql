@@ -48,3 +48,27 @@ CREATE TABLE IF NOT EXISTS bronze.fhir_resource (
     PRIMARY KEY (file_sha256, entry_index)
 );
 CREATE INDEX IF NOT EXISTS fhir_resource_type_idx ON bronze.fhir_resource (resource_type);
+
+-- De-identification (R4). The HMAC key lives here, not in dbt variables, so it never
+-- appears in compiled SQL, dbt logs or query text. Only the warehouse owner can read it.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE SCHEMA IF NOT EXISTS ops_secret;
+REVOKE ALL ON SCHEMA ops_secret FROM PUBLIC;
+CREATE TABLE IF NOT EXISTS ops_secret.deid_key (
+    key_id            text        PRIMARY KEY,
+    key               text        NOT NULL CHECK (length(key) >= 32),
+    fingerprint       text        NOT NULL,
+    installed_at      timestamptz NOT NULL DEFAULT now()
+);
+
+-- Researchers get read access to the shareable tier only (granted by dbt). The role is
+-- created by infra/terraform/files/postgres-init.sh in the cluster; here it is created only
+-- when the connecting user may create roles (CI, laptops).
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_researcher') THEN
+        CREATE ROLE dip_researcher NOLOGIN;
+    END IF;
+EXCEPTION WHEN insufficient_privilege THEN
+    RAISE NOTICE 'cannot create role dip_researcher; expected to exist already';
+END $$;
