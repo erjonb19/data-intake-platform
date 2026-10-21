@@ -161,8 +161,13 @@ name, status, failing rows).
 | Plausibility | *(OMOP convention, not a DQD check)* `inObservationPeriod` | every event is inside the person's observation period | error |
 
 **Thresholds** for the warnings are set against the measured rates on Synthea v4 with the
-Eunomia shard: unmapped conditions ≤ 50% (measured 40%), drugs ≤ 30% (20%), measurements
-≤ 10% (4%), visits ≤ 5% (2%). With a full Athena vocabulary they should be tightened.
+Eunomia shard: unmapped conditions ≤ 50%, drugs ≤ 30% (measured 20%), measurements ≤ 10%
+(4%), visits ≤ 5% (2%). Conditions measure **50.1%** once Observation-domain records are
+routed out, so that check warns on every run. That warning is the honest signal that the
+shard is too small for Synthea v4's codes; a full Athena vocabulary would clear it.
+
+Latest CI run: 124 dbt nodes, PASS=122, WARN=2 (condition unmapped rate, and 4 conditions
+outside their visit window), ERROR=0.
 
 **Not covered** (compared with DQD's ~3,500 parameterized checks): `cdmField`/`cdmDatatype`
 (DDL conformance; our models define the columns), `plausibleGender`, `plausibleBeforeDeath`
