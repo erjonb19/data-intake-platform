@@ -23,7 +23,7 @@ fhir:
   patient_resource: Patient
   # Only these resource types are loaded to bronze. Claims, EOBs, care plans, etc. are
   # counted and skipped (data minimization: research models do not need them yet).
-  load: [Patient, Encounter, Condition, Observation, MedicationRequest]
+  load: [Patient, Encounter, Condition, Observation, MedicationRequest, Medication]
   resources:
     Patient:
       required: [id, birthDate, gender]
@@ -35,17 +35,23 @@ fhir:
       dates: [period.start, period.end]
     Condition:
       required: [id, subject.reference, code.coding, onsetDateTime]
-      code_system: http://snomed.info/sct
+      code_systems: [http://snomed.info/sct]
       dates: [onsetDateTime, abatementDateTime]
     Observation:
       required: [id, subject.reference, status, code.coding, effectiveDateTime]
-      code_system: http://loinc.org
+      code_systems: [http://loinc.org]
       dates: [effectiveDateTime]
     MedicationRequest:
-      required: [id, subject.reference, authoredOn, medicationCodeableConcept.coding]
-      code_system: http://www.nlm.nih.gov/research/umls/rxnorm
+      required: [id, subject.reference, authoredOn]
+      # Synthea codes most orders inline, and some through a Medication resource.
+      required_one_of: [medicationCodeableConcept.coding, medicationReference.reference]
+      code_systems: [http://www.nlm.nih.gov/research/umls/rxnorm]
       dates: [authoredOn]
+    Medication:
+      required: [id, code.coding]
+      code_systems: [http://www.nlm.nih.gov/research/umls/rxnorm]
   # Reference fields that must point at an accepted resource in the same bundle.
   references:
     subject: Patient
     encounter: Encounter
+    medicationReference: Medication

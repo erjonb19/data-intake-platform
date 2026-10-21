@@ -97,18 +97,23 @@ def _check_resource(
     for path in rules.get("required", []):
         if get_path(body, path) is _MISSING:
             return v(f"FHIR.MISSING_FIELD:{rt}.{path}", f"{rt}/{res.resource_id} has no {path}")
+    if (one_of := rules.get("required_one_of")) and all(
+        get_path(body, p) is _MISSING for p in one_of
+    ):
+        return v(f"FHIR.MISSING_FIELD:{rt}.{'|'.join(one_of)}", f"needs one of {one_of}")
     for path, allowed in rules.get("allowed", {}).items():
         value = get_path(body, path)
         if value is not _MISSING and value not in allowed:
             return v(f"FHIR.INVALID_VALUE:{rt}.{path}", f"{path}={value!r} not in {allowed}")
-    if system := rules.get("code_system"):
+    if systems := rules.get("code_systems"):
         codings = get_path(body, "code.coding")
         if codings is _MISSING:
             codings = get_path(body, "medicationCodeableConcept.coding")
         if codings is not _MISSING and not any(
-            isinstance(c, dict) and c.get("system") == system and c.get("code") for c in codings
+            isinstance(c, dict) and c.get("system") in systems and c.get("code") for c in codings
         ):
-            return v(f"FHIR.UNKNOWN_CODE_SYSTEM:{rt}.code", f"no coding with system {system}")
+            found = sorted({str(c.get("system")) for c in codings if isinstance(c, dict)})
+            return v(f"FHIR.UNKNOWN_CODE_SYSTEM:{rt}.code", f"systems {found}, expected {systems}")
     for path in rules.get("dates", []):
         raw = get_path(body, path)
         if raw is _MISSING:

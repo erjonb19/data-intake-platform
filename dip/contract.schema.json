@@ -51,7 +51,8 @@
             "properties": {
               "required": {"type": "array", "items": {"type": "string"}},
               "allowed": {"type": "object", "additionalProperties": {"type": "array"}},
-              "code_system": {"type": "string"},
+              "required_one_of": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+              "code_systems": {"type": "array", "items": {"type": "string"}, "minItems": 1},
               "dates": {"type": "array", "items": {"type": "string"}}
             }
           }

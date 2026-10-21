@@ -157,3 +157,37 @@ def test_reject_file_mode(contract):
     b = good_bundle()
     find(b, "Observation", "obs-0003").pop("status")
     assert [v.reason_code for v in run(b, strict).file_violations] == ["CONTRACT.ROW_VIOLATION"]
+
+
+def _med_by_reference(b, target="urn:uuid:med-0001", add_medication=True):
+    req = find(b, "MedicationRequest")
+    coding = req.pop("medicationCodeableConcept")
+    req["medicationReference"] = {"reference": target}
+    if add_medication:
+        med = {"resourceType": "Medication", "id": "med-0001", "code": coding}
+        b["entry"].append({"fullUrl": "urn:uuid:med-0001", "resource": med})
+    return b
+
+
+def test_medication_by_reference_is_accepted(contract):
+    r = run(_med_by_reference(good_bundle()), contract)
+    assert not r.rejected
+    assert {res.resource_type for res in r.accepted} >= {"Medication", "MedicationRequest"}
+
+
+def test_medication_reference_must_resolve(contract):
+    b = _med_by_reference(good_bundle(), add_medication=False)
+    r = run(b, _ratio_tolerant(contract))
+    assert [v.reason_code for _, v in r.rejected] == [
+        "FHIR.UNRESOLVED_REFERENCE:MedicationRequest.medicationReference"
+    ]
+
+
+def test_medication_needs_code_or_reference(contract):
+    b = good_bundle()
+    find(b, "MedicationRequest").pop("medicationCodeableConcept")
+    r = run(b, _ratio_tolerant(contract))
+    assert [v.reason_code for _, v in r.rejected] == [
+        "FHIR.MISSING_FIELD:MedicationRequest.medicationCodeableConcept.coding"
+        "|medicationReference.reference"
+    ]

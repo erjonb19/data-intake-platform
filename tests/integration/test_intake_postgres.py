@@ -93,7 +93,8 @@ def test_real_synthea_export(warehouse, tmp_path):
     assert not rejected, rejected
     with warehouse.conn.cursor() as cur:
         cur.execute(
-            "select reason_code, count(*) from ops.quarantine group by 1 order by 2 desc limit 10"
+            "select reason_code, min(detail), count(*) from ops.quarantine"
+            " group by 1 order by 3 desc limit 10"
         )
         print("record-level quarantine:", cur.fetchall())
     assert scalar(warehouse, "select count(distinct patient_id) from bronze.fhir_resource") == len(
