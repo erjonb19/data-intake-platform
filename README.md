@@ -8,7 +8,7 @@ built in, and AI agents (later stages) can propose fixes, but a human always app
 
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
-**Status: Stage 0 (foundations) complete. Research-data track R1–R6 built** (see
+**Status: Stage 0 (foundations) complete. Research-data track R1–R6 and M1–M3 built** (see
 [docs/research](docs/research/README.md)):
 
 | | |
@@ -19,6 +19,9 @@ See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 | R4 | De-identified shareable tier (keyed pseudonyms, date shifting, top-coding) with Postgres-enforced access |
 | R5 | Versioned Frictionless extracts, proven byte-identical across independent rebuilds |
 | R6 | OpenLineage events from intake, dbt and extracts (Marquez arrives in Stage 3) |
+| M1 | MIMIC-IV FHIR demo (Bulk Data) through the FHIR intake into OMOP, with a report of what breaks against Synthea |
+| M2 | MIMIC-IV relational demo through a relational-tables-to-OMOP path (per-table contracts) |
+| M3 | Reconciliation of the two MIMIC OMOP builds by source keys: 0 unexplained differences |
 
 **Data.** Everything committed, and everything CI runs on, is synthetic (Synthea and
 hand-written fixtures). Separately, two public **real, de-identified** datasets, the

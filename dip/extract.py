@@ -53,6 +53,79 @@ class ExtractExistsError(RuntimeError):
     pass
 
 
+class LicenseError(ValueError):
+    pass
+
+
+SYNTHETIC_LICENSE = "CC0-1.0"
+MIMIC_LICENSE = "ODbL-1.0"
+ODBL = {
+    "name": MIMIC_LICENSE,
+    "path": "https://opendatacommons.org/licenses/odbl/1-0/",
+    "title": "Open Data Commons Open Database License v1.0",
+}
+# Attribution PhysioNet requires for MIMIC-IV demo derivatives (see docs/research/mimic.md).
+MIMIC_SOURCES = [
+    {
+        "title": "Bennett A, Ulrich H, Wiedekopf J, Szul P, Grimes J, Johnson A (2025). "
+        "MIMIC-IV Clinical Database Demo on FHIR (version 2.1.0). PhysioNet.",
+        "path": "https://doi.org/10.13026/vphg-y548",
+    },
+    {
+        "title": "Johnson A, Bulgarelli L, Pollard T, Horng S, Celi LA, Mark R (2023). "
+        "MIMIC-IV Clinical Database Demo (version 2.2). PhysioNet.",
+        "path": "https://doi.org/10.13026/dp1f-ex47",
+    },
+    {
+        "title": "Johnson A, Bulgarelli L, Pollard T, Celi LA, Horng S, Mark R (2023). "
+        "MIMIC-IV-ED Demo (version 2.2). PhysioNet.",
+        "path": "https://doi.org/10.13026/jzz5-vs76",
+    },
+    {
+        "title": "Bennett AM, Ulrich H, van Damme P, Wiedekopf J, Johnson AE. MIMIC-IV on FHIR. "
+        "JAMIA 2023;30(4):718-25.",
+        "path": "https://doi.org/10.1093/jamia/ocad002",
+    },
+    {
+        "title": "Pollard T, Moody BE, Lehman L, et al. (2026). PhysioNet as a global platform "
+        "for biomedical research. Nature Health.",
+        "path": "https://doi.org/10.1038/s44360-026-00096-z",
+    },
+]
+
+
+def _sources(conn: Any) -> list[tuple[str, str]]:
+    """(source name, input sha256) for everything that fed this warehouse: intake feeds
+    and relational source tables."""
+    rows = list(
+        _query(conn, "select feed, file_sha256 from ops.intake_file where status <> 'quarantined'")
+    )
+    if _query(conn, "select to_regclass('ops.relational_load') is not null")[0][0]:
+        rows += _query(
+            conn,
+            "select source || '.' || table_name, file_sha256 from ops.relational_load"
+            " where status = 'loaded'",
+        )
+    return sorted(((n, sha) for n, sha in rows), key=lambda r: (r[1], r[0]))
+
+
+def is_mimic(sources: list[tuple[str, str]]) -> bool:
+    return any(name.startswith("mimic.") for name, _ in sources)
+
+
+def resolve_license(requested: str | None, mimic: bool) -> str:
+    """CC0 for synthetic data by default. MIMIC derivatives must be ODbL (share-alike,
+    with attribution): CC0 or any other license is refused."""
+    if not mimic:
+        return requested or SYNTHETIC_LICENSE
+    if requested not in (None, MIMIC_LICENSE):
+        raise LicenseError(
+            f"this extract is derived from MIMIC-IV (ODbL); it must be {MIMIC_LICENSE} with "
+            f"attribution, not {requested!r}"
+        )
+    return MIMIC_LICENSE
+
+
 @dataclass(frozen=True)
 class BuildResult:
     path: Path
@@ -106,19 +179,25 @@ def _git_commit() -> str:
         return "unknown"
 
 
-def _provenance(conn: Any, git_commit: str | None) -> dict[str, Any]:
+def _provenance(conn: Any, git_commit: str | None, sources: list[tuple[str, str]]) -> dict:
     files = _query(
         conn,
         "select file_sha256, contract_version from ops.intake_file"
         " where status <> 'quarantined' order by file_sha256",
     )
-    inputs_digest = _sha256("\n".join(sha for sha, _ in files).encode("utf-8"))
+    inputs = [sha for _, sha in sources]
+    inputs_digest = _sha256("\n".join(inputs).encode("utf-8"))
     (fingerprint,) = _query(
         conn, "select fingerprint from ops_secret.deid_key where key_id = 'default'"
     )[0]
     return {
-        "source": "Synthea synthetic patients (FHIR R4), via the dip intake flow",
-        "input_files": len(files),
+        "source": (
+            "MIMIC-IV demo (real, de-identified; PhysioNet, ODbL)"
+            if is_mimic(sources)
+            else "Synthea synthetic patients (FHIR R4), via the dip intake flow"
+        ),
+        "source_feeds": sorted({name for name, _ in sources}),
+        "input_files": len(inputs),
         "inputs_sha256": inputs_digest,
         "contract_versions": sorted({v for _, v in files}),
         "code_git_commit": git_commit or _git_commit(),
@@ -133,9 +212,12 @@ def _provenance(conn: Any, git_commit: str | None) -> dict[str, Any]:
 
 
 def build_files(
-    conn: Any, version: str, license_id: str, git_commit: str | None = None
+    conn: Any, version: str, license_id: str | None = None, git_commit: str | None = None
 ) -> dict[str, bytes]:
     """All files of the package, in memory, keyed by name."""
+    sources = _sources(conn)
+    mimic = is_mimic(sources)
+    license_id = resolve_license(license_id, mimic)
     files: dict[str, bytes] = {}
     resources = []
     for table, pk in TABLES.items():
@@ -162,21 +244,40 @@ def build_files(
                 },
             }
         )
-    descriptor = {
-        "profile": "data-package",
-        "name": "dip-omop-shareable",
-        "title": "De-identified OMOP CDM 5.4 research extract (synthetic)",
-        "description": (
-            "Synthetic patients generated by Synthea, ingested as FHIR, modeled as OMOP CDM "
-            "5.4 and de-identified (keyed pseudonyms, per-person date shifts, year of birth "
-            "only, ages 90+ top-coded). Contains no real patient data."
-        ),
-        "version": version,
-        "licenses": [{"name": license_id}],
-        "keywords": ["OMOP", "CDM", "FHIR", "Synthea", "synthetic", "research"],
-        "provenance": _provenance(conn, git_commit),
-        "resources": resources,
-    }
+    if mimic:
+        descriptor = {
+            "profile": "data-package",
+            "name": "dip-omop-shareable-mimic-iv-demo",
+            "title": "De-identified OMOP CDM 5.4 extract derived from the MIMIC-IV demo",
+            "description": (
+                "REAL, de-identified patient records from the MIMIC-IV demo (PhysioNet), "
+                "modeled as OMOP CDM 5.4 and de-identified again (keyed pseudonyms, "
+                "per-person date shifts, year of birth only, ages 90+ top-coded). A derivative "
+                "of an ODbL database: share-alike and attribution apply. Kept local; not for "
+                "publication without the data owner's decision."
+            ),
+            "version": version,
+            "licenses": [ODBL],
+            "sources": MIMIC_SOURCES,
+            "keywords": ["OMOP", "CDM", "MIMIC-IV", "de-identified", "research"],
+            "dip_distribution": "local-only",
+        }
+    else:
+        descriptor = {
+            "profile": "data-package",
+            "name": "dip-omop-shareable",
+            "title": "De-identified OMOP CDM 5.4 research extract (synthetic)",
+            "description": (
+                "Synthetic patients generated by Synthea, ingested as FHIR, modeled as OMOP CDM "
+                "5.4 and de-identified (keyed pseudonyms, per-person date shifts, year of birth "
+                "only, ages 90+ top-coded). Contains no real patient data."
+            ),
+            "version": version,
+            "licenses": [{"name": license_id}],
+            "keywords": ["OMOP", "CDM", "FHIR", "Synthea", "synthetic", "research"],
+        }
+    descriptor["provenance"] = _provenance(conn, git_commit, sources)
+    descriptor["resources"] = resources
     files[DESCRIPTOR] = (json.dumps(descriptor, indent=2, sort_keys=True) + "\n").encode("utf-8")
     files[MANIFEST] = "".join(f"{_sha256(files[name])}  {name}\n" for name in sorted(files)).encode(
         "utf-8"
@@ -188,7 +289,7 @@ def build(
     conn: Any,
     out_root: Path,
     version: str,
-    license_id: str = "CC0-1.0",
+    license_id: str | None = None,
     git_commit: str | None = None,
 ) -> BuildResult:
     files = build_files(conn, version, license_id, git_commit)

@@ -285,8 +285,10 @@ reports that) or fails with "published versions are immutable, choose a new vers
 | Interoperable | OMOP CDM 5.4 tables with standard OHDSI concept ids; Frictionless Table Schema |
 | Reusable | license, provenance, column types and keys, checksums |
 
-The default license is `CC0-1.0` (`--license` changes it). The data is synthetic, but the
-license choice is the data owner's call.
+The license follows the sources, which the extract detects itself: `CC0-1.0` by default
+for synthetic (Synthea) data, where `--license` may choose another; **ODbL-1.0, required,
+with attribution** for anything derived from the MIMIC-IV demos, where CC0 is refused. See
+[mimic.md](mimic.md#licensing-of-outputs).
 
 **What the test caught.** Its first run failed: the two builds differed. The Synthea script
 pinned the seed and *reference* date but not the simulation *end* date, which defaults to

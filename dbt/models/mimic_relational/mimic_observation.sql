@@ -10,7 +10,8 @@ select
     'LOCAL' as source_vocabulary_id,
     {{ local_to_utc('charttime') }} as effective_at,
     valuenum as value_number,
-    valueuom as unit_code,
+    -- Some units are a single space; blank means no unit (the FHIR export agrees).
+    nullif(trim(valueuom), '') as unit_code,
     null::text as value_snomed_code,
     case when valuenum is null then value end as value_string
 from {{ source('mimic', 'labevents') }}

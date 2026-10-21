@@ -2,10 +2,10 @@
 
 NOT MIMIC data: every value is invented by hand. They describe the same invented patient
 as make_fixture.py (the FHIR-shaped export), so the M3 reconciliation can be tested too,
-with two deliberate differences that a reconciliation must explain:
-  - birth date: the relational tables only know anchor_age at anchor_year (a year), while
-    the FHIR Patient has a full date
-  - one extra lab result exists only in the relational tables
+with deliberate differences a reconciliation must find:
+  - the FHIR export has an ED encounter; the relational tables have no ED module (explained)
+  - one extra lab result exists only in the relational tables (left unexplained on purpose)
+  - birth date: a full date in FHIR, only anchor_age at anchor_year here; the year agrees
 The column lists are exactly the demo's, so the relational contract applies unchanged.
 """
 
@@ -40,7 +40,7 @@ def rows() -> dict[str, list[dict]]:
                 "admittime": "2155-03-01 10:00:00",
                 "dischtime": "2155-03-06 12:00:00",
                 "admission_type": "EW EMER.",
-                "race": "WHITE",
+                "race": "UNKNOWN",
             },
         ],
         "diagnoses_icd": [

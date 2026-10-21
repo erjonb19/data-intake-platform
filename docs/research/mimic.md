@@ -216,3 +216,83 @@ demo's exact column layout (`tests/fixtures/mimic_shaped/make_relational.py`), d
 same invented patient as the FHIR-shaped fixture: OMOP values end to end (including the
 Boston-to-UTC conversion), and quarantine for a renamed column, an extra column, a duplicate
 key and a type mismatch.
+
+## M3. Reconciliation: the same patients through both paths
+
+```bash
+python packs/mimic/run_reconcile.py --fhir-dsn postgresql://…/mimic_fhir --rel-dsn postgresql://…/mimic_rel
+```
+
+The FHIR demo is derived from the relational demo, so the two OMOP builds should describe
+the same 100 patients. `dip/reconcile.py` compares them by the **source's own keys**
+(`subject_id`, `hadm_id` or ED stay id, ICD code, lab item and time) carried through the
+staging layer, never by OMOP ids (which are hashes of different ids on each side). Rows are
+multisets. Every difference is classified by a rule in `run_reconcile.py`, and anything no
+rule covers is counted as **unexplained**; the runner exits non-zero if any is. The report
+holds aggregate counts and difference *descriptors* (for example "+5h" or "null on a"),
+never values.
+
+**Result (local, aggregates): 0 unexplained differences.**
+
+| Domain | FHIR | Relational | Identical | Differences, all explained |
+|---|---|---|---|---|
+| person | 100 | 100 | 95 | 5: race (below) |
+| visit | 497 | 275 | **275 of 275 admissions, start and end to the minute** | 222 only in FHIR: ED visits |
+| condition | 5,051 | 4,506 | **4,506 of 4,506** | 545 only in FHIR: ED diagnoses |
+| measurement | 107,727 | 107,727 | 103,320 | 4,395 unit; 12 value (below) |
+
+**The explanations:**
+
+1. **ED visits and diagnoses (222 + 545).** The FHIR demo was built from two parents: the
+   MIMIC-IV demo *and* the MIMIC-IV-ED demo. The relational demo has no ED module. Every
+   FHIR-only visit is an ER visit (9203), and every FHIR-only condition sits on one.
+2. **Race (5 persons).** All five are Hispanic/Latino patients, whose MIMIC race field holds
+   text such as "HISPANIC/LATINO - SALVADORAN". The FHIR export records race White plus
+   ethnicity Hispanic. The relational mapping records ethnicity Hispanic and leaves race
+   unknown (0), because the text does not state a race. Both are modeling choices; I kept
+   the more conservative one.
+3. **Units on text results (4,395 measurements).** Results with no numeric value (for
+   example "NEG") are `valueString` in FHIR, which has no unit field, so the unit in
+   `labevents.valueuom` has no FHIR equivalent. The runner **verifies** this rule on every run
+   (all 4,395 have no numeric value on either side) instead of assuming it.
+4. **Comparator results (12 measurements).** Values such as "<5": the FHIR export parses a
+   number (a `valueQuantity` with a comparator), while the relational `valuenum` is empty.
+   Verified by counts: the relational demo has exactly 12 comparator-plus-number texts with
+   an empty `valuenum`.
+
+**What the reconciliation fixed along the way:** 330 measurements differed because some
+relational units are a single space, which the FHIR export treats as "no unit". The
+relational model now trims blank units.
+
+**What it confirms:**
+- *Times.* Every admission and lab time matches to the minute, so the relational
+  timestamps really are Boston local time, and converting them via `America/New_York`
+  (DST included, even for shifted 22nd-century dates) agrees with the FHIR offsets.
+- *Birth years.* They agree: the FHIR export derives the year as `anchor_year − anchor_age`,
+  as the relational path does.
+- *ICU stays.* Folding them into the hospital visit is what makes the lab results match:
+  each ICU lab result's visit key equals its admission.
+
+**Drugs are not reconciled row by row**, because the two paths deliberately use different
+source tables. The FHIR demo builds MedicationRequests from `pharmacy` (15,225, keyed by
+`pharmacy_id`) plus 2,327 IV orders from POE. The relational path uses `prescriptions`
+(18,087 rows, the table OHDSI's MIMIC-IV ETL uses). A row-level comparison would need a
+pharmacy-to-prescriptions crosswalk, which is listed as a follow-up.
+
+**Test in CI** (`tests/integration/test_reconcile.py`): both synthetic MIMIC-shaped fixtures
+are built into two databases and reconciled. The reconciliation must match the patient,
+the admission, both diagnoses and the ICU lab result (time-zone conversion included),
+explain the ED visit, and report the one lab result that exists only in the relational
+fixture as **unexplained**.
+
+## Licensing of outputs
+
+| Extract built from | License | Enforced by |
+|---|---|---|
+| Synthea (synthetic) | CC0-1.0 by default (`--license` may choose another) | `dip.extract.resolve_license` |
+| Any MIMIC-IV source | **ODbL-1.0, required**, with the PhysioNet attributions in the package's `sources`, the description "REAL, de-identified", and `dip_distribution: local-only` | the same function: CC0 or any other license **raises an error** |
+
+The extract finds its sources itself (intake feeds and relational source tables), so a
+MIMIC-derived package cannot be mislabeled by forgetting a flag. MIMIC-derived extracts
+are written under `data/` (gitignored) and stay local; only the aggregates on this page
+are published.
