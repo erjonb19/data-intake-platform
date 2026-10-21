@@ -162,12 +162,13 @@ name, status, failing rows).
 
 **Thresholds** for the warnings are set against the measured rates on Synthea v4 with the
 Eunomia shard: unmapped conditions ≤ 50%, drugs ≤ 30% (measured 20%), measurements ≤ 10%
-(4%), visits ≤ 5% (2%). Conditions measure **50.1%** once Observation-domain records are
-routed out, so that check warns on every run. That warning is the honest signal that the
-shard is too small for Synthea v4's codes; a full Athena vocabulary would clear it.
+(4%), visits ≤ 5% (1%). Conditions measure **about 50%** once Observation-domain records
+are routed out: 50.1% on the first run, and 49.7% after R5 pinned Synthea's end date. So
+that check sits right at its threshold. It is the honest signal that the shard is too
+small for Synthea v4's codes; a full Athena vocabulary would clear it.
 
-Latest CI run: 124 dbt nodes, PASS=122, WARN=2 (condition unmapped rate, and 4 conditions
-outside their visit window), ERROR=0.
+Latest CI run (R5, 25 Synthea patients + fixture): 154 dbt nodes, PASS=153, WARN=1
+(4 conditions outside their visit window), ERROR=0.
 
 **Not covered** (compared with DQD's ~3,500 parameterized checks): `cdmField`/`cdmDatatype`
 (DDL conformance; our models define the columns), `plausibleGender`, `plausibleBeforeDeath`
