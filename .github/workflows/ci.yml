@@ -24,10 +24,13 @@ jobs:
           ruff check .
           ruff format --check .
 
+      - name: No MIMIC data committed
+        run: bash scripts/check_no_mimic_data.sh
+
       - name: Shell scripts
         run: |
-          bash -n scripts/*.sh packs/*/generators/*.sh
-          shellcheck -x scripts/*.sh packs/*/generators/*.sh
+          bash -n scripts/*.sh packs/*/generators/*.sh packs/mimic/fetch.sh
+          shellcheck -x scripts/*.sh packs/*/generators/*.sh packs/mimic/fetch.sh
 
       - uses: hashicorp/setup-terraform@v4
         with:

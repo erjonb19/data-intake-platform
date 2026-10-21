@@ -20,8 +20,11 @@ See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 | R5 | Versioned Frictionless extracts, proven byte-identical across independent rebuilds |
 | R6 | OpenLineage events from intake, dbt and extracts (Marquez arrives in Stage 3) |
 
-**All data is synthetic** (Synthea and hand-written fixtures). No real patient data is used,
-stored or committed anywhere.
+**Data.** Everything committed, and everything CI runs on, is synthetic (Synthea and
+hand-written fixtures). Separately, two public **real, de-identified** datasets, the
+MIMIC-IV demos from PhysioNet (ODbL), can be downloaded and run **locally only**. They are
+never committed, and only aggregate results are published. See
+[docs/research/mimic.md](docs/research/mimic.md).
 
 ## Quick start
 
@@ -79,5 +82,32 @@ docs/demos/          per-stage demo scripts
 - `e2e` workflow: creates a kind cluster with Terraform on a GitHub runner, deploys the
   stack, and runs the end-to-end tests on every push and pull request.
 
-All data in this project is synthetic (Synthea and hand-written fixtures). No real patient
-data is used anywhere.
+CI uses synthetic data only (Synthea and hand-written fixtures). The MIMIC-IV demos are
+never downloaded in CI.
+
+## Data sources and citations
+
+| Source | Kind | License | Where it runs |
+|---|---|---|---|
+| [Synthea](https://github.com/synthetichealth/synthea) v4.0.0 | synthetic | Apache-2.0 (tool); extracts CC0-1.0 | CI and local |
+| [OHDSI Eunomia](https://github.com/OHDSI/EunomiaDatasets) Synthea27Nj vocabulary shard | OMOP vocabulary subset | Apache-2.0 | CI and local |
+| [MIMIC-IV Clinical Database Demo on FHIR](https://physionet.org/content/mimic-iv-fhir-demo/2.1.0/) v2.1.0 | **real, de-identified** | ODbL v1.0 | local only |
+| [MIMIC-IV Clinical Database Demo](https://physionet.org/content/mimic-iv-demo/2.2/) v2.2 | **real, de-identified** | ODbL v1.0 | local only |
+
+When using the MIMIC-IV demos, cite:
+
+- Bennett, A., Ulrich, H., Wiedekopf, J., Szul, P., Grimes, J., & Johnson, A. (2025).
+  MIMIC-IV Clinical Database Demo on FHIR (version 2.1.0). PhysioNet. RRID:SCR_007345.
+  https://doi.org/10.13026/vphg-y548
+- Bennett AM, Ulrich H, van Damme P, Wiedekopf J, Johnson AE. MIMIC-IV on FHIR: converting a
+  decade of in-patient data into an exchangeable, interoperable format. JAMIA.
+  2023;30(4):718-25. https://doi.org/10.1093/jamia/ocad002
+- Johnson, A., Bulgarelli, L., Pollard, T., Horng, S., Celi, L. A., & Mark, R. (2023).
+  MIMIC-IV Clinical Database Demo (version 2.2). PhysioNet. RRID:SCR_007345.
+  https://doi.org/10.13026/dp1f-ex47
+- Johnson, A., Bulgarelli, L., Pollard, T., Celi, L. A., Horng, S., & Mark, R. (2023).
+  MIMIC-IV-ED Demo (version 2.2). PhysioNet. RRID:SCR_007345.
+  https://doi.org/10.13026/jzz5-vs76
+- Pollard, T., Moody, B. E., Lehman, L., Gow, B., Fernandes, C., Xie, C., Johnson, A.,
+  Mark, R. G., & Heldt, T. (2026). PhysioNet as a global platform for biomedical research.
+  Nature Health. https://doi.org/10.1038/s44360-026-00096-z

@@ -2,10 +2,11 @@
 
 PLAN.md §8.1 describes the plan. This page documents what is built, item by item.
 
-> **All data here is synthetic.** Patients come from [Synthea](https://github.com/synthetichealth/synthea)
-> (v4.0.0, fixed seed) or from small hand-written fixtures in `tests/fixtures/fhir/`. No real
-> patient data is used, stored or committed anywhere in this repo. The feed is still
-> classified `restricted` and handled as if it were PHI, so the controls are realistic.
+> **Data in R1–R6 is synthetic.** Patients come from [Synthea](https://github.com/synthetichealth/synthea)
+> (v4.0.0, fixed seed) or from small hand-written fixtures in `tests/fixtures/fhir/`. The
+> feed is still classified `restricted` and handled as if it were PHI, so the controls are
+> realistic. The MIMIC-IV demos (PLAN.md §8.2) are **real, de-identified** data, used
+> locally only and never committed: see [mimic.md](mimic.md).
 
 ## R1. FHIR intake
 

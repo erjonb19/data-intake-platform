@@ -37,3 +37,8 @@ kubeconfig*
 .kube/
 artifacts/
 infra/terraform/image.auto.tfvars.json
+
+# MIMIC-IV demo data (real, de-identified; ODbL): never commit. CI also checks this.
+**/mimic-iv-*/
+*.ndjson.gz
+*.csv.gz
