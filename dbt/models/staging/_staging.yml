@@ -1,0 +1,36 @@
+version: 2
+
+# The staging contract: every source (Synthea and MIMIC FHIR through silver/fhir_*, and the
+# MIMIC relational tables from M2) produces these models with these columns, and the OMOP
+# models read only from them. Codes are source codes with an OMOP vocabulary_id
+# (SNOMED, LOINC, RxNorm, ICD9CM, ICD10CM, ICD10, NDC, or LOCAL for a source's own codes).
+
+models:
+  - name: stg_patient
+    columns:
+      - name: patient_id
+        data_tests: [unique, not_null]
+      - name: source_identifier
+        description: The source system's patient number (MIMIC subject_id), when it has one.
+  - name: stg_encounter
+    columns:
+      - name: encounter_id
+        data_tests: [unique, not_null]
+      - name: visit_concept_id
+        description: OMOP visit concept, from the source's encounter kind or class; 0 if unknown.
+      - name: is_visit
+        description: False for ICU stays (OMOP visit_detail), which fold into their parent.
+      - name: visit_encounter_id
+        description: The encounter whose OMOP visit this encounter's events belong to.
+  - name: stg_condition
+    columns:
+      - name: condition_id
+        data_tests: [unique, not_null]
+      - name: onset_at
+        description: Onset, else recorded date, else the start of the encounter.
+  - name: stg_observation
+    description: One row per observed value (components included).
+  - name: stg_medication_request
+    columns:
+      - name: medication_request_id
+        data_tests: [unique, not_null]

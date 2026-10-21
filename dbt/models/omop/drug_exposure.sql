@@ -18,13 +18,14 @@ select
     0 as route_concept_id,
     null::varchar(50) as lot_number,
     null::bigint as provider_id,
-    case when m.encounter_id is not null then {{ omop_id('m.encounter_id') }} end
+    case when ve.visit_encounter_id is not null then {{ omop_id('ve.visit_encounter_id') }} end
         as visit_occurrence_id,
     null::bigint as visit_detail_id,
-    m.rxnorm_code::varchar(50) as drug_source_value,
+    m.source_code::varchar(50) as drug_source_value,
     coalesce(s.source_concept_id, 0) as drug_source_concept_id,
     null::varchar(50) as route_source_value,
     null::varchar(50) as dose_unit_source_value
-from {{ ref('fhir_medication_request') }} as m
+from {{ ref('stg_medication_request') }} as m
+left join {{ ref('stg_encounter') }} as ve on ve.encounter_id = m.encounter_id
 left join {{ ref('source_to_standard') }} as s
-    on s.vocabulary_id = 'RxNorm' and s.concept_code = m.rxnorm_code
+    on s.vocabulary_id = m.source_vocabulary_id and s.concept_code = m.source_code

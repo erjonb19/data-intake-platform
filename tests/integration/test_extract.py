@@ -66,6 +66,8 @@ def test_two_independent_rebuilds_are_byte_identical(two_builds):
     assert extract.diff(a.path, b.path) == []
     assert a.manifest_sha256 == b.manifest_sha256
     print(f"extract manifest sha256: {a.manifest_sha256}")
+    pkg = json.loads((a.path / extract.DESCRIPTOR).read_text("utf-8"))
+    print(f"extract inputs sha256: {pkg['provenance']['inputs_sha256']}")
 
 
 def test_manifest_matches_files(two_builds):

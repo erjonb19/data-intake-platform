@@ -18,19 +18,20 @@ select
     null::numeric as range_low,
     null::numeric as range_high,
     null::bigint as provider_id,
-    case when o.encounter_id is not null then {{ omop_id('o.encounter_id') }} end
+    case when ve.visit_encounter_id is not null then {{ omop_id('ve.visit_encounter_id') }} end
         as visit_occurrence_id,
     null::bigint as visit_detail_id,
-    o.loinc_code::varchar(50) as measurement_source_value,
+    o.source_code::varchar(50) as measurement_source_value,
     coalesce(s.source_concept_id, 0) as measurement_source_concept_id,
     o.unit_code::varchar(50) as unit_source_value,
     0 as unit_source_concept_id,
     coalesce(o.value_snomed_code, o.value_number::text)::varchar(50) as value_source_value,
     null::bigint as measurement_event_id,
     0 as meas_event_field_concept_id
-from {{ ref('fhir_observation') }} as o
+from {{ ref('stg_observation') }} as o
+left join {{ ref('stg_encounter') }} as ve on ve.encounter_id = o.encounter_id
 left join {{ ref('source_to_standard') }} as s
-    on s.vocabulary_id = 'LOINC' and s.concept_code = o.loinc_code
+    on s.vocabulary_id = o.source_vocabulary_id and s.concept_code = o.source_code
 left join {{ ref('source_to_standard') }} as u
     on u.vocabulary_id = 'UCUM' and u.concept_code = o.unit_code
 left join {{ ref('source_to_standard') }} as vs

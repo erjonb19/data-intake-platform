@@ -27,6 +27,10 @@ models:
     silver:
       +schema: silver
       +materialized: view
+    staging:
+      # The contract between sources (FHIR, MIMIC relational) and OMOP.
+      +schema: silver
+      +materialized: view
     omop:
       # Gold, restricted tier: pseudonymous OMOP keys, but real (synthetic) dates and
       # source identifiers. The shareable tier (R4) is derived from it.

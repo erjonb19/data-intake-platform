@@ -1,0 +1,62 @@
+# Data contract: MIMIC-IV Clinical Database Demo on FHIR v2.1.0, regrouped from FHIR Bulk
+# Data NDJSON into one Bundle per patient by dip.fhir_bulk.
+#
+# REAL, de-identified patient data (PhysioNet, ODbL v1.0). Local use only; never commit
+# anything this feed produces. See docs/research/mimic.md.
+#
+# How this differs from the Synthea contract, and why (docs/research/mimic.md, M1):
+#   - date_window instead of "not after arrival": MIMIC shifts every patient into 2100-2200
+#   - Conditions carry no onset (diagnoses belong to a hospital stay); the encounter is required
+#   - MIMIC-local code systems (ICD-9/ICD-10 diagnoses, NDC and local medication names,
+#     MIMIC lab item ids) instead of SNOMED, RxNorm and LOINC
+feed: mimic.fhir_demo
+version: 1
+owner: research-data@example.com
+description: >
+  MIMIC-IV demo (100 patients) as FHIR R4: patients, hospital/ED/ICU encounters,
+  diagnoses, lab results and medication orders.
+classification: restricted
+source:
+  channels: [minio]
+  filename_pattern: "*.json"
+format:
+  type: fhir_bundle
+  fhir_version: R4
+  bundle_types: [transaction]
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.05
+fhir:
+  patient_resource: Patient
+  load: [Patient, Encounter, Condition, Observation, MedicationRequest, Medication]
+  # MIMIC shifts every date, birth dates included: births 2030-2149, events 2110-2202.
+  date_window: {min: "2000-01-01", max: "2220-12-31"}
+  resources:
+    Patient:
+      required: [id, gender]
+      allowed:
+        gender: [male, female, other, unknown]
+      dates: [birthDate, deceasedDateTime]
+    Encounter:
+      required: [id, subject.reference, class.code, period.start]
+      dates: [period.start, period.end]
+    Condition:
+      required: [id, subject.reference, code.coding, encounter.reference]
+      code_systems:
+        - http://mimic.mit.edu/fhir/mimic/CodeSystem/mimic-diagnosis-icd9
+        - http://mimic.mit.edu/fhir/mimic/CodeSystem/mimic-diagnosis-icd10
+    Observation:
+      required: [id, subject.reference, status, code.coding, effectiveDateTime]
+      dates: [effectiveDateTime]
+    MedicationRequest:
+      required: [id, subject.reference, authoredOn]
+      required_one_of: [medicationCodeableConcept.coding, medicationReference.reference]
+      dates: [authoredOn]
+    Medication:
+      # Single drugs carry an NDC or local code; IV mixes (MimicMedicationMix) carry only
+      # ingredients.
+      required: [id]
+      required_one_of: [code.coding, ingredient]
+  references:
+    subject: Patient
+    encounter: Encounter
+    medicationReference: Medication

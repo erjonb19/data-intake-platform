@@ -1,5 +1,6 @@
 select
     resource_id as patient_id,
+    resource -> 'identifier' -> 0 ->> 'value' as source_identifier,
     resource ->> 'gender' as gender,
     (resource ->> 'birthDate')::date as birth_date,
     {{ fhir_ts("resource ->> 'deceasedDateTime'") }} as deceased_at,

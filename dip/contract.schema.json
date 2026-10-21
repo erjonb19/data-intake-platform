@@ -57,7 +57,13 @@
             }
           }
         },
-        "references": {"type": "object", "additionalProperties": {"type": "string"}}
+        "references": {"type": "object", "additionalProperties": {"type": "string"}},
+        "date_window": {
+          "type": "object",
+          "required": ["min", "max"],
+          "additionalProperties": false,
+          "properties": {"min": {"type": "string"}, "max": {"type": "string"}}
+        }
       }
     }
   },
