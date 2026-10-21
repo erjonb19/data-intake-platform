@@ -1,6 +1,6 @@
 # Research-data track
 
-PLAN.md Â§8.1 describes the plan. This page documents what is built, item by item.
+PLAN.md §8.1 describes the plan. This page documents what is built, item by item.
 
 > **All data here is synthetic.** Patients come from [Synthea](https://github.com/synthetichealth/synthea)
 > (v4.0.0, fixed seed) or from small hand-written fixtures in `tests/fixtures/fhir/`. No real
@@ -11,15 +11,15 @@ PLAN.md Â§8.1 describes the plan. This page documents what is built, item by i
 
 ```
 Synthea (pinned jar, seed 42, ref date 2026-01-01)
-   â”‚  one FHIR R4 transaction Bundle per patient
-   â–¼
+   │  one FHIR R4 transaction Bundle per patient
+   ▼
 landing/healthcare.fhir_patient_bundle/<file>.json          (MinIO)
-   â”‚  fhir_intake DAG â”€ dip.intake.process_file
-   â”œâ”€â–¶ raw/<feed>/<date>/<sha256>.json                       immutable copy, written first
-   â”œâ”€â–¶ contract check: packs/healthcare/contracts/fhir_patient_bundle.yaml
-   â”‚     file level   â”€ fail â”€â–¶ quarantine/<feed>/<date>/<sha256>.json + .reason.json
-   â”‚     record level â”€ fail â”€â–¶ quarantine/<feed>/<date>/<sha256>.rejected.ndjson
-   â–¼
+   │  fhir_intake DAG ─ dip.intake.process_file
+   ├─▶ raw/<feed>/<date>/<sha256>.json                       immutable copy, written first
+   ├─▶ contract check: packs/healthcare/contracts/fhir_patient_bundle.yaml
+   │     file level   ─ fail ─▶ quarantine/<feed>/<date>/<sha256>.json + .reason.json
+   │     record level ─ fail ─▶ quarantine/<feed>/<date>/<sha256>.rejected.ndjson
+   ▼
 bronze.fhir_resource (jsonb, one row per accepted resource)
 ops.intake_file   (one row per file: status, counts, contract version)
 ops.quarantine    (one row per quarantined file or record, with a reason code)
@@ -123,7 +123,7 @@ higher than in production; CI prints it per table, and R3 turns it into threshol
 Concepts the shard lacks (gender, race, the EHR type concept, concept 0) are in
 `dbt/seeds/omop_fixed_concepts.csv`, labeled with where they come from.
 
-**Not built yet:** OMOP `observation` (surveys, social history), `procedure_occurrence`,
+**Not built yet:** `procedure_occurrence`,
 `death`, `provider`, `care_site`, and drug/condition eras.
 
 ### Tests
@@ -167,6 +167,18 @@ Eunomia shard: unmapped conditions ≤ 50% (measured 40%), drugs ≤ 30% (20%), 
 **Not covered** (compared with DQD's ~3,500 parameterized checks): `cdmField`/`cdmDatatype`
 (DDL conformance; our models define the columns), `plausibleGender`, `plausibleBeforeDeath`
 (no DEATH table yet), and checks on tables not built yet.
+
+**What the checks found on the first run** (25 Synthea patients), and what changed:
+
+1. `fkDomain` on `condition_occurrence` failed for 196 rows. Synthea records SNOMED
+   *situations* and *social findings* (for example "Medication review due", employment
+   status) as FHIR Conditions, and their standard concepts are in OMOP's Observation
+   domain. Fix: route by domain, as OMOP requires. These now go to a new OMOP
+   `observation` table, along with Observation-domain FHIR Observations (smoking status,
+   surveys) that R2 had been dropping.
+2. `withinVisitDates` on conditions failed for 7 of about 800 rows: Synthea records some
+   onsets weeks before the encounter that recorded them. That is how the source behaves,
+   not a pipeline bug, so it is a warning (DQD also treats this check with a threshold).
 
 **Proof the checks bite:** `test_dq_catches_implausible_hba1c` inserts an HbA1c of 55%,
 runs the check, and asserts that it fails and that the failure is recorded in
