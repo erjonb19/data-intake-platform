@@ -3,10 +3,11 @@ version: 2
 seeds:
   - name: omop_fixed_concepts
     description: >
-      OMOP standard concepts the pipeline uses that are not in the Eunomia vocabulary shard
-      (gender, race, the EHR type concept, and concept 0). Concept IDs are the published
-      OMOP standard IDs; verify against Athena before relying on this outside a demo.
-      Unioned with vocab.concept by the `concept` model.
+      OMOP standard concepts the pipeline uses that a loaded vocabulary may lack (gender,
+      race, ethnicity, the EHR type concept, and concept 0): the Eunomia shard lacks some,
+      and an Athena download without the Race and Ethnicity vocabularies lacks others.
+      Concept IDs are the published OMOP standard IDs. Unioned with vocab.concept by the
+      `concept` model; a concept the vocabulary has always wins.
     config:
       column_types:
         concept_id: integer

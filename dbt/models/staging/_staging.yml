@@ -3,7 +3,7 @@ version: 2
 # The staging contract: every source (Synthea and MIMIC FHIR through silver/fhir_*, and the
 # MIMIC relational tables from M2) produces these models with these columns, and the OMOP
 # models read only from them. Codes are source codes with an OMOP vocabulary_id
-# (SNOMED, LOINC, RxNorm, ICD9CM, ICD10CM, ICD10, NDC, or LOCAL for a source's own codes).
+# (SNOMED, LOINC, RxNorm, ICD9CM, ICD10CM, ICD10, NDC, MIMIC_LAB, or LOCAL for a source's own codes).
 
 models:
   - name: stg_patient

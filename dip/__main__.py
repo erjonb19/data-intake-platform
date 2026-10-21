@@ -3,7 +3,9 @@
   db-init                      create the bronze and ops tables
   land <feed> <files...>       copy local files into the landing bucket
   intake                       process everything in the landing bucket
-  vocab-load                   download (pinned, checksummed) and load the OMOP vocabulary
+  vocab-load                   load the OMOP vocabulary: the pinned Eunomia shard, or
+                               local Athena folders (--athena / DIP_ATHENA_DIRS)
+  vocab-coverage               unmapped rows and codes per OMOP table (counts only)
   deid-key-install             store DIP_DEID_KEY for the de-identified tier
   dbt <args...>                run dbt against the warehouse, e.g. `dbt build`
   extract build --version V    write a versioned, checksummed extract of omop_shareable
@@ -98,6 +100,9 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("intake")
     vocab = sub.add_parser("vocab-load")
     vocab.add_argument("--cache-dir", type=Path, default=Path("data/cache"))
+    # Full local Athena download(s) instead of the Eunomia shard; default DIP_ATHENA_DIRS.
+    vocab.add_argument("--athena", type=Path, nargs="+", default=None)
+    sub.add_parser("vocab-coverage")
     sub.add_parser("deid-key-install")
     ext = sub.add_parser("extract")
     ext.add_argument("action", choices=["build", "verify"])
@@ -133,8 +138,26 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "vocab-load":
         from dip import vocab
 
-        concepts, maps_to = vocab.load(_warehouse().conn, vocab.fetch(args.cache_dir))
+        conn = _warehouse().conn
+        dirs = args.athena or vocab.athena_dirs()
+        if dirs:
+            concepts, maps_to = vocab.load_athena(conn, dirs)
+        else:
+            concepts, maps_to = vocab.load(conn, vocab.fetch(args.cache_dir))
         print(f"loaded {concepts} concepts and {maps_to} 'Maps to' relationships into vocab")
+        print(json.dumps(vocab.provenance(conn)))
+        for vocabulary_id, g in vocab.mapping_gaps(conn).items():
+            print(
+                f"warning: {g['without_maps_to']:,} of {g['non_standard']:,} non-standard"
+                f" {vocabulary_id} concepts have no 'Maps to'. Athena exports a mapping"
+                " only when both vocabularies are in the same download.",
+                file=sys.stderr,
+            )
+    elif args.command == "vocab-coverage":
+        from dip import coverage, vocab
+
+        conn = _warehouse().conn
+        print(json.dumps({"vocabulary": vocab.provenance(conn), **coverage.unmapped(conn)}))
     elif args.command == "deid-key-install":
         from dip.deid import install_key
 

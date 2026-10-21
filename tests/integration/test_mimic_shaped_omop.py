@@ -26,6 +26,7 @@ from tests.integration.conftest import DSN, _fresh_warehouse, rows
 
 CACHE = Path(os.environ.get("DIP_CACHE_DIR", "data/cache"))
 CONTRACTS = load_contracts((REPO_ROOT / "packs/mimic/contracts",))
+LACTATE = 40762125  # LOINC 59032-3, in the Eunomia shard
 
 
 @pytest.fixture(scope="module")
@@ -40,6 +41,13 @@ def omop(tmp_path_factory):
     [outcome] = process_landing(store, wh, CONTRACTS, datetime(2026, 10, 21, tzinfo=UTC))
     assert outcome.status == "loaded", outcome
     vocab.load(wh.conn, vocab.fetch(CACHE))
+    # A site map for the invented lab item, to a LOINC concept the Eunomia shard has.
+    vocab.load_source_to_concept_map(
+        wh.conn,
+        vocab.MIMIC_LAB_VOCABULARY,
+        [("99001", 0, "MIMIC_LAB", "Invented lab A", LACTATE, "LOINC", "1970-01-01",
+          "2099-12-31", None)],
+    )  # fmt: skip
     install_key(wh.conn, "ci-test-key-0123456789abcdef0123456789abcdef")
     # Models only: the year-of-birth check rightly fails on MIMIC's shifted birth dates.
     assert run_dbt(DSN, "seed", check=False).returncode == 0
@@ -79,3 +87,11 @@ def test_drug_source_values_for_ndc_and_iv_mix(omop):
 
 def test_shifted_birth_year_kept(omop):
     assert rows(omop, "select year_of_birth from omop.person") == [(2091,)]
+
+
+def test_lab_item_mapped_through_source_to_concept_map(omop):
+    assert rows(
+        omop,
+        "select measurement_source_value, measurement_concept_id, measurement_source_concept_id"
+        " from omop.measurement",
+    ) == [("99001", LACTATE, 0)]

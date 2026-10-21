@@ -1,7 +1,9 @@
 -- OMOP OBSERVATION: clinical facts whose standard concept is in the Observation domain.
 -- Two sources: FHIR Conditions coded as SNOMED situations or social findings (for example
 -- "Medication review due", employment status), and FHIR Observations whose LOINC code maps
--- to the Observation domain (for example tobacco smoking status, survey answers).
+-- to the Observation domain (for example tobacco smoking status, survey answers), plus
+-- every Observation that `measurement` does not take (unmapped surveys and imaging, or a
+-- domain this build has no table for), with concept_id 0, so no source row is dropped.
 with from_conditions as (
     select
         'condition:' || c.condition_id as source_key,
@@ -26,8 +28,8 @@ from_observations as (
         'observation:' || o.observation_id || '#' || o.component_index as source_key,
         o.patient_id,
         o.encounter_id,
-        s.standard_concept_id,
-        s.source_concept_id,
+        case when s.standard_domain_id = 'Observation' then s.standard_concept_id else 0 end,
+        coalesce(s.source_concept_id, 0),
         o.effective_at,
         o.value_number,
         o.value_string,
@@ -35,9 +37,11 @@ from_observations as (
         o.unit_code,
         o.source_code
     from {{ ref('stg_observation') }} as o
-    join {{ ref('source_to_standard') }} as s
+    left join {{ ref('source_to_standard') }} as s
         on s.vocabulary_id = o.source_vocabulary_id and s.concept_code = o.source_code
-    where s.standard_domain_id = 'Observation'
+    -- The complement of measurement's filter.
+    where s.standard_domain_id is distinct from 'Measurement'
+        and not (s.standard_concept_id is null and o.category in ('laboratory', 'vital-signs'))
 ),
 
 facts as (

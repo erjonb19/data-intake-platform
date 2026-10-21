@@ -42,3 +42,9 @@ infra/terraform/image.auto.tfvars.json
 **/mimic-iv-*/
 *.ndjson.gz
 *.csv.gz
+
+# OHDSI Athena vocabulary downloads (licensed to the downloader; never committed)
+athena_vocab*/
+CONCEPT*.csv
+VOCABULARY.csv
+DRUG_STRENGTH.csv

@@ -18,6 +18,8 @@
         when 'http://mimic.mit.edu/fhir/mimic/CodeSystem/mimic-diagnosis-icd9' then 'ICD9CM'
         when 'http://mimic.mit.edu/fhir/mimic/CodeSystem/mimic-diagnosis-icd10' then 'ICD10CM'
         when 'http://mimic.mit.edu/fhir/mimic/CodeSystem/mimic-medication-ndc' then 'NDC'
+        -- MIMIC lab itemids: mapped to LOINC by vocab.source_to_concept_map when loaded.
+        when 'http://mimic.mit.edu/fhir/mimic/CodeSystem/mimic-d-labitems' then 'MIMIC_LAB'
         else 'LOCAL'
     end
 {%- endmacro %}

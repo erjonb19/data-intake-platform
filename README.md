@@ -22,6 +22,7 @@ See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 | M1 | MIMIC-IV FHIR demo (Bulk Data) through the FHIR intake into OMOP, with a report of what breaks against Synthea |
 | M2 | MIMIC-IV relational demo through a relational-tables-to-OMOP path (per-table contracts) |
 | M3 | Reconciliation of the two MIMIC OMOP builds by source keys: 0 unexplained differences |
+| V1–V2 | Full local Athena vocabulary (never committed) and MIT-LCP's MIMIC lab → LOINC map; unmapped rates before and after in [docs/research/vocabulary.md](docs/research/vocabulary.md) |
 
 **Data.** Everything committed, and everything CI runs on, is synthetic (Synthea and
 hand-written fixtures). Separately, two public **real, de-identified** datasets, the
@@ -94,6 +95,8 @@ never downloaded in CI.
 |---|---|---|---|
 | [Synthea](https://github.com/synthetichealth/synthea) v4.0.0 | synthetic | Apache-2.0 (tool); extracts CC0-1.0 | CI and local |
 | [OHDSI Eunomia](https://github.com/OHDSI/EunomiaDatasets) Synthea27Nj vocabulary shard | OMOP vocabulary subset | Apache-2.0 | CI and local |
+| [OHDSI Athena](https://athena.ohdsi.org) full vocabularies (SNOMED, LOINC, RxNorm, ICD10CM, ...) | OMOP vocabulary | per vocabulary, licensed to the downloader | local only, never committed |
+| [MIT-LCP mimic-code](https://github.com/MIT-LCP/mimic-code) v2.4.0 `d_labitems_to_loinc.csv` | MIMIC lab item → LOINC map | MIT | local (fetched pinned, with MIMIC) |
 | [MIMIC-IV Clinical Database Demo on FHIR](https://physionet.org/content/mimic-iv-fhir-demo/2.1.0/) v2.1.0 | **real, de-identified** | ODbL v1.0 | local only |
 | [MIMIC-IV Clinical Database Demo](https://physionet.org/content/mimic-iv-demo/2.2/) v2.2 | **real, de-identified** | ODbL v1.0 | local only |
 
@@ -111,6 +114,9 @@ When using the MIMIC-IV demos, cite:
 - Johnson, A., Bulgarelli, L., Pollard, T., Celi, L. A., Horng, S., & Mark, R. (2023).
   MIMIC-IV-ED Demo (version 2.2). PhysioNet. RRID:SCR_007345.
   https://doi.org/10.13026/jzz5-vs76
+- The lab item → LOINC map: MIT Laboratory for Computational Physiology, mimic-code
+  v2.4.0, `mimic-iv/concepts/concept_map/d_labitems_to_loinc.csv` (MIT license).
+  https://github.com/MIT-LCP/mimic-code
 - Pollard, T., Moody, B. E., Lehman, L., Gow, B., Fernandes, C., Xie, C., Johnson, A.,
   Mark, R. G., & Heldt, T. (2026). PhysioNet as a global platform for biomedical research.
   Nature Health. https://doi.org/10.1038/s44360-026-00096-z

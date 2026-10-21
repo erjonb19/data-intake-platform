@@ -91,7 +91,8 @@ bronze.fhir_resource ──▶ silver (views, dbt/models/silver)          ──
                           fhir_observation       incl. components        measurement
                           fhir_medication_request incl. Medication refs  drug_exposure
                           source_to_standard     code → concept          concept
-vocab.concept, vocab.concept_relationship ◀── python -m dip vocab-load (Eunomia shard, pinned + sha256)
+vocab.concept, vocab.concept_relationship ◀── python -m dip vocab-load (Eunomia shard, pinned + sha256;
+                                               or local Athena folders, never committed)
 ```
 
 ```bash
@@ -118,8 +119,10 @@ missing, then `dbt build`) in KubernetesExecutor pods.
 | `*_type_concept_id` | | 32817 (EHR) everywhere |
 
 Unmapped codes keep `concept_id = 0` and their `*_source_value`, as OMOP requires. The
-vocabulary is a **shard**, not full Athena, so the unmapped rate on real Synthea output is
-higher than in production; CI prints it per table, and R3 turns it into thresholds.
+vocabulary in CI is a **shard**, not full Athena, so the unmapped rate on real Synthea
+output is higher than in production; CI prints it per table, and R3 turns it into
+thresholds. Locally a full Athena download can be loaded instead: Synthea's unmapped rows
+drop from 5.7% to 0.2% ([vocabulary.md](vocabulary.md)).
 
 Concepts the shard lacks (gender, race, the EHR type concept, concept 0) are in
 `dbt/seeds/omop_fixed_concepts.csv`, labeled with where they come from.
@@ -166,7 +169,7 @@ Eunomia shard: unmapped conditions ≤ 50%, drugs ≤ 30% (measured 20%), measur
 (4%), visits ≤ 5% (1%). Conditions measure **about 50%** once Observation-domain records
 are routed out: 50.1% on the first run, and 49.7% after R5 pinned Synthea's end date. So
 that check sits right at its threshold. It is the honest signal that the shard is too
-small for Synthea v4's codes; a full Athena vocabulary would clear it.
+small for Synthea v4's codes. With a full Athena vocabulary it measures 2.4%.
 
 Latest CI run (R5, 25 Synthea patients + fixture): 154 dbt nodes, PASS=153, WARN=1
 (4 conditions outside their visit window), ERROR=0.

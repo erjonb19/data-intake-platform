@@ -154,15 +154,17 @@ All 100 patient bundles load with the MIMIC contract, with **zero quarantined re
 
 | Check | Result | Explanation |
 |---|---|---|
-| `standardConceptRecordCompleteness` (conditions, measurements, drugs) | warn, 100% unmapped | the Eunomia shard has no ICD-9-CM, ICD-10-CM or NDC concepts, and MIMIC labs carry no LOINC. Codes are kept as source values. A full Athena vocabulary would map conditions and drugs; labs would still need a MIMIC lab-item → LOINC map |
+| `standardConceptRecordCompleteness` (conditions, measurements, drugs) | warn, 100% unmapped (with the Eunomia shard) | the Eunomia shard has no ICD-9-CM, ICD-10-CM or NDC concepts, and MIMIC labs carry no LOINC. Codes are kept as source values. **Update (V1–V2):** with a full local Athena vocabulary and MIT-LCP's lab map, labs are 95.2% mapped and this check passes for measurements; conditions and drugs still wait for a single Athena download that includes ICD9CM, NDC, SNOMED and RxNorm together. See [vocabulary.md](vocabulary.md) |
 | `plausibleValueLow/High` on year of birth | fail, all 100 | years of birth 2030–2149 are "in the future". The check is right to flag them; the cause is MIMIC's de-identification shift, not bad data. Age and interval analysis still works, because all of a patient's dates shift together |
 
 Everything else passes on the real data: primary and foreign keys, domains,
 `plausibleAfterBirth`, `plausibleStartBeforeEnd`, `withinVisitDates`, the
 in-observation-period rule and the de-identification invariants. The HbA1c and vital-sign
-value-range checks also "pass", but **vacuously**: they are keyed to LOINC concepts, and no
-MIMIC lab maps to one, so they check nothing here. Until labs are mapped, the MIMIC data
-has no value-plausibility coverage.
+value-range checks also "pass", but with the Eunomia shard **vacuously**: they are keyed to
+LOINC concepts, and no MIMIC lab maps to one. With the lab map loaded (V2), they test real
+rows: 117 HbA1c and 262 blood-glucose results, all in range ([vocabulary.md](vocabulary.md)).
+Vital signs come from ICU chartevents, which are not loaded, so those checks still have no
+MIMIC rows.
 
 **Tests that run in CI** use a hand-written, synthetic export *in MIMIC's shape*
 (`tests/fixtures/mimic_shaped/`: invented ids, codes, values and dates): regrouping,
