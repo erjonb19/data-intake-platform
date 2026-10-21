@@ -298,6 +298,18 @@ pinned too (`-e`, default 2026-01-01), which also makes the generator itself rep
 from day to day. Arrival time still matters by design for genuinely future-dated records,
 so a replay of raw files should use the recorded `ops.intake_file.received_at`.
 
+**Across machines, two more causes.** Builds were byte-identical on one machine (two Synthea
+runs compared file by file), but the Synthea input digest still differed between the Linux
+CI runner and a Windows laptop. Two causes, found one at a time by comparing the
+`extract inputs sha256` that the test prints:
+1. the Java image was a floating tag (`eclipse-temurin:21-jre`), so the machines ran
+   different Java builds. Pinning it by digest changed CI's output;
+2. Synthea generates in parallel with one thread per core (CI has 4, the laptop 8), and the
+   output depends on the thread count. With `--generate.thread_pool_size 1`, the laptop
+   reproduces CI's digest exactly (`8935f4d0…`).
+
+With both pinned, the same commit generates the same patients on CI and on the laptop.
+
 **Test** (`tests/integration/test_extract.py`): the **whole pipeline runs twice from scratch**
 (fresh warehouse, same raw files, arrival dates two months apart): intake → vocabulary →
 dbt build → extract. The two extracts must have zero differing files. It also checks that the

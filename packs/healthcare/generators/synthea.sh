@@ -61,6 +61,7 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
   --exporter.csv.export false \
   --exporter.years_of_history 15 \
   --generate.only_alive_patients false \
+  --generate.thread_pool_size 1 \
   "$STATE" >"$work/synthea.log" 2>&1 || { tail -40 "$work/synthea.log" >&2; die "Synthea failed"; }
 
 find "$work/fhir" -name '*.json' -exec cp {} "$OUT_DIR/" \;
