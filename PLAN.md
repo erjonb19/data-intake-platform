@@ -14,7 +14,7 @@ Two sample clients ("domain packs") prove that the core is not tied to one indus
 | **Healthcare** (payer) | Member eligibility, claims, 837P claims, 835 remittances | CSV, X12 EDI | Synthea synthetic patients and claims. We generate 837/835 from the Synthea claims ourselves, because Synthea does not emit X12 |
 | **Finance** (AP department) | Vendor invoices | Excel, native PDF, scanned PDF | Our own generator (Faker + reportlab + openpyxl). "Scanned" PDFs are rasterized with noise, skew and blur |
 
-All data is synthetic. No PHI or real financial data is used anywhere.
+Test and CI data is synthetic. The one exception is the two public, de-identified MIMIC-IV demo datasets (§8.2): real patients, open access under ODbL, used locally only and never committed. No other PHI or real financial data is used anywhere.
 
 ## 2. Architecture
 
@@ -293,6 +293,32 @@ Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run
 - The vocabulary is the public Eunomia shard (about 2,300 concepts). It is **not** a full Athena vocabulary, so some codes from Synthea v4 will be unmapped. R3 reports the unmapped rate instead of hiding it. A full Athena download needs a free OHDSI account and is the user's call.
 - De-identification here shows the method on synthetic data. It is **not** a certified HIPAA Safe Harbor or Expert Determination process, and the docs say so.
 
+### 8.2 Real de-identified sources: MIMIC-IV demos (added 2026-10-21)
+
+**Why.** Synthea is clean by construction. Real EHR extracts are not: they come with local code systems, shifted dates, bulk formats, and gaps between sources. Two public, de-identified, open-access PhysioNet datasets let the pipeline meet that without any data use agreement:
+
+| Source | Version | Format | License | Size |
+|---|---|---|---|---|
+| MIMIC-IV Clinical Database Demo on FHIR | 2.1.0 | FHIR R4 **Bulk Data** NDJSON, one gzipped file per resource type | ODbL v1.0 | 49.5 MB |
+| MIMIC-IV Clinical Database Demo | 2.2 | relational CSV (`hosp/`, `icu/`), 100 patients | ODbL v1.0 | 15.5 MB |
+
+The FHIR demo is derived from the relational demo (plus the MIMIC-IV-ED demo), so the same patients should appear in both. That makes a reconciliation possible.
+
+| # | Item | Effort (part-time days) | Depends on | JD line it covers |
+|---|---|---|---|---|
+| **M0** | `packs/mimic/fetch.sh` downloads both demos from PhysioNet into `data/mimic/` (gitignored), checked against **pinned SHA256SUMS committed to the repo** (checksums only, never data). Citations go in the README and docs | 0.5 | — | External data, reproducibility |
+| **M1** | Run the FHIR demo through the **existing** intake first and record exactly what breaks against Synthea (expected: bulk NDJSON instead of bundles, gzip, dates shifted into the 2100s that hit the future-date rule, MIMIC-local code systems). Then add a `fhir_ndjson` contract format (FHIR Bulk Data: references resolve across files, a date window instead of "not in the future"), a `mimic.fhir_demo` contract, and silver/OMOP mappings for MIMIC's code systems. Load it into a separate warehouse schema set so it never mixes with Synthea | 2.5 | M0 | FHIR, EHR integration, quality checks |
+| **M2** | A **relational-tables-to-OMOP** path: `mimic.*` source tables loaded from CSV by a small loader with a per-table contract (columns, types, keys), then dbt models from `patients`, `admissions`, `transfers`, `diagnoses_icd`, `labevents` and `prescriptions` into the same OMOP tables | 2.5 | M0 | Integrating EHR and registry-style relational sources; OMOP |
+| **M3** | **Reconciliation**: build OMOP once from each MIMIC source and diff persons, visits, conditions and measurements by source key (`subject_id`, `hadm_id`, ICD code, lab item and time). Every difference is explained in a report (generated, kept local; only aggregate counts in the docs) | 1.5 | M1, M2 | Documented definitions, quality checks, lineage |
+
+**Rules for MIMIC data:**
+- **Never committed.** The raw files, the loaded tables and every derived row stay local in `data/mimic/` and the local warehouse. CI never downloads MIMIC. **Synthea stays the CI test data.** Tests for the MIMIC code paths use small hand-written fixtures *in MIMIC's shape*, labeled as synthetic. No real MIMIC row is copied into a fixture.
+- **Licensing.** ODbL requires attribution and share-alike for derived databases. Any public MIMIC-derived extract would be ODbL with attribution, **never CC0**. Synthea extracts stay CC0. Because publishing a derived database has share-alike obligations I can't settle on your behalf, **MIMIC outputs stay local, and only aggregate counts are published** (in the docs and PRs) until you decide otherwise. `dip extract build` refuses `--license CC0-1.0` for a MIMIC source.
+- **Honest labeling.** MIMIC is **real, de-identified** patient data, not synthetic. The docs say so wherever it appears, and the "all data is synthetic" statements are corrected to cover it.
+- **Citations** (required by PhysioNet): the dataset citation for each demo, the MIMIC-IV on FHIR paper (Bennett et al., JAMIA 2023), and the standard PhysioNet citation. They go in the README and `docs/research/`.
+
+**Dates.** M0–M3 total about 7 part-time days. They run in parallel with Stage 1 (due 2026-11-08) and fit before Stage 2. Stage 1 keeps its date: its eligibility-CSV slice benefits from M2's relational loader. If they run long, M3 slides to the Stage 2 window (2026-11-20). No other stage dates move.
+
 **Changed from the first draft:**
 - The MCP server is split into three parts. The Read tier moves into Stage 3, the Propose tier into Stage 4, and the Act tier into Stage 6.
 - The contract-author agent moves from 2027-01-25 to **2026-12-31**. It needs only Read and Propose, so it no longer waits for the Act tier.
@@ -338,3 +364,4 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-21: Added the research-data track (§8.1). Stage 2 moves to 2026-11-20 and 837/835 moves to Stage 4. New Stage 5R (R7) on 2027-01-10. Stages 6–8 slide one week; the end date is now 2027-03-07. The Nov 30 and Dec 31 deadlines hold.
 - 2026-10-21: OMOP vocabulary comes from the public OHDSI Eunomia `Synthea27Nj` shard (Apache-2.0), downloaded and checksummed at build time rather than committed. DQ uses dbt tests named after DQD checks instead of running the R-based DQD.
 - 2026-10-21: The core Python package is `dip/`, not `platform/` (that name shadows the stdlib module).
+- 2026-10-21: Added §8.2: the MIMIC-IV Clinical Database Demo (v2.2) and its FHIR version (v2.1.0), both ODbL, as local-only real de-identified sources. Raw files are never committed and CI stays on Synthea. MIMIC-derived outputs stay local, and only aggregates are published; any future public MIMIC extract would be ODbL with attribution, never CC0.
