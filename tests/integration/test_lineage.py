@@ -73,21 +73,25 @@ def test_lineage_reaches_extract_from_landing_file(events):
             for i in e["inputs"]:
                 for o in e["outputs"]:
                     edges[_key(i)].add(_key(o))
+
+    def reachable(start):
+        seen, frontier = {start}, [start]
+        while frontier:
+            for nxt in edges[frontier.pop()] - seen:
+                seen.add(nxt)
+                frontier.append(nxt)
+        return seen
+
     start = f"s3://landing/{FEED}/good.json"
     target = "file/extracts/1.0.0/data/measurement.csv"
-    seen, frontier, path_found = {start}, [start], False
-    while frontier:
-        node = frontier.pop()
-        if node == target:
-            path_found = True
-            break
-        for nxt in edges[node] - seen:
-            seen.add(nxt)
-            frontier.append(nxt)
-    assert path_found, f"no lineage path from {start} to {target}"
+    assert target in reachable(start), f"no lineage path from {start} to {target}"
+    # The path runs through each layer: every hop is downstream of the file and upstream
+    # of the extract.
     ns, db = lineage.pg_namespace(DSN)
     for table in ("bronze.fhir_resource", "omop.measurement", "omop_shareable.measurement"):
-        assert f"{ns}/{db}.{table}" in seen
+        hop = f"{ns}/{db}.{table}"
+        assert hop in reachable(start), f"{hop} not downstream of {start}"
+        assert target in reachable(hop), f"{target} not downstream of {hop}"
 
 
 def test_bad_file_lineage_points_to_quarantine(events):
