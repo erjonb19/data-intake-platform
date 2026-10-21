@@ -134,3 +134,47 @@ fixture's type 2 diabetes is concept 201826, its three HbA1c results are concept
 in % (8554), its visits are outpatient (9202), its metformin order is concept 40163924,
 its observation period runs 2018-03-02 to 2025-08-18, and `person_id` is unchanged by a
 rebuild.
+
+## R3. OMOP data quality
+
+The checks are dbt generic tests (`dbt/tests/generic/dqd.sql`), each named after the
+[OHDSI Data Quality Dashboard](https://github.com/OHDSI/DataQualityDashboard) check it
+mirrors. **We do not run DQD itself**: it is an R package and would need R installed on the
+laptop and in CI. The equivalents run inside every `dbt build`, and an `on-run-end` hook
+records each result in `ops.dq_results` (run id, test, table, column, category, DQD check
+name, status, failing rows).
+
+| Category | DQD check | What it asserts here | Severity |
+|---|---|---|---|
+| Conformance | `isPrimaryKey`, `isRequired` | dbt `unique`/`not_null` on keys and required dates | error |
+| Conformance | `isForeignKey` | person, visit FKs (`relationships`); type and period concepts exist in CONCEPT | error |
+| Conformance | `fkDomain` | gender/race/ethnicity/visit/condition/measurement/drug/unit/value concepts are in the right domain | error |
+| Conformance | `isStandardValidConcept` | non-zero clinical concepts are standard and not invalidated | error |
+| Completeness | `standardConceptRecordCompleteness` | share of `concept_id = 0` per table, under a threshold | warn |
+| Completeness | `sourceValueCompleteness` | unmapped rows still carry their source code | error |
+| Completeness | `measurePersonCompleteness` | share of persons with no rows in a table, under a threshold | warn |
+| Plausibility | `plausibleAfterBirth` | event dates are not before birth | error |
+| Plausibility | `plausibleStartBeforeEnd` | start ≤ end for visits, conditions, drugs, observation periods | error |
+| Plausibility | `withinVisitDates` | events fall within their visit (±7 days, as DQD) | error |
+| Plausibility | `plausibleValueLow/High` | HbA1c 3–20 %, BMI 8–100, height 20–250 cm, weight 0.5–400 kg, systolic 40–300, diastolic 20–200 mmHg, glucose 10–1000 mg/dL, heart rate 20–250 /min, year of birth 1850–now | error |
+| Plausibility | `plausibleUnitConceptIds` | HbA1c is recorded in % (8554) | error |
+| Plausibility | *(OMOP convention, not a DQD check)* `inObservationPeriod` | every event is inside the person's observation period | error |
+
+**Thresholds** for the warnings are set against the measured rates on Synthea v4 with the
+Eunomia shard: unmapped conditions ≤ 50% (measured 40%), drugs ≤ 30% (20%), measurements
+≤ 10% (4%), visits ≤ 5% (2%). With a full Athena vocabulary they should be tightened.
+
+**Not covered** (compared with DQD's ~3,500 parameterized checks): `cdmField`/`cdmDatatype`
+(DDL conformance; our models define the columns), `plausibleGender`, `plausibleBeforeDeath`
+(no DEATH table yet), and checks on tables not built yet.
+
+**Proof the checks bite:** `test_dq_catches_implausible_hba1c` inserts an HbA1c of 55%,
+runs the check, and asserts that it fails and that the failure is recorded in
+`ops.dq_results`.
+
+```sql
+-- Latest DQ run, by category
+select dq_category, status, count(*) from ops.dq_results
+where invocation_id = (select invocation_id from ops.dq_results order by recorded_at desc limit 1)
+group by 1, 2 order by 1, 2;
+```
