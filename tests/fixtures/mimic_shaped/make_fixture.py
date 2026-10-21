@@ -20,6 +20,9 @@ HOSP, ED, ICU = (
     "00000000-0000-4000-8000-00000000e002",
     "00000000-0000-4000-8000-00000000e003",
 )
+# Encounter identifiers play the role of MIMIC hadm_id / ED stay_id / ICU stay_id.
+ENC_IDS = {"hosp": "29000001", "ed": "39000001", "icu": "49000001"}
+SUBJECT_ID = "90000001"
 NDC_MED, MIX_MED = "00000000-0000-4000-8000-00000000d001", "00000000-0000-4000-8000-00000000d002"
 
 
@@ -32,7 +35,7 @@ def _encounter(rid, kind, cls, start, end, part_of=None):
         "resourceType": "Encounter",
         "id": rid,
         "meta": {"profile": [f"{MIMIC}/StructureDefinition/mimic-encounter"]},
-        "identifier": [{"system": f"{MIMIC}/identifier/encounter-{kind}", "value": f"9{kind}01"}],
+        "identifier": [{"system": f"{MIMIC}/identifier/encounter-{kind}", "value": ENC_IDS[kind]}],
         "status": "finished",
         "class": {"system": "http://terminology.hl7.org/CodeSystem/v3-ActCode", "code": cls},
         "subject": _ref("Patient", PATIENT),
@@ -49,7 +52,7 @@ def export() -> dict[str, list[dict]]:
             {
                 "resourceType": "Patient",
                 "id": PATIENT,
-                "identifier": [{"system": f"{MIMIC}/identifier/patient", "value": "90000001"}],
+                "identifier": [{"system": f"{MIMIC}/identifier/patient", "value": SUBJECT_ID}],
                 "gender": "female",
                 "birthDate": "2091-05-01",
             }

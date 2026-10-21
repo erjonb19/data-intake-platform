@@ -12,3 +12,14 @@ sources:
     tables:
       - name: concept
       - name: concept_relationship
+  - name: mimic
+    description: >
+      MIMIC-IV Clinical Database Demo v2.2 tables loaded by dip.relational (M2). REAL,
+      de-identified data (ODbL); local only.
+    tables:
+      - name: patients
+      - name: admissions
+      - name: diagnoses_icd
+      - name: labevents
+      - name: prescriptions
+      - name: d_labitems

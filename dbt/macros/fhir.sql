@@ -53,3 +53,9 @@
         limit 1
     )
 {%- endmacro %}
+
+{# A local timestamp without an offset (MIMIC relational tables, Boston time) -> UTC, so
+   both MIMIC paths agree with each other (the FHIR export carries the offsets). #}
+{% macro local_to_utc(expr, tz='America/New_York') -%}
+    ((({{ expr }})::timestamp at time zone '{{ tz }}') at time zone 'UTC')
+{%- endmacro %}
