@@ -1,0 +1,28 @@
+version: 2
+
+# Silver: FHIR flattened into typed relational views, one per resource type, with the
+# latest version of each resource. Timestamps are UTC. Restricted tier.
+
+models:
+  - name: fhir_resource_current
+    description: Latest loaded version of each FHIR resource from bronze.
+  - name: fhir_patient
+    columns:
+      - name: patient_id
+        data_tests: [unique, not_null]
+  - name: fhir_encounter
+    columns:
+      - name: encounter_id
+        data_tests: [unique, not_null]
+  - name: fhir_condition
+    columns:
+      - name: condition_id
+        data_tests: [unique, not_null]
+  - name: fhir_observation
+    description: One row per observed value; component_index 0 is the Observation's own value.
+  - name: fhir_medication_request
+    columns:
+      - name: medication_request_id
+        data_tests: [unique, not_null]
+  - name: source_to_standard
+    description: Source code to OMOP source and standard concept via "Maps to".

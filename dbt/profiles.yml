@@ -1,0 +1,14 @@
+# Connection from the environment. Locally: export the DIP_PG_* variables (see
+# docs/research/README.md). In Airflow they come from the `warehouse` connection.
+dip:
+  target: default
+  outputs:
+    default:
+      type: postgres
+      host: "{{ env_var('DIP_PG_HOST', 'localhost') }}"
+      port: "{{ env_var('DIP_PG_PORT', '5432') | as_number }}"
+      user: "{{ env_var('DIP_PG_USER') }}"
+      password: "{{ env_var('DIP_PG_PASSWORD') }}"
+      dbname: "{{ env_var('DIP_PG_DB') }}"
+      schema: dbt
+      threads: 2

@@ -1,8 +1,8 @@
-"""R1 end-to-end test: FHIR bundles dropped in MinIO go through the fhir_intake DAG.
+"""R1/R2 end-to-end: FHIR bundles dropped in MinIO go through the fhir_intake DAG.
 
-Asserts that the good fixture lands in bronze, that each bad fixture is quarantined with
-its expected reason code, and that none of the bad files' rows reach bronze. Safe to rerun:
-already-processed files are recognized by sha256.
+Asserts that the good fixture lands in bronze and reaches OMOP (dbt ran in the cluster),
+that each bad fixture is quarantined with its expected reason code, and that none of the
+bad files' rows reach bronze. Safe to rerun: processed files are recognized by sha256.
 
 Env: as smoke.py, plus MINIO_USER, MINIO_PASSWORD and WAREHOUSE_DSN.
 """
@@ -66,6 +66,14 @@ def main() -> int:
 
     step("checking the warehouse")
     with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute(
+            "select count(*) from omop.measurement m join omop.person p using (person_id)"
+            " where p.person_source_value = %s and m.measurement_concept_id = 3004410",
+            (PATIENT,),
+        )
+        n = cur.fetchone()[0]
+        if n != 3:
+            failures.append(f"expected 3 OMOP HbA1c measurements for the good patient, found {n}")
         cur.execute("select count(*) from bronze.fhir_resource where patient_id = %s", (PATIENT,))
         n = cur.fetchone()[0]
         if n != 9:
@@ -95,7 +103,7 @@ def main() -> int:
         print(f"FAIL: {f}", file=sys.stderr)
     if failures:
         return 1
-    print("PASS: R1 FHIR intake end-to-end")
+    print("PASS: FHIR intake and OMOP build end-to-end")
     return 0
 
 

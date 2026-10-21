@@ -2,7 +2,8 @@
 
 Every file in `landing/healthcare.fhir_patient_bundle/` gets an immutable raw copy, is
 validated against the `fhir_bundle` data contract, and is either loaded into
-`bronze.fhir_resource` or quarantined with reason codes in `ops.quarantine`.
+`bronze.fhir_resource` or quarantined with reason codes in `ops.quarantine`. Then dbt
+builds silver (flattened FHIR) and gold (OMOP CDM 5.4) and runs their tests.
 All data on this feed is synthetic (Synthea).
 """
 
@@ -47,7 +48,25 @@ def fhir_intake():
             statuses.append(o.status)
         return {s: statuses.count(s) for s in sorted(set(statuses))}
 
-    intake()
+    @task
+    def transform(intake_summary: dict) -> None:
+        from urllib.parse import quote
+
+        from dip import vocab
+        from dip.dbt_runner import run_dbt
+
+        hook = PostgresHook(postgres_conn_id="warehouse")
+        c = hook.get_connection("warehouse")
+        auth = f"{quote(c.login)}:{quote(c.password)}"
+        dsn = f"postgresql://{auth}@{c.host}:{c.port or 5432}/{c.schema}"
+        conn = hook.get_conn()
+        if vocab.needs_load(conn):
+            concepts, maps_to = vocab.load(conn, vocab.fetch(vocab.CACHE_DIR))
+            print(f"loaded vocabulary: {concepts} concepts, {maps_to} 'Maps to' rows")
+        print(f"intake summary: {intake_summary}")
+        run_dbt(dsn, "build")
+
+    transform(intake())
 
 
 fhir_intake()

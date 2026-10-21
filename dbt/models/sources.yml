@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: Written by the intake (dip.intake). One row per accepted FHIR resource.
+    tables:
+      - name: fhir_resource
+  - name: vocab
+    description: >
+      OMOP vocabulary loaded by `python -m dip vocab-load` from the public OHDSI Eunomia
+      shard (not a full Athena vocabulary).
+    tables:
+      - name: concept
+      - name: concept_relationship

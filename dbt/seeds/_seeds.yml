@@ -1,0 +1,31 @@
+version: 2
+
+seeds:
+  - name: omop_fixed_concepts
+    description: >
+      OMOP standard concepts the pipeline uses that are not in the Eunomia vocabulary shard
+      (gender, race, the EHR type concept, and concept 0). Concept IDs are the published
+      OMOP standard IDs; verify against Athena before relying on this outside a demo.
+      Unioned with vocab.concept by the `concept` model.
+    config:
+      column_types:
+        concept_id: integer
+        valid_start_date: date
+        valid_end_date: date
+        standard_concept: varchar(1)
+        invalid_reason: varchar(1)
+  - name: fhir_concept_map
+    description: >
+      FHIR value sets with no OMOP vocabulary mapping in the shard (administrative gender,
+      CDC race/ethnicity OMB categories, encounter class) mapped to OMOP concept IDs.
+      Codes not listed map to concept_id 0.
+    config:
+      column_types:
+        concept_id: integer
+    columns:
+      - name: concept_id
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('concept')
+                field: concept_id

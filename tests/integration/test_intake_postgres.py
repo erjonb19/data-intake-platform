@@ -1,7 +1,6 @@
-"""Intake against a real Postgres. Skipped unless DIP_TEST_DSN is set.
+"""Intake against a real Postgres. Skipped unless DIP_TEST_DSN is set (see conftest.py).
 
-DIP_TEST_DSN must point at a throwaway database: these tests drop and recreate the bronze
-and ops schemas. With DIP_SYNTHEA_DIR set, every Synthea bundle there also goes through
+With DIP_SYNTHEA_DIR set, every Synthea bundle there also goes through
 the intake, and none may be rejected at file level (the contract must fit real exports).
 """
 
@@ -18,34 +17,11 @@ from dip import BUCKET_LANDING
 from dip.contracts import load_contracts
 from dip.intake import process_landing
 from dip.storage import LocalStore
-from dip.warehouse import Warehouse
 from tests.fixtures.fhir.make_fixtures import bad_missing_birthdate, good_bundle
+from tests.integration.conftest import scalar
 
-DSN = os.environ.get("DIP_TEST_DSN")
-pytestmark = pytest.mark.skipif(not DSN, reason="DIP_TEST_DSN not set")
 FEED = "healthcare.fhir_patient_bundle"
 NOW = datetime(2026, 10, 21, 12, 0, tzinfo=UTC)
-
-
-@pytest.fixture
-def warehouse():
-    import psycopg
-
-    conn = psycopg.connect(DSN)
-    with conn.cursor() as cur:
-        cur.execute("drop schema if exists bronze cascade; drop schema if exists ops cascade")
-    conn.commit()
-    wh = Warehouse(conn)
-    wh.init()
-    wh.init()  # idempotent
-    yield wh
-    conn.close()
-
-
-def scalar(wh, sql):
-    with wh.conn.cursor() as cur:
-        cur.execute(sql)
-        return cur.fetchone()[0]
 
 
 def test_fixture_files_end_to_end(warehouse, tmp_path):
