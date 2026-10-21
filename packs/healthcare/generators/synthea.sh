@@ -23,7 +23,8 @@ STATE="${SYNTHEA_STATE:-New York}"
 
 SYNTHEA_VERSION="v4.0.0"
 SYNTHEA_SHA256="${SYNTHEA_SHA256:-}"
-JAVA_IMAGE="eclipse-temurin:21-jre"
+# Pinned by digest: a floating tag let CI and laptops run different Java builds.
+JAVA_IMAGE="eclipse-temurin:21-jre@sha256:227118764cccd3c3294617061aaa93a08309c63a395eefa83e6b35032992ea99"
 CACHE_DIR="${SYNTHEA_CACHE:-$REPO_ROOT/data/cache}"
 JAR="$CACHE_DIR/synthea-${SYNTHEA_VERSION}.jar"
 
