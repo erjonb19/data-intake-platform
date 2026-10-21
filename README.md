@@ -8,7 +8,7 @@ built in, and AI agents (later stages) can propose fixes, but a human always app
 
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
-**Status: Stage 0 (foundations) complete.**
+**Status: Stage 0 (foundations) complete. Research-data track in progress: R1 (FHIR intake), see [docs/research](docs/research/README.md).**
 
 ## Quick start
 
@@ -61,8 +61,10 @@ docs/demos/          per-stage demo scripts
 
 ## CI
 
-- `ci` workflow: ruff, shellcheck, and Terraform fmt and validate.
+- `ci` workflow: ruff, shellcheck, Terraform fmt and validate, unit tests, Postgres
+  integration tests, and a fresh Synthea export pushed through the intake.
 - `e2e` workflow: creates a kind cluster with Terraform on a GitHub runner, deploys the
   stack, and runs the end-to-end tests on every push and pull request.
 
-All data in this project is synthetic.
+All data in this project is synthetic (Synthea and hand-written fixtures). No real patient
+data is used anywhere.
