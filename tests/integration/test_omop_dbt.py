@@ -113,6 +113,7 @@ def test_synthea_mapping_report(omop):
         ("measurement", "measurement_concept_id"),
         ("drug_exposure", "drug_concept_id"),
         ("visit_occurrence", "visit_concept_id"),
+        ("observation", "observation_concept_id"),
     ]:
         total, unmapped = rows(
             omop, f"select count(*), count(*) filter (where {concept} = 0) from omop.{table}"

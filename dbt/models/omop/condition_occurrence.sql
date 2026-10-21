@@ -1,3 +1,6 @@
+-- OMOP routes by domain: conditions whose standard concept is in another domain (for
+-- example SNOMED situations and social findings, domain Observation) go to `observation`.
+-- Unmapped codes stay here with concept_id 0.
 select
     {{ omop_id('c.condition_id') }} as condition_occurrence_id,
     {{ omop_id('c.patient_id') }} as person_id,
@@ -19,3 +22,4 @@ select
 from {{ ref('fhir_condition') }} as c
 left join {{ ref('source_to_standard') }} as s
     on s.vocabulary_id = c.source_vocabulary_id and s.concept_code = c.source_code
+where coalesce(s.standard_domain_id, 'Condition') = 'Condition'

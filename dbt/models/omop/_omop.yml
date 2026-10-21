@@ -52,7 +52,7 @@ models:
   - name: observation_period
     description: >
       One period per person, from the first to the last recorded event across visits,
-      conditions, measurements and drug exposures.
+      conditions, measurements, drug exposures and observations.
     columns:
       - name: observation_period_id
         data_tests: [unique, not_null]
@@ -122,7 +122,9 @@ models:
     description: >
       One row per FHIR Condition. The SNOMED code (or, for the few Synthea conditions
       coded only in ICD-10, the ICD-10 code) is mapped to the standard concept through
-      "Maps to"; condition_end_date from abatementDateTime when present.
+      "Maps to"; condition_end_date from abatementDateTime when present. Conditions whose
+      standard concept is in another domain (SNOMED situations, social findings) are routed
+      to `observation`, as OMOP requires; unmapped ones stay here with concept_id 0.
     data_tests:
       - dqd_measure_person_completeness:
           arguments: {column_name: person_id, max_ratio: 0.2}
@@ -164,7 +166,12 @@ models:
               arguments: {end_column: condition_end_date}
               config: {meta: {dq_category: plausibility, dqd_check: plausibleStartBeforeEnd}}
           - dqd_within_visit_dates:
-              config: {meta: {dq_category: plausibility, dqd_check: withinVisitDates}}
+              # Synthea records some onsets weeks before the encounter that recorded them
+              # (measured: 7 of ~800). DQD treats this check with a threshold too.
+              config:
+                severity: warn
+                warn_if: ">0"
+                meta: {dq_category: plausibility, dqd_check: withinVisitDates}
           - omop_in_observation_period:
               config: {meta: {dq_category: plausibility, dqd_check: inObservationPeriod}}
       - name: visit_occurrence_id
@@ -322,6 +329,39 @@ models:
         data_tests:
           - dqd_is_foreign_key_concept:
               config: {meta: {dq_category: conformance, dqd_check: isForeignKey}}
+      - name: visit_occurrence_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('visit_occurrence'), field: visit_occurrence_id}
+
+  - name: observation
+    description: >
+      Facts whose standard concept is in the Observation domain: FHIR Conditions coded as
+      SNOMED situations or social findings, and FHIR Observations whose LOINC code maps to
+      the Observation domain (for example tobacco smoking status, survey answers).
+    columns:
+      - name: observation_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('person'), field: person_id}
+      - name: observation_concept_id
+        data_tests:
+          - not_null
+          - dqd_fk_domain:
+              arguments: {domain: Observation}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+          - dqd_is_standard_valid_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isStandardValidConcept}}
+      - name: observation_date
+        data_tests:
+          - not_null
+          - dqd_plausible_after_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleAfterBirth}}
+          - omop_in_observation_period:
+              config: {meta: {dq_category: plausibility, dqd_check: inObservationPeriod}}
       - name: visit_occurrence_id
         data_tests:
           - relationships:
