@@ -332,6 +332,27 @@ The FHIR demo is derived from the relational demo (plus the MIMIC-IV-ED demo), s
 
 **Dates.** 1.5 days, alongside Stage 1. No stage dates move.
 
+### 8.4 R7 plan: cohort service over the shareable tier (added 2026-10-21; build on hold)
+
+**Hold.** Nothing is built until the cohort service in `erjonb19/clinical-drift-monitor` (PR #4, branch `research/g2-cohort`, "governed cohort and feasibility service over OMOP") is merged there. The plan below is written against that branch as it stands today.
+
+**What the cohort service already does** (in that repo): phenotypes are versioned YAML in an allowlisted language (index condition, criteria on conditions, procedures, images and sex, an optional breakdown). A human approves each exact definition by SHA-256. The service compiles it to SQL against generic OMOP CDM 5.4 names through a table map, suppresses cells from 1 to 10 as "<11" (plus complementary suppression), and writes a hash-chained audit log. Engines today: DuckDB and Databricks SQL.
+
+**Access design: read-only Postgres to `omop_shareable` through the researcher role.**
+- **This repo (R7a, 1 day):**
+  1. A login role `dip_cohort_reader`, a member of `dip_researcher` (which can read `omop_shareable` and nothing else), with `default_transaction_read_only = on`, a `statement_timeout` and a connection limit. Its password comes from Terraform's random provider into a Kubernetes secret, or an env var locally; it is never committed.
+  2. `omop_shareable.cdm_source`, the standard OMOP table, saying what the tier holds: `cdm_source_abbreviation` is `DIP-SYNTHEA` or `DIP-MIMIC`, with the vocabulary release and build date.
+  3. `procedure_occurrence` in OMOP and the shareable tier, from Synthea's Procedure resources, because the service's criteria use it.
+  4. Tests: the reader can `select` from `omop_shareable` but cannot read `omop`, `deid`, `ops`, `ops_secret` or `vocab`, and cannot write anything.
+- **The drift-monitor repo (R7b, 1 day, after its PR #4 merges):**
+  1. A `postgres_engine(dsn)` next to the DuckDB and Databricks engines, with the table map `omop_shareable.<table>`; tables the shareable tier lacks (`image_occurrence`) are optional in the map.
+  2. **Synthea only, never MIMIC.** The cohort service and its demo are public. The engine reads `cdm_source` first and refuses to run unless it says `DIP-SYNTHEA`. A MIMIC warehouse is never given to that repo, and the reader role is never created in a MIMIC database.
+  3. An allowlisted `measurement_concept_ids` criterion, so a phenotype like "adults with type 2 diabetes and an HbA1c result" can be written with the Synthea concepts.
+  4. Its CI stays offline: tests load a small CC0 Synthea extract (from R5) into DuckDB. The Postgres engine is exercised against the local stack only.
+- **Caveat stated in both repos:** the shareable tier shifts dates by up to ±180 days and keeps year of birth only, so ages and dates near a cut-off can move by a year. Feasibility counts are approximate at the edges.
+
+**Dates.** Still 2 days, on 2027-01-10 (Stage 5R). If the drift-monitor PR merges earlier, R7a can start earlier; nothing else moves.
+
 **Changed from the first draft:**
 - The MCP server is split into three parts. The Read tier moves into Stage 3, the Propose tier into Stage 4, and the Act tier into Stage 6.
 - The contract-author agent moves from 2027-01-25 to **2026-12-31**. It needs only Read and Propose, so it no longer waits for the Act tier.
@@ -379,3 +400,4 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-21: The core Python package is `dip/`, not `platform/` (that name shadows the stdlib module).
 - 2026-10-21: Added §8.2: the MIMIC-IV Clinical Database Demo (v2.2) and its FHIR version (v2.1.0), both ODbL, as local-only real de-identified sources. Raw files are never committed and CI stays on Synthea. MIMIC-derived outputs stay local, and only aggregates are published; any future public MIMIC extract would be ODbL with attribution, never CC0.
 - 2026-10-21: Added §8.3: a full local Athena vocabulary (never committed; CI stays on Eunomia) and MIT-LCP's MIMIC lab → LOINC map (mimic-code v2.4.0, MIT) through OMOP's SOURCE_TO_CONCEPT_MAP.
+- 2026-10-21: Added §8.4, the R7 plan: read-only Postgres access to `omop_shareable` through a login role in `dip_researcher`, Synthea only, never MIMIC. The build waits for the drift-monitor's cohort service (its PR #4) to merge.
