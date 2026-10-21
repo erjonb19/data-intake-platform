@@ -26,6 +26,16 @@ def dbt_env(dsn: str) -> dict[str, str]:
 
 
 def run_dbt(dsn: str, *args: str, check: bool = True) -> subprocess.CompletedProcess:
+    """Run dbt; afterwards, emit OpenLineage events for the models it built (if enabled)."""
     exe = os.environ.get("DIP_DBT_BIN") or shutil.which("dbt") or "dbt"
     cmd = [exe, *args, "--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR)]
-    return subprocess.run(cmd, env=dbt_env(dsn), check=check, text=True, encoding="utf-8")
+    result = subprocess.run(cmd, env=dbt_env(dsn), check=False, text=True, encoding="utf-8")
+    if args and args[0] in ("build", "run", "seed"):
+        from dip import lineage
+
+        target = Path(os.environ.get("DBT_TARGET_PATH") or DBT_DIR / "target")
+        if (target / "run_results.json").is_file():
+            lineage.dbt_events(lineage.Emitter(), dsn, target)
+    if check:
+        result.check_returncode()
+    return result

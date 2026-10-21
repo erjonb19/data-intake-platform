@@ -18,6 +18,13 @@ from airflow.sdk import dag, task
 FEED = "healthcare.fhir_patient_bundle"
 
 
+def _dsn(hook: PostgresHook) -> str:
+    from urllib.parse import quote
+
+    c = hook.get_connection("warehouse")
+    return f"postgresql://{quote(c.login)}:{quote(c.password)}@{c.host}:{c.port or 5432}/{c.schema}"
+
+
 @dag(
     dag_id="fhir_intake",
     schedule=None,
@@ -29,20 +36,23 @@ FEED = "healthcare.fhir_patient_bundle"
 def fhir_intake():
     @task
     def intake() -> dict:
-        from dip import BUCKET_LANDING
+        from dip import BUCKET_LANDING, lineage
         from dip.contracts import load_contracts
         from dip.intake import process_file
         from dip.storage import S3Store
         from dip.warehouse import Warehouse
 
         store = S3Store(S3Hook(aws_conn_id="minio").get_conn())
-        warehouse = Warehouse(PostgresHook(postgres_conn_id="warehouse").get_conn())
+        hook = PostgresHook(postgres_conn_id="warehouse")
+        warehouse = Warehouse(hook.get_conn())
+        emitter = lineage.Emitter()  # OPENLINEAGE_URL arrives with Marquez in Stage 3
         warehouse.init()
         contract = load_contracts()[FEED]
         statuses = []
         # Only this feed's prefix; other feeds get their own DAGs.
         for key in store.list(BUCKET_LANDING, f"{FEED}/"):
             o = process_file(store, warehouse, contract, key)
+            lineage.intake_event(emitter, _dsn(hook), FEED, o)
             print(
                 f"{o.status:<24} {key} accepted={o.accepted} rejected={o.rejected} {o.reason_codes}"
             )
@@ -52,16 +62,13 @@ def fhir_intake():
     @task
     def transform(intake_summary: dict) -> None:
         import os
-        from urllib.parse import quote
 
         from dip import vocab
         from dip.dbt_runner import run_dbt
         from dip.deid import install_key
 
         hook = PostgresHook(postgres_conn_id="warehouse")
-        c = hook.get_connection("warehouse")
-        auth = f"{quote(c.login)}:{quote(c.password)}"
-        dsn = f"postgresql://{auth}@{c.host}:{c.port or 5432}/{c.schema}"
+        dsn = _dsn(hook)
         conn = hook.get_conn()
         if vocab.needs_load(conn):
             concepts, maps_to = vocab.load(conn, vocab.fetch(vocab.CACHE_DIR))

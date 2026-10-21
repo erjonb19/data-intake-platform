@@ -29,6 +29,8 @@ class Outcome:
     accepted: int = 0
     rejected: int = 0
     reason_codes: tuple[str, ...] = ()
+    raw_key: str = ""
+    quarantine_keys: tuple[str, ...] = ()
 
 
 def feed_of(landing_key: str) -> str:
@@ -55,7 +57,7 @@ def process_file(
 
     if warehouse.already_processed(contract.feed, sha):
         store.delete(BUCKET_LANDING, landing_key)
-        return Outcome(landing_key, sha, "duplicate")
+        return Outcome(landing_key, sha, "duplicate", raw_key=raw_key)
 
     if not store.exists(BUCKET_RAW, raw_key):
         store.put(BUCKET_RAW, raw_key, data)
@@ -127,6 +129,8 @@ def process_file(
         accepted=len(result.accepted),
         rejected=len(result.rejected),
         reason_codes=tuple(sorted({q.reason_code for q in quarantine})),
+        raw_key=raw_key,
+        quarantine_keys=tuple(sorted({q.quarantine_key for q in quarantine})),
     )
 
 

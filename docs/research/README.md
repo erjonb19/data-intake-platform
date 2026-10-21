@@ -299,3 +299,32 @@ so a replay of raw files should use the recorded `ops.intake_file.received_at`.
 dbt build → extract. The two extracts must have zero differing files. It also checks that the
 manifest matches the files, that the descriptor carries provenance and no key, and that
 rebuilding a published version with changed data is refused.
+
+## R6. Lineage
+
+Every layer emits [OpenLineage](https://openlineage.io) run events (`dip/lineage.py`), named
+so they join into one graph:
+
+| Job | Inputs | Outputs | Extra facets |
+|---|---|---|---|
+| `intake.<feed>` (per file) | `s3://landing/<file>` | `s3://raw/<copy>`, `postgres://…/warehouse.bronze.fhir_resource` (if anything was accepted), `s3://quarantine/<object>` | `dip_intake`: status, counts, reason codes, sha256 |
+| `dbt.<model>` (per model/seed) | upstream models, seeds and sources | the model's table | `schema` (documented columns), `documentation`, `dataQualityAssertions` (that model's dbt test results, including the DQD-style checks) |
+| `extract.omop_shareable` | `warehouse.omop_shareable.*` | `file/extracts/<version>/data/<table>.csv` | `dip_extract`: version, manifest sha256 |
+
+**Transport**: `OPENLINEAGE_URL` (HTTP, for example Marquez) and/or `DIP_LINEAGE_FILE`
+(NDJSON). With neither set, emitting does nothing. Marquez itself is deployed in Stage 3
+(the `observability` profile), and the Airflow OpenLineage provider will be pointed at it
+then; until then the cluster emits nothing. Today's events are verified with the file
+transport.
+
+**Why not `dbt-ol`**: openlineage-dbt depends on openlineage-sql, which has no wheel for
+Windows/Python 3.11 here and would need a Rust toolchain. The dbt events are built from
+dbt's own artifacts (`manifest.json`, `run_results.json`), which is also what `dbt-ol`
+reads, so there is no extra dependency.
+
+**Test** (`tests/integration/test_lineage.py`): runs intake → dbt → extract with a file
+transport and walks the graph. There must be a path from
+`s3://landing/…/good.json` through `bronze.fhir_resource`, `omop.measurement` and
+`omop_shareable.measurement` to `extracts/1.0.0/data/measurement.csv`. The bad file's
+lineage must end in raw and quarantine only, never bronze. `dbt.measurement` must carry
+its HbA1c plausibility result as a data-quality assertion.
