@@ -1,3 +1,6 @@
+-- A table, not a view: every silver model reads it.
+{{ config(materialized='table') }}
+
 -- Latest copy of each FHIR resource. A patient may be re-exported in a newer file; the
 -- newest load wins, with the file hash as a deterministic tie-break.
 select resource_type, resource_id, patient_id, resource, file_sha256

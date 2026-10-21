@@ -13,8 +13,7 @@ DSN = os.environ.get("DIP_TEST_DSN")
 OWNED_SCHEMAS = ("bronze", "ops", "silver", "omop", "vocab", "dbt")
 
 
-@pytest.fixture
-def warehouse():
+def _fresh_warehouse():
     if not DSN:
         pytest.skip("DIP_TEST_DSN not set")
     import psycopg
@@ -27,17 +26,33 @@ def warehouse():
     wh = Warehouse(conn)
     wh.init()
     wh.init()  # idempotent
+    return wh
+
+
+@pytest.fixture
+def warehouse():
+    wh = _fresh_warehouse()
     yield wh
-    conn.close()
+    wh.conn.close()
 
 
-def scalar(wh, sql, params=None):
-    with wh.conn.cursor() as cur:
-        cur.execute(sql, params)
-        return cur.fetchone()[0]
+@pytest.fixture(scope="module")
+def module_warehouse():
+    """One warehouse for a whole module, for expensive setups such as a dbt build."""
+    wh = _fresh_warehouse()
+    yield wh
+    wh.conn.close()
 
 
 def rows(wh, sql, params=None):
+    # Commit after reading: an open read transaction holds locks that would block dbt
+    # from replacing the tables in a later test.
     with wh.conn.cursor() as cur:
         cur.execute(sql, params)
-        return cur.fetchall()
+        result = cur.fetchall()
+    wh.conn.commit()
+    return result
+
+
+def scalar(wh, sql, params=None):
+    return rows(wh, sql, params)[0][0]

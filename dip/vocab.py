@@ -114,10 +114,12 @@ def _insert(cur: Any, table: str, columns: tuple[str, ...], rows: list[tuple], b
 def needs_load(conn: Any) -> bool:
     with conn.cursor() as cur:
         cur.execute("select to_regclass('vocab.concept') is null")
-        if cur.fetchone()[0]:
-            return True
-        cur.execute("select not exists (select 1 from vocab.concept)")
-        return cur.fetchone()[0]
+        result = cur.fetchone()[0]
+        if not result:
+            cur.execute("select not exists (select 1 from vocab.concept)")
+            result = cur.fetchone()[0]
+    conn.commit()  # end the read transaction so it holds no locks while dbt runs
+    return result
 
 
 def load(conn: Any, zip_bytes: bytes) -> tuple[int, int]:

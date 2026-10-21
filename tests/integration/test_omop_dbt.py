@@ -25,9 +25,11 @@ FEED = "healthcare.fhir_patient_bundle"
 CACHE = Path(os.environ.get("DIP_CACHE_DIR", "data/cache"))
 
 
-@pytest.fixture
-def omop(warehouse, tmp_path):
-    store = LocalStore(tmp_path)
+@pytest.fixture(scope="module")
+def omop(module_warehouse, tmp_path_factory):
+    """Intake, vocabulary and one `dbt build`, shared by every test in this module."""
+    warehouse = module_warehouse
+    store = LocalStore(tmp_path_factory.mktemp("store"))
     store.put(BUCKET_LANDING, f"{FEED}/fixture.json", json.dumps(good_bundle()).encode())
     if synthea := os.environ.get("DIP_SYNTHEA_DIR"):
         for f in sorted(Path(synthea).glob("*.json")):
@@ -118,3 +120,7 @@ def test_synthea_mapping_report(omop):
         print(f"{table:<22} rows={total:<7} unmapped={unmapped / max(total, 1):.1%}")
         assert total > 0
     assert scalar(omop, "select count(*) from omop.person") > 1
+
+
+def test_vocab_needs_load(omop):
+    assert vocab.needs_load(omop.conn) is False

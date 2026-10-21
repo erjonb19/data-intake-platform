@@ -1,3 +1,5 @@
+{{ config(materialized='table') }}
+
 -- Source code -> OMOP source concept and standard concept, via "Maps to".
 -- One row per (vocabulary_id, concept_code); if a code maps to several standard concepts,
 -- the lowest concept_id wins so the result is deterministic.
