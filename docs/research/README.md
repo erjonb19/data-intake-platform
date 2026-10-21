@@ -10,7 +10,7 @@ PLAN.md §8.1 describes the plan. This page documents what is built, item by ite
 ## R1. FHIR intake
 
 ```
-Synthea (pinned jar, seed 42, ref date 2026-01-01)
+Synthea (pinned jar, seed 42, reference and end date 2026-01-01)
    │  one FHIR R4 transaction Bundle per patient
    ▼
 landing/healthcare.fhir_patient_bundle/<file>.json          (MinIO)
@@ -285,6 +285,14 @@ reports that) or fails with "published versions are immutable, choose a new vers
 
 The default license is `CC0-1.0` (`--license` changes it). The data is synthetic, but the
 license choice is the data owner's call.
+
+**What the test caught.** Its first run failed: the two builds differed. The Synthea script
+pinned the seed and *reference* date but not the simulation *end* date, which defaults to
+today. So patients had events up to the day of generation, and the intake's future-date rule
+rejected different records depending on when the files "arrived". The end date is now
+pinned too (`-e`, default 2026-01-01), which also makes the generator itself reproducible
+from day to day. Arrival time still matters by design for genuinely future-dated records,
+so a replay of raw files should use the recorded `ops.intake_file.received_at`.
 
 **Test** (`tests/integration/test_extract.py`): the **whole pipeline runs twice from scratch**
 (fresh warehouse, same raw files, arrival dates two months apart): intake → vocabulary →
