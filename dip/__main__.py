@@ -6,6 +6,8 @@
   vocab-load                   download (pinned, checksummed) and load the OMOP vocabulary
   deid-key-install             store DIP_DEID_KEY for the de-identified tier
   dbt <args...>                run dbt against the warehouse, e.g. `dbt build`
+  extract build --version V    write a versioned, checksummed extract of omop_shareable
+  extract verify --version V   rebuild (dbt build) and diff byte for byte against version V
 
 Storage is a local directory (`--store-dir`, default ./data/store) unless S3 settings are
 given in the environment (DIP_S3_ENDPOINT, DIP_S3_ACCESS_KEY, DIP_S3_SECRET_KEY).
@@ -17,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -50,6 +53,35 @@ def _warehouse() -> Warehouse:
     return Warehouse(psycopg.connect(os.environ["DIP_WAREHOUSE_DSN"]))
 
 
+def _extract(args: argparse.Namespace) -> int:
+    from dip import extract
+    from dip.dbt_runner import run_dbt
+
+    conn = _warehouse().conn
+    if args.action == "build":
+        r = extract.build(conn, args.out, args.version, args.license)
+        state = "reproduced the existing" if r.reproduced_existing else "wrote"
+        print(f"{state} extract {args.version} at {r.path} (manifest sha256 {r.manifest_sha256})")
+        return 0
+    published = args.out / args.version
+    if not (published / extract.MANIFEST).is_file():
+        print(f"no published extract at {published}", file=sys.stderr)
+        return 2
+    run_dbt(os.environ["DIP_WAREHOUSE_DSN"], "build")
+    rebuilt = args.out / f".verify-{args.version}"
+    shutil.rmtree(rebuilt, ignore_errors=True)
+    for name, data in extract.build_files(conn, args.version, args.license).items():
+        (rebuilt / name).parent.mkdir(parents=True, exist_ok=True)
+        (rebuilt / name).write_bytes(data)
+    differences = extract.diff(published, rebuilt)
+    shutil.rmtree(rebuilt, ignore_errors=True)
+    if differences:
+        print(f"NOT REPRODUCIBLE: {len(differences)} file(s) differ: {differences}")
+        return 1
+    print(f"reproducible: rebuild of {args.version} is byte-identical")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="dip")
     parser.add_argument("--store-dir", default="data/store")
@@ -62,6 +94,11 @@ def main(argv: list[str] | None = None) -> int:
     vocab = sub.add_parser("vocab-load")
     vocab.add_argument("--cache-dir", type=Path, default=Path("data/cache"))
     sub.add_parser("deid-key-install")
+    ext = sub.add_parser("extract")
+    ext.add_argument("action", choices=["build", "verify"])
+    ext.add_argument("--version", required=True)
+    ext.add_argument("--out", type=Path, default=Path("data/extracts"))
+    ext.add_argument("--license", default="CC0-1.0")
     dbt = sub.add_parser("dbt")
     dbt.add_argument("dbt_args", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)
@@ -93,6 +130,8 @@ def main(argv: list[str] | None = None) -> int:
 
         fp = install_key(_warehouse().conn, os.environ.get("DIP_DEID_KEY"))
         print(f"de-identification key installed (fingerprint {fp})")
+    elif args.command == "extract":
+        return _extract(args)
     elif args.command == "dbt":
         from dip.dbt_runner import run_dbt
 
