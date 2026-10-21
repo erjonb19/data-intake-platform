@@ -110,17 +110,27 @@ def main() -> int:
         failures.append(f"tasks did not each run in their own pod: {hostnames}")
 
     step("reading task log back from remote storage")
+    # The task pod uploads its log to MinIO as it exits, which can lag the task's
+    # "success" state by a few seconds, so poll rather than read once.
+    log_errors: list[str] = []
+
+    def log_has_output():
+        try:
+            status, log = request(
+                "GET",
+                f"{api}/dags/{DAG_ID}/dagRuns/{run_id}/taskInstances/report/logs/1",
+                token=token,
+            )
+        except urllib.error.HTTPError as exc:
+            log_errors.append(f"HTTP {exc.code}")
+            return None
+        return status == 200 and "warehouse checked in pod" in json.dumps(log)
+
     try:
-        status, log = request(
-            "GET",
-            f"{api}/dags/{DAG_ID}/dagRuns/{run_id}/taskInstances/report/logs/1",
-            token=token,
-        )
-        text = json.dumps(log)
-        if status != 200 or "warehouse checked in pod" not in text:
-            failures.append("report task log is missing expected output")
-    except urllib.error.HTTPError as exc:
-        failures.append(f"could not read task log: HTTP {exc.code}")
+        wait_for("report task log in remote storage", log_has_output, timeout=120)
+    except TimeoutError:
+        detail = f" (last error: {log_errors[-1]})" if log_errors else ""
+        failures.append(f"report task log is missing expected output{detail}")
 
     if failures:
         for f in failures:
