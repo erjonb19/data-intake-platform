@@ -126,6 +126,73 @@ resource "kubernetes_stateful_set_v1" "postgres" {
   }
 }
 
+# Roles added after a cluster was first created never reach it through the init script
+# (it runs only on a fresh volume), so this Job applies them on every apply, idempotently.
+# The name carries the SQL's hash: changing the SQL runs a new Job.
+resource "kubernetes_config_map_v1" "postgres_roles" {
+  metadata {
+    name      = "postgres-roles"
+    namespace = kubernetes_namespace_v1.data.metadata[0].name
+  }
+  data = {
+    "roles.sql" = file("${path.module}/files/postgres-roles.sql")
+  }
+}
+
+resource "kubernetes_job_v1" "postgres_roles" {
+  metadata {
+    name      = "postgres-roles-${substr(sha256(file("${path.module}/files/postgres-roles.sql")), 0, 8)}"
+    namespace = kubernetes_namespace_v1.data.metadata[0].name
+  }
+  spec {
+    backoff_limit = 10 # retries until Postgres accepts connections
+    template {
+      metadata {}
+      spec {
+        restart_policy = "Never"
+        container {
+          name    = "psql"
+          image   = var.postgres_image
+          command = ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/sql/roles.sql"]
+          env {
+            name  = "PGHOST"
+            value = kubernetes_service_v1.postgres.metadata[0].name
+          }
+          env {
+            name  = "PGUSER"
+            value = "postgres"
+          }
+          env {
+            name = "PGPASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.postgres.metadata[0].name
+                key  = "POSTGRES_PASSWORD"
+              }
+            }
+          }
+          volume_mount {
+            name       = "sql"
+            mount_path = "/sql"
+            read_only  = true
+          }
+        }
+        volume {
+          name = "sql"
+          config_map {
+            name = kubernetes_config_map_v1.postgres_roles.metadata[0].name
+          }
+        }
+      }
+    }
+  }
+  wait_for_completion = true
+  timeouts {
+    create = "5m"
+  }
+  depends_on = [kubernetes_stateful_set_v1.postgres]
+}
+
 resource "kubernetes_service_v1" "postgres" {
   metadata {
     name      = "postgres"

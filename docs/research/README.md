@@ -226,9 +226,10 @@ pseudonym and shift, so extracts are only comparable when they share a key finge
 
 **Access control** is enforced by Postgres, not by convention. dbt grants `SELECT` on the
 shareable tables and `USAGE` on the schema to `dip_researcher`, and nothing else. The role
-is created by `postgres-init.sh` in the cluster. A cluster created before this change needs
-`bash scripts/down.sh && bash scripts/up.sh` (or `CREATE ROLE dip_researcher NOLOGIN;` run
-as the Postgres superuser).
+is created in the cluster by `postgres-init.sh` on a fresh volume, and by the
+`postgres-roles` Job (`infra/terraform/files/postgres-roles.sql`, idempotent) on every
+`terraform apply`, so a cluster created before the role existed gets it on its next
+`scripts/up.sh` without losing its data.
 
 **Tests**
 - `dbt/tests/deid_privacy.sql` (runs in every `dbt build`): no restricted id reappears, no
