@@ -1,6 +1,6 @@
 # Research-data track
 
-PLAN.md Â§8.1 describes the plan. This page documents what is built, item by item.
+PLAN.md §8.1 describes the plan. This page documents what is built, item by item.
 
 > **All data here is synthetic.** Patients come from [Synthea](https://github.com/synthetichealth/synthea)
 > (v4.0.0, fixed seed) or from small hand-written fixtures in `tests/fixtures/fhir/`. No real
@@ -11,15 +11,15 @@ PLAN.md Â§8.1 describes the plan. This page documents what is built, item by i
 
 ```
 Synthea (pinned jar, seed 42, ref date 2026-01-01)
-   â”‚  one FHIR R4 transaction Bundle per patient
-   â–¼
+   │  one FHIR R4 transaction Bundle per patient
+   ▼
 landing/healthcare.fhir_patient_bundle/<file>.json          (MinIO)
-   â”‚  fhir_intake DAG â”€ dip.intake.process_file
-   â”œâ”€â–¶ raw/<feed>/<date>/<sha256>.json                       immutable copy, written first
-   â”œâ”€â–¶ contract check: packs/healthcare/contracts/fhir_patient_bundle.yaml
-   â”‚     file level   â”€ fail â”€â–¶ quarantine/<feed>/<date>/<sha256>.json + .reason.json
-   â”‚     record level â”€ fail â”€â–¶ quarantine/<feed>/<date>/<sha256>.rejected.ndjson
-   â–¼
+   │  fhir_intake DAG ─ dip.intake.process_file
+   ├─▶ raw/<feed>/<date>/<sha256>.json                       immutable copy, written first
+   ├─▶ contract check: packs/healthcare/contracts/fhir_patient_bundle.yaml
+   │     file level   ─ fail ─▶ quarantine/<feed>/<date>/<sha256>.json + .reason.json
+   │     record level ─ fail ─▶ quarantine/<feed>/<date>/<sha256>.rejected.ndjson
+   ▼
 bronze.fhir_resource (jsonb, one row per accepted resource)
 ops.intake_file   (one row per file: status, counts, contract version)
 ops.quarantine    (one row per quarantined file or record, with a reason code)
