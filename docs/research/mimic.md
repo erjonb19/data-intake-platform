@@ -10,6 +10,14 @@
 > - never committed, never downloaded in CI, never used as test fixtures (CI uses Synthea,
 >   and the MIMIC code paths are tested with hand-written synthetic fixtures in MIMIC's shape)
 > - no MIMIC-derived row is published. The docs and PRs carry aggregate counts only.
+> - enforced by `scripts/check_no_mimic_data.sh`, in CI and as a pre-commit hook
+>   (`bash scripts/install-hooks.sh` once per clone). It fails on MIMIC or bulk data files,
+>   on any `.csv`, `.parquet`, `.duckdb` or `.json` outside `tests/fixtures/`, `dbt/seeds/`
+>   and the contract schema, and on content only real MIMIC data or a local-only extract
+>   would hold (a MIMIC FHIR identifier with a value, a MIMIC FHIR profile URL, a package
+>   whose `dip_distribution` is `local-only`). `.gitignore` also ignores those data
+>   files in output paths. It is a backstop: a renamed or reformatted file can get past
+>   any pattern check, so review still matters.
 >
 > Any MIMIC-derived database that is ever shared publicly must be released under ODbL
 > with attribution (share-alike), **never CC0**. Synthea-derived extracts stay CC0.
