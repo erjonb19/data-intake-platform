@@ -90,6 +90,7 @@ bronze.fhir_resource ──▶ silver (views, dbt/models/silver)          ──
                           fhir_condition                                 condition_occurrence
                           fhir_observation       incl. components        measurement
                           fhir_medication_request incl. Medication refs  drug_exposure
+                          fhir_procedure         done, not not-done       procedure_occurrence
                           source_to_standard     code → concept          concept
 vocab.concept, vocab.concept_relationship ◀── python -m dip vocab-load (Eunomia shard, pinned + sha256;
                                                or local Athena folders, never committed)
@@ -115,6 +116,7 @@ missing, then `dbt build`) in KubernetesExecutor pods.
 | `condition_concept_id` | SNOMED code (ICD-10 when Synthea gives only that) | source concept → "Maps to" → standard concept |
 | `measurement_*` | `Observation` value and each component | routed here when the LOINC code's standard domain is Measurement, or it is an unmapped laboratory/vital-sign result. Units via UCUM |
 | `drug_concept_id` | RxNorm on the order, or on its `Medication` (MIMIC: NDC, else a local name) | "Maps to" standard, Drug-domain concepts only: an NDC that maps to a Device stays here with concept 0 and its source concept (no `device_exposure` table); end date = start date (orders carry none) |
+| `procedure_concept_id` | SNOMED code on `Procedure` (CDT for Synthea's dental procedures; contract v2) | "Maps to" standard, Procedure-domain concepts only. A procedure whose standard concept is in another domain (a throat culture is a Measurement) stays here with concept 0 and its source concept: OMOP would move it, which this build does not do yet. With the Eunomia shard, 1,515 of 3,429 Synthea procedures (44%) map; 913 (27%) are in another domain, 717 codes are not in the shard, and 280 are CDT, which the shard lacks. Status `not-done` and `entered-in-error` are left out. MIMIC procedures are not loaded yet. **Upgrade:** files ingested under contract v1 are not reprocessed (intake dedups on content), so on an existing install they have no procedures until the warehouse is rebuilt from the raw copies (PLAN.md follow-up F4) |
 | `observation_period` | all of the above | one period per person, first to last event |
 | `*_type_concept_id` | | 32817 (EHR) everywhere |
 
@@ -127,7 +129,7 @@ drop from 6.8% to 0.1% ([vocabulary.md](vocabulary.md)).
 Concepts the shard lacks (gender, race, the EHR type concept, concept 0) are in
 `dbt/seeds/omop_fixed_concepts.csv`, labeled with where they come from.
 
-**Not built yet:** `procedure_occurrence`,
+**Not built yet:**
 `death`, `provider`, `care_site`, and drug/condition eras.
 
 ### Tests
@@ -278,7 +280,8 @@ python -m dip extract verify --version 1.0.0     # dbt build again, regenerate, 
 ```
 data/extracts/1.0.0/
 ├── data/person.csv, observation_period.csv, visit_occurrence.csv,
-│        condition_occurrence.csv, drug_exposure.csv, measurement.csv, observation.csv
+│        condition_occurrence.csv, drug_exposure.csv, measurement.csv, observation.csv,
+│        procedure_occurrence.csv
 ├── datapackage.json     Frictionless Data Package: fields and types, primary keys,
 │                        bytes and sha256 per file, license, keywords, provenance
 └── manifest.sha256      sha256 of every file (sha256sum -c compatible)

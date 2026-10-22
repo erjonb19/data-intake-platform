@@ -35,7 +35,7 @@ def test_good_bundle_loads_everything_and_skips_claims(contract):
     assert not r.file_rejected
     assert not r.rejected
     assert r.skipped == {"Claim": 1}
-    assert len(r.accepted) == 9
+    assert len(r.accepted) == 10
     assert r.patient_id == "8f3e6b1a-0000-4000-8000-000000000001"
 
 
@@ -139,7 +139,7 @@ def test_record_level_violations(contract, mutate, code):
     r = run(b, _ratio_tolerant(contract))
     assert not r.file_rejected
     assert [(res.resource_id, v.reason_code) for res, v in r.rejected] == [("obs-0003", code)]
-    assert len(r.accepted) == 8
+    assert len(r.accepted) == 9
 
 
 def test_duplicate_resource_id(contract):
@@ -191,3 +191,21 @@ def test_medication_needs_code_or_reference(contract):
         "FHIR.MISSING_FIELD:MedicationRequest.medicationCodeableConcept.coding"
         "|medicationReference.reference"
     ]
+
+
+def test_procedure_needs_a_performed_time(contract):
+    b = good_bundle()
+    find(b, "Procedure").pop("performedPeriod")
+    r = run(b, _ratio_tolerant(contract))
+    assert [v.reason_code for _, v in r.rejected] == [
+        "FHIR.MISSING_FIELD:Procedure.performedPeriod.start|performedDateTime"
+    ]
+
+
+def test_procedure_performed_date_time_is_accepted(contract):
+    b = good_bundle()
+    proc = find(b, "Procedure")
+    proc["performedDateTime"] = proc.pop("performedPeriod")["start"]
+    r = run(b, contract)
+    assert not r.rejected
+    assert "Procedure" in {res.resource_type for res in r.accepted}
