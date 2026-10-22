@@ -114,7 +114,7 @@ missing, then `dbt build`) in KubernetesExecutor pods.
 | `visit_concept_id` | `Encounter.class` | AMB 9202 outpatient, EMER 9203 ER, IMP/ACUTE 9201 inpatient, other → 0 |
 | `condition_concept_id` | SNOMED code (ICD-10 when Synthea gives only that) | source concept → "Maps to" → standard concept |
 | `measurement_*` | `Observation` value and each component | routed here when the LOINC code's standard domain is Measurement, or it is an unmapped laboratory/vital-sign result. Units via UCUM |
-| `drug_concept_id` | RxNorm on the order, or on its `Medication` | "Maps to" standard; end date = start date (orders carry none) |
+| `drug_concept_id` | RxNorm on the order, or on its `Medication` (MIMIC: NDC, else a local name) | "Maps to" standard, Drug-domain concepts only: an NDC that maps to a Device stays here with concept 0 and its source concept (no `device_exposure` table); end date = start date (orders carry none) |
 | `observation_period` | all of the above | one period per person, first to last event |
 | `*_type_concept_id` | | 32817 (EHR) everywhere |
 
@@ -122,7 +122,7 @@ Unmapped codes keep `concept_id = 0` and their `*_source_value`, as OMOP require
 vocabulary in CI is a **shard**, not full Athena, so the unmapped rate on real Synthea
 output is higher than in production; CI prints it per table, and R3 turns it into
 thresholds. Locally a full Athena download can be loaded instead: Synthea's unmapped rows
-drop from 5.7% to 0.2% ([vocabulary.md](vocabulary.md)).
+drop from 6.8% to 0.1% ([vocabulary.md](vocabulary.md)).
 
 Concepts the shard lacks (gender, race, the EHR type concept, concept 0) are in
 `dbt/seeds/omop_fixed_concepts.csv`, labeled with where they come from.

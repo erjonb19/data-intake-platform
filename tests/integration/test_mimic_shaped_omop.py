@@ -27,6 +27,7 @@ from tests.integration.conftest import DSN, _fresh_warehouse, rows
 CACHE = Path(os.environ.get("DIP_CACHE_DIR", "data/cache"))
 CONTRACTS = load_contracts((REPO_ROOT / "packs/mimic/contracts",))
 LACTATE = 40762125  # LOINC 59032-3, in the Eunomia shard
+FACE_MASK = 4126216  # SNOMED 261352009, domain Device, in the Eunomia shard
 
 
 @pytest.fixture(scope="module")
@@ -46,6 +47,13 @@ def omop(tmp_path_factory):
         wh.conn,
         vocab.MIMIC_LAB_VOCABULARY,
         [("99001", 0, "MIMIC_LAB", "Invented lab A", LACTATE, "LOINC", "1970-01-01",
+          "2099-12-31", None)],
+    )  # fmt: skip
+    # The invented NDC maps (by a site map) to a Device concept: a device, not a drug.
+    vocab.load_source_to_concept_map(
+        wh.conn,
+        "NDC",
+        [("00000000001", 0, "NDC", "Invented device", FACE_MASK, "SNOMED", "1970-01-01",
           "2099-12-31", None)],
     )  # fmt: skip
     install_key(wh.conn, "ci-test-key-0123456789abcdef0123456789abcdef")
@@ -79,10 +87,11 @@ def test_conditions_dated_by_encounter_with_dotted_icd(omop):
 
 
 def test_drug_source_values_for_ndc_and_iv_mix(omop):
-    assert rows(omop, "select drug_source_value from omop.drug_exposure order by 1") == [
-        ("00000000001",),
-        ("mix-1",),
-    ]
+    # The NDC that maps to a Device concept stays a drug row with concept 0 (there is no
+    # device_exposure table here), so it is counted, not dropped.
+    assert rows(
+        omop, "select drug_source_value, drug_concept_id from omop.drug_exposure order by 1"
+    ) == [("00000000001", 0), ("mix-1", 0)]
 
 
 def test_shifted_birth_year_kept(omop):
