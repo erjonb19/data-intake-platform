@@ -15,8 +15,10 @@ python -m dip vocab-coverage     # unmapped rows and codes per OMOP table, count
 ```
 
 `vocab-load` keeps `CONCEPT` and the "Maps to" rows of `CONCEPT_RELATIONSHIP`, records the
-release in `vocab.load_info` (it goes into each extract's provenance), and warns about any
-source vocabulary whose concepts mostly have no "Maps to" (see the cross-download gap below).
+release in `vocab.load_info` (it goes into each extract's provenance), and warns when one
+of the source vocabularies the pipeline maps from (ICD9CM, ICD10CM, ICD10, NDC) mostly has
+no "Maps to" (see the cross-download gap below). Other vocabularies are not checked: many,
+such as MeSH, never map.
 
 ## What was loaded (2026-10-21)
 
