@@ -1,0 +1,162 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01KTH9U7FCGwLZBm6gDwZ3vA",
+    "input": {},
+    "name": "list_quarantine_groups",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2736,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 32,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_019bhNwhkr96VEKFrjxAwRey",
+    "input": {
+     "group_id": "healthcare.fhir_patient_bundle|FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate",
+     "limit": 5
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_016kSuwNDY5mjywnQnaLFEHi",
+    "input": {
+     "feed": "healthcare.fhir_patient_bundle"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01V4LLNMB1jd54Yu2ofqGkJY",
+    "input": {
+     "feed": "healthcare.fhir_patient_bundle",
+     "limit": 10
+    },
+    "name": "get_feed_history",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 3079,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 275,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01F9Gtv5zJymhautXYFs8ea3",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.6,
+     "group_id": "healthcare.fhir_patient_bundle|FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate",
+     "message_to_vendor": "Your file patient_missing_birthdate.json was rejected: Patient/8f3e6b1a-0000-4000-8000-000000000001 has no birthDate. Please resend the bundle with birthDate populated for each Patient. If this is a test fixture and not production data, tell us so and we will close it.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "Quarantined whole file patient_missing_birthdate.json (contract v2, 0 rows accepted). The validator reports Patient/8f3e6b1a-0000-4000-8000-000000000001 has no birthDate. The file start shows a valid R4 transaction Bundle with a Patient carrying name, gender, address and us-core extensions, but no birthDate. The contract's columns list does not spell out required FHIR fields, so the rule comes from the validator. The patient name \"Testperson / Fixture\" and the all-zero UUID suggest a test fixture, which would argue for discard instead. I cannot confirm that from the sample, so I propose a resend, which changes the least.",
+     "root_cause": "fhir_structure"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 1540
+   },
+   "cache_creation_input_tokens": 1540,
+   "cache_read_input_tokens": 3079,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 967,
+   "output_tokens_details": {
+    "thinking_tokens": 386
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Triage summary. The open quarantine has one group.\n\n- **healthcare.fhir_patient_bundle / FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate** (quarantine id 1, file patient_missing_birthdate.json): proposed `request_resend` (root cause `fhir_structure`, confidence 0.6). The Patient has no birthDate, and the file is otherwise a valid R4 transaction Bundle. The name \"Testperson / Fixture\" and the all-zero UUID look like a test fixture, so a person may prefer `discard`. The resend message asks the vendor to add birthDate, or to say if the file is a test.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 1006
+   },
+   "cache_creation_input_tokens": 1006,
+   "cache_read_input_tokens": 4619,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 232,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

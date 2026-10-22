@@ -101,3 +101,53 @@ BEGIN
 EXCEPTION WHEN insufficient_privilege THEN
     RAISE NOTICE 'cannot create role dip_researcher; expected to exist already';
 END $$;
+
+-- Agent layer (PLAN.md section 7; Stage 4 triage agent). Proposals that need a human:
+-- an agent writes a pending row through the Propose tier; a person approves or rejects
+-- it; only an approved, unexpired row whose payload still hashes to payload_sha256 runs.
+CREATE TABLE IF NOT EXISTS ops.approvals (
+    approval_id       bigserial   PRIMARY KEY,
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    agent_id          text        NOT NULL,
+    run_id            text,
+    action            text        NOT NULL,
+    payload           jsonb       NOT NULL,
+    payload_sha256    text        NOT NULL,
+    status            text        NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'approved', 'rejected', 'executed', 'expired', 'failed')),
+    expires_at        timestamptz NOT NULL,
+    decided_by        text,
+    decided_at        timestamptz,
+    decision_note     text,
+    executed_by       text,
+    executed_at       timestamptz,
+    result            jsonb
+);
+CREATE INDEX IF NOT EXISTS approvals_status_idx ON ops.approvals (status, created_at);
+
+-- Every tool call, allowed or denied, by agents and by people. Append-only: a trigger
+-- refuses UPDATE, DELETE and TRUNCATE for every role, the owner included.
+CREATE TABLE IF NOT EXISTS ops.audit_log (
+    audit_id          bigserial   PRIMARY KEY,
+    at                timestamptz NOT NULL DEFAULT now(),
+    principal         text        NOT NULL,
+    run_id            text,
+    tool              text        NOT NULL,
+    tier              text        NOT NULL,
+    args_sha256       text        NOT NULL,
+    decision          text        NOT NULL CHECK (decision IN ('allowed', 'denied')),
+    reason            text,
+    result_status     text,
+    latency_ms        integer
+);
+CREATE OR REPLACE FUNCTION ops.audit_log_append_only() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'ops.audit_log is append-only (% refused)', TG_OP;
+END $$;
+DROP TRIGGER IF EXISTS audit_log_append_only ON ops.audit_log;
+CREATE TRIGGER audit_log_append_only BEFORE UPDATE OR DELETE ON ops.audit_log
+    FOR EACH ROW EXECUTE FUNCTION ops.audit_log_append_only();
+DROP TRIGGER IF EXISTS audit_log_no_truncate ON ops.audit_log;
+CREATE TRIGGER audit_log_no_truncate BEFORE TRUNCATE ON ops.audit_log
+    FOR EACH STATEMENT EXECUTE FUNCTION ops.audit_log_append_only();
