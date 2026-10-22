@@ -135,9 +135,10 @@ def test_not_a_workbook(contract, data):
 
 def test_macros_are_refused(contract):
     buf = io.BytesIO()
-    with zipfile.ZipFile(io.BytesIO(workbook(HEADER, GOOD))) as src, zipfile.ZipFile(
-        buf, "w"
-    ) as dst:
+    with (
+        zipfile.ZipFile(io.BytesIO(workbook(HEADER, GOOD))) as src,
+        zipfile.ZipFile(buf, "w") as dst,
+    ):
         for item in src.infolist():
             dst.writestr(item, src.read(item.filename))
         dst.writestr("xl/vbaProject.bin", b"\x00fake")
@@ -169,16 +170,16 @@ def test_intake_loads_a_workbook_and_quarantines_a_macro_one(tmp_path, contract)
     store, wh = LocalStore(tmp_path), FakeWarehouse()
     store.put(BUCKET_LANDING, f"{excel.feed}/elig_20261021.xlsx", workbook(HEADER, GOOD))
     buf = io.BytesIO()
-    with zipfile.ZipFile(io.BytesIO(workbook(HEADER, GOOD, title_rows=[["x"]]))) as src, (
-        zipfile.ZipFile(buf, "w")
-    ) as dst:
+    with (
+        zipfile.ZipFile(io.BytesIO(workbook(HEADER, GOOD, title_rows=[["x"]]))) as src,
+        zipfile.ZipFile(buf, "w") as dst,
+    ):
         for item in src.infolist():
             dst.writestr(item, src.read(item.filename))
         dst.writestr("xl/vbaProject.bin", b"\x00fake")
     store.put(BUCKET_LANDING, f"{excel.feed}/elig_20261020.xlsx", buf.getvalue())
     out = {
-        o.source_key.split("/")[-1]: o
-        for o in process_landing(store, wh, {excel.feed: excel}, NOW)
+        o.source_key.split("/")[-1]: o for o in process_landing(store, wh, {excel.feed: excel}, NOW)
     }
     assert (out["elig_20261021.xlsx"].status, out["elig_20261021.xlsx"].accepted) == ("loaded", 1)
     assert out["elig_20261020.xlsx"].reason_codes == ("FILE.MACROS",)

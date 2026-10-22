@@ -61,7 +61,9 @@ def _rows(data: bytes, fmt: dict[str, Any], result: CsvResult) -> list[list[str]
                 return None
         wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
     except (zipfile.BadZipFile, KeyError, ValueError, OSError) as exc:
-        result.file_violations.append(Violation("FILE.INVALID_XLSX", f"not an .xlsx workbook: {exc}"))
+        result.file_violations.append(
+            Violation("FILE.INVALID_XLSX", f"not an .xlsx workbook: {exc}")
+        )
         return None
     try:
         name = fmt.get("sheet")
