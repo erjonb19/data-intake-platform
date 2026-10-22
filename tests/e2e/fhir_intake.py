@@ -84,7 +84,12 @@ def main() -> int:
         n = cur.fetchone()[0]
         if n != 3:
             failures.append(f"expected 3 de-identified HbA1c rows for the good patient, found {n}")
-        cur.execute("select count(*) from bronze.fhir_resource where patient_id = %s", (PATIENT,))
+        # This file's rows only: after an upgrade, an older copy of the fixture (another
+        # sha256) can still be in bronze next to it.
+        cur.execute(
+            "select count(*) from bronze.fhir_resource where patient_id = %s and file_sha256 = %s",
+            (PATIENT, sha["good/patient_t2d.json"]),
+        )
         n = cur.fetchone()[0]
         if n != 10:
             failures.append(f"expected 10 bronze resources for the good patient, found {n}")
