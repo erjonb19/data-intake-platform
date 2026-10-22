@@ -14,7 +14,8 @@ own_value as (
         resource,
         resource -> 'code' as code,
         resource -> 'valueQuantity' as value_quantity,
-        resource -> 'valueCodeableConcept' as value_concept
+        resource -> 'valueCodeableConcept' as value_concept,
+        resource ->> 'valueString' as value_string
     from obs
     where resource ? 'valueQuantity' or resource ? 'valueCodeableConcept'
         or not resource ? 'component'
@@ -28,7 +29,8 @@ components as (
         obs.resource,
         c.component -> 'code' as code,
         c.component -> 'valueQuantity' as value_quantity,
-        c.component -> 'valueCodeableConcept' as value_concept
+        c.component -> 'valueCodeableConcept' as value_concept,
+        c.component ->> 'valueString' as value_string
     from obs,
         jsonb_array_elements(obs.resource -> 'component') with ordinality as c (component, ordinality)
     where jsonb_typeof(obs.resource -> 'component') = 'array'
@@ -46,5 +48,6 @@ select
     {{ fhir_ts("resource ->> 'effectiveDateTime'") }} as effective_at,
     (value_quantity ->> 'value')::numeric as value_number,
     coalesce(value_quantity ->> 'code', value_quantity ->> 'unit') as unit_code,
-    {{ fhir_code('value_concept', 'http://snomed.info/sct') }} as value_snomed_code
+    {{ fhir_code('value_concept', 'http://snomed.info/sct') }} as value_snomed_code,
+    value_string
 from (select * from own_value union all select * from components) as v

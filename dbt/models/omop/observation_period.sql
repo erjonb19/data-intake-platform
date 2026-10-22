@@ -13,6 +13,9 @@ with events as (
     union all
     select person_id, drug_exposure_start_date, drug_exposure_end_date
     from {{ ref('drug_exposure') }}
+    union all
+    select person_id, observation_date, observation_date
+    from {{ ref('observation') }}
 )
 
 select

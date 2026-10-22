@@ -3,6 +3,11 @@ version: 2
 # Gold layer: OMOP CDM 5.4, restricted tier. Built from synthetic Synthea FHIR data.
 # Keys are stable hashes of FHIR ids (macro omop_id). Concepts come from the Eunomia shard;
 # codes it does not cover are concept_id 0 with the source value kept, as OMOP requires.
+#
+# Data quality (R3): tests named dqd_* mirror OHDSI Data Quality Dashboard checks; see
+# docs/research/README.md for the full list. Conformance and plausibility failures are
+# errors (they fail the build); completeness checks are warnings with thresholds. Every
+# result is recorded in ops.dq_results.
 
 models:
   - name: concept
@@ -19,20 +24,35 @@ models:
         data_tests: [unique, not_null]
       - name: gender_concept_id
         description: 8507 male, 8532 female, else 0 (FHIR administrative gender).
-        data_tests: [not_null]
+        data_tests:
+          - not_null
+          - dqd_fk_domain:
+              arguments: {domain: Gender}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
       - name: year_of_birth
-        data_tests: [not_null]
+        data_tests:
+          - not_null
+          - dqd_plausible_year_of_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow}}
       - name: race_concept_id
         description: From the US Core race extension's OMB category; 0 when absent or unmapped.
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Race}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
       - name: ethnicity_concept_id
         description: From the US Core ethnicity extension's OMB category.
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Ethnicity}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
       - name: person_source_value
         description: FHIR Patient id. Restricted; removed in the shareable tier.
 
   - name: observation_period
     description: >
       One period per person, from the first to the last recorded event across visits,
-      conditions, measurements and drug exposures.
+      conditions, measurements, drug exposures and observations.
     columns:
       - name: observation_period_id
         data_tests: [unique, not_null]
@@ -41,11 +61,28 @@ models:
           - unique
           - relationships:
               arguments: {to: ref('person'), field: person_id}
+      - name: observation_period_start_date
+        data_tests:
+          - dqd_plausible_after_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleAfterBirth}}
+          - dqd_plausible_start_before_end:
+              arguments: {end_column: observation_period_end_date}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleStartBeforeEnd}}
+      - name: period_type_concept_id
+        data_tests:
+          - dqd_is_foreign_key_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isForeignKey}}
 
   - name: visit_occurrence
     description: >
       One row per FHIR Encounter. visit_concept_id from Encounter.class: AMB 9202
       (outpatient), EMER 9203 (ER), IMP and ACUTE 9201 (inpatient); other classes 0.
+    data_tests:
+      - dqd_measure_person_completeness:
+          arguments: {column_name: person_id, max_ratio: 0.05}
+          config:
+            severity: warn
+            meta: {dq_category: completeness, dqd_check: measurePersonCompleteness}
     columns:
       - name: visit_occurrence_id
         data_tests: [unique, not_null]
@@ -54,14 +91,46 @@ models:
           - not_null
           - relationships:
               arguments: {to: ref('person'), field: person_id}
+      - name: visit_concept_id
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Visit}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+          - dqd_is_standard_valid_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isStandardValidConcept}}
+          - dqd_standard_concept_record_completeness:
+              arguments: {max_ratio: 0.05}
+              config:
+                severity: warn
+                meta: {dq_category: completeness, dqd_check: standardConceptRecordCompleteness}
       - name: visit_start_date
-        data_tests: [not_null]
+        data_tests:
+          - not_null
+          - dqd_plausible_after_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleAfterBirth}}
+          - dqd_plausible_start_before_end:
+              arguments: {end_column: visit_end_date}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleStartBeforeEnd}}
+          - omop_in_observation_period:
+              config: {meta: {dq_category: plausibility, dqd_check: inObservationPeriod}}
+      - name: visit_type_concept_id
+        data_tests:
+          - dqd_is_foreign_key_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isForeignKey}}
 
   - name: condition_occurrence
     description: >
       One row per FHIR Condition. The SNOMED code (or, for the few Synthea conditions
       coded only in ICD-10, the ICD-10 code) is mapped to the standard concept through
-      "Maps to"; condition_end_date from abatementDateTime when present.
+      "Maps to"; condition_end_date from abatementDateTime when present. Conditions whose
+      standard concept is in another domain (SNOMED situations, social findings) are routed
+      to `observation`, as OMOP requires; unmapped ones stay here with concept_id 0.
+    data_tests:
+      - dqd_measure_person_completeness:
+          arguments: {column_name: person_id, max_ratio: 0.2}
+          config:
+            severity: warn
+            meta: {dq_category: completeness, dqd_check: measurePersonCompleteness}
     columns:
       - name: condition_occurrence_id
         data_tests: [unique, not_null]
@@ -70,8 +139,41 @@ models:
           - not_null
           - relationships:
               arguments: {to: ref('person'), field: person_id}
+      - name: condition_concept_id
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Condition}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+          - dqd_is_standard_valid_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isStandardValidConcept}}
+          - dqd_standard_concept_record_completeness:
+              # The Eunomia shard predates Synthea v4 codes; full Athena would lower this.
+              arguments: {max_ratio: 0.5}
+              config:
+                severity: warn
+                meta: {dq_category: completeness, dqd_check: standardConceptRecordCompleteness}
+      - name: condition_source_value
+        data_tests:
+          - dqd_source_value_completeness:
+              arguments: {concept_column: condition_concept_id}
+              config: {meta: {dq_category: completeness, dqd_check: sourceValueCompleteness}}
       - name: condition_start_date
-        data_tests: [not_null]
+        data_tests:
+          - not_null
+          - dqd_plausible_after_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleAfterBirth}}
+          - dqd_plausible_start_before_end:
+              arguments: {end_column: condition_end_date}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleStartBeforeEnd}}
+          - dqd_within_visit_dates:
+              # Synthea records some onsets weeks before the encounter that recorded them
+              # (measured: 7 of ~800). DQD treats this check with a threshold too.
+              config:
+                severity: warn
+                warn_if: ">0"
+                meta: {dq_category: plausibility, dqd_check: withinVisitDates}
+          - omop_in_observation_period:
+              config: {meta: {dq_category: plausibility, dqd_check: inObservationPeriod}}
       - name: visit_occurrence_id
         data_tests:
           - relationships:
@@ -81,7 +183,13 @@ models:
     description: >
       FHIR Observation values (and components) whose LOINC code maps to the Measurement
       domain, or that are unmapped laboratory or vital-sign results. Example:
-      HbA1c is LOINC 4548-4, concept 3004410, unit % (UCUM).
+      HbA1c is LOINC 4548-4, concept 3004410, unit % (UCUM, 8554).
+    data_tests:
+      - dqd_measure_person_completeness:
+          arguments: {column_name: person_id, max_ratio: 0.1}
+          config:
+            severity: warn
+            meta: {dq_category: completeness, dqd_check: measurePersonCompleteness}
     columns:
       - name: measurement_id
         description: Hash of the FHIR Observation id and component index.
@@ -91,8 +199,80 @@ models:
           - not_null
           - relationships:
               arguments: {to: ref('person'), field: person_id}
+      - name: measurement_concept_id
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Measurement}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+          - dqd_is_standard_valid_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isStandardValidConcept}}
+          - dqd_standard_concept_record_completeness:
+              arguments: {max_ratio: 0.1}
+              config:
+                severity: warn
+                meta: {dq_category: completeness, dqd_check: standardConceptRecordCompleteness}
+      - name: measurement_source_value
+        data_tests:
+          - dqd_source_value_completeness:
+              arguments: {concept_column: measurement_concept_id}
+              config: {meta: {dq_category: completeness, dqd_check: sourceValueCompleteness}}
+      - name: unit_concept_id
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Unit}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+          - dqd_plausible_unit_concept_ids:
+              arguments: {concept_id: 3004410, allowed: [8554]}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleUnitConceptIds}}
+      - name: value_as_concept_id
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Meas Value}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+      - name: value_as_number
+        description: Plausible ranges per measurement (DQD plausibleValueLow/High).
+        data_tests:
+          - dqd_plausible_value_range:
+              name: plausible_value_hba1c
+              arguments: {concept_id: 3004410, low: 3, high: 20}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow/High}}
+          - dqd_plausible_value_range:
+              name: plausible_value_bmi
+              arguments: {concept_id: 3038553, low: 8, high: 100}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow/High}}
+          - dqd_plausible_value_range:
+              name: plausible_value_body_height_cm
+              arguments: {concept_id: 3036277, low: 20, high: 250}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow/High}}
+          - dqd_plausible_value_range:
+              name: plausible_value_body_weight_kg
+              arguments: {concept_id: 3025315, low: 0.5, high: 400}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow/High}}
+          - dqd_plausible_value_range:
+              name: plausible_value_systolic_bp
+              arguments: {concept_id: 3004249, low: 40, high: 300}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow/High}}
+          - dqd_plausible_value_range:
+              name: plausible_value_diastolic_bp
+              arguments: {concept_id: 3012888, low: 20, high: 200}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow/High}}
+          - dqd_plausible_value_range:
+              name: plausible_value_glucose
+              arguments: {concept_id: 3000483, low: 10, high: 1000}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow/High}}
+          - dqd_plausible_value_range:
+              name: plausible_value_heart_rate
+              arguments: {concept_id: 3027018, low: 20, high: 250}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleValueLow/High}}
       - name: measurement_date
-        data_tests: [not_null]
+        data_tests:
+          - not_null
+          - dqd_plausible_after_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleAfterBirth}}
+          - dqd_within_visit_dates:
+              config: {meta: {dq_category: plausibility, dqd_check: withinVisitDates}}
+          - omop_in_observation_period:
+              config: {meta: {dq_category: plausibility, dqd_check: inObservationPeriod}}
       - name: visit_occurrence_id
         data_tests:
           - relationships:
@@ -102,6 +282,12 @@ models:
     description: >
       One row per FHIR MedicationRequest (prescription written), RxNorm mapped to the
       standard concept. The end date equals the start date because the orders carry none.
+    data_tests:
+      - dqd_measure_person_completeness:
+          arguments: {column_name: person_id, max_ratio: 0.5}
+          config:
+            severity: warn
+            meta: {dq_category: completeness, dqd_check: measurePersonCompleteness}
     columns:
       - name: drug_exposure_id
         data_tests: [unique, not_null]
@@ -110,8 +296,72 @@ models:
           - not_null
           - relationships:
               arguments: {to: ref('person'), field: person_id}
+      - name: drug_concept_id
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Drug}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+          - dqd_is_standard_valid_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isStandardValidConcept}}
+          - dqd_standard_concept_record_completeness:
+              arguments: {max_ratio: 0.3}
+              config:
+                severity: warn
+                meta: {dq_category: completeness, dqd_check: standardConceptRecordCompleteness}
+      - name: drug_source_value
+        data_tests:
+          - dqd_source_value_completeness:
+              arguments: {concept_column: drug_concept_id}
+              config: {meta: {dq_category: completeness, dqd_check: sourceValueCompleteness}}
       - name: drug_exposure_start_date
-        data_tests: [not_null]
+        data_tests:
+          - not_null
+          - dqd_plausible_after_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleAfterBirth}}
+          - dqd_plausible_start_before_end:
+              arguments: {end_column: drug_exposure_end_date}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleStartBeforeEnd}}
+          - dqd_within_visit_dates:
+              config: {meta: {dq_category: plausibility, dqd_check: withinVisitDates}}
+          - omop_in_observation_period:
+              config: {meta: {dq_category: plausibility, dqd_check: inObservationPeriod}}
+      - name: drug_type_concept_id
+        data_tests:
+          - dqd_is_foreign_key_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isForeignKey}}
+      - name: visit_occurrence_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('visit_occurrence'), field: visit_occurrence_id}
+
+  - name: observation
+    description: >
+      Facts whose standard concept is in the Observation domain: FHIR Conditions coded as
+      SNOMED situations or social findings, and FHIR Observations whose LOINC code maps to
+      the Observation domain (for example tobacco smoking status, survey answers).
+    columns:
+      - name: observation_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('person'), field: person_id}
+      - name: observation_concept_id
+        data_tests:
+          - not_null
+          - dqd_fk_domain:
+              arguments: {domain: Observation}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+          - dqd_is_standard_valid_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isStandardValidConcept}}
+      - name: observation_date
+        data_tests:
+          - not_null
+          - dqd_plausible_after_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleAfterBirth}}
+          - omop_in_observation_period:
+              config: {meta: {dq_category: plausibility, dqd_check: inObservationPeriod}}
       - name: visit_occurrence_id
         data_tests:
           - relationships:

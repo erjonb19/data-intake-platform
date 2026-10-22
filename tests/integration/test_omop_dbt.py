@@ -113,6 +113,7 @@ def test_synthea_mapping_report(omop):
         ("measurement", "measurement_concept_id"),
         ("drug_exposure", "drug_concept_id"),
         ("visit_occurrence", "visit_concept_id"),
+        ("observation", "observation_concept_id"),
     ]:
         total, unmapped = rows(
             omop, f"select count(*), count(*) filter (where {concept} = 0) from omop.{table}"
@@ -124,3 +125,47 @@ def test_synthea_mapping_report(omop):
 
 def test_vocab_needs_load(omop):
     assert vocab.needs_load(omop.conn) is False
+
+
+def test_dq_results_recorded(omop):
+    """R3: every test of the build is in ops.dq_results; none failed (warnings allowed)."""
+    summary = rows(
+        omop,
+        "select dq_category, status, count(*) from ops.dq_results"
+        " where invocation_id = (select invocation_id from ops.dq_results"
+        "   order by recorded_at limit 1)"
+        " group by 1, 2 order by 1, 2",
+    )
+    print("DQ summary (category, status, tests):", summary)
+    categories = {c for c, _, _ in summary}
+    assert {"conformance", "completeness", "plausibility", "integrity"} <= categories
+    assert not [s for _, s, _ in summary if s not in ("pass", "warn")], summary
+    warned = rows(
+        omop,
+        "select test_name, failures from ops.dq_results where status = 'warn' order by 1",
+    )
+    print("DQ warnings:", warned)
+
+
+def test_dq_catches_implausible_hba1c(omop):
+    """R3 negative test: an HbA1c of 55% fails plausibleValueHigh and is recorded."""
+    with omop.conn.cursor() as cur:
+        cur.execute(
+            "insert into omop.measurement (measurement_id, person_id, measurement_concept_id,"
+            " measurement_date, measurement_type_concept_id, value_as_number, unit_concept_id)"
+            " select -1, person_id, 3004410, measurement_date, 32817, 55, 8554"
+            " from omop.measurement where measurement_concept_id = 3004410 limit 1"
+        )
+    omop.conn.commit()
+    try:
+        result = run_dbt(DSN, "test", "--select", "plausible_value_hba1c", check=False)
+        assert result.returncode != 0
+        assert rows(
+            omop,
+            "select status, failures from ops.dq_results where test_name = 'plausible_value_hba1c'"
+            " order by recorded_at desc limit 1",
+        ) == [("fail", 1)]
+    finally:
+        with omop.conn.cursor() as cur:
+            cur.execute("delete from omop.measurement where measurement_id = -1")
+        omop.conn.commit()
