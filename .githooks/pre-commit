@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Blocks a commit that would add MIMIC data, a local-only extract or a stray data file.
+# Enable once per clone: bash scripts/install-hooks.sh
+exec bash "$(git rev-parse --show-toplevel)/scripts/check_no_mimic_data.sh" --staged

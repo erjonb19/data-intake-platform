@@ -39,5 +39,4 @@ left join {{ ref('source_to_standard') }} as u
     on u.vocabulary_id = 'UCUM' and u.concept_code = o.unit_code
 left join {{ ref('source_to_standard') }} as vs
     on vs.vocabulary_id = 'SNOMED' and vs.concept_code = o.value_snomed_code
-where s.standard_domain_id = 'Measurement'
-    or (s.standard_concept_id is null and o.category in ('laboratory', 'vital-signs'))
+where {{ routes_to_measurement('s', 'o') }}
