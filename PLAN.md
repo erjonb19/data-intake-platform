@@ -1,7 +1,7 @@
 # PLAN — Data Intake Platform
 
 Status: **APPROVED 2026-10-18** with changes: model `claude-haiku-5-5` (kept in config), public repo, the read-only MCP tools moved into Stage 3, and the contract-author agent due by 2026-12-31.
-Plan date: 2026-10-17. Revised: 2026-10-18, and 2026-10-21 (research-data track, §8.1).
+Plan date: 2026-10-17. Revised: 2026-10-18, 2026-10-21 (research-data track, §8.1), and 2026-10-22 (R7a built, mapping follow-ups §8.5, Stage 2 plan §8.6).
 
 ## 1. What we are building
 
@@ -253,7 +253,7 @@ Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run
 | **3. OCR + monitoring + read-only MCP** | **2026-11-30** | Native and scanned PDF invoices go through OCR and are matched to Excel invoices in gold. Low-confidence pages go to quarantine. DQ checks are surfaced. Marquez shows lineage from file to gold table, including FHIR file → OMOP → shareable extract (R6). Grafana shows files per feed, quarantine rate, freshness or SLA, and DAG duration, with alert rules. **The MCP server goes live with the Read tier only**, over Streamable HTTP with per-agent API keys and read-only default policies, and with `ops.audit_log` recording every call. Its tools are `list_quarantine`, `get_quarantine_sample`, `get_contract`, `profile_file`, `get_dag_run`, `get_task_log`, `get_lineage`, `query_metrics` and `get_dq_results`. A demo: ask any MCP client "why did yesterday's eligibility feed quarantine 40 rows?" and get the answer through MCP. E2E checks lineage events, metrics, and one authenticated MCP read plus one rejected unauthenticated call |
 | **4. Breakage generator + runbooks + Propose tier** | **2026-12-13** | Synthetic 837/835 files are generated and parsed into claims and remittance marts (moved from Stage 2). `dip break <scenario>` triggers each failure on purpose. There are 8 break-and-fix runbooks in `docs/runbooks/`, each with symptoms, Grafana, Marquez and MCP evidence, a fix and a check. E2E runs each scenario. The MCP Propose tier is added: `propose_contract_pr` (GitHub App that can open PRs but not merge them) and `propose_operation`, plus the `ops.approvals` table and the `dip approvals` CLI |
 | **5. Contract-author agent + eval harness** | **2026-12-31** | Hand it a sample file from a new vendor and get a draft contract PR. Hand it a drifted file (from the breakage generator) and get a PR with the contract diff. The agent can only Read and Propose. Eval harness and first results: onboarding and drift scored separately, prompt-injection cases, and comparisons between `claude-haiku-5-5` and the free fallback models |
-| **5R. Cohort service (R7)** | **2027-01-10** | The clinical-drift-monitor's cohort service answers longitudinal feasibility questions against the shareable OMOP tier |
+| **5R. Cohort service (R7)** | **2027-01-10** | The clinical-drift-monitor's cohort service answers longitudinal feasibility questions against the shareable OMOP tier. **R7a (this repo) was built on 2026-10-22**; R7b is the drift monitor's side (§8.4) |
 | **6. Act tier + triage agent** | **2027-01-31** (was 01-24) | `execute_approved_operation` runs only after a human approves, with a matching payload hash and an unexpired approval. The triage agent groups quarantine by root cause and proposes release, discard or replay; a human approves and the action runs. Triage evals and injection cases. The demo shows an Act call denied, then allowed after approval |
 | **7. Incident agent + LangGraph handoff** | **2027-02-21** (was 02-14) | A breakage raises an incident. The incident agent diagnoses it from logs, lineage and metrics and hands off to triage through a typed edge in the LangGraph graph. The whole chain is visible in the audit log. Full eval suite, including handoff correctness |
 | **8. Hardening and write-up** | **2027-03-07** (was 02-28) | Nightly evals, a README and architecture docs, a recorded demo, and a backlog item for OAuth |
@@ -335,9 +335,13 @@ The FHIR demo is derived from the relational demo (plus the MIMIC-IV-ED demo), s
 
 **Dates.** 1.5 days, alongside Stage 1. No stage dates move.
 
-### 8.4 R7 plan: cohort service over the shareable tier (added 2026-10-21; build on hold)
+### 8.4 R7: cohort service over the shareable tier (added 2026-10-21; R7a built 2026-10-22)
 
-**Hold.** Nothing is built until the cohort service in `erjonb19/clinical-drift-monitor` (PR #4, branch `research/g2-cohort`, "governed cohort and feasibility service over OMOP") is merged there. The plan below is written against that branch as it stands today.
+**Status (2026-10-22).** The hold is lifted: the cohort service merged in `erjonb19/clinical-drift-monitor` (its PR #4, "Phase G2", on 2026-10-22). **R7a is built in this repo** (`procedure_occurrence`, PR #20; reader role, `cdm_source` and Synthea-only grants, PR #21). **R7b belongs to the drift monitor.** [docs/research/cohort-service.md](docs/research/cohort-service.md) lists exactly what that repo needs, checked against its `main`, to hand over. Two points differ from the plan below:
+- The reader is **not** a member of `dip_researcher`. The dbt hook classifies the warehouse live on every run. It grants the reader the tables it just rebuilt only while the warehouse holds Synthea alone, and revokes everything otherwise. Once a run has seen MIMIC, a block row keeps the warehouse classified as MIMIC until a person clears it. So a MIMIC build can't be read through the reader, even by mistake.
+- R7b gains two items found in the merged code. Postgres has no `YEAR()`, which the service's SQL uses; `EXTRACT(YEAR FROM …)` runs on all three engines. And `image_occurrence` must be optional, because this tier has none.
+
+The original plan follows.
 
 **What the cohort service already does** (in that repo): phenotypes are versioned YAML in an allowlisted language (index condition, criteria on conditions, procedures, images and sex, an optional breakdown). A human approves each exact definition by SHA-256. The service compiles it to SQL against generic OMOP CDM 5.4 names through a table map, suppresses cells from 1 to 10 as "<11" (plus complementary suppression), and writes a hash-chained audit log. Engines today: DuckDB and Databricks SQL.
 
@@ -354,7 +358,58 @@ The FHIR demo is derived from the relational demo (plus the MIMIC-IV-ED demo), s
   4. Its CI stays offline: tests load a small CC0 Synthea extract (from R5) into DuckDB. The Postgres engine is exercised against the local stack only.
 - **Caveat stated in both repos:** the shareable tier shifts dates by up to ±180 days and keeps year of birth only, so ages and dates near a cut-off can move by a year. Feasibility counts are approximate at the edges.
 
-**Dates.** Still 2 days, on 2027-01-10 (Stage 5R). If the drift-monitor PR merges earlier, R7a can start earlier; nothing else moves.
+**Dates.** R7a took 1 day and is done (2026-10-22). R7b, about 1 day in the drift-monitor repo, can happen any time before 2027-01-10. Stages 6–8 slid one week for R7 (§8.1). That week is now slack, but the dates are left as they are until you decide.
+
+### 8.5 Follow-ups: mapping limits and reprocessing (added 2026-10-22)
+
+These limits are documented in `docs/research/vocabulary.md` and `docs/research/README.md`, and are not fixed yet. Each would make OMOP output closer to how OHDSI's own ETLs behave. None blocks Stage 2 or 3.
+
+| # | Follow-up | Size today (full Athena bundle, local) | Effort (part-time days) | JD line it covers |
+|---|---|---|---|---|
+| **F1** | **One row per "Maps to" target.** A source code that maps to several standard concepts keeps only the lowest concept id (a deterministic tiebreak since fix 7). OMOP writes one row per target, for example a combination diagnosis that maps to two conditions. Do that, with ids that stay unique (the source row's id plus the target) | 6.4% of MIMIC diagnoses (273 FHIR, 242 relational), 13 of them with targets in two or more domains; 27/25 observation rows; 84 drug rows per build. Synthea: none | 1.5 | OMOP; documented definitions |
+| **F2** | **Domain routing everywhere.** Diagnoses whose standard concept is in the Measurement domain stay in `condition_occurrence` with concept 0. Procedures whose concept is in Measurement, Observation or Device stay in `procedure_occurrence` with concept 0. Route them to the table of their domain, as observations already are, and extend `no_source_rows_dropped` to prove nothing is lost | Diagnoses: 53/4,237 MIMIC FHIR (1.3%) and 45/3,774 relational (1.2%); Synthea none. Procedures: 27% of Synthea's with the Eunomia shard (to be measured on Athena) | 1 | OMOP; quality checks |
+| **F4** | **Reprocess on a contract upgrade.** Intake dedups on content, so files ingested under an older contract version keep what that version loaded. Contract v2 of the Synthea feed added Procedure, and files ingested under v1 have none. Add `dip reprocess --feed F --below-version N`, which replays the raw copies through the current contract. Bronze keeps its version history, so silver's latest-version rule picks up the new rows | Synthea files ingested before PR #20, on installs that predate it | 1 | Reproducibility; lineage |
+| **F3** | **MIMIC procedures.** Load `procedures_icd` (ICD-9/10-PCS) on the relational path and the `MimicProcedure*` resources on the FHIR path, then reconcile the two the way M3 reconciles diagnoses | not loaded today | 1.5 | EHR integration; OMOP |
+
+**When:** after Stage 2, in Stage 4's window (2026-12-13), or earlier if Stage 2 finishes with time to spare. F2 before F1, because F1's multi-domain codes need F2's routing. F4 can go any time; it is independent. Local MIMIC only for the measurements. CI checks each with hand-written MIMIC-shaped fixtures, as M1 and M2 do.
+
+### 8.6 Stage 2 plan: all channels and formats, both packs (added 2026-10-22; not started)
+
+**Where things stand.** Stage 1 (due 2026-11-08) is done: the eligibility CSV slice runs end to end in CI (`docs/demos/stage-1.md`). Three items on the Stage 2 row are also done already:
+- R4, the de-identified tier;
+- R5, the rebuild-verified extract;
+- row-level quarantine, which came with Stage 1's contract engine (decisions log, 2026-10-22).
+
+What is left is below. Stage 2's date stays **2026-11-20**.
+
+| # | Item | Effort (part-time days) | Depends on | Dates |
+|---|---|---|---|---|
+| **S2.1** | **Excel format.** `format.type: xlsx` in the contract engine. Uses openpyxl in read-only mode, picks the sheet by name and the header row by number, and reuses the CSV column and row checks and their reason codes. Adds `FILE.INVALID_XLSX` and `SCHEMA.MISSING_SHEET`. Formulas are read as their cached values. Macro-enabled files (`.xlsm`) are refused. Hand-made fixtures | 1.5 | Stage 1 | 10-26 → 10-28 |
+| **S2.2** | **SFTP channel.** `atmoz/sftp`, pinned by digest, one chroot per vendor, key authentication only. The key comes from Terraform's `tls` provider into a Secret and is never committed. An Airflow `sftp_sync` task moves only complete files (size unchanged across two polls, or a `.done` marker) into `landing/<feed>/`. `ops.intake_file` records the channel | 2 | Stage 1 | 10-28 → 11-02 |
+| **S2.3** | **Intake API.** A FastAPI service (`images/intake-api`) with `POST /v1/feeds/{feed}/files`. Each vendor has an API key, stored only as a hash in a Secret, and a list of feeds it may send. Files have a size limit. The API writes to `landing/` with the same key layout. 401, 403 and 413 are tested. ClusterIP plus a NodePort for local use | 2 | Stage 1 | 11-02 → 11-05 |
+| **S2.4** | **Synthea claims.** A generator derives a payer claims CSV from the `Claim` and `ExplanationOfBenefit` resources already in the Synthea bundles. It is deterministic, like the eligibility generator, so no new Synthea run is needed. Also a `healthcare.claims` contract and dbt silver and gold `gold.claim_line`. Joined to eligibility: a claim outside its member's coverage is a DQ failure, not a load failure | 2 | Stage 1 eligibility | 11-05 → 11-09 |
+| **S2.5** | **Finance pack.** `packs/finance/`: a seeded invoice generator (Faker plus openpyxl) that writes vendor invoices as Excel, a `finance.vendor_invoice` contract (xlsx) and gold `gold.vendor_invoice`. Generated breakages: duplicate invoice numbers, a negative total, a missing PO. PDF invoices are Stage 3 | 2 | S2.1 | 11-09 → 11-12 |
+| **S2.6** | **Late files.** A `feed_sla` DAG checks each contract's `expected_arrival` (a cron plus a grace window) every 15 minutes. It opens one `FEED.LATE` row in a new `ops.incident` table per missed window and closes it when the file arrives. Tested with a fixed clock. Prometheus alerting on it is Stage 3 | 1.5 | Stage 1 | 11-12 → 11-15 |
+| **S2.7** | **E2E and demo.** `cases.yaml` rows for each channel and format: SFTP good and bad, API good and 401, xlsx good and bad, claims, invoices, and a late feed. Also `docs/demos/stage-2.md`. The upgrade job (§6) stays green, since S2.2, S2.3 and S2.6 change Terraform and the warehouse DDL | 1.5 | all | 11-16 → 11-18 |
+| | Buffer | 1.5 | | 11-18 → 11-20 |
+
+**Total:** 12.5 days plus 1.5 days of buffer, over four weeks (about 3.5 part-time days a week).
+
+**Order:** S2.1 first, because S2.5 needs it. The channels (S2.2, S2.3) come next, because they change Terraform, and each gets its own PR, so the upgrade job checks it alone.
+
+**Memory:** the SFTP server is about 30 MB and the intake API about 80 MB, against the 2.6 GiB measured for the core profile (§11). No profile change.
+
+**LLM calls:** none. **Data:** Synthea and generated invoices only. MIMIC is not involved.
+
+**If it runs late, cut in this order:**
+1. S2.4 claims moves to Stage 4, next to 837/835, which are built from the same claims.
+2. The intake API's per-feed allowlist simplifies to one key per vendor.
+
+The SFTP and Excel items stay, because Stage 3's OCR matching needs Excel invoices.
+
+**What does not move:** Stage 3 (2026-11-30) and Stage 5 (2026-12-31).
+
+**Open question for you:** the eligibility gold semantics from #17. Today it is one row per member ever listed, from the newest file that lists them, with `in_latest_file` marking current members. A strict "current snapshot only" version would change S2.4's coverage join. Decide before S2.4 starts (11-05).
 
 **Changed from the first draft:**
 - The MCP server is split into three parts. The Read tier moves into Stage 3, the Propose tier into Stage 4, and the Act tier into Stage 6.
@@ -407,3 +462,7 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-21: Added §8.3: a full local Athena vocabulary (never committed; CI stays on Eunomia) and MIT-LCP's MIMIC lab → LOINC map (mimic-code v2.4.0, MIT) through OMOP's SOURCE_TO_CONCEPT_MAP.
 - 2026-10-22: §8.3 V3: one full Athena bundle replaces the two separate downloads (relationships across vocabularies were lost between downloads). Rows mapped to a domain without a table here stay in their source table with concept 0. Measured on the same code: Synthea 6.8% → 0.1% unmapped, MIMIC diagnoses 100% → 3.3%, drugs 100% → 34.3% / 16.8% (mostly local drug names without an NDC).
 - 2026-10-21: Added §8.4, the R7 plan: read-only Postgres access to `omop_shareable` through a login role in `dip_researcher`, Synthea only, never MIMIC. The build waits for the drift-monitor's cohort service (its PR #4) to merge.
+- 2026-10-22: R7a built after the drift monitor's PR #4 merged. The reader role is granted the tier only while the warehouse holds Synthea alone, classified live by the dbt hook; once MIMIC has been seen, a block row keeps it refused until a person clears it. It is not a member of `dip_researcher` (a change from §8.4's first draft). R7b's list for the drift monitor is in `docs/research/cohort-service.md`.
+- 2026-10-22: Added the upgrade-path CI job (§6). Its first run found that the Airflow chart's Jobs block an in-place upgrade; `up.sh` now deletes them first.
+- 2026-10-22: Added §8.5, follow-ups F1–F4 (one row per "Maps to" target, domain routing everywhere, MIMIC procedures, reprocessing on a contract upgrade), and §8.6, the Stage 2 plan. Stage 2 keeps its 2026-11-20 date; no other date moves.
+- 2026-10-22: On your priority call ("resume-ready first"), the failure-triage agent was built ahead of its stage: the MCP server (Read and Propose tiers, per-agent API keys, append-only `ops.audit_log`) from Stages 3–4, `ops.approvals` and `dip approvals` from Stage 4, and the triage agent with evals from Stage 6. The architecture is as in §7, with one difference for now: Act-tier execution is run by a person (`dip approvals execute`), not by the agent, so the agent never acts. Docs: docs/agents/triage.md.

@@ -35,6 +35,7 @@ TABLES = {
     "drug_exposure": "drug_exposure_id",
     "measurement": "measurement_id",
     "observation": "observation_id",
+    "procedure_occurrence": "procedure_occurrence_id",
 }
 PG_TO_FRICTIONLESS = {
     "bigint": "integer",
