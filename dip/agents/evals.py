@@ -42,6 +42,17 @@ from dip.warehouse import Warehouse
 CASES = REPO_ROOT / "agents" / "evals" / "triage" / "cases.yaml"
 RECORDINGS = REPO_ROOT / "agents" / "evals" / "triage" / "recordings"
 FIXTURES = REPO_ROOT / "tests" / "fixtures"
+# The eval's own copy of the contracts it was recorded against, not the live packs: the
+# agent's tools show contracts and the feed list, so a pack change elsewhere (a new feed, a
+# new channel) would change what the model is sent and void every recording. Change these
+# only together with a re-record (dip triage eval --record).
+EVAL_CONTRACTS = REPO_ROOT / "agents" / "evals" / "triage" / "contracts"
+
+
+def eval_contracts() -> dict[str, Contract]:
+    return load_contracts((EVAL_CONTRACTS,))
+
+
 PIPELINE_SCHEMAS = ("bronze", "ops", "ops_secret", "silver", "gold", "omop", "deid",
                     "omop_shareable", "vocab", "dbt")  # fmt: skip
 # Ingest at a fixed time, so file-name dates and "received" dates are the same every run.
@@ -87,7 +98,7 @@ def build_state(conn: Any, store_root: Path, case: dict[str, Any]) -> dict[str, 
         else:
             data = content.encode("utf-8")
         store.put(BUCKET_LANDING, f"{feed}/{name}", data)
-    contracts = load_contracts()
+    contracts = eval_contracts()
     ingest = {**contracts, feed: _contract_for_ingest(contracts[feed], case.get("ingest_contract"))}
     process_landing(store, Warehouse(conn), ingest, INGEST_AT)
     return open_groups(conn)
@@ -186,7 +197,7 @@ class LocalServer:
         self.key = secrets.token_urlsafe(32)
         port = _free_port()
         self.url = f"http://127.0.0.1:{port}/mcp"
-        registry = build_registry(conn, store, load_contracts())
+        registry = build_registry(conn, store, eval_contracts())
         server = build_server(registry, {"triage": Policy.load("triage")})
         app = http_app(server, {"triage": hashlib.sha256(self.key.encode()).hexdigest()},
                        f"http://127.0.0.1:{port}")  # fmt: skip
