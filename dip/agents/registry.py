@@ -19,7 +19,7 @@ import hashlib
 import json
 import threading
 import time
-from collections import Counter
+from collections import Counter, deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -76,6 +76,10 @@ class Registry:
         self.tools: dict[str, Tool] = {}
         self._calls: Counter[tuple[str, str]] = Counter()  # (principal, run_id) -> calls
         self._per_tool: Counter[tuple[str, str, str]] = Counter()
+        # Per principal over the last hour, whatever run id the client sends: the run id
+        # comes from the client, so per-run limits stop a runaway loop but not a client
+        # that lies about its run; these do.
+        self._recent: dict[tuple[str, str], deque[float]] = {}
         # One database connection: calls from concurrent MCP requests take turns.
         self._lock = threading.Lock()
 
@@ -123,7 +127,17 @@ class Registry:
             return f"over {tool_limits['max_per_run']} {name} calls in this run"
         if "actions" in tool_limits and args.get("action") not in tool_limits["actions"]:
             return f"action {args.get('action')!r} is not one {policy.agent} may propose"
+        for scope, limit in (("*", policy.limits.get("max_calls_per_hour")),
+                             (name, tool_limits.get("max_per_hour"))):  # fmt: skip
+            if limit is not None and len(self._window(policy.agent, scope)) >= limit:
+                return f"over {limit} {'' if scope == '*' else name + ' '}calls in the last hour"
         return None
+
+    def _window(self, principal: str, scope: str) -> deque[float]:
+        q = self._recent.setdefault((principal, scope), deque())
+        while q and q[0] < time.monotonic() - 3600:
+            q.popleft()
+        return q
 
     def call(self, policy: Policy, run_id: str | None, name: str, args: dict[str, Any]) -> Any:
         with self._lock:
@@ -138,10 +152,16 @@ class Registry:
             self.audit(policy.agent, run_id, name, tier, args, "denied", refusal, None, None)
             raise Denied(refusal)
         self._per_tool[(*key, name)] += 1
+        now = time.monotonic()
+        self._window(policy.agent, "*").append(now)
+        self._window(policy.agent, name).append(now)
         started = time.monotonic()
         status = "ok"
         try:
-            return self.tools[name].fn(principal=policy.agent, run_id=run_id, **args)
+            result = self.tools[name].fn(principal=policy.agent, run_id=run_id, **args)
+            if isinstance(result, dict) and "error" in result:
+                status = "error: tool"  # the tool refused the arguments
+            return result
         except Exception as exc:
             self.conn.rollback()
             status = f"error: {type(exc).__name__}"

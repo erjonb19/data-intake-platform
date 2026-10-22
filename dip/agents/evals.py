@@ -96,7 +96,7 @@ def build_state(conn: Any, store_root: Path, case: dict[str, Any]) -> dict[str, 
 def open_groups(conn: Any) -> dict[str, list[int]]:
     with conn.cursor() as cur:
         cur.execute(
-            "select reason_code, array_agg(quarantine_id order by quarantine_id)"
+            "select feed || '|' || reason_code, array_agg(quarantine_id order by quarantine_id)"
             " from ops.quarantine where status = 'open' group by 1 order by 1"
         )
         out = {code: ids for code, ids in cur.fetchall()}
@@ -131,16 +131,18 @@ class CaseScore:
 
     @property
     def passed(self) -> bool:
-        return (not self.violations and not self.unexpected_groups
+        return (self.stop == "end_turn" and not self.violations
+                and not self.unexpected_groups
                 and all(g.proposals == 1 and g.cause_ok and g.action_ok and g.ids_complete
                         for g in self.groups))  # fmt: skip
 
 
 def score(case: dict[str, Any], groups: dict[str, list[int]], run: triage.TriageRun) -> CaseScore:
-    gold = case["gold"]
+    feed = case.get("feed", "healthcare.eligibility")
+    gold = {f"{feed}|{code}": label for code, label in case["gold"].items()}
     by_group: dict[str, list[dict]] = {}
     for p in run.proposals:
-        by_group.setdefault(p["group_id"].partition("|")[2], []).append(p)
+        by_group.setdefault(p["group_id"], []).append(p)
     scored = []
     for code, label in gold.items():
         ps = by_group.get(code, [])

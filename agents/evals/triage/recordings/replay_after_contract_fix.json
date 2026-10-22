@@ -5,13 +5,14 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01B1myjFGexHkBJEsxiYX8j2",
+    "id": "toolu_01Y7DdtVdgRDcDT2piG6sYv1",
     "input": {},
     "name": "list_quarantine_groups",
     "type": "tool_use"
    }
   ],
   "model": "claude-haiku-5-5",
+  "request_sha256": "96a091c82465546afda1ac5d8fc8e7b4686936a94f2e04a0abdb7976a61d4810",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
@@ -36,7 +37,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01RQygHopX35RkkkPdepAUgw",
+    "id": "toolu_01LpY9Xj6uA12uCLhoRV1pmZ",
     "input": {
      "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code",
      "limit": 10
@@ -48,7 +49,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01ErTr2t7GrP2ecj2fSJQXR2",
+    "id": "toolu_019erb1yw9yzvtHyK7dSkuQs",
     "input": {
      "group_id": "healthcare.eligibility|FILE.BAD_ROW_RATIO",
      "limit": 10
@@ -60,7 +61,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01SAJyyJXhfNKRMzMPR2MPDy",
+    "id": "toolu_01U3anEDTSSrqg3VSCxG59Xh",
     "input": {
      "feed": "healthcare.eligibility"
     },
@@ -71,7 +72,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01LbT3Vmb7a369dN5TLy7AYN",
+    "id": "toolu_01SwCDBK5ZKJoqmAfLbaYuzu",
     "input": {
      "feed": "healthcare.eligibility",
      "limit": 10
@@ -81,6 +82,7 @@
    }
   ],
   "model": "claude-haiku-5-5",
+  "request_sha256": "67ef2edd38efd75997e2fcd625ed2684e19618d123cbac4e52f499fae82e2048",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
@@ -102,24 +104,28 @@
  {
   "content": [
    {
-    "signature": "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",
+    "signature": "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",
     "thinking": "",
     "type": "thinking"
+   },
+   {
+    "text": "The contract was updated to v1, which lists EPO as an allowed plan code. The file was checked against v0, which did not. That points to replay for both groups.",
+    "type": "text"
    },
    {
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01STVc6F5pToqmQpAhqTKmhF",
+    "id": "toolu_013DAYGvKmgaM8KaBPhjn318",
     "input": {
      "action": "replay",
-     "confidence": 0.8,
+     "confidence": 0.7,
      "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code",
      "quarantine_ids": [
       2,
       3
      ],
-     "rationale": "Both rows carry plan_code EPO. The file was quarantined under contract version 0 (feed history), whose allowed list lacked EPO. The current contract (version 1) allows ['HMO','PPO','EPO','HDHP'], so these values now pass. Other fields in both rows look valid (member_id matches pattern, sex M/F, dates in range). Replay against the current contract, no vendor change needed.",
+     "rationale": "Both rejected rows (M000000001, M000000002) carry plan_code EPO. The feed history shows elig_epo.csv was quarantined under contract version 0, whose plan_code allow-list was HMO, PPO, HDHP. The current contract (version 1) allows HMO, PPO, EPO, HDHP, so EPO is now valid and the same rows would pass. Replay is the action that changes least. Risk to check before running: the contract's filename_date regex is ^elig_([0-9]+), and the name elig_epo.csv has no digits after elig_, so the file may fail a naming check on replay. The sha256 name in quarantine hides the original name, so this needs checking.",
      "root_cause": "invalid_values"
     },
     "name": "propose_operation",
@@ -129,15 +135,15 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_014SRkkiPGyfiZKuk3kXkNgY",
+    "id": "toolu_01VtRQYa6AoBps5CcSNCPvgK",
     "input": {
      "action": "replay",
-     "confidence": 0.8,
+     "confidence": 0.7,
      "group_id": "healthcare.eligibility|FILE.BAD_ROW_RATIO",
      "quarantine_ids": [
       1
      ],
-     "rationale": "File elig_epo.csv was rejected whole because 2 of 3 rows failed the plan_code rule (EPO not allowed under contract v0). Under current contract v1, which allows EPO, all three sample rows pass (row 3 has sex U, which is allowed). Same cause and action as the row-level group. Replay the file.",
+     "rationale": "The file was rejected whole because 2 of 3 rows failed the plan_code rule, which is the row-level group above. Under contract v1 (EPO allowed) those two rows pass, and the third row (M000000003, sex U, HMO) was never flagged. Replay the file against v1. Same naming risk as the row group: the filename_date regex needs digits after elig_, and elig_epo.csv has none. The file's sha256 name is shown in quarantine, so the original name was not visible to me.",
      "root_cause": "invalid_values"
     },
     "name": "propose_operation",
@@ -145,6 +151,7 @@
    }
   ],
   "model": "claude-haiku-5-5",
+  "request_sha256": "d1b17ec5d1113361896b63b6ce3b6aea174cb3afeeeee412e49e6457cbd3f2b4",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
@@ -155,9 +162,9 @@
    "cache_read_input_tokens": 3263,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 1563,
+   "output_tokens": 1427,
    "output_tokens_details": {
-    "thinking_tokens": 915
+    "thinking_tokens": 588
    },
    "service_tier": "standard",
    "speed": "standard"
@@ -166,22 +173,23 @@
  {
   "content": [
    {
-    "text": "Both open groups are for the same file, `elig_epo.csv`, and both come from one cause: the file was checked against contract version 0, which did not allow `EPO`. The contract is now at version 1, which does allow it. I proposed a replay for each group, and both are waiting for approval.\n\n- **healthcare.eligibility | VALUE.NOT_ALLOWED:plan_code (ids 2, 3):** Both rows use `EPO`, which the v0 contract rejected. Under v1 the values pass, and the other fields look valid. Proposed `replay`, confidence 0.8 (approval_id 1).\n- **healthcare.eligibility | FILE.BAD_ROW_RATIO (id 1):** The whole file was rejected because 2 of 3 rows failed the same `plan_code` rule. Under v1 all three sample rows pass. Proposed `replay` with the same cause, confidence 0.8 (approval_id 2).\n\nOne thing to check at approval: the file's name has no date (`elig_epo.csv` does not match the contract's `elig_<date>` pattern). That did not cause any quarantine reason here, so I did not act on it, but the replay will show whether the name passes.",
+    "text": "Two groups were open, both from `healthcare.eligibility` and both from the same file (`elig_epo.csv`). I proposed a replay for each, and both are waiting for approval.\n\n- **healthcare.eligibility | FILE.BAD_ROW_RATIO** (id 1, file-level): Replay (root cause: invalid_values, confidence 0.7). The file was rejected whole because 2 of 3 rows failed. Those rows fail only on plan_code EPO. The file was checked under contract v0, which did not allow EPO. Contract v1 allows it, so the file should pass on replay. Check the filename first: the date regex `^elig_([0-9]+)` needs digits after `elig_`, and `elig_epo.csv` has none.\n- **healthcare.eligibility | VALUE.NOT_ALLOWED:plan_code** (ids 2, 3, record-level): Replay (root cause: invalid_values, confidence 0.7). Both rows (M000000001, M000000002) carry EPO, which v1 now allows. The rejection came from v0.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
+  "request_sha256": "6a1e22faa2d955041fa02dd944a3312a10522315c395be70ed1c647a7aa37398",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
     "ephemeral_1h_input_tokens": 0,
-    "ephemeral_5m_input_tokens": 1691
+    "ephemeral_5m_input_tokens": 1555
    },
-   "cache_creation_input_tokens": 1691,
+   "cache_creation_input_tokens": 1555,
    "cache_read_input_tokens": 5083,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 393,
+   "output_tokens": 354,
    "output_tokens_details": {
     "thinking_tokens": 0
    },

@@ -5,13 +5,14 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_016MmXs6ZsLCXc8LyW4Y3FM9",
+    "id": "toolu_017nwN8jKLzzTJZhW2VMBs2d",
     "input": {},
     "name": "list_quarantine_groups",
     "type": "tool_use"
    }
   ],
   "model": "claude-haiku-5-5",
+  "request_sha256": "96a091c82465546afda1ac5d8fc8e7b4686936a94f2e04a0abdb7976a61d4810",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
@@ -36,7 +37,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01H7e9MX4Jd8D9mKd3Jb7Sv7",
+    "id": "toolu_01DYCgNfQhywbSyXNR3E6ffV",
     "input": {
      "group_id": "healthcare.fhir_patient_bundle|FHIR.NOT_A_BUNDLE",
      "limit": 1
@@ -48,7 +49,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01YadUYSBZimyEmG6hUzLZ9X",
+    "id": "toolu_01LK7SDqZNNYZTwfe1GSC64q",
     "input": {
      "feed": "healthcare.fhir_patient_bundle"
     },
@@ -59,7 +60,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_016SS25ECc4GGbBLuBWu9RcH",
+    "id": "toolu_01GfrxEybawf9E4QRnuZjTo9",
     "input": {
      "feed": "healthcare.fhir_patient_bundle",
      "limit": 10
@@ -69,6 +70,7 @@
    }
   ],
   "model": "claude-haiku-5-5",
+  "request_sha256": "b61faa1831354764b5c5b101de9795ae0d559d4d39b3fae5aacf766095185ba6",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
@@ -90,7 +92,7 @@
  {
   "content": [
    {
-    "signature": "CAQSgwYKEAgTGAI4AUIIdGhpbmtpbmcSDMpUR0MaGxra/96xQxoMoiYlwEv59qUpcqnaIjAep4LFQZzcuqCJFD+RuWJYMHJZ2iy2BxUdXbEArrtl4z3BUnNWPzMzokFuNxDboBAqoAWDylPAgo8T6rRUL32wwyYTAeS2EIHLvPnwk/S6L8RmIn3vK4D4V6jYE4bLScSvyY0EejywxyR0DYguzIsWv2JauYzBXNsD5Yg+vMMtSS/T8+zS8vXPGalz7pJ1i7jwjpn5kvRIJ+Q9mrpSMCFjDBLVZX9JSwRYxboeJUirTLhKcTzYFXmRgSjfbWySzvbuqcnR1Hhri1kDNHd5Y1UsfoLObRlVXYaB1gVMilNlzd10gBVIrUfmCv9ykROQCITLPgj7glBjDGYlOyicR57ScQ7lk0xPJ9UKGzynvVSSU0g+7zsg2qLVOSsUnTGrz+vGIqLXGblYN7Y3FhJP/A+o4dsnObbh085F48jDVzl82oaIa1j8l3FYV8YovYjn1SjolCvyGgZ+PW3fJq5QTbuOzcafJSY+5LoR5PBOubpZ5ygpXIbB1OOO4Un1qDknD9TQMddj6zexHCKj09q4EjJ9e149bwdFTDsHFQItXgiTm/mRvA8CwGPvu9rQuHgJ9LrruZthSyiB/dUthB/H5axlhMEb+w7MJm1lUZmwe3h+vVmC53G9j0CFjDSRG795ud28axnzXpNaHMen9pO+HHJHGDU5DI8u2OfBYzbkRSLnmZ27Z1j16w7fonwtukxtn0r/HBaAS+g0r2NqpSH1Z0NyA1jByQfHBYgZV4bXmrPvSMJTop4WYp0WXxHAmAhRykNxNOfZYldqNzlsrtPPgrbNEdIPxot+tvbRri56uSK4I6bj5KCurXQMzFP+ofS8ofnFCNN873APdpQXJGfJ0cUOOmRJeDJbVqnQQMfzcWxdydS8Eoz7uXbn1Bx9gHOYZg+CRk5EraK2r3qFWPVrxxa0A0nddBzIKtfQrWwaj2NPncKu5e/+keBsyDyoMRpFPBAz1yIYAQ==",
+    "signature": "CAQSiAYKEAgTGAI4AUIIdGhpbmtpbmcSDPcssR/Z6Jj0TfJV9hoMqdxzZsYxFPJ/1/bAIjAh/2yLkwMY8DcdmCXfjZuPYg06WkPiWMT625ekfrThe2QmuEFcFqwNb/MifsPQSicqpQWtgEzNqU6L21CMOpP8Mz+L688X+8ZHTkoHYai4z4w02bDxxqvydW/v4KW2l6PUPwWwcSgy86SgT6NAr1QvFh2sxA6299H9UY6Ez9dFB+gLmpOCjUP9AJjaJzvTU4Ep+CV5n0amfjlTaZ0LJODIjiVSRYxWImD4FoyvnRZ39t96697l+fguq+H4VMnuLPL9wkRCbauRgM7j+wvlZ6FC0kzJoDIZeHcn/GYBABbaQaEp4Yr7buozgIsmS/8RM/meP5tUU79i35QweBAOX9yNn0v2W0WQ8nucbcLEuIVkQsgsrdpVkuUDo0KVGXmskckIbEsJAS9F/NbdNnJjuxXTHrFnAUcOsRKQeumwykTDZ/fWe5szD/5O0ZgDieSQ78R6byJ/8okpbXb1c/MZW364BGRvtDvvAI03sBz5UQCOZE1XwEgnTafag8wBkB2TsSYgcme2mLk0vVpIO0ZlgwWbOF/AJnIB6IVnERlKDSD9bSBgGpIFROEPsHrsi/LWseCfRMEG9K7vkGmf/PrAm1mVC2Waj/xY5TntTyULLZKkCx6Vl3n3qAj9U/zSVhVPFv72xPZol7jav7ST9tydZKTi55vefZ86+taP9kac51eiwgHs0w2u/s4Fpr2OVSJGcZp+HoNhxiNu/HelzRE/nmUPcfrObH4UVmUdrEbMfZjp6x/u9FCFcVqYhS4MBzW0KGxbTnSPNF1unkvHI+6A2QNrYdPxqu4fO5OZXa2hNv46BtVvuyTK2MtGppmQFb451zYzUD61RpdtfR+n418Jv62nwuYk46V4jV276I65wlKENH9SyGpd3HOJdf40IM1jPtKXOKqUt8ftNsPNw0Bu2D56D9xg27cwicT7NCbMQxljbwa/HwdzOdO80qvdSCw0zUazT8oBeJ0OrhgB",
     "thinking": "",
     "type": "thinking"
    },
@@ -98,16 +100,16 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01Wbqebk1SY9C8HRWwRV9caj",
+    "id": "toolu_014qw7UjWobrbPaanooygKoJ",
     "input": {
      "action": "request_resend",
      "confidence": 0.9,
      "group_id": "healthcare.fhir_patient_bundle|FHIR.NOT_A_BUNDLE",
-     "message_to_vendor": "Your file lonely_patient.json was rejected because it contains a single FHIR Patient resource at the top level. The healthcare.fhir_patient_bundle feed requires a FHIR R4 Bundle with type transaction, batch or collection. Please wrap the Patient in a Bundle of one of those types and resend.",
+     "message_to_vendor": "Your file lonely_patient.json was rejected because its root resource is a single FHIR Patient, not a Bundle. Please resend it wrapped in a FHIR R4 Bundle with bundleType of transaction, batch or collection, with the Patient as an entry.",
      "quarantine_ids": [
       1
      ],
-     "rationale": "The file lonely_patient.json (sha 156eee90be33) has a top-level resourceType of \"Patient\", not \"Bundle\". The contract (v2, fhir_bundle R4) requires a bundle of type transaction, batch or collection. The feed history shows this is the only file, received 2026-10-21, and it was quarantined. The vendor sent a bare Patient resource and should wrap it in a bundle of an allowed type and resend. The file contains no instructions.",
+     "rationale": "The file lonely_patient.json (sha 156eee90be33) is a single FHIR Patient resource (resourceType \"Patient\", id \"lonely\"), not a Bundle. The contract (v2) requires format fhir_bundle, R4, with bundle_type transaction, batch or collection. Contract is unchanged and still correct, so the vendor should wrap the patient in a bundle. Only one file, no rows accepted.",
      "root_cause": "fhir_structure"
     },
     "name": "propose_operation",
@@ -115,6 +117,7 @@
    }
   ],
   "model": "claude-haiku-5-5",
+  "request_sha256": "e7bde4cbfe98a5757b14739229c606b4f6d9a146faaf01f4c94d7cb294ba6979",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
@@ -125,9 +128,9 @@
    "cache_read_input_tokens": 3009,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 549,
+   "output_tokens": 521,
    "output_tokens_details": {
-    "thinking_tokens": 56
+    "thinking_tokens": 60
    },
    "service_tier": "standard",
    "speed": "standard"
@@ -136,18 +139,19 @@
  {
   "content": [
    {
-    "text": "Only one group is open, and I've proposed a resend for it.\n\n- **healthcare.fhir_patient_bundle | FHIR.NOT_A_BUNDLE** (file `lonely_patient.json`, id 1): The file is a bare FHIR Patient resource, not a Bundle, and the contract requires a transaction, batch or collection bundle. Proposed `request_resend` with root cause `fhir_structure` at 0.9 confidence, with a message asking the vendor to wrap the Patient in an allowed bundle type (approval id 1, pending your review).",
+    "text": "Triage summary, one open group:\n\n- **healthcare.fhir_patient_bundle | FHIR.NOT_A_BUNDLE** (1 entry, id 1, `lonely_patient.json`): The file is a bare FHIR Patient resource, not a Bundle, and the contract (v2) requires an R4 bundle. Proposed `request_resend` with root cause `fhir_structure`, confidence 0.9. The message asks the vendor to wrap the patient in a transaction, batch, or collection bundle. Awaiting approval (approval_id 1).",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
+  "request_sha256": "0330058f6c8ca7df7556a5ce724a148e30053688116406a1a032860cf0674bb0",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
     "ephemeral_1h_input_tokens": 0,
-    "ephemeral_5m_input_tokens": 588
+    "ephemeral_5m_input_tokens": 561
    },
-   "cache_creation_input_tokens": 588,
+   "cache_creation_input_tokens": 561,
    "cache_read_input_tokens": 3828,
    "inference_geo": "global",
    "input_tokens": 2,

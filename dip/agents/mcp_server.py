@@ -28,6 +28,7 @@ from mcp.server.auth.middleware.auth_context import get_access_token
 from mcp.server.auth.provider import AccessToken
 from mcp.server.auth.settings import AuthSettings
 from mcp.server.lowlevel.server import Server
+from mcp.server.transport_security import TransportSecuritySettings
 
 from dip.agents.registry import Denied, Policy, Registry
 
@@ -111,9 +112,21 @@ def _error(text: str) -> types.CallToolResult:
     return types.CallToolResult(content=[types.TextContent(type="text", text=text)], is_error=True)
 
 
-def http_app(server: Server, key_hashes: dict[str, str], url: str) -> Any:
-    """The Starlette app: Streamable HTTP at /mcp, bearer API keys required."""
+def http_app(
+    server: Server, key_hashes: dict[str, str], url: str, allowed_hosts: list[str] | None = None
+) -> Any:
+    """The Starlette app: Streamable HTTP at /mcp, bearer API keys required.
+
+    DNS-rebinding protection is on, for the hosts in `allowed_hosts` (default: localhost);
+    a server reached by another name must list it. API keys are not OAuth tokens with an
+    audience, so the resource-indicator check is off."""
+    hosts = allowed_hosts or ["127.0.0.1:*", "localhost:*", "[::1]:*"]
     return server.streamable_http_app(
-        auth=AuthSettings(issuer_url=url, resource_server_url=url),
+        auth=AuthSettings(issuer_url=url, resource_server_url=url, validate_token_resource=False),
         token_verifier=ApiKeyVerifier(key_hashes),
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=hosts,
+            allowed_origins=[f"http://{h}" for h in hosts],
+        ),
     )

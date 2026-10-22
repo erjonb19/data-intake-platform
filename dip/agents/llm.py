@@ -8,14 +8,18 @@ a recording stores.
 `Recording` replays a run's responses in order. A run is recorded once, live, with
 `Recorder` (python -m dip triage eval --record); CI then replays it: the agent loop, the
 MCP server, the policy and the scoring all run for real, only the model's turns come from
-the file. If the agent asks for more turns than were recorded the replay fails loudly
-instead of guessing.
+the file. Each recorded turn keeps a fingerprint of what the model was sent (the system
+prompt, the tools, and the latest message: the task or the tool results, with dates
+masked); replay fails if the agent now sends anything else (a changed prompt, tool or tool
+output), or asks for more turns than were recorded, instead of replaying stale answers.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -82,28 +86,44 @@ class AnthropicLLM:
         return Message(d["content"], d["stop_reason"], d.get("usage", {}), d.get("model", ""))
 
 
+_DATES = re.compile(r"\d{4}-\d{2}-\d{2}(T[0-9:.+-]+Z?)?")
+
+
+def fingerprint(system: str, tools: list[dict], messages: list[dict]) -> str:
+    """What the model was sent this turn, minus dates (tool results show the day a file was
+    quarantined, which is the day the eval ran)."""
+    doc = json.dumps({"system": system, "tools": tools, "last": messages[-1]},
+                     sort_keys=True, default=str)  # fmt: skip
+    return hashlib.sha256(_DATES.sub("DATE", doc).encode()).hexdigest()
+
+
 class Recorder:
     """A live LLM whose responses are kept, to be written as a recording."""
 
     def __init__(self, inner: LLM):
-        self.inner, self.messages = inner, []
+        self.inner, self.messages, self.fingerprints = inner, [], []
 
     def create(self, **kwargs: Any) -> Message:
         m = self.inner.create(**kwargs)
         self.messages.append(m)
+        self.fingerprints.append(fingerprint(kwargs["system"], kwargs["tools"],
+                                             kwargs["messages"]))  # fmt: skip
         return m
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         doc = [{"content": m.content, "stop_reason": m.stop_reason, "usage": m.usage,
-                "model": m.model} for m in self.messages]  # fmt: skip
+                "model": m.model, "request_sha256": fp}
+               for m, fp in zip(self.messages, self.fingerprints, strict=True)]  # fmt: skip
         path.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 
 class Recording:
     def __init__(self, path: Path):
         self.path = path
-        self.messages = [Message(**m) for m in json.loads(path.read_text("utf-8"))]
+        doc = json.loads(path.read_text("utf-8"))
+        self.fingerprints = [m.pop("request_sha256", None) for m in doc]
+        self.messages = [Message(**m) for m in doc]
         self.turn = 0
 
     def create(self, **kwargs: Any) -> Message:
@@ -111,6 +131,14 @@ class Recording:
             raise RuntimeError(
                 f"{self.path.name}: the agent asked for turn {self.turn + 1}, but only "
                 f"{len(self.messages)} were recorded; re-record (dip triage eval --record)"
+            )
+        expected = self.fingerprints[self.turn]
+        got = fingerprint(kwargs["system"], kwargs["tools"], kwargs["messages"])
+        if expected is not None and expected != got:
+            raise RuntimeError(
+                f"{self.path.name}, turn {self.turn + 1}: the agent sent the model something "
+                "other than what was recorded (prompt, tools or tool output changed); "
+                "re-record (dip triage eval --record)"
             )
         m = self.messages[self.turn]
         self.turn += 1

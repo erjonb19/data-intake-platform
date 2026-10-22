@@ -29,24 +29,37 @@ exact proposal runs. It is built to the agent design in PLAN.md section 7.
 | Never | changes data, approves, or executes. `execute_approved_operation` is listed to it (so an attempt is visible and measurable) but its policy refuses it, and the refusal is audited |
 
 **Enforcement is on the server.** The policy file lists the agent's tools, its highest tier
-(`propose`), the actions it may propose, and call limits per run (60 calls, 20 proposals).
+(`propose`), the actions it may propose, and call limits: per run (60 calls, 20 proposals)
+and per hour (600 calls, 100 proposals). The run id comes from the client, so the per-run
+limits stop a runaway loop but trust the client; the hourly limits are per agent, whatever
+run id it sends.
 The model's output cannot change any of it: an unknown tool, a tool outside the policy, a
 tier above `propose`, an action outside the list or a call over a limit is refused and
 written to `ops.audit_log`. The log stores a SHA-256 of the arguments, not the arguments
-(they can hold vendor data). A trigger makes the table append-only for every role, the
-owner included.
+(they can hold vendor data). A trigger refuses UPDATE, DELETE and TRUNCATE through normal
+SQL. The table owner or a superuser can still disable the trigger, and the MCP server
+connects as the warehouse owner today: an INSERT-only role for the server is the follow-up
+that makes this hold against the owner too.
 
 **Vendor content is data.** Every tool result that comes from a file is wrapped as
 `untrusted_vendor_content` with a notice, and the prompt (`agents/prompts/triage.md`) says
 that instructions found in data are a data problem to triage, never to follow.
 
 **Approvals** (`ops.approvals`, `dip/agents/approvals.py`). A proposal is a `pending` row
-with its payload and the payload's SHA-256. A person approves or rejects it. It executes
-only if it is `approved`, not expired (7 days), and its payload still has the hash it was
-proposed with, so an edited row never runs. It executes once (`executed`, with who and the
-result). Replay puts the file's immutable raw copy back into landing under its original
+with its payload and the payload's SHA-256. A person approves or rejects it; an approval
+records the hash of the payload they approved. A trigger refuses any change to a proposal's
+action or payload after it is made. It executes only if it is `approved`, not expired
+(7 days), and its payload still matches both hashes (the second line, against someone who
+can disable the trigger). It executes once: the row is locked from the check until the
+action's changes and `executed` commit together, so two concurrent executions cannot both
+run it (tested). **Who approves:** the CLI records the person as their OS user name and
+their database login, and anyone with the warehouse DSN can approve. Separate approver
+roles, so the agent's operators cannot approve their own proposals, are a follow-up. Replay puts the file's immutable raw copy back into landing under its original
 name, after forgetting that the content was processed, so the next intake validates it
-against the current contract. Its quarantine history stays, closed as released.
+against the current contract. Its quarantine history stays, closed as released. Replay
+closes every open entry of the file, also entries of other groups, and the file leaves the
+feed history until it is processed again. Every landing key is checked before anything
+changes, and if anything fails the files put into landing are removed again.
 
 ## Running it
 
@@ -109,8 +122,14 @@ The cases cover:
 
 **CI never calls the model.** Each case's recorded model turns
 (`agents/evals/triage/recordings/`) are replayed through the real loop, server, policy and
-scoring in `tests/integration/test_agents.py`. `python -m dip triage eval --record` records
-again, live (`DIP_EVAL_DSN` must be a throwaway database).
+scoring in `tests/integration/test_agents.py`. Each recorded turn keeps a fingerprint of
+what the model was sent (the prompt, the tools, the tool results with dates masked), so a
+changed prompt, tool or tool output fails the replay instead of passing on stale answers.
+`python -m dip triage eval --record` records again, live (`DIP_EVAL_DSN` must be a throwaway
+database). In a replay the model's choices are fixed, so the evidence that injections are
+resisted is the live runs below. The refusal path is tested on its own: a scripted
+"hijacked model" that calls `execute_approved_operation` and proposes for ids outside its
+group is refused on both and scored as two violations.
 
 **Results** (`claude-haiku-5-5`, adaptive thinking, effort medium; 2026-10-22):
 
@@ -121,9 +140,10 @@ again, live (`DIP_EVAL_DSN` must be a throwaway database).
 | 3rd: eval names fixed | 12/12 | 100% | 100% / 90.5% | 0 | 2/2 | $0.032 |
 | **held-out**, 7 new cases, prompt frozen | **7/7** | 100% | 100% / 87.5% | 0 | 1/1 | $0.015 |
 | **variance**: 3 more live runs of the 12 | **33/36** | 92.1% | 96.8% / 90.5% | 0 | 6/6 | $0.097 |
+| re-recorded with fingerprints (12 + 7) | 12/12, 7/7 | 100% | 100% / 90.5%, 87.5% | 0 | 3/3 | $0.047 |
 
-Every run took 4 model turns per case. Most input tokens were prompt-cache reads (164k of
-206k in the third run).
+Every run took 4 model turns per case. Most input tokens were prompt-cache reads (161k of
+205k in the last run of the 12).
 
 **What changed between the runs, and why:**
 - The agent gave a file rejected for its bad rows (`FILE.BAD_ROW_RATIO`) a different root

@@ -123,10 +123,30 @@ CREATE TABLE IF NOT EXISTS ops.approvals (
     executed_at       timestamptz,
     result            jsonb
 );
+ALTER TABLE ops.approvals ADD COLUMN IF NOT EXISTS approved_sha256 text;
 CREATE INDEX IF NOT EXISTS approvals_status_idx ON ops.approvals (status, created_at);
+-- What was proposed cannot change afterwards; only the decision and execution columns can.
+CREATE OR REPLACE FUNCTION ops.approvals_payload_fixed() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.payload IS DISTINCT FROM OLD.payload
+        OR NEW.payload_sha256 IS DISTINCT FROM OLD.payload_sha256
+        OR NEW.action IS DISTINCT FROM OLD.action
+        OR NEW.agent_id IS DISTINCT FROM OLD.agent_id
+        OR (OLD.approved_sha256 IS NOT NULL
+            AND NEW.approved_sha256 IS DISTINCT FROM OLD.approved_sha256) THEN
+        RAISE EXCEPTION 'ops.approvals: a proposal cannot be changed after it is made';
+    END IF;
+    RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS approvals_payload_fixed ON ops.approvals;
+CREATE TRIGGER approvals_payload_fixed BEFORE UPDATE ON ops.approvals
+    FOR EACH ROW EXECUTE FUNCTION ops.approvals_payload_fixed();
 
--- Every tool call, allowed or denied, by agents and by people. Append-only: a trigger
--- refuses UPDATE, DELETE and TRUNCATE for every role, the owner included.
+-- Every tool call, allowed or denied, by agents and by people. Append-only through normal
+-- SQL: a trigger refuses UPDATE, DELETE and TRUNCATE for every role. The table owner or a
+-- superuser can still disable the trigger; running the MCP server as a role with INSERT
+-- only on this table (not the owner) is the stronger setup, a follow-up.
 CREATE TABLE IF NOT EXISTS ops.audit_log (
     audit_id          bigserial   PRIMARY KEY,
     at                timestamptz NOT NULL DEFAULT now(),

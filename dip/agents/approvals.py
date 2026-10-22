@@ -3,8 +3,11 @@
 An agent's Propose-tier call creates a `pending` row: the action, its payload, and the
 SHA-256 of the canonical payload. A person approves or rejects it (`dip approvals`).
 Executing (Act tier) runs only a row that is `approved`, not expired, and whose payload
-still hashes to the hash recorded when it was proposed, so a row edited after approval
-never runs. Executed rows record who ran them and the result; every step is audited.
+still hashes to both the hash recorded when it was proposed and the hash recorded when it
+was approved. A trigger also refuses changes to a proposal's action, payload or hashes, so
+through normal SQL an approved row cannot be edited at all; the hash checks are the second
+line against someone who can disable triggers (the table owner or a superuser). Executed
+rows record who ran them and the result; every step is audited.
 
 Actions:
   request_resend           ask the vendor for a corrected file; no data changes, the
@@ -66,19 +69,23 @@ def create(conn: Any, agent_id: str, run_id: str | None, action: str, payload: d
 def _get(conn: Any, approval_id: int, lock: bool = False) -> dict[str, Any]:
     with conn.cursor() as cur:
         cur.execute(
-            "select approval_id, agent_id, action, payload, payload_sha256, status, expires_at"
-            " from ops.approvals where approval_id = %s" + (" for update" if lock else ""),
+            "select approval_id, agent_id, action, payload, payload_sha256, status, expires_at,"
+            " approved_sha256 from ops.approvals where approval_id = %s"
+            + (" for update" if lock else ""),
             (approval_id,),
         )
         row = cur.fetchone()
     if row is None:
+        conn.rollback()
         raise ApprovalError(f"no approval {approval_id}")
     keys = ("approval_id", "agent_id", "action", "payload", "payload_sha256", "status",
-            "expires_at")  # fmt: skip
+            "expires_at", "approved_sha256")  # fmt: skip
     return dict(zip(keys, row, strict=True))
 
 
 def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "") -> str:
+    """Approve or reject a pending proposal. An approval records the hash of the payload the
+    person approved, so the row that runs must still be that payload."""
     a = _get(conn, approval_id, lock=True)
     if a["status"] != "pending":
         conn.rollback()
@@ -89,14 +96,24 @@ def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "") 
     with conn.cursor() as cur:
         cur.execute(
             "update ops.approvals set status = %s, decided_by = %s, decided_at = now(),"
-            " decision_note = %s where approval_id = %s",
-            (status, by, note, approval_id),
+            " decision_note = %s, approved_sha256 = %s where approval_id = %s",
+            (
+                status,
+                by,
+                note,
+                payload_sha256(a["payload"]) if status == "approved" else None,
+                approval_id,
+            ),  # fmt: skip
         )
     conn.commit()
     return status
 
 
 def execute(conn: Any, store: ObjectStore, approval_id: int, by: str) -> dict[str, Any]:
+    """Run an approved proposal, once. The row stays locked from the check to the status
+    update, and the action's database changes and `executed` commit together, so two
+    concurrent executions cannot both run it and a crash in between leaves it approved
+    with nothing done."""
     a = _get(conn, approval_id, lock=True)
     if a["status"] != "approved":
         conn.rollback()
@@ -107,25 +124,36 @@ def execute(conn: Any, store: ObjectStore, approval_id: int, by: str) -> dict[st
                         (approval_id,))  # fmt: skip
         conn.commit()
         raise ApprovalError(f"approval {approval_id} expired before it ran")
-    if payload_sha256(a["payload"]) != a["payload_sha256"]:
+    digest = payload_sha256(a["payload"])
+    if not (digest == a["payload_sha256"] == a["approved_sha256"]):
         conn.rollback()
         raise ApprovalError(f"approval {approval_id}: payload changed since it was proposed")
+    landed: list[str] = []
     try:
-        result = _run(conn, store, a["action"], a["payload"], approval_id)
-        status = "executed"
+        result = _run(conn, store, a["action"], a["payload"], landed)
+        with conn.cursor() as cur:
+            cur.execute(
+                "update ops.approvals set status = 'executed', executed_by = %s,"
+                " executed_at = now(), result = %s::jsonb where approval_id = %s",
+                (by, json.dumps(result, sort_keys=True), approval_id),
+            )
+        conn.commit()
+        return result
     except Exception as exc:
         conn.rollback()
-        result, status = {"error": f"{type(exc).__name__}: {exc}"}, "failed"
-    with conn.cursor() as cur:
-        cur.execute(
-            "update ops.approvals set status = %s, executed_by = %s, executed_at = now(),"
-            " result = %s::jsonb where approval_id = %s",
-            (status, by, json.dumps(result, sort_keys=True), approval_id),
-        )
-    conn.commit()
-    if status == "failed":
-        raise ApprovalError(f"approval {approval_id} failed: {result['error']}")
-    return result
+        for key in landed:  # replay: undo what reached landing, the database did not change
+            store.delete(BUCKET_LANDING, key)
+        error = f"{type(exc).__name__}: {exc}"
+        a = _get(conn, approval_id, lock=True)
+        if a["status"] == "approved":
+            with conn.cursor() as cur:
+                cur.execute(
+                    "update ops.approvals set status = 'failed', executed_by = %s,"
+                    " executed_at = now(), result = %s::jsonb where approval_id = %s",
+                    (by, json.dumps({"error": error}), approval_id),
+                )
+        conn.commit()
+        raise ApprovalError(f"approval {approval_id} failed: {error}") from exc
 
 
 def _open_ids(cur: Any, ids: list[int]) -> list[int]:
@@ -137,7 +165,9 @@ def _open_ids(cur: Any, ids: list[int]) -> list[int]:
     return [r[0] for r in cur.fetchall()]
 
 
-def _run(conn: Any, store: ObjectStore, action: str, payload: dict, approval_id: int) -> dict:
+def _run(conn: Any, store: ObjectStore, action: str, payload: dict, landed: list[str]) -> dict:
+    """The action's database changes, uncommitted (execute commits them with the status).
+    Replay's files go into landing here; `landed` lists them so a failure can undo them."""
     ids = [int(i) for i in payload["quarantine_ids"]]
     with conn.cursor() as cur:
         open_ids = _open_ids(cur, ids)
@@ -146,24 +176,29 @@ def _run(conn: Any, store: ObjectStore, action: str, payload: dict, approval_id:
                 "update ops.quarantine set status = 'discarded' where quarantine_id = any(%s)",
                 (open_ids,),
             )
-            result = {"discarded": open_ids}
-        elif action == "replay":
+            return {"discarded": open_ids}
+        if action == "replay":
             cur.execute(
                 "select distinct q.feed, q.file_sha256, f.raw_key, f.source_key"
                 " from ops.quarantine q join ops.intake_file f"
                 "   on f.feed = q.feed and f.file_sha256 = q.file_sha256"
-                " where q.quarantine_id = any(%s) and f.status = 'quarantined'",
+                " where q.quarantine_id = any(%s) and f.status = 'quarantined'"
+                " order by 1, 2",
                 (open_ids,),
             )
-            files = cur.fetchall()
-            relanded = []
-            for feed, sha, raw_key, source_key in files:
-                data = store.get(BUCKET_RAW, raw_key)
-                key = f"{feed}/{PurePosixPath(source_key).name}"
-                if store.exists(BUCKET_LANDING, key):
-                    raise ApprovalError(f"{key} is waiting in landing; replay later")
-                # Forget that the content was processed, so the intake validates it again;
-                # its quarantine history stays, closed as released by this approval.
+            files = [(feed, sha, raw, f"{feed}/{PurePosixPath(src).name}")
+                     for feed, sha, raw, src in cur.fetchall()]  # fmt: skip
+            if not files:
+                raise ApprovalError("nothing to replay: no open quarantine of a whole file")
+            # Every key is checked before anything changes.
+            busy = [key for *_, key in files if store.exists(BUCKET_LANDING, key)]
+            if busy:
+                raise ApprovalError(f"waiting in landing, replay later: {busy}")
+            for feed, sha, _, _ in files:
+                # Forget that the content was processed, so the intake validates it again.
+                # Its quarantine history stays, closed as released; note that this closes
+                # every open entry of the file, also those of other groups, and that the
+                # file leaves the feed history until it is processed again.
                 cur.execute("delete from ops.intake_delivery where feed = %s and file_sha256 = %s",
                             (feed, sha))  # fmt: skip
                 cur.execute("delete from ops.intake_file where feed = %s and file_sha256 = %s",
@@ -173,20 +208,16 @@ def _run(conn: Any, store: ObjectStore, action: str, payload: dict, approval_id:
                     " and file_sha256 = %s and status = 'open'",
                     (feed, sha),
                 )
-                store.put(BUCKET_LANDING, key, data)
-                relanded.append(key)
-            if not relanded:
-                raise ApprovalError("nothing to replay: no open quarantine of a whole file")
-            result = {"relanded": relanded}
-        elif action == "request_resend":
-            result = {"vendor_request": payload.get("message") or payload.get("rationale", ""),
-                      "quarantine_ids": open_ids}  # fmt: skip
-        elif action == "propose_contract_change":
-            result = {"handoff": "contract-author agent (Stage 5)", "quarantine_ids": open_ids}
-        else:
-            raise ApprovalError(f"unknown action {action!r}")
-    conn.commit()
-    return result
+            for _, _, raw_key, key in files:
+                store.put(BUCKET_LANDING, key, store.get(BUCKET_RAW, raw_key))
+                landed.append(key)
+            return {"relanded": landed[:]}
+        if action == "request_resend":
+            return {"vendor_request": payload.get("message") or payload.get("rationale", ""),
+                    "quarantine_ids": open_ids}  # fmt: skip
+        if action == "propose_contract_change":
+            return {"handoff": "contract-author agent (Stage 5)", "quarantine_ids": open_ids}
+        raise ApprovalError(f"unknown action {action!r}")
 
 
 def pending(conn: Any, status: str | None = "pending") -> list[dict[str, Any]]:

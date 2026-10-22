@@ -13,8 +13,11 @@ tools:
   - get_feed_history
   - propose_operation
 limits:
-  # Calls per run, all tools together: a runaway loop stops here.
+  # Calls per run, all tools together: a runaway loop stops here. The run id comes from
+  # the client, so the hourly limits (per agent, whatever the run) are the hard cap.
   max_calls_per_run: 60
+  max_calls_per_hour: 600
   propose_operation:
     actions: [request_resend, discard, replay, propose_contract_change]
     max_per_run: 20
+    max_per_hour: 100

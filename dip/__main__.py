@@ -119,7 +119,8 @@ def _mcp_serve(args: argparse.Namespace) -> int:
     registry = build_registry(_warehouse().conn, _store(args), load_contracts())
     server = build_server(registry, {agent: Policy.load(agent) for agent in keys})
     url = f"http://{args.host}:{args.port}"
-    uvicorn.run(http_app(server, keys, url), host=args.host, port=args.port)
+    app = http_app(server, keys, url, args.allowed_host)
+    uvicorn.run(app, host=args.host, port=args.port)
     return 0
 
 
@@ -191,8 +192,14 @@ def _approvals(args: argparse.Namespace) -> int:
         rows = [a for a in approvals.pending(conn, None) if a["approval_id"] == args.approval_id]
         print(json.dumps(rows, indent=1, default=str))
         return 0 if rows else 1
-    # Decisions and execution go through the registry too, so they are audited.
-    me = human_policy(getpass.getuser())
+    # Decisions and execution go through the registry too, so they are audited. The person
+    # is recorded as their OS user name and their database login; anyone with the warehouse
+    # DSN can approve (separate approver roles are a follow-up, see docs/agents/triage.md).
+    with conn.cursor() as cur:
+        cur.execute("select session_user")
+        (db_user,) = cur.fetchone()
+    conn.commit()
+    me = human_policy(f"{getpass.getuser()}@{db_user}")
     registry = build_registry(conn, _store(args), load_contracts())
     if args.action in ("approve", "reject"):
         try:
@@ -250,6 +257,12 @@ def main(argv: list[str] | None = None) -> int:
     mcp = sub.add_parser("mcp-serve")
     mcp.add_argument("--host", default="127.0.0.1")
     mcp.add_argument("--port", type=int, default=8765)
+    mcp.add_argument(
+        "--allowed-host",
+        action="append",
+        default=None,
+        help="Host header to accept (DNS-rebinding protection); default localhost",
+    )
     tri = sub.add_parser("triage")
     tri.add_argument("action", choices=["run", "eval"])
     tri.add_argument("--record", action="store_true", help="call the model, save its turns")
