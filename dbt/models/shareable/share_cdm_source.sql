@@ -8,39 +8,13 @@
 --   DIP-SYNTHEA  otherwise, if the Synthea FHIR feed is loaded and every other source is
 --                one of this repo's synthetic healthcare.* feeds
 --   DIP-UNKNOWN  anything else, including an empty warehouse
--- The on-run-end macro grant_cohort_reader() grants the cohort reader role this tier only
--- when the result is DIP-SYNTHEA.
-{% set relational = adapter.get_relation(database=target.database, schema='ops',
-                                          identifier='relational_load') %}
+-- The classification is macro cdm_source_kind_sql. The on-run-end macro
+-- grant_cohort_reader() works it out again, live, rather than trusting this table, which
+-- a partial dbt run may not have rebuilt.
 {% set load_info = adapter.get_relation(database=target.database, schema='vocab',
                                          identifier='load_info') %}
-with sources as (
-    select feed as source_name
-    from {{ source('ops', 'intake_file') }}
-    where status <> 'quarantined'
-    {% if relational %}
-    union all
-    select source || '.' || table_name from {{ relational }} where status = 'loaded'
-    {% endif %}
-    {% if var('source_kind', 'fhir') == 'mimic_relational' %}
-    union all
-    select 'mimic.relational_build'
-    {% endif %}
-),
-
-kind as (
-    select
-        case
-            when exists (select 1 from sources where source_name like 'mimic.%')
-                then 'DIP-MIMIC'
-            when exists (
-                select 1 from sources where source_name = 'healthcare.fhir_patient_bundle'
-            ) and not exists (
-                select 1 from sources where source_name not like 'healthcare.%'
-            )
-                then 'DIP-SYNTHEA'
-            else 'DIP-UNKNOWN'
-        end as abbreviation
+with kind as (
+    {{ cdm_source_kind_sql(source('ops', 'intake_file')) }}
 )
 
 select

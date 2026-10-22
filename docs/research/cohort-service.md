@@ -20,7 +20,7 @@ local. Both repos enforce the rule, independently.
 | Login role `dip_cohort_reader` | `infra/terraform/files/postgres-roles.sql` | Read-only by default (`default_transaction_read_only = on`), `statement_timeout` and `idle_in_transaction_session_timeout` of 60 s, at most 5 connections, `search_path = omop_shareable`. It is not a superuser, has no CREATEDB or CREATEROLE, and is a member of no role, `dip_researcher` included. The roles Job reapplies it on every `terraform apply` |
 | Its password | Terraform `random_password` → Kubernetes secret → `postgres-roles-password.psql` | Set with psql's `\getenv`, with statement and error-statement logging turned off for that session, so the password isn't written to the Postgres log. It is never committed. Locally: `terraform -chdir=infra/terraform output -raw cohort_reader_dsn` (host port 15432, database `warehouse`) |
 | `omop_shareable.cdm_source` | `dbt/models/shareable/share_cdm_source.sql` | The standard OMOP table, one row. `cdm_source_abbreviation` is `DIP-SYNTHEA`, `DIP-MIMIC` or `DIP-UNKNOWN`, with `vocabulary_version`, `cdm_version` (`v5.4`) and the build date |
-| Grants, only for Synthea | macro `grant_cohort_reader` (dbt on-run-end) | The reader gets `USAGE` on `omop_shareable` and `SELECT` on its tables **only when `cdm_source` says `DIP-SYNTHEA`**. Otherwise every grant is revoked. `omop_shareable.concept` is never granted, because with a local Athena load it is the downloader's licensed copy |
+| Grants, only for Synthea | macro `grant_cohort_reader` (dbt on-run-end) | The hook classifies the warehouse **live** with the same macro as `cdm_source` (`cdm_source_kind_sql`); it does not trust the `cdm_source` table, which a partial run may not have rebuilt. For anything but `DIP-SYNTHEA` it revokes every grant the reader has on the tier. For `DIP-SYNTHEA` it grants USAGE on the schema and SELECT on exactly the shareable models that this run rebuilt successfully, named one by one; a table it did not rebuild keeps what it had, which it was only ever given by a Synthea-only run that rebuilt it. `omop_shareable.concept` is never granted, because with a local Athena load it is the downloader's licensed copy |
 | `omop_shareable.procedure_occurrence` | PR #20 | For the service's `procedure_concept_ids` criteria |
 
 **The classification fails closed.**
@@ -31,8 +31,15 @@ local. Both repos enforce the rule, independently.
   is one of this repo's synthetic `healthcare.*` feeds.
 - **`DIP-UNKNOWN`:** anything else, including an empty warehouse.
 
-Tables that dbt rebuilds start with no grants, so a build that stops before on-run-end
-leaves the reader with nothing.
+Tables that dbt rebuilds start with no grants. So a run that fails before on-run-end
+leaves every table it rebuilt unreadable to the reader, and a run that rebuilt tables
+while MIMIC was loaded leaves none of them granted.
+
+**Feed names are the signal.** A MIMIC export sent through the Synthea feed would be
+labelled by that feed's name. The guard there is the Synthea contract itself: MIMIC moves
+every date past 2100, and the contract's future-date check rejects those resources, and
+then the whole file on the bad-row ratio. (`packs/mimic/run_fhir_demo.py` waives those
+checks on purpose to show what breaks, against a dry-run warehouse that writes nothing.)
 
 **Tests.** `tests/integration/test_cohort_reader.py` applies the real role file, builds the
 fixture patient, and connects as the reader. It checks that the reader:
@@ -46,7 +53,8 @@ relational) are checked to label themselves `DIP-MIMIC`.
 
 **What it doesn't do.**
 - The role exists in the cluster's Postgres. It is never created in a MIMIC warehouse (the
-  local `dip-dev-pg`), and even if it were, the grants would not be given.
+  local `dip-dev-pg`). If it were, the hook would still classify that warehouse as
+  `DIP-MIMIC` live and grant nothing.
 - The reader can still *connect* to the cluster's other databases (`airflow`, `marquez`),
   because Postgres grants `CONNECT` to `PUBLIC`. It can read nothing there, since nothing is
   granted to `PUBLIC`.

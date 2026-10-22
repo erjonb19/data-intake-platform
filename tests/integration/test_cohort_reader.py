@@ -66,9 +66,28 @@ def reader_can_read(table: str) -> bool:
         return True
 
 
-def rebuild_cdm_source() -> None:
-    # Rebuilding the model runs the on-run-end hooks, including grant_cohort_reader.
-    assert run_dbt(DSN, "run", "--select", "share_cdm_source", check=False).returncode == 0
+def rebuild(selector: str = "shareable") -> None:
+    # Any dbt run ends with the on-run-end hooks, including grant_cohort_reader.
+    assert run_dbt(DSN, "run", "--select", selector, check=False).returncode == 0
+
+
+def add_feed(wh, feed: str) -> None:
+    """A loaded file on another feed, next to the Synthea data (a copy of a real row)."""
+    with wh.conn.cursor() as cur:
+        cur.execute(
+            "insert into ops.intake_file (file_sha256, feed, contract_version, source_key,"
+            " raw_key, status, accepted_count, rejected_count, skipped_count, received_at)"
+            " select md5(%s), %s, contract_version, 'test/' || %s, raw_key, status, 0, 0, 0,"
+            " received_at from ops.intake_file where status <> 'quarantined' limit 1",
+            (feed, feed, feed),
+        )
+    wh.conn.commit()
+
+
+def remove_feed(wh, feed: str) -> None:
+    with wh.conn.cursor() as cur:
+        cur.execute("delete from ops.intake_file where feed = %s", (feed,))
+    wh.conn.commit()
 
 
 def test_cdm_source_says_synthea(tier):
@@ -141,17 +160,9 @@ def test_reader_role_attributes(tier):
 def test_any_other_source_takes_every_grant_away(tier, feed, expected):
     """Fails closed: one MIMIC (or unclassified) file next to Synthea, and the reader can
     read nothing; remove it and the grants come back on the next build."""
-    with tier.conn.cursor() as cur:
-        cur.execute(
-            "insert into ops.intake_file (file_sha256, feed, contract_version, source_key,"
-            " raw_key, status, accepted_count, rejected_count, skipped_count, received_at)"
-            " select md5(%s), %s, contract_version, 'test/' || %s, raw_key, status, 0, 0, 0,"
-            " received_at from ops.intake_file where status <> 'quarantined' limit 1",
-            (feed, feed, feed),
-        )
-    tier.conn.commit()
+    add_feed(tier, feed)
     try:
-        rebuild_cdm_source()
+        rebuild()
         assert scalar(tier, "select cdm_source_abbreviation from omop_shareable.cdm_source") == (
             expected
         )
@@ -161,8 +172,55 @@ def test_any_other_source_takes_every_grant_away(tier, feed, expected):
             tier, "select has_schema_privilege('dip_cohort_reader', 'omop_shareable', 'USAGE')"
         )
     finally:
-        with tier.conn.cursor() as cur:
-            cur.execute("delete from ops.intake_file where feed = %s", (feed,))
-        tier.conn.commit()
-    rebuild_cdm_source()
+        remove_feed(tier, feed)
+    rebuild()
     assert reader_can_read("omop_shareable.person")
+
+
+def test_a_partial_run_cannot_grant_through_a_stale_cdm_source(tier):
+    """Review finding: MIMIC arrives, and a run rebuilds share_person but not cdm_source,
+    which still says DIP-SYNTHEA. The hook classifies live, so it revokes instead."""
+    assert reader_can_read("omop_shareable.person")
+    add_feed(tier, "mimic.fhir_demo")
+    try:
+        rebuild("share_person")
+        assert scalar(tier, "select cdm_source_abbreviation from omop_shareable.cdm_source") == (
+            "DIP-SYNTHEA"  # stale on purpose: not rebuilt
+        )
+        assert not reader_can_read("omop_shareable.person")
+        assert not reader_can_read("omop_shareable.cdm_source")
+    finally:
+        remove_feed(tier, "mimic.fhir_demo")
+    rebuild()
+
+
+def test_grants_only_what_the_run_rebuilt(tier):
+    """Synthea-only, but a run that rebuilt one table grants that table; a table that this
+    run did not rebuild keeps what it had, and the hook never names a stray table."""
+    with tier.conn.cursor() as cur:
+        cur.execute("create table omop_shareable.stray_copy as select * from omop_shareable.person")
+    tier.conn.commit()
+    try:
+        rebuild()
+        assert not reader_can_read("omop_shareable.stray_copy")
+        assert reader_can_read("omop_shareable.person")
+        rebuild("share_person")
+        assert reader_can_read("omop_shareable.person")
+        assert reader_can_read("omop_shareable.measurement")  # not rebuilt, kept
+    finally:
+        with tier.conn.cursor() as cur:
+            cur.execute("drop table omop_shareable.stray_copy")
+        tier.conn.commit()
+
+
+def test_run_operation_alone_only_revokes(tier):
+    """Without run results the hook grants nothing; with Synthea alone it changes nothing."""
+    assert run_dbt(DSN, "run-operation", "grant_cohort_reader", check=False).returncode == 0
+    assert reader_can_read("omop_shareable.person")
+    add_feed(tier, "acme.claims")
+    try:
+        assert run_dbt(DSN, "run-operation", "grant_cohort_reader", check=False).returncode == 0
+        assert not reader_can_read("omop_shareable.person")
+    finally:
+        remove_feed(tier, "acme.claims")
+    rebuild()

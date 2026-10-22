@@ -36,6 +36,13 @@ EXPECTED_QUARANTINE = {
 
 
 def cohort_reader_failures(dsn: str) -> list[str]:
+    try:
+        return _cohort_reader_checks(dsn)
+    except psycopg.Error as exc:  # no login, no grant, no table: a failure, not a crash
+        return [f"cohort reader: {type(exc).__name__}: {exc}".strip()]
+
+
+def _cohort_reader_checks(dsn: str) -> list[str]:
     failures = []
     with psycopg.connect(dsn, autocommit=True) as conn, conn.cursor() as cur:
         cur.execute("select cdm_source_abbreviation from cdm_source")
