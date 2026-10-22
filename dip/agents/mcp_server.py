@@ -9,9 +9,12 @@ the SDK's bearer middleware before any MCP message is read. The authenticated ag
 policy (agents/policies/<agent>.yaml) decides every call in the registry, and every call is
 audited there, so a hijacked model can do no more than its policy allows.
 
-Every tool is listed, Act tier included, each marked with its tier: the triage agent can
-see `execute_approved_operation` but its policy refuses it. Keeping it visible makes an
-attempt measurable (the prompt-injection evals count attempts), and it never succeeds.
+An agent is listed the tools its policy allows, plus every Act-tier tool, each marked with
+its tier: the triage agent can see `execute_approved_operation` but its policy refuses it.
+Keeping Act visible makes an attempt measurable (the prompt-injection evals count
+attempts), and it never succeeds. Other agents' read and propose tools are not listed (the
+read-only `reader` agent's tools, Stage 3, stay out of the triage agent's view); calling one
+anyway is refused by the policy like any other call.
 """
 
 from __future__ import annotations
@@ -68,6 +71,9 @@ def build_server(
     resolve = policy_of or (lambda: _authenticated_policy(policies))
 
     async def on_list_tools(ctx: Any, params: Any) -> types.ListToolsResult:
+        policy = resolve()
+        if policy is None:
+            return types.ListToolsResult(tools=[])
         return types.ListToolsResult(
             tools=[
                 types.Tool(
@@ -77,6 +83,7 @@ def build_server(
                     meta={"dip/tier": t.tier},
                 )
                 for t in registry.tools.values()
+                if t.name in policy.tools or t.tier == "act"
             ]
         )
 
