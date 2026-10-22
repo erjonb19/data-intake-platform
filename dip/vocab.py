@@ -395,9 +395,10 @@ def load_source_to_concept_map(conn: Any, vocabulary_id: str, rows: list[tuple])
     return len(rows)
 
 
-# Source vocabularies the pipeline maps codes from. Many others (MeSH, CCAM, Mondo, ...)
-# legitimately have no "Maps to" for most concepts, so they are not checked.
-MAPPED_SOURCE_VOCABULARIES = ("ICD9CM", "ICD9Proc", "ICD10", "ICD10CM", "ICD10PCS", "NDC")
+# Source vocabularies the pipeline maps codes from today (conditions: ICD9CM, ICD10CM,
+# ICD10; drugs: NDC). Procedure vocabularies join when a procedure model does. Many others
+# (MeSH, CCAM, Mondo, ...) legitimately have no "Maps to" for most concepts.
+MAPPED_SOURCE_VOCABULARIES = ("ICD9CM", "ICD10", "ICD10CM", "NDC")
 
 
 def mapping_gaps(conn: Any) -> dict[str, dict[str, int]]:
