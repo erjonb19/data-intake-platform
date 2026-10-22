@@ -39,9 +39,8 @@ from_observations as (
     from {{ ref('stg_observation') }} as o
     left join {{ ref('source_to_standard') }} as s
         on s.vocabulary_id = o.source_vocabulary_id and s.concept_code = o.source_code
-    -- The complement of measurement's filter.
-    where s.standard_domain_id is distinct from 'Measurement'
-        and not (s.standard_concept_id is null and o.category in ('laboratory', 'vital-signs'))
+    -- The exact complement of measurement's filter (the expression is never NULL).
+    where not ({{ routes_to_measurement('s', 'o') }})
 ),
 
 facts as (

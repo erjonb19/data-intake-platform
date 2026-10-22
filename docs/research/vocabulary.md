@@ -126,3 +126,21 @@ A test, `no_source_rows_dropped`, checks that every staged condition and observa
 in exactly one OMOP table. The two dropped-row fixes changed the Synthea extract in CI:
 same inputs (`8935f4d0…`), new manifest **`de49ce4f…`** (was `2ee776b5…`), because the
 previously dropped rows are now in it.
+
+`measurement` and `observation` split staged Observations with one shared expression
+(`routes_to_measurement` in `dbt/macros/omop.sql`) that is never NULL. Before, an unmapped
+Observation with **no category** failed both filters (`NULL in (...)` is NULL) and was
+dropped. `test_observation_without_category_is_not_dropped` covers it.
+
+## Mapping rules that lose detail (documented, not yet fixed)
+
+- **Diagnoses whose standard concept is in the Measurement domain** (some ICD codes map to
+  a lab finding) stay in `condition_occurrence` with concept 0 and their source concept,
+  the same rule as Episode and Device. OMOP would put them in `measurement` with no
+  value; this build doesn't, so a cohort built on the Measurement concept misses them.
+- **Codes with two or more "Maps to" targets** (for example an ICD code that maps to two
+  SNOMED conditions) get one row, mapped to the **lowest standard concept id**. OMOP
+  would write one row per target. The choice is deterministic: every sort in
+  `source_to_standard` ends on a unique key, for vocabulary codes and site-map rows alike
+  (`test_two_maps_to_targets_resolve_to_the_lowest_concept`). Before, two site-map rows
+  for one local code to two standard concepts could resolve either way.

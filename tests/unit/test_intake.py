@@ -27,6 +27,19 @@ class FakeWarehouse:
         self.quarantine.extend(quarantine)
         self.bronze.extend((patient_id, r) for r in resources)
         self.csv_rows = getattr(self, "csv_rows", []) + list(csv_rows)
+        self.deliveries = getattr(self, "deliveries", set()) | {
+            (intake.file_sha256, intake.source_key)
+        }
+
+    def record_delivery(self, intake):
+        key = (intake.file_sha256, intake.source_key)
+        if key in getattr(self, "deliveries", set()):
+            return False
+        self.deliveries = getattr(self, "deliveries", set()) | {key}
+        return True
+
+    def record_quarantine(self, quarantine):
+        self.quarantine.extend(quarantine)
 
 
 @pytest.fixture
@@ -69,10 +82,15 @@ def test_rerun_of_same_file_is_a_duplicate(store):
     contracts = load_contracts()
     land(store, "a.json", good_bundle())
     process_landing(store, wh, contracts, NOW)
-    land(store, "a-again.json", good_bundle())
+    land(store, "a.json", good_bundle())
     [again] = process_landing(store, wh, contracts, NOW)
     assert again.status == "duplicate"
+    # The same content under another name is a new delivery, but is not loaded again.
+    land(store, "a-again.json", good_bundle())
+    [renamed] = process_landing(store, wh, contracts, NOW)
+    assert renamed.status == "redelivered"
     assert len(wh.bronze) == 9
+    assert len(wh.intake) == 1
 
 
 def test_record_rejections_go_to_ndjson(store, monkeypatch):

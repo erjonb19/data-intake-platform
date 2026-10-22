@@ -8,7 +8,8 @@ models:
     description: >
       silver.eligibility_record: one row per accepted row of every eligibility file
       received, typed. Keyed by (file_sha256, row_number). file_date is the business date
-      from the file name (elig_YYYYMMDD.csv), else the UTC date received.
+      in the file name (elig_YYYYMMDD.csv, validated at intake), else the UTC date
+      received; for content delivered more than once, that of its latest delivery.
     data_tests:
       - unique_combination:
           arguments: {columns: [file_sha256, row_number]}
