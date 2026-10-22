@@ -7,6 +7,8 @@ FROM apache/airflow:3.2.2-python3.12
 COPY --chown=airflow:root pyproject.toml /tmp/dip/pyproject.toml
 COPY --chown=airflow:root dip/ /tmp/dip/dip/
 RUN pip install --no-cache-dir --no-deps /tmp/dip && rm -rf /tmp/dip
+# Excel contracts (Stage 2). Not in the official image; pure Python, one dependency (et-xmlfile).
+RUN pip install --no-cache-dir "openpyxl==3.1.5" "et-xmlfile==2.0.0"
 
 COPY --chown=airflow:root packs/ /opt/airflow/packs/
 ENV DIP_CONTRACT_DIRS=/opt/airflow/packs/healthcare/contracts

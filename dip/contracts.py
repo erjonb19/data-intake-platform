@@ -112,7 +112,7 @@ def load_contract(path: str | Path) -> Contract:
             raise ContractError(
                 f"{path.name}: source/filename_date/regex needs exactly one group, has {groups}"
             )
-    if spec["format"]["type"] == "csv":
+    if spec["format"]["type"] in ("csv", "excel"):
         from dip.csvfeed import check_contract
 
         if problems := check_contract(spec):
