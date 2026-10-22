@@ -30,7 +30,7 @@ def test_fixture_files_end_to_end(warehouse, tmp_path):
     store.put(BUCKET_LANDING, f"{FEED}/bad.json", json.dumps(bad_missing_birthdate()).encode())
     process_landing(store, warehouse, load_contracts(), NOW)
 
-    assert scalar(warehouse, "select count(*) from bronze.fhir_resource") == 9
+    assert scalar(warehouse, "select count(*) from bronze.fhir_resource") == 10
     assert scalar(warehouse, "select count(distinct patient_id) from bronze.fhir_resource") == 1
     assert (
         scalar(warehouse, "select reason_code from ops.quarantine where level = 'file'")

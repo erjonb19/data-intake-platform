@@ -16,6 +16,9 @@ with events as (
     union all
     select person_id, observation_date, observation_date
     from {{ ref('observation') }}
+    union all
+    select person_id, procedure_date, coalesce(procedure_end_date, procedure_date)
+    from {{ ref('procedure_occurrence') }}
 )
 
 select
