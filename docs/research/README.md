@@ -301,8 +301,10 @@ reports that) or fails with "published versions are immutable, choose a new vers
 | Interoperable | OMOP CDM 5.4 tables with standard OHDSI concept ids; Frictionless Table Schema |
 | Reusable | license, provenance, column types and keys, checksums |
 
-The default license is `CC0-1.0` (`--license` changes it). The data is synthetic, but the
-license choice is the data owner's call.
+The license follows the sources, which the extract detects itself: `CC0-1.0` by default
+for synthetic (Synthea) data, where `--license` may choose another; **ODbL-1.0, required,
+with attribution** for anything derived from the MIMIC-IV demos, where CC0 is refused. See
+[mimic.md](mimic.md#licensing-of-outputs).
 
 **What the test caught.** Its first run failed: the two builds differed. The Synthea script
 pinned the seed and *reference* date but not the simulation *end* date, which defaults to
@@ -311,6 +313,18 @@ rejected different records depending on when the files "arrived". The end date i
 pinned too (`-e`, default 2026-01-01), which also makes the generator itself reproducible
 from day to day. Arrival time still matters by design for genuinely future-dated records,
 so a replay of raw files should use the recorded `ops.intake_file.received_at`.
+
+**Across machines, two more causes.** Builds were byte-identical on one machine (two Synthea
+runs compared file by file), but the Synthea input digest still differed between the Linux
+CI runner and a Windows laptop. Two causes, found one at a time by comparing the
+`extract inputs sha256` that the test prints:
+1. the Java image was a floating tag (`eclipse-temurin:21-jre`), so the machines ran
+   different Java builds. Pinning it by digest changed CI's output;
+2. Synthea generates in parallel with one thread per core (CI has 4, the laptop 8), and the
+   output depends on the thread count. With `--generate.thread_pool_size 1`, the laptop
+   reproduces CI's digest exactly (`8935f4d0…`).
+
+With both pinned, the same commit generates the same patients on CI and on the laptop.
 
 **Test** (`tests/integration/test_extract.py`): the **whole pipeline runs twice from scratch**
 (fresh warehouse, same raw files, arrival dates two months apart): intake → vocabulary →

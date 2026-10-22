@@ -103,7 +103,8 @@ def main(argv: list[str] | None = None) -> int:
     ext.add_argument("action", choices=["build", "verify"])
     ext.add_argument("--version", required=True)
     ext.add_argument("--out", type=Path, default=Path("data/extracts"))
-    ext.add_argument("--license", default="CC0-1.0")
+    # Default: CC0-1.0 for synthetic sources; ODbL-1.0 (required) for MIMIC-derived ones.
+    ext.add_argument("--license", default=None)
     dbt = sub.add_parser("dbt")
     dbt.add_argument("dbt_args", nargs=argparse.REMAINDER)
     args = parser.parse_args(argv)

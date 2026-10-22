@@ -50,7 +50,7 @@ def omop(tmp_path_factory):
 def test_omop_from_relational_tables(omop):
     assert rows(
         omop, "select year_of_birth, gender_concept_id, race_concept_id from omop.person"
-    ) == [(2091, 8532, 8527)]
+    ) == [(2091, 8532, 0)]  # race text UNKNOWN
     assert rows(
         omop,
         "select visit_concept_id, visit_source_value, visit_start_datetime::text"
