@@ -53,8 +53,13 @@ class Warehouse:
         self.conn = conn
 
     def init(self) -> None:
+        from dip.vocab import STCM_DDL
+
         with self.conn.cursor() as cur:
             cur.execute(init_sql())
+            # Every dbt build reads it (source_to_standard). Created here too, not only by a
+            # vocabulary load: a warehouse whose vocabulary predates the table never reloads.
+            cur.execute(STCM_DDL)
         self.conn.commit()
 
     def already_processed(self, feed: str, file_sha256: str) -> bool:

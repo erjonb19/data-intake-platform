@@ -106,3 +106,29 @@ def test_header_mismatch_is_refused(warehouse, tmp_path):
 def test_eunomia_provenance_unchanged(warehouse):
     vocab.load(warehouse.conn, vocab.fetch(vocab.CACHE_DIR))
     assert vocab.provenance(warehouse.conn) == vocab.EUNOMIA_PROVENANCE
+
+
+def test_warehouse_init_creates_the_map_for_an_older_vocabulary(warehouse):
+    # A warehouse whose vocabulary was loaded before source_to_concept_map existed is
+    # never reloaded (needs_load is false), but every dbt build reads the map.
+    vocab.load(warehouse.conn, vocab.fetch(vocab.CACHE_DIR))
+    with warehouse.conn.cursor() as cur:
+        cur.execute("drop table vocab.source_to_concept_map")
+    warehouse.conn.commit()
+    assert vocab.needs_load(warehouse.conn) is False
+    warehouse.init()
+    assert scalar(warehouse, "select to_regclass('vocab.source_to_concept_map') is not null")
+
+
+def test_mapping_gaps_only_checks_mapped_source_vocabularies(warehouse, tmp_path):
+    rows_ = [f"{900100 + i}\tSource {i}\tCondition\tICD10CM\tCode\t\tX{i}\t20200101\t20991231\t"
+             for i in range(3)]  # fmt: skip
+    rows_ += [f"{900200 + i}\tTerm {i}\tObservation\tMeSH\tCode\t\tM{i}\t20200101\t20991231\t"
+              for i in range(3)]  # fmt: skip
+    d = _folder(tmp_path, "Gaps", rows_, [], "v")
+    vocab.load_athena(warehouse.conn, [d])
+    # ICD10CM without mappings is reported (it is what MIMIC diagnoses map from); MeSH,
+    # which never maps, is not.
+    assert vocab.mapping_gaps(warehouse.conn) == {
+        "ICD10CM": {"non_standard": 3, "without_maps_to": 3}
+    }
