@@ -33,11 +33,18 @@ if [[ -n "$content" ]]; then
   [[ "${1:-}" == "--staged" ]] && content="$(comm -12 <(echo "$content" | sort) <(files | sort))"
 fi
 
+# report LABEL PATHS: one line per path (PATHS is newline-separated).
+report() {
+  if [[ -n "$2" ]]; then
+    printf '%s\n' "$2" | sed "s|^|  $1: |" >&2
+  fi
+}
+
 if [[ -n "$bulk$data$content" ]]; then
   echo "ERROR: files that must stay local are tracked by git:" >&2
-  [[ -n "$bulk" ]] && printf '  MIMIC or bulk data: %s\n' $bulk >&2
-  [[ -n "$data" ]] && printf '  data file outside tests/fixtures or dbt/seeds: %s\n' $data >&2
-  [[ -n "$content" ]] && printf '  MIMIC identifiers or a local-only package in: %s\n' $content >&2
+  report "MIMIC or bulk data" "$bulk"
+  report "data file outside tests/fixtures or dbt/seeds" "$data"
+  report "MIMIC identifiers or a local-only package in" "$content"
   exit 1
 fi
 echo "ok: no MIMIC data, local-only packages or stray data files tracked"
