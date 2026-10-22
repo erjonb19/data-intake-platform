@@ -8,12 +8,19 @@ wait for it, then check every case in the warehouse:
   - otherwise its rows in gold: the expected count, and a checksum over every contract
     column computed independently from the fixture (minus `exclude_rows`).
 
+Cases with `channel: sftp` are uploaded to the feed's vendor account over SFTP instead,
+and the `sftp_sync` DAG moves them to landing first (Stage 2); their delivery must be
+recorded with channel sftp.
+
 Safe to rerun: processed files are recognized by sha256.
-Env: as smoke.py, plus MINIO_USER, MINIO_PASSWORD and WAREHOUSE_DSN.
+Env: as smoke.py, plus MINIO_USER, MINIO_PASSWORD and WAREHOUSE_DSN; for SFTP cases also
+SFTP_PORT (a port-forward to the server), SFTP_HOST_KEY and SFTP_KEY_DIR (one
+<account>.key per vendor account), which scripts/e2e.sh sets up.
 """
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import hashlib
 import io
@@ -59,6 +66,15 @@ def count(cur, sql: str, *params) -> int:
 
 def check_case(cur, feed: str, spec: dict, case: dict, sha: str, failures: list[str]) -> None:
     name = case["fixture"]
+    channel = case.get("channel", "minio")
+    cur.execute(
+        "select array_agg(distinct channel) from ops.intake_delivery"
+        " where feed = %s and file_sha256 = %s",
+        (feed, sha),
+    )
+    got_channels = cur.fetchone()[0]
+    if case["status"] != "quarantined" and got_channels != [channel]:
+        failures.append(f"{name}: delivered by {got_channels}, expected [{channel!r}]")
     cur.execute(
         "select status from ops.intake_file where feed = %s and file_sha256 = %s", (feed, sha)
     )
@@ -100,19 +116,41 @@ def check_case(cur, feed: str, spec: dict, case: dict, sha: str, failures: list[
         )
 
 
-def run_feed(s3, token: str, feed: str, spec: dict, failures: list[str]) -> None:
-    import psycopg
+def sftp_upload(feed: str, name: str, data: bytes) -> None:
+    """Upload as the feed's vendor would: its own account and key, the pinned host key,
+    into /upload/<feed>/ with a .done marker once the file is complete."""
+    import base64
+    import io as _io
+
+    import paramiko
+
+    account = feed.split(".")[0]
+    key_type, key_b64 = os.environ["SFTP_HOST_KEY"].split()[:2]
+    port = int(os.environ["SFTP_PORT"])
+    ssh = paramiko.SSHClient()
+    pinned = paramiko.PKey.from_type_string(key_type, base64.b64decode(key_b64))
+    ssh.get_host_keys().add(f"[127.0.0.1]:{port}", key_type, pinned)
+    ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
+    pkey = paramiko.Ed25519Key.from_private_key_file(
+        str(Path(os.environ["SFTP_KEY_DIR"]) / f"{account}.key")
+    )
+    ssh.connect("127.0.0.1", port=port, username=account, pkey=pkey, look_for_keys=False,
+                allow_agent=False, timeout=30)  # fmt: skip
+    try:
+        sftp = ssh.open_sftp()
+        folder = f"/upload/{feed}"
+        with contextlib.suppress(OSError):  # already there
+            sftp.mkdir(folder)
+        sftp.putfo(_io.BytesIO(data), f"{folder}/{name}")
+        sftp.putfo(_io.BytesIO(b""), f"{folder}/{name}.done")
+    finally:
+        ssh.close()
+
+
+def trigger_and_wait(token: str, dag_id: str, failures: list[str]) -> None:
     from smoke import AIRFLOW_URL, request, step, wait_for
 
     api = f"{AIRFLOW_URL}/api/v2"
-    dag_id = dag_id_for(feed)
-    sha = {}
-    step(f"{feed}: uploading {len(spec['cases'])} fixture(s)")
-    for case in spec["cases"]:
-        data = (FIXTURES / case["fixture"]).read_bytes()
-        sha[case["fixture"]] = hashlib.sha256(data).hexdigest()
-        s3.put_object(Bucket="landing", Key=f"{feed}/{Path(case['fixture']).name}", Body=data)
-
     wait_for(
         f"DAG {dag_id} parsed",
         lambda: request("GET", f"{api}/dags/{dag_id}", token=token)[0] == 200,
@@ -129,6 +167,30 @@ def run_feed(s3, token: str, feed: str, spec: dict, failures: list[str]) -> None
     state = wait_for(f"{dag_id} run to finish", finished)
     if state != "success":
         failures.append(f"{dag_id} run state is {state!r}")
+
+
+def run_feed(s3, token: str, feed: str, spec: dict, failures: list[str]) -> None:
+    import psycopg
+    from smoke import step
+
+    sha = {}
+    by_sftp = [c for c in spec["cases"] if c.get("channel", "minio") == "sftp"]
+    if by_sftp:
+        step(f"{feed}: uploading {len(by_sftp)} fixture(s) over SFTP")
+        for case in by_sftp:
+            data = (FIXTURES / case["fixture"]).read_bytes()
+            sha[case["fixture"]] = hashlib.sha256(data).hexdigest()
+            sftp_upload(feed, Path(case["fixture"]).name, data)
+        # The sync moves them to landing and triggers the feed's DAG itself; that run and
+        # the one below never overlap (max_active_runs=1), and either one takes them.
+        trigger_and_wait(token, "sftp_sync", failures)
+    by_minio = [c for c in spec["cases"] if c.get("channel", "minio") == "minio"]
+    step(f"{feed}: uploading {len(by_minio)} fixture(s) to MinIO")
+    for case in by_minio:
+        data = (FIXTURES / case["fixture"]).read_bytes()
+        sha[case["fixture"]] = hashlib.sha256(data).hexdigest()
+        s3.put_object(Bucket="landing", Key=f"{feed}/{Path(case['fixture']).name}", Body=data)
+    trigger_and_wait(token, dag_id_for(feed), failures)
 
     step(f"{feed}: checking the warehouse")
     with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:

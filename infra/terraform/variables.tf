@@ -55,6 +55,12 @@ variable "airflow_image_tag" {
   default     = "dev"
 }
 
+variable "sftp_image" {
+  description = "SFTP server for the vendor channel (atmoz/sftp, OpenSSH on Debian), pinned by digest."
+  type        = string
+  default     = "atmoz/sftp:debian@sha256:f308cffe27242286d1e93a548dc5a581223b963e9b044d9e452594ef30dd05bd"
+}
+
 variable "postgres_image" {
   description = "Postgres image shared by Airflow metadata, the warehouse, and Marquez."
   type        = string

@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import PurePosixPath
 
-from dip import BUCKET_LANDING, BUCKET_QUARANTINE, BUCKET_RAW
+from dip import BUCKET_LANDING, BUCKET_QUARANTINE, BUCKET_RAW, CHANNEL_KEY
 from dip.contracts import Contract
 from dip.csvfeed import CsvResult, Row, validate_csv
 from dip.excelfeed import validate_excel
@@ -66,10 +66,13 @@ def process_file(
     if not store.exists(BUCKET_RAW, raw_key):
         store.put(BUCKET_RAW, raw_key, data)
 
+    channel = store.metadata(BUCKET_LANDING, landing_key).get(CHANNEL_KEY, "minio")
     file_date, name_problems = _check_name(filename, contract, now)
+    name_problems = _check_channel(channel, contract) + name_problems
     if name_problems:
         # Checked before the duplicate check and not recorded in ops.intake_file: the
-        # content was never validated, so the same bytes under a correct name still load.
+        # content was never validated, so the same bytes under a correct name (or through
+        # an allowed channel) still load.
         qkey = f"{contract.feed}/{day}/{sha}.{_slug(filename)}{ext}"
         result = BundleResult()
         result.file_violations.extend(name_problems)
@@ -92,7 +95,9 @@ def process_file(
         )
 
     if warehouse.already_processed(contract.feed, sha):
-        delivery = _intake_record(contract, sha, landing_key, raw_key, "", now, file_date)
+        delivery = _intake_record(
+            contract, sha, landing_key, raw_key, "", now, file_date, channel=channel
+        )
         new = warehouse.record_delivery(delivery)
         store.delete(BUCKET_LANDING, landing_key)
         return Outcome(landing_key, sha, "redelivered" if new else "duplicate", raw_key=raw_key)
@@ -152,6 +157,7 @@ def process_file(
             accepted=len(result.accepted),
             rejected=len(result.rejected),
             skipped=sum(result.skipped.values()),
+            channel=channel,
         ),
         quarantine,
         [] if csv_mode else result.accepted,
@@ -200,6 +206,16 @@ def _record_ref(r: Row | Resource) -> str:
     return f"{r.resource_type}/{r.resource_id}#entry={r.entry_index}"
 
 
+def _check_channel(channel: str, contract: Contract) -> list[Violation]:
+    """A file must arrive through a channel its contract lists (`source.channels`)."""
+    allowed = contract.spec["source"]["channels"]
+    if channel in allowed:
+        return []
+    return [
+        Violation(f"FILE.CHANNEL:{channel}", f"arrived by {channel}; contract allows {allowed}")
+    ]
+
+
 def _check_name(
     filename: str, contract: Contract, now: datetime
 ) -> tuple[date | None, list[Violation]]:
@@ -226,6 +242,7 @@ def _intake_record(
     accepted: int = 0,
     rejected: int = 0,
     skipped: int = 0,
+    channel: str = "minio",
 ) -> IntakeRecord:
     return IntakeRecord(
         file_sha256=sha,
@@ -239,6 +256,7 @@ def _intake_record(
         skipped_count=skipped,
         received_at=now,
         file_date=file_date,
+        channel=channel,
     )
 
 

@@ -34,6 +34,19 @@ secret:
   - envName: DIP_DEID_KEY
     secretName: dip-deid
     secretKey: key
+  # SFTP channel (Stage 2): server, pinned host key, the platform's login key, accounts.
+  - envName: DIP_SFTP_HOST
+    secretName: dip-sftp
+    secretKey: host
+  - envName: DIP_SFTP_HOST_KEY
+    secretName: dip-sftp
+    secretKey: host_key
+  - envName: DIP_SFTP_KEY
+    secretName: dip-sftp
+    secretKey: key
+  - envName: DIP_SFTP_ACCOUNTS
+    secretName: dip-sftp
+    secretKey: accounts
 
 config:
   core:

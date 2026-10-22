@@ -72,7 +72,7 @@ jobs:
       - name: E2E dependencies
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*"
+          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*"
 
       # Phase 1: the old version, with data. State (tfstate, kubeconfig, .venv) is
       # gitignored, so it stays in place when the checkout moves to the new version.

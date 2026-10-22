@@ -32,6 +32,7 @@ class IntakeRecord:
     skipped_count: int
     received_at: datetime
     file_date: date | None = None  # the validated business date in the file name
+    channel: str = "minio"  # how the file arrived: minio, sftp or api (Stage 2)
 
 
 @dataclass(frozen=True)
@@ -164,9 +165,17 @@ class Warehouse:
 
 def _insert_delivery(cur: Any, intake: IntakeRecord) -> bool:
     cur.execute(
-        "insert into ops.intake_delivery (feed, file_sha256, source_key, file_date, received_at)"
-        " values (%s, %s, %s, %s, %s) on conflict do nothing",
-        (intake.feed, intake.file_sha256, intake.source_key, intake.file_date, intake.received_at),
+        "insert into ops.intake_delivery"
+        " (feed, file_sha256, source_key, file_date, received_at, channel)"
+        " values (%s, %s, %s, %s, %s, %s) on conflict do nothing",
+        (
+            intake.feed,
+            intake.file_sha256,
+            intake.source_key,
+            intake.file_date,
+            intake.received_at,
+            intake.channel,
+        ),
     )
     return cur.rowcount == 1
 
