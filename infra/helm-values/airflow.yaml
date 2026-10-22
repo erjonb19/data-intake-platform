@@ -1,0 +1,109 @@
+# Values for the official Apache Airflow Helm chart (version pinned in Terraform).
+# Sized for a 16 GB laptop; see PLAN.md section 5.
+
+executor: KubernetesExecutor
+
+airflowVersion: "3.2.2"
+defaultAirflowTag: "3.2.2"
+
+images:
+  airflow:
+    # repository/tag are set by Terraform from the image loaded into kind.
+    pullPolicy: IfNotPresent
+
+# External, shared Postgres (dip-data/postgres). No Redis: KubernetesExecutor needs no broker.
+postgresql:
+  enabled: false
+redis:
+  enabled: false
+data:
+  metadataSecretName: airflow-metadata
+
+fernetKeySecretName: airflow-fernet-key
+apiSecretKeySecretName: airflow-api-secret-key
+jwtSecretName: airflow-jwt-secret
+
+secret:
+  - envName: AIRFLOW_CONN_MINIO
+    secretName: airflow-connections
+    secretKey: minio
+  - envName: AIRFLOW_CONN_WAREHOUSE
+    secretName: airflow-connections
+    secretKey: warehouse
+
+config:
+  core:
+    load_examples: "False"
+    parallelism: 2
+    max_active_tasks_per_dag: 2
+  logging:
+    # Task pods are deleted after they finish, so logs go to MinIO.
+    remote_logging: "True"
+    remote_base_log_folder: "s3://airflow-logs"
+    remote_log_conn_id: minio
+    delete_local_logs: "True"
+  kubernetes_executor:
+    delete_worker_pods: "True"
+    delete_worker_pods_on_failure: "False"
+    worker_pods_creation_batch_size: 2
+
+# Plain Jobs instead of Helm hooks so Terraform's `wait` works.
+migrateDatabaseJob:
+  useHelmHooks: false
+  applyCustomEnv: false
+createUserJob:
+  useHelmHooks: false
+  applyCustomEnv: false
+  defaultUser:
+    username: admin
+    email: admin@example.com
+    firstName: Platform
+    lastName: Admin
+    role: Admin
+    # password is set by Terraform (set_sensitive).
+
+apiServer:
+  service:
+    type: NodePort
+    ports:
+      - name: api-server
+        port: 8080
+        # Must match local.node_ports.airflow in infra/terraform/cluster.tf.
+        nodePort: 30080
+  resources:
+    requests: { cpu: 100m, memory: 512Mi }
+    limits: { memory: 1Gi }
+
+scheduler:
+  resources:
+    requests: { cpu: 100m, memory: 384Mi }
+    limits: { memory: 1Gi }
+
+dagProcessor:
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 768Mi }
+
+workers:
+  kubernetes:
+    resources:
+      requests: { cpu: 100m, memory: 256Mi }
+      limits: { memory: 768Mi }
+
+# Cut to save memory (PLAN.md section 5): no deferrable operators yet.
+triggerer:
+  enabled: false
+# Enabled in Stage 3 with Prometheus.
+statsd:
+  enabled: false
+
+# DAGs are baked into the platform image; no git-sync, no DAG PVC.
+dags:
+  persistence:
+    enabled: false
+  gitSync:
+    enabled: false
+
+logs:
+  persistence:
+    enabled: false

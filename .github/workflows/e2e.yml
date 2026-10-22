@@ -1,0 +1,62 @@
+name: e2e
+
+# Creates a kind cluster with Terraform, deploys the stack, and runs the end-to-end
+# tests. Extended stage by stage (PLAN.md section 6).
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KIND_VERSION: v0.33.0
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.6"
+          terraform_wrapper: false
+
+      - name: Install kind
+        run: |
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          curl -fsSL "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64.sha256sum" \
+            | awk '{print $1"  kind"}' | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+
+      - name: Prerequisites
+        run: bash scripts/prereqs.sh || true
+
+      - name: Bring up stack
+        run: bash scripts/up.sh
+
+      - name: Smoke test
+        run: bash scripts/smoke.sh
+
+      - name: Collect diagnostics
+        if: failure()
+        run: bash scripts/diagnostics.sh
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-diagnostics
+          path: artifacts/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: bash scripts/down.sh
