@@ -16,11 +16,14 @@ import jsonschema
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-# In the Airflow image the package is installed, so the image sets DIP_CONTRACT_DIRS.
+# In the images the package is installed, so they set DIP_CONTRACT_DIRS. The default is
+# every domain pack's contracts (the MIMIC pack is local-only and loaded explicitly).
+PACKS = ("healthcare", "finance")
 DEFAULT_CONTRACT_DIRS = tuple(
     Path(p)
     for p in os.environ.get(
-        "DIP_CONTRACT_DIRS", str(REPO_ROOT / "packs" / "healthcare" / "contracts")
+        "DIP_CONTRACT_DIRS",
+        os.pathsep.join(str(REPO_ROOT / "packs" / pack / "contracts") for pack in PACKS),
     ).split(os.pathsep)
 )
 

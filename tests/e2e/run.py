@@ -46,8 +46,42 @@ def dag_id_for(feed: str) -> str:
     return "intake__" + feed.replace(".", "__")
 
 
-def fixture_checksum(data: bytes, exclude: set[int], columns: list[str]) -> tuple[int, str]:
-    rows = list(csv.DictReader(io.StringIO(data.decode("utf-8-sig"))))
+def _xlsx_rows(data: bytes, sheet: str, header_row: int) -> list[dict[str, str]]:
+    """The rows of an .xlsx fixture as text, by the same rules as dip/excelfeed.py (the
+    E2E venv does not install the dip package; unit tests keep the two in step)."""
+    from datetime import date, datetime, time
+
+    import openpyxl
+
+    def text(v) -> str:
+        if v is None:
+            return ""
+        if isinstance(v, bool):
+            return "true" if v else "false"
+        if isinstance(v, datetime):
+            return v.date().isoformat() if v.time() == time(0) else v.isoformat()
+        if isinstance(v, date | time):
+            return v.isoformat()
+        if isinstance(v, float):
+            return str(int(v)) if v.is_integer() else repr(v)
+        return str(v).strip()
+
+    wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
+    raw = [[text(v) for v in r] for r in wb[sheet].iter_rows(values_only=True)]
+    wb.close()
+    header, *body = raw[header_row - 1 :]
+    while header and header[-1] == "":
+        header.pop()
+    return [dict(zip(header, r, strict=False)) for r in body if any(r)]
+
+
+def fixture_checksum(
+    data: bytes, exclude: set[int], columns: list[str], excel: dict | None = None
+) -> tuple[int, str]:
+    if excel:
+        rows = _xlsx_rows(data, excel["sheet"], excel.get("header_row", 1))
+    else:
+        rows = list(csv.DictReader(io.StringIO(data.decode("utf-8-sig"))))
     kept = [r for n, r in enumerate(rows, start=1) if n not in exclude]
     lines = sorted("|".join(r[c].strip() for c in columns) for r in kept)
     return len(kept), hashlib.md5("\n".join(lines).encode()).hexdigest()
@@ -108,7 +142,10 @@ def check_case(cur, feed: str, spec: dict, case: dict, sha: str, failures: list[
                 failures.append(f"{name}: rows from a quarantined file reached {table}")
         return
     want = fixture_checksum(
-        (FIXTURES / name).read_bytes(), set(case.get("exclude_rows", [])), spec["checksum_columns"]
+        (FIXTURES / name).read_bytes(),
+        set(case.get("exclude_rows", [])),
+        spec["checksum_columns"],
+        spec.get("excel"),
     )
     if got_gold != want or want[0] != case["gold_rows"]:
         failures.append(

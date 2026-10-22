@@ -1,0 +1,28 @@
+version: 2
+
+# Finance pack, Stage 2 (S2.5): the AP invoice register (generated, invented), an Excel
+# feed. Bronze is bronze.csv_record (the Excel reader gives the same rows a CSV would).
+# DQ tests: tests/invoice_totals_add_up.sql, tests/invoice_due_after_invoice.sql.
+models:
+  - name: vendor_invoice_record
+    description: >
+      silver.vendor_invoice_record: one row per accepted row of every invoice register
+      received, typed. Keyed by (file_sha256, row_number).
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [file_sha256, row_number]}
+    columns:
+      - name: invoice_number
+        data_tests: [not_null]
+
+  - name: vendor_invoice
+    description: >
+      gold.vendor_invoice: one row per invoice number, from the newest register that has
+      it. The Stage 3 OCR invoices are matched to it.
+    columns:
+      - name: invoice_number
+        data_tests: [unique, not_null]
+      - name: payment_terms
+        data_tests:
+          - accepted_values:
+              arguments: {values: [NET15, NET30, NET45, NET60]}

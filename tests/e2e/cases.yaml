@@ -7,6 +7,7 @@
 #   gold_rows  how many of the file's rows must reach gold (0: the file is quarantined
 #              whole, and nothing of it may be in bronze, silver or gold)
 #   exclude_rows  data rows (1-based) expected in quarantine, left out of the checksum
+#   excel      (per feed) {sheet, header_row} when the feed's fixtures are .xlsx workbooks
 #   channel    how the fixture is delivered: minio (default, put into landing), sftp
 #              (uploaded to the vendor's SFTP account, then the sftp_sync DAG moves it)
 #              or api (POSTed to the intake API with the vendor's key);
@@ -58,4 +59,25 @@ feeds:
       - fixture: claims/bad/claims_missing_paid_amount.csv
         status: quarantined
         reasons: ["SCHEMA.MISSING_COLUMN:paid_amount"]
+        gold_rows: 0
+  finance.vendor_invoice:
+    gold_table: gold.vendor_invoice
+    silver_table: silver.vendor_invoice_record
+    excel: {sheet: Invoices, header_row: 3}
+    checksum_columns: [invoice_number, vendor_id, vendor_name, invoice_date, due_date,
+                       po_number, payment_terms, currency, subtotal, tax, total]
+    cases:
+      - fixture: finance/good/invoices_good.xlsx
+        status: loaded
+        reasons: []
+        gold_rows: 12
+      - fixture: finance/bad/invoices_breakages.xlsx
+        status: loaded_with_rejections
+        reasons: ["KEY.DUPLICATE:invoice_number", "VALUE.OUT_OF_RANGE:total",
+                  "VALUE.REQUIRED:po_number"]
+        gold_rows: 37
+        exclude_rows: [2, 3, 4, 41]   # both copies of the duplicate, the credit, no PO
+      - fixture: finance/bad/invoices_sheet_renamed.xlsx
+        status: quarantined
+        reasons: ["SCHEMA.MISSING_SHEET:Invoices"]
         gold_rows: 0

@@ -10,6 +10,7 @@ import pytest
 
 from dip.contracts import REPO_ROOT, dag_id_for, load_contracts
 from dip.csvfeed import validate_csv
+from dip.excelfeed import validate_excel
 
 
 def _runner():
@@ -34,7 +35,8 @@ def test_runner_names_dags_like_the_dag_factory():
 def test_case_matches_what_the_contract_does(feed, spec, case):
     contract = load_contracts()[feed]
     data = (RUN.FIXTURES / case["fixture"]).read_bytes()
-    result = validate_csv(data, contract, datetime(2026, 10, 21, tzinfo=UTC))
+    validate = validate_excel if contract.format_type == "excel" else validate_csv
+    result = validate(data, contract, datetime(2026, 10, 21, tzinfo=UTC))
     reasons = sorted({v.reason_code for v in result.file_violations} |
                      {v.reason_code for _, v in result.rejected})  # fmt: skip
     assert reasons == sorted(case["reasons"])
@@ -44,9 +46,18 @@ def test_case_matches_what_the_contract_does(feed, spec, case):
     assert spec["checksum_columns"] == [c["name"] for c in contract.spec["columns"]]
     if case["gold_rows"]:
         n, _ = RUN.fixture_checksum(
-            data, set(case.get("exclude_rows", [])), spec["checksum_columns"]
+            data, set(case.get("exclude_rows", [])), spec["checksum_columns"], spec.get("excel")
         )
         assert n == case["gold_rows"]
+    if contract.format_type == "excel":
+        # The runner reads workbooks by the same rules as the intake's reader.
+        fmt = contract.spec["format"]
+        assert spec["excel"] == {"sheet": fmt["sheet"], "header_row": fmt["header_row"]}
+        if not result.file_violations:
+            expected = [r.record for r in result.accepted]
+            got = RUN._xlsx_rows(data, fmt["sheet"], fmt["header_row"])
+            kept = [r for i, r in enumerate(got, 1) if i not in set(case.get("exclude_rows", []))]
+            assert kept == expected
 
 
 @pytest.mark.parametrize(("feed", "spec", "case"), CASES, ids=[c["fixture"] for _, _, c in CASES])
