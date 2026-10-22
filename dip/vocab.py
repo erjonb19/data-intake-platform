@@ -395,8 +395,13 @@ def load_source_to_concept_map(conn: Any, vocabulary_id: str, rows: list[tuple])
     return len(rows)
 
 
+# Source vocabularies the pipeline maps codes from. Many others (MeSH, CCAM, Mondo, ...)
+# legitimately have no "Maps to" for most concepts, so they are not checked.
+MAPPED_SOURCE_VOCABULARIES = ("ICD9CM", "ICD9Proc", "ICD10", "ICD10CM", "ICD10PCS", "NDC")
+
+
 def mapping_gaps(conn: Any) -> dict[str, dict[str, int]]:
-    """Source vocabularies (almost no standard concepts, e.g. ICD10CM, ICD9CM, NDC) whose
+    """The source vocabularies the pipeline maps from (MAPPED_SOURCE_VOCABULARIES) whose
     valid concepts mostly have no "Maps to".
 
     Athena exports a relationship only when both of its concepts are in the same download,
@@ -409,13 +414,14 @@ def mapping_gaps(conn: Any) -> dict[str, dict[str, int]]:
             " count(*) filter (where c.standard_concept is null and not exists ("
             "   select 1 from vocab.concept_relationship r"
             "   where r.concept_id_1 = c.concept_id and r.relationship_id = 'Maps to'))"
-            " from vocab.concept c where c.invalid_reason is null group by 1 order by 1"
+            " from vocab.concept c where c.invalid_reason is null"
+            " and c.vocabulary_id = any(%s) group by 1 order by 1",
+            (list(MAPPED_SOURCE_VOCABULARIES),),
         )
         out = {
             v: {"non_standard": n, "without_maps_to": gap}
             for v, std, n, gap in cur.fetchall()
-            # 1,000+ concepts: skips the small metadata vocabularies, which never map.
-            if n >= 1000 and std * 20 < n and gap * 2 > n
+            if n and std * 20 < n and gap * 2 > n
         }
     conn.commit()
     return out
