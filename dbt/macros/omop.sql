@@ -14,6 +14,8 @@
         when 'http://unitsofmeasure.org' then 'UCUM'
         when 'http://hl7.org/fhir/sid/icd-10-cm' then 'ICD10CM'
         when 'http://hl7.org/fhir/sid/icd-10' then 'ICD10'
+        -- Synthea v4 codes dental procedures in CDT (ADA's dental codes).
+        when 'http://www.ada.org/cdt' then 'CDT'
         -- MIMIC-IV on FHIR publishes standard codes under MIMIC-local system URIs.
         when 'http://mimic.mit.edu/fhir/mimic/CodeSystem/mimic-diagnosis-icd9' then 'ICD9CM'
         when 'http://mimic.mit.edu/fhir/mimic/CodeSystem/mimic-diagnosis-icd10' then 'ICD10CM'

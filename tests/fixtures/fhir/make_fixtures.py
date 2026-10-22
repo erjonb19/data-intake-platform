@@ -168,6 +168,26 @@ def good_bundle() -> dict:
             "encounter": {"reference": _urn("enc-0001")},
             "authoredOn": "2018-03-02T09:20:00-05:00",
         },
+        {
+            "resourceType": "Procedure",
+            "id": "proc-0001",
+            "status": "completed",
+            "code": {
+                "coding": [
+                    {
+                        "system": "http://snomed.info/sct",
+                        "code": "73761001",
+                        "display": "Colonoscopy (procedure)",
+                    }
+                ]
+            },
+            "subject": {"reference": _urn(PATIENT)},
+            "encounter": {"reference": _urn("enc-0002")},
+            "performedPeriod": {
+                "start": "2025-02-10T10:05:00-05:00",
+                "end": "2025-02-10T10:15:00-05:00",
+            },
+        },
         # Loaded types only; this one is counted and skipped by the contract.
         {
             "resourceType": "Claim",

@@ -2,7 +2,9 @@
 # Fails if git tracks (or, with --staged, is about to commit) anything that must stay local:
 #   1. MIMIC-IV files, or any bulk data file (.ndjson, .csv.gz).
 #   2. A data file (.csv, .parquet, .duckdb, .json) outside the reviewed paths: test
-#      fixtures, dbt seeds and the contract schema.
+#      fixtures, dbt seeds, the contract schema, and the agent evals' recorded model turns
+#      (agents/evals/<agent>/recordings/<case>.json, which hold only model output about
+#      invented eval data).
 #   3. Content that only real MIMIC data or a local-only extract would contain: a MIMIC FHIR
 #      identifier with a value, a MIMIC FHIR profile URL, or a package marked local-only.
 #   4. An OHDSI Athena vocabulary file, or MIT-LCP's lab map (licensed to the downloader).
@@ -20,7 +22,7 @@ fi
 
 bulk="$(files | grep -E '(^|/)mimic-iv-[^/]*/|\.ndjson(\.gz)?$|\.csv\.gz$' || true)"
 data="$(files | grep -E '\.(csv|parquet|duckdb|json)$' \
-  | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$' || true)"
+  | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$|^agents/evals/[a-z_]+/recordings/[a-z0-9_]+\.json$' || true)"
 athena="$(files | grep -E '(^|/)(CONCEPT[^/]*|DOMAIN|RELATIONSHIP|VOCABULARY|DRUG_STRENGTH)\.csv$|d_labitems_to_loinc\.csv$' || true)"
 
 # This script and the code that writes the local-only marker are the only allowed hits.
@@ -46,7 +48,7 @@ if [[ -n "$bulk$data$athena$content" ]]; then
   echo "ERROR: files that must stay local are tracked by git:" >&2
   report "MIMIC or bulk data" "$bulk"
   report "Athena vocabulary or lab map" "$athena"
-  report "data file outside tests/fixtures or dbt/seeds" "$data"
+  report "data file outside tests/fixtures, dbt/seeds or agents/evals/*/recordings" "$data"
   report "MIMIC identifiers or a local-only package in" "$content"
   exit 1
 fi
