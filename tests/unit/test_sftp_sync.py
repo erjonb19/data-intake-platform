@@ -144,3 +144,27 @@ def test_intake_records_the_channel_and_refuses_a_channel_not_in_the_contract(tm
     assert out["elig_20261021.csv"].status == "loaded"
     assert out["elig_20261020.csv"].reason_codes == ("FILE.CHANNEL:api",)
     assert [i.channel for i in wh.intake] == ["sftp"]
+
+
+def test_a_feed_without_the_sftp_channel_is_refused_at_the_folder(tmp_path, contracts):
+    """Review finding: moving it would only quarantine it later, and trigger a DAG that
+    does not exist (FHIR has its own)."""
+    server, store = tmp_path / "srv", LocalStore(tmp_path / "store")
+    upload(server, "healthcare.fhir_patient_bundle", "p.json", b"{}")
+    r = sync_account(FakeSFTP(server), "healthcare", store, contracts, NOW)
+    assert (
+        r.moved == []
+        and r.refused[0][1] == "'healthcare.fhir_patient_bundle' does not accept the sftp channel"
+    )
+    assert (server / "upload/healthcare.fhir_patient_bundle/p.json").exists()
+
+
+def test_filepart_is_never_taken_and_an_orphan_marker_is_removed(tmp_path, contracts):
+    server, store = tmp_path / "srv", LocalStore(tmp_path / "store")
+    upload(server, FEED, "elig_20261022.csv.filepart", b"partial")
+    upload(server, FEED, "elig_20261021.csv.done", b"")  # its file was taken earlier
+    r = sync_account(FakeSFTP(server), "healthcare", store, contracts, NOW)
+    assert r.moved == []
+    assert sorted(p.name for p in (server / "upload" / FEED).iterdir()) == [
+        "elig_20261022.csv.filepart"
+    ]
