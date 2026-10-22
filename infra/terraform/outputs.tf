@@ -39,6 +39,12 @@ output "warehouse_dsn" {
   sensitive   = true
 }
 
+output "cohort_reader_dsn" {
+  description = "Host-side DSN for the cohort service's read-only role (R7; Synthea builds only)."
+  value       = "postgresql://dip_cohort_reader:${local.pw["pg_cohort_reader"]}@localhost:${var.host_ports.postgres}/warehouse"
+  sensitive   = true
+}
+
 output "profiles" {
   value = var.profiles
 }
