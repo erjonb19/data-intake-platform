@@ -201,11 +201,7 @@ def _provenance(conn: Any, git_commit: str | None, sources: list[tuple[str, str]
         "inputs_sha256": inputs_digest,
         "contract_versions": sorted({v for _, v in files}),
         "code_git_commit": git_commit or _git_commit(),
-        "vocabulary": {
-            "name": "OHDSI Eunomia Synthea27Nj vocabulary shard",
-            "commit": vocab.EUNOMIA_COMMIT,
-            "sha256": vocab.EUNOMIA_SHA256,
-        },
+        "vocabulary": vocab.provenance(conn),
         "deid_key_fingerprint": fingerprint,
         "cdm_version": "5.4",
     }

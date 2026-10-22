@@ -140,7 +140,13 @@ def pass_c(dsn: str) -> dict:
         result["bronze"] = dict(cur.fetchall())
     conn.commit()
 
-    vocab.load(conn, vocab.fetch(REPO_ROOT / "data/cache"))
+    # Athena when DIP_ATHENA_DIRS is set, else Eunomia; plus mimic-code's lab -> LOINC map.
+    vocab.load_configured(conn, REPO_ROOT / "data/cache")
+    vocab.load_source_to_concept_map(
+        conn,
+        vocab.MIMIC_LAB_VOCABULARY,
+        vocab.read_mimic_lab_map(vocab.fetch_mimic_lab_map(REPO_ROOT / "data/cache")),
+    )
     key_file = REPO_ROOT / "data/mimic/deid.key"
     if not key_file.exists():
         key_file.write_text(secrets.token_hex(32))

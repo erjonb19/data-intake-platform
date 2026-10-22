@@ -11,7 +11,7 @@ version: 2
 
 models:
   - name: concept
-    description: OMOP CONCEPT. The Eunomia vocabulary shard plus `omop_fixed_concepts`.
+    description: OMOP CONCEPT. The loaded vocabulary (Eunomia shard or Athena) plus `omop_fixed_concepts`.
     columns:
       - name: concept_id
         data_tests: [unique, not_null]

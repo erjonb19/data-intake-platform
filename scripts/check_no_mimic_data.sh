@@ -5,6 +5,7 @@
 #      fixtures, dbt seeds and the contract schema.
 #   3. Content that only real MIMIC data or a local-only extract would contain: a MIMIC FHIR
 #      identifier with a value, a MIMIC FHIR profile URL, or a package marked local-only.
+#   4. An OHDSI Athena vocabulary file, or MIT-LCP's lab map (licensed to the downloader).
 # Only the pinned checksum files under packs/mimic/ may mention a MIMIC dataset name.
 # CI runs it on the checkout; scripts/install-hooks.sh runs it before every commit.
 set -euo pipefail
@@ -20,6 +21,7 @@ fi
 bulk="$(files | grep -E '(^|/)mimic-iv-[^/]*/|\.ndjson(\.gz)?$|\.csv\.gz$' || true)"
 data="$(files | grep -E '\.(csv|parquet|duckdb|json)$' \
   | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$' || true)"
+athena="$(files | grep -E '(^|/)(CONCEPT[^/]*|DOMAIN|RELATIONSHIP|VOCABULARY|DRUG_STRENGTH)\.csv$|d_labitems_to_loinc\.csv$' || true)"
 
 # This script and the code that writes the local-only marker are the only allowed hits.
 patterns=(
@@ -40,11 +42,12 @@ report() {
   fi
 }
 
-if [[ -n "$bulk$data$content" ]]; then
+if [[ -n "$bulk$data$athena$content" ]]; then
   echo "ERROR: files that must stay local are tracked by git:" >&2
   report "MIMIC or bulk data" "$bulk"
+  report "Athena vocabulary or lab map" "$athena"
   report "data file outside tests/fixtures or dbt/seeds" "$data"
   report "MIMIC identifiers or a local-only package in" "$content"
   exit 1
 fi
-echo "ok: no MIMIC data, local-only packages or stray data files tracked"
+echo "ok: no MIMIC data, Athena vocabulary, local-only packages or stray data files tracked"

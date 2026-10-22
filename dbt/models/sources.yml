@@ -7,11 +7,13 @@ sources:
       - name: fhir_resource
   - name: vocab
     description: >
-      OMOP vocabulary loaded by `python -m dip vocab-load` from the public OHDSI Eunomia
-      shard (not a full Athena vocabulary).
+      OMOP vocabulary loaded by `python -m dip vocab-load`: the public OHDSI Eunomia shard
+      by default (CI), or a full local Athena download (DIP_ATHENA_DIRS, never committed).
     tables:
       - name: concept
       - name: concept_relationship
+      - name: source_to_concept_map
+        description: Site-maintained maps for local codes, e.g. MIMIC lab itemid -> LOINC.
   - name: mimic
     description: >
       MIMIC-IV Clinical Database Demo v2.2 tables loaded by dip.relational (M2). REAL,

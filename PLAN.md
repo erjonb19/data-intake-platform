@@ -290,7 +290,7 @@ Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run
 **Research-track rules:**
 - LLM calls: none of R1–R7 calls an LLM. CI never makes live LLM calls.
 - Synthea runs with a pinned release (v4.0.0), a fixed seed and a fixed reference date, inside a Java container (`eclipse-temurin`), so no Java is installed on the laptop and two runs give identical patients. Unit tests use small hand-written FHIR fixtures in Synthea's shape, labeled as such.
-- The vocabulary is the public Eunomia shard (about 2,300 concepts). It is **not** a full Athena vocabulary, so some codes from Synthea v4 will be unmapped. R3 reports the unmapped rate instead of hiding it. A full Athena download needs a free OHDSI account and is the user's call.
+- The vocabulary in CI is the public Eunomia shard (about 2,300 concepts). It is **not** a full Athena vocabulary, so some codes from Synthea v4 are unmapped there. R3 reports the unmapped rate instead of hiding it. Locally, a full Athena download can be loaded instead (§8.3).
 - De-identification here shows the method on synthetic data. It is **not** a certified HIPAA Safe Harbor or Expert Determination process, and the docs say so.
 
 ### 8.2 Real de-identified sources: MIMIC-IV demos (added 2026-10-21)
@@ -318,6 +318,19 @@ The FHIR demo is derived from the relational demo (plus the MIMIC-IV-ED demo), s
 - **Citations** (required by PhysioNet): the dataset citation for each demo, the MIMIC-IV on FHIR paper (Bennett et al., JAMIA 2023), and the standard PhysioNet citation. They go in the README and `docs/research/`.
 
 **Dates.** M0–M3 total about 7 part-time days. They run in parallel with Stage 1 (due 2026-11-08) and fit before Stage 2. Stage 1 keeps its date: its eligibility-CSV slice benefits from M2's relational loader. If they run long, M3 slides to the Stage 2 window (2026-11-20). No other stage dates move.
+
+### 8.3 Full OMOP vocabulary and MIMIC lab codes (added 2026-10-21)
+
+**Why.** With the Eunomia shard, half of Synthea v4's condition rows and every MIMIC diagnosis, lab and drug map to concept 0. Cohorts and feasibility counts need standard concepts.
+
+| # | Item | Effort (part-time days) | Depends on | JD line it covers |
+|---|---|---|---|---|
+| **V1** | Load a **full OHDSI Athena download** from local folders (`dip vocab-load --athena DIR...` or `DIP_ATHENA_DIRS`): `CONCEPT` plus the "Maps to" rows of `CONCEPT_RELATIONSHIP`, de-duplicated across overlapping downloads, with the release recorded in `vocab.load_info` and carried into extract provenance. Report unmapped rates per OMOP table for Synthea and both MIMIC builds, before (Eunomia) and after (Athena) | 1 | R2, M1, M2 | OMOP; documented definitions; quality checks |
+| **V2** | MIMIC lab itemids → LOINC through MIT-LCP's published map (`mimic-code` v2.4.0, `d_labitems_to_loinc.csv`, MIT license), fetched pinned by commit and sha256 and loaded into OMOP's `SOURCE_TO_CONCEPT_MAP`. Both MIMIC paths tag lab codes `MIMIC_LAB` so the map applies to each | 0.5 | V1 | OMOP; integrating external data |
+
+**Rules.** Athena files are licensed to the person who downloaded them: they are read locally and **never committed or published**. Extracts carry concept ids only, never vocabulary rows. CI stays on the Eunomia shard, so CI results don't change. ICD9CM, ICD9Proc, ICD10PCS and NDC come in a later download (`athena_vocab_mimic`); until it's loaded, MIMIC ICD-9 diagnoses and NDC drugs stay unmapped, and the docs say so.
+
+**Dates.** 1.5 days, alongside Stage 1. No stage dates move.
 
 **Changed from the first draft:**
 - The MCP server is split into three parts. The Read tier moves into Stage 3, the Propose tier into Stage 4, and the Act tier into Stage 6.
@@ -365,3 +378,4 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-21: OMOP vocabulary comes from the public OHDSI Eunomia `Synthea27Nj` shard (Apache-2.0), downloaded and checksummed at build time rather than committed. DQ uses dbt tests named after DQD checks instead of running the R-based DQD.
 - 2026-10-21: The core Python package is `dip/`, not `platform/` (that name shadows the stdlib module).
 - 2026-10-21: Added §8.2: the MIMIC-IV Clinical Database Demo (v2.2) and its FHIR version (v2.1.0), both ODbL, as local-only real de-identified sources. Raw files are never committed and CI stays on Synthea. MIMIC-derived outputs stay local, and only aggregates are published; any future public MIMIC extract would be ODbL with attribution, never CC0.
+- 2026-10-21: Added §8.3: a full local Athena vocabulary (never committed; CI stays on Eunomia) and MIT-LCP's MIMIC lab → LOINC map (mimic-code v2.4.0, MIT) through OMOP's SOURCE_TO_CONCEPT_MAP.
