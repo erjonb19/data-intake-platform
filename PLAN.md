@@ -338,7 +338,7 @@ The FHIR demo is derived from the relational demo (plus the MIMIC-IV-ED demo), s
 ### 8.4 R7: cohort service over the shareable tier (added 2026-10-21; R7a built 2026-10-22)
 
 **Status (2026-10-22).** The hold is lifted: the cohort service merged in `erjonb19/clinical-drift-monitor` (its PR #4, "Phase G2", on 2026-10-22). **R7a is built in this repo** (`procedure_occurrence`, PR #20; reader role, `cdm_source` and Synthea-only grants, PR #21). **R7b belongs to the drift monitor.** [docs/research/cohort-service.md](docs/research/cohort-service.md) lists exactly what that repo needs, checked against its `main`, to hand over. Two points differ from the plan below:
-- The reader is **not** a member of `dip_researcher`. dbt grants it the tier only while `cdm_source` says `DIP-SYNTHEA`, and revokes everything otherwise, so a MIMIC build can't be read through it even by mistake.
+- The reader is **not** a member of `dip_researcher`. The dbt hook classifies the warehouse live on every run. It grants the reader the tables it just rebuilt only while the warehouse holds Synthea alone, and revokes everything otherwise. Once a run has seen MIMIC, a block row keeps the warehouse classified as MIMIC until a person clears it. So a MIMIC build can't be read through the reader, even by mistake.
 - R7b gains two items found in the merged code. Postgres has no `YEAR()`, which the service's SQL uses; `EXTRACT(YEAR FROM …)` runs on all three engines. And `image_occurrence` must be optional, because this tier has none.
 
 The original plan follows.
@@ -360,7 +360,7 @@ The original plan follows.
 
 **Dates.** R7a took 1 day and is done (2026-10-22). R7b, about 1 day in the drift-monitor repo, can happen any time before 2027-01-10. Stages 6–8 slid one week for R7 (§8.1). That week is now slack, but the dates are left as they are until you decide.
 
-### 8.5 Follow-ups: mapping limits (added 2026-10-22)
+### 8.5 Follow-ups: mapping limits and reprocessing (added 2026-10-22)
 
 These limits are documented in `docs/research/vocabulary.md` and `docs/research/README.md`, and are not fixed yet. Each would make OMOP output closer to how OHDSI's own ETLs behave. None blocks Stage 2 or 3.
 
@@ -368,9 +368,10 @@ These limits are documented in `docs/research/vocabulary.md` and `docs/research/
 |---|---|---|---|---|
 | **F1** | **One row per "Maps to" target.** A source code that maps to several standard concepts keeps only the lowest concept id (a deterministic tiebreak since fix 7). OMOP writes one row per target, for example a combination diagnosis that maps to two conditions. Do that, with ids that stay unique (the source row's id plus the target) | 6.4% of MIMIC diagnoses (273 FHIR, 242 relational), 13 of them with targets in two or more domains; 27/25 observation rows; 84 drug rows per build. Synthea: none | 1.5 | OMOP; documented definitions |
 | **F2** | **Domain routing everywhere.** Diagnoses whose standard concept is in the Measurement domain stay in `condition_occurrence` with concept 0. Procedures whose concept is in Measurement, Observation or Device stay in `procedure_occurrence` with concept 0. Route them to the table of their domain, as observations already are, and extend `no_source_rows_dropped` to prove nothing is lost | Diagnoses: 53/4,237 MIMIC FHIR (1.3%) and 45/3,774 relational (1.2%); Synthea none. Procedures: 27% of Synthea's with the Eunomia shard (to be measured on Athena) | 1 | OMOP; quality checks |
+| **F4** | **Reprocess on a contract upgrade.** Intake dedups on content, so files ingested under an older contract version keep what that version loaded. Contract v2 of the Synthea feed added Procedure, and files ingested under v1 have none. Add `dip reprocess --feed F --below-version N`, which replays the raw copies through the current contract. Bronze keeps its version history, so silver's latest-version rule picks up the new rows | Synthea files ingested before PR #20, on installs that predate it | 1 | Reproducibility; lineage |
 | **F3** | **MIMIC procedures.** Load `procedures_icd` (ICD-9/10-PCS) on the relational path and the `MimicProcedure*` resources on the FHIR path, then reconcile the two the way M3 reconciles diagnoses | not loaded today | 1.5 | EHR integration; OMOP |
 
-**When:** after Stage 2, in Stage 4's window (2026-12-13), or earlier if Stage 2 finishes with time to spare. F2 before F1, because F1's multi-domain codes need F2's routing. Local MIMIC only for the measurements. CI checks each with hand-written MIMIC-shaped fixtures, as M1 and M2 do.
+**When:** after Stage 2, in Stage 4's window (2026-12-13), or earlier if Stage 2 finishes with time to spare. F2 before F1, because F1's multi-domain codes need F2's routing. F4 can go any time; it is independent. Local MIMIC only for the measurements. CI checks each with hand-written MIMIC-shaped fixtures, as M1 and M2 do.
 
 ### 8.6 Stage 2 plan: all channels and formats, both packs (added 2026-10-22; not started)
 
@@ -461,6 +462,6 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-21: Added §8.3: a full local Athena vocabulary (never committed; CI stays on Eunomia) and MIT-LCP's MIMIC lab → LOINC map (mimic-code v2.4.0, MIT) through OMOP's SOURCE_TO_CONCEPT_MAP.
 - 2026-10-22: §8.3 V3: one full Athena bundle replaces the two separate downloads (relationships across vocabularies were lost between downloads). Rows mapped to a domain without a table here stay in their source table with concept 0. Measured on the same code: Synthea 6.8% → 0.1% unmapped, MIMIC diagnoses 100% → 3.3%, drugs 100% → 34.3% / 16.8% (mostly local drug names without an NDC).
 - 2026-10-21: Added §8.4, the R7 plan: read-only Postgres access to `omop_shareable` through a login role in `dip_researcher`, Synthea only, never MIMIC. The build waits for the drift-monitor's cohort service (its PR #4) to merge.
-- 2026-10-22: R7a built after the drift monitor's PR #4 merged. The reader role is granted the tier only while `cdm_source` says `DIP-SYNTHEA`, and is not a member of `dip_researcher` (a change from §8.4's first draft). R7b's list for the drift monitor is in `docs/research/cohort-service.md`.
+- 2026-10-22: R7a built after the drift monitor's PR #4 merged. The reader role is granted the tier only while the warehouse holds Synthea alone, classified live by the dbt hook; once MIMIC has been seen, a block row keeps it refused until a person clears it. It is not a member of `dip_researcher` (a change from §8.4's first draft). R7b's list for the drift monitor is in `docs/research/cohort-service.md`.
 - 2026-10-22: Added the upgrade-path CI job (§6). Its first run found that the Airflow chart's Jobs block an in-place upgrade; `up.sh` now deletes them first.
-- 2026-10-22: Added §8.5, mapping follow-ups F1–F3 (one row per "Maps to" target, domain routing everywhere, MIMIC procedures), and §8.6, the Stage 2 plan. Stage 2 keeps its 2026-11-20 date; no other date moves.
+- 2026-10-22: Added §8.5, follow-ups F1–F4 (one row per "Maps to" target, domain routing everywhere, MIMIC procedures, reprocessing on a contract upgrade), and §8.6, the Stage 2 plan. Stage 2 keeps its 2026-11-20 date; no other date moves.
