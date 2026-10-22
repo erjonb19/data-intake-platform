@@ -148,3 +148,22 @@ design, recorded in `ops.dq_results`:
 They warn rather than fail: a claim outside coverage is a finding for the payer to work,
 not a reason to drop the line. Hand-written, invented test files are in
 `tests/fixtures/claims/`.
+
+## Finance invoices (generated, Stage 2)
+
+`packs/finance/generators/invoices.py` writes the AP department's daily invoice register
+as an Excel workbook (`invoices_YYYYMMDD.xlsx`, sheet `Invoices`, a title block above the
+header on row 3), one row per invoice: number, vendor, dates, PO, payment terms, currency,
+subtotal, tax (8.875%) and total. A seeded generator (no Faker), with the workbook's own
+timestamps and the zip entries' dates fixed, so a seed and a date always give the same
+bytes. `--breakage` adds one bad row each: `duplicate` (KEY.DUPLICATE), `negative_total`
+(VALUE.OUT_OF_RANGE), `missing_po` (VALUE.REQUIRED), or `total_mismatch`, which passes the
+contract and is found by dbt.
+
+Contract: `packs/finance/contracts/vendor_invoice.yaml` (format `excel`, up to 10% bad rows).
+dbt: `silver.vendor_invoice_record` and `gold.vendor_invoice` (one row per invoice number,
+newest register wins; Stage 3's OCR invoices are matched to it). DQ warnings, in
+`ops.dq_results`: `invoice_totals_add_up` (total = subtotal + tax, to the cent) and
+`invoice_due_after_invoice`. Fixtures (`tests/fixtures/finance/`, from `make_fixtures.py`):
+a clean register, one with every breakage, and one whose sheet was renamed
+(SCHEMA.MISSING_SHEET).
