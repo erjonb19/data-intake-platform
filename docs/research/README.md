@@ -10,7 +10,7 @@ PLAN.md §8.1 describes the plan. This page documents what is built, item by ite
 ## R1. FHIR intake
 
 ```
-Synthea (pinned jar, seed 42, ref date 2026-01-01)
+Synthea (pinned jar, seed 42, reference and end date 2026-01-01)
    │  one FHIR R4 transaction Bundle per patient
    ▼
 landing/healthcare.fhir_patient_bundle/<file>.json          (MinIO)
@@ -262,3 +262,56 @@ without losing its data. (Every plan therefore shows that Job being replaced.)
 > data. It is **not** a certified HIPAA Safe Harbor or Expert Determination process: it has
 > no small-cell suppression or k-anonymity analysis, and race, ethnicity and gender are kept.
 > A real deployment would need a privacy officer's review and a key held in a KMS.
+
+## R5. Versioned, reproducible research extracts
+
+```bash
+python -m dip extract build  --version 1.0.0     # writes data/extracts/1.0.0/
+python -m dip extract verify --version 1.0.0     # dbt build again, regenerate, diff byte for byte
+```
+
+```
+data/extracts/1.0.0/
+├── data/person.csv, observation_period.csv, visit_occurrence.csv,
+│        condition_occurrence.csv, drug_exposure.csv, measurement.csv, observation.csv
+├── datapackage.json     Frictionless Data Package: fields and types, primary keys,
+│                        bytes and sha256 per file, license, keywords, provenance
+└── manifest.sha256      sha256 of every file (sha256sum -c compatible)
+```
+
+**Provenance** recorded in `datapackage.json`: number of input files and a digest of their
+sha256s, contract versions, the code's git commit, the vocabulary shard's commit and
+checksum, the de-identification key **fingerprint** (never the key), and the CDM version.
+
+**Deterministic by construction**: rows are ordered by primary key, Postgres formats every
+value as text, JSON keys are sorted, and nothing in the package is a timestamp. Two builds
+from the same raw files, code and key are byte-identical, even when the files arrive at
+different times.
+
+**Immutable versions**: building a version that exists either reproduces it exactly (and
+reports that) or fails with "published versions are immutable, choose a new version".
+
+**FAIR, item by item**
+| | How |
+|---|---|
+| Findable | versioned package name + version, keywords, a descriptor at a fixed path |
+| Accessible | plain CSV + JSON, no proprietary formats; access governed by the shareable tier (R4) |
+| Interoperable | OMOP CDM 5.4 tables with standard OHDSI concept ids; Frictionless Table Schema |
+| Reusable | license, provenance, column types and keys, checksums |
+
+The default license is `CC0-1.0` (`--license` changes it). The data is synthetic, but the
+license choice is the data owner's call.
+
+**What the test caught.** Its first run failed: the two builds differed. The Synthea script
+pinned the seed and *reference* date but not the simulation *end* date, which defaults to
+today. So patients had events up to the day of generation, and the intake's future-date rule
+rejected different records depending on when the files "arrived". The end date is now
+pinned too (`-e`, default 2026-01-01), which also makes the generator itself reproducible
+from day to day. Arrival time still matters by design for genuinely future-dated records,
+so a replay of raw files should use the recorded `ops.intake_file.received_at`.
+
+**Test** (`tests/integration/test_extract.py`): the **whole pipeline runs twice from scratch**
+(fresh warehouse, same raw files, arrival dates two months apart): intake → vocabulary →
+dbt build → extract. The two extracts must have zero differing files. It also checks that the
+manifest matches the files, that the descriptor carries provenance and no key, and that
+rebuilding a published version with changed data is refused.

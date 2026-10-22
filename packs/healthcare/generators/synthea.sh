@@ -5,7 +5,8 @@
 # host. Same release + seed + reference date gives the same patients every time.
 #
 # Usage: packs/healthcare/generators/synthea.sh [population] [out_dir]
-# Env:   SYNTHEA_SEED (default 42), SYNTHEA_REFERENCE_DATE (default 20260101), SYNTHEA_STATE
+# Env:   SYNTHEA_SEED (default 42), SYNTHEA_REFERENCE_DATE (default 20260101),
+#        SYNTHEA_END_DATE (default: the reference date), SYNTHEA_STATE
 #
 # All output is synthetic. Synthea: https://github.com/synthetichealth/synthea (Apache-2.0).
 # shellcheck source=scripts/lib.sh
@@ -16,6 +17,8 @@ POPULATION="${1:-50}"
 OUT_DIR="${2:-$REPO_ROOT/data/synthea}"
 SEED="${SYNTHEA_SEED:-42}"
 REFERENCE_DATE="${SYNTHEA_REFERENCE_DATE:-20260101}"
+# Without a fixed end date Synthea simulates up to *today*, so output changes day to day.
+END_DATE="${SYNTHEA_END_DATE:-$REFERENCE_DATE}"
 STATE="${SYNTHEA_STATE:-New York}"
 
 SYNTHEA_VERSION="v4.0.0"
@@ -40,14 +43,15 @@ expected="$(tr -d '[:space:]' < "$REPO_ROOT/packs/healthcare/generators/synthea.
 work="$REPO_ROOT/data/tmp/synthea-$$"
 rm -rf "$work" && mkdir -p "$work"
 trap 'rm -rf "$work"' EXIT
-log "generating $POPULATION patients (seed=$SEED, reference date=$REFERENCE_DATE)"
-# -s population seed, -cs clinician seed, -r reference date: all fixed for reproducibility.
+log "generating $POPULATION patients (seed=$SEED, reference=$REFERENCE_DATE, end=$END_DATE)"
+# -s population seed, -cs clinician seed, -r reference date, -e end date: all fixed, so the
+# same release generates the same patients on any day.
 # Hospital and practitioner bundles are not exported; only one bundle per patient.
 # Run as the calling user so the output is not root-owned on Linux runners.
 docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -v "$CACHE_DIR:/synthea:ro" -v "$work:/out" -w /out \
   "$JAVA_IMAGE" java -Xmx1g -jar "/synthea/$(basename "$JAR")" \
-  -p "$POPULATION" -s "$SEED" -cs "$SEED" -r "$REFERENCE_DATE" \
+  -p "$POPULATION" -s "$SEED" -cs "$SEED" -r "$REFERENCE_DATE" -e "$END_DATE" \
   --exporter.baseDirectory /out \
   --exporter.fhir.export true \
   --exporter.fhir.transaction_bundle true \
