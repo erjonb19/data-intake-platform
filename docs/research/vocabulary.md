@@ -138,9 +138,17 @@ dropped. `test_observation_without_category_is_not_dropped` covers it.
   a lab finding) stay in `condition_occurrence` with concept 0 and their source concept,
   the same rule as Episode and Device. OMOP would put them in `measurement` with no
   value; this build doesn't, so a cohort built on the Measurement concept misses them.
+  With the full bundle: **53 of 4,237 MIMIC FHIR diagnoses (1.3%) and 45 of 3,774
+  relational (1.2%)**; none in Synthea.
 - **Codes with two or more "Maps to" targets** (for example an ICD code that maps to two
   SNOMED conditions) get one row, mapped to the **lowest standard concept id**. OMOP
   would write one row per target. The choice is deterministic: every sort in
   `source_to_standard` ends on a unique key, for vocabulary codes and site-map rows alike
   (`test_two_maps_to_targets_resolve_to_the_lowest_concept`). Before, two site-map rows
   for one local code to two standard concepts could resolve either way.
+  With the full bundle, codes with several targets cover **273 MIMIC FHIR diagnoses
+  (6.4%) and 242 relational (6.4%)**, 13 of them per build with targets in different
+  domains; 27 and 25 observation rows from diagnoses; and **84 drug rows** per build.
+  Synthea has none. Counts are from the full-bundle builds of 2026-10-22, before these
+  review fixes; the new tiebreak only decides cases that had no defined order before, so
+  they are unlikely to move.
