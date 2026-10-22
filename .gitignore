@@ -48,3 +48,16 @@ athena_vocab*/
 CONCEPT*.csv
 VOCABULARY.csv
 DRUG_STRENGTH.csv
+
+# Data files in output and data paths (scripts/check_no_mimic_data.sh also fails CI and
+# the pre-commit hook on any .csv/.parquet/.duckdb/.json outside tests/fixtures and dbt/seeds)
+*.parquet
+*.duckdb
+*.duckdb.wal
+extracts/
+**/extracts/
+out/
+packs/*/data/
+packs/*/**/*.csv
+packs/*/**/*.json
+datapackage.json
