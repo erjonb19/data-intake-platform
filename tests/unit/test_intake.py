@@ -22,10 +22,11 @@ class FakeWarehouse:
     def already_processed(self, feed, sha):
         return any(i.feed == feed and i.file_sha256 == sha for i in self.intake)
 
-    def record_outcome(self, intake, quarantine, resources, patient_id, loaded_at):
+    def record_outcome(self, intake, quarantine, resources, patient_id, loaded_at, csv_rows=()):
         self.intake.append(intake)
         self.quarantine.extend(quarantine)
         self.bronze.extend((patient_id, r) for r in resources)
+        self.csv_rows = getattr(self, "csv_rows", []) + list(csv_rows)
 
 
 @pytest.fixture

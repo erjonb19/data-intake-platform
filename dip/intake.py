@@ -16,7 +16,8 @@ from pathlib import PurePosixPath
 
 from dip import BUCKET_LANDING, BUCKET_QUARANTINE, BUCKET_RAW
 from dip.contracts import Contract
-from dip.fhir import BundleResult, Violation, validate_bundle
+from dip.csvfeed import CsvResult, Row, validate_csv
+from dip.fhir import BundleResult, Resource, Violation, validate_bundle
 from dip.storage import ObjectStore
 from dip.warehouse import IntakeRecord, QuarantineRecord, Warehouse
 
@@ -67,6 +68,8 @@ def process_file(
         result.file_violations.append(_name_violation(filename, contract))
     elif contract.format_type == "fhir_bundle":
         result = validate_bundle(data, contract, received_at=now)
+    elif contract.format_type == "csv":
+        result = validate_csv(data, contract, received_at=now)
     else:
         raise NotImplementedError(f"format {contract.format_type!r} arrives in a later stage")
 
@@ -80,29 +83,30 @@ def process_file(
             QuarantineRecord(contract.feed, sha, "file", v.reason_code, v.detail, None, qkey)
             for v in result.file_violations
         ]
+        if isinstance(result, CsvResult):
+            # Rejected for its rows (FILE.BAD_ROW_RATIO, FILE.ROW_VIOLATIONS): each bad
+            # row keeps its own reason, pointing at the quarantined file.
+            quarantine += [
+                QuarantineRecord(
+                    contract.feed, sha, "record", v.reason_code, v.detail, _record_ref(r), qkey
+                )
+                for r, v in result.rejected
+            ]
         status = "quarantined"
     else:
         if result.rejected:
             qkey = f"{qbase}.rejected.ndjson"
-            lines = (
-                json.dumps({"reason_code": v.reason_code, "resource": r.body}, sort_keys=True)
-                for r, v in result.rejected
-            )
+            lines = (json.dumps(_rejected_doc(r, v), sort_keys=True) for r, v in result.rejected)
             store.put(BUCKET_QUARANTINE, qkey, ("\n".join(lines) + "\n").encode("utf-8"))
             quarantine = [
                 QuarantineRecord(
-                    contract.feed,
-                    sha,
-                    "record",
-                    v.reason_code,
-                    v.detail,
-                    f"{r.resource_type}/{r.resource_id}#entry={r.entry_index}",
-                    qkey,
+                    contract.feed, sha, "record", v.reason_code, v.detail, _record_ref(r), qkey
                 )
                 for r, v in result.rejected
             ]
         status = "loaded_with_rejections" if result.rejected else "loaded"
 
+    csv_mode = isinstance(result, CsvResult)
     warehouse.record_outcome(
         IntakeRecord(
             file_sha256=sha,
@@ -117,9 +121,10 @@ def process_file(
             received_at=now,
         ),
         quarantine,
-        result.accepted,
+        [] if csv_mode else result.accepted,
         result.patient_id,
         loaded_at=now,
+        csv_rows=result.accepted if csv_mode else [],
     )
     store.delete(BUCKET_LANDING, landing_key)
     return Outcome(
@@ -150,16 +155,32 @@ def process_landing(
     return outcomes
 
 
+def _rejected_doc(r: Row | Resource, v: Violation) -> dict:
+    if isinstance(r, Row):
+        return {"reason_code": v.reason_code, "row_number": r.row_number, "record": r.record}
+    return {"reason_code": v.reason_code, "resource": r.body}
+
+
+def _record_ref(r: Row | Resource) -> str:
+    if isinstance(r, Row):
+        return f"row={r.row_number}"
+    return f"{r.resource_type}/{r.resource_id}#entry={r.entry_index}"
+
+
 def _name_violation(filename: str, contract: Contract) -> Violation:
     pattern = contract.spec["source"]["filename_pattern"]
     return Violation("FILE.NAME_PATTERN", f"{filename!r} does not match {pattern!r}")
 
 
-def _reason_doc(result: BundleResult, landing_key: str) -> bytes:
+def _reason_doc(result: BundleResult | CsvResult, landing_key: str) -> bytes:
     doc = {
         "source_key": landing_key,
         "violations": [
             {"reason_code": v.reason_code, "detail": v.detail} for v in result.file_violations
         ],
     }
+    if isinstance(result, CsvResult) and result.rejected:
+        doc["rows"] = [
+            {"row_number": r.row_number, "reason_code": v.reason_code} for r, v in result.rejected
+        ]
     return json.dumps(doc, indent=2, sort_keys=True).encode("utf-8")

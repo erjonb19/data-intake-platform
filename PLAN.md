@@ -56,7 +56,7 @@ Test and CI data is synthetic. The one exception is the two public, de-identifie
 
 ### Data contracts (YAML)
 
-The contract format is our own small schema, modeled on the Open Data Contract Standard. We validate contracts with a JSON Schema and run them with a Python engine built on pydantic and pandera. A sketch:
+The contract format is our own small schema, modeled on the Open Data Contract Standard. We validate contracts with a JSON Schema and run them with a small plain-Python engine (`dip/csvfeed.py`, `dip/fhir.py`; see the decisions log). A sketch:
 
 ```yaml
 feed: healthcare.eligibility
@@ -399,5 +399,6 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-21: OMOP vocabulary comes from the public OHDSI Eunomia `Synthea27Nj` shard (Apache-2.0), downloaded and checksummed at build time rather than committed. DQ uses dbt tests named after DQD checks instead of running the R-based DQD.
 - 2026-10-21: The core Python package is `dip/`, not `platform/` (that name shadows the stdlib module).
 - 2026-10-21: Added §8.2: the MIMIC-IV Clinical Database Demo (v2.2) and its FHIR version (v2.1.0), both ODbL, as local-only real de-identified sources. Raw files are never committed and CI stays on Synthea. MIMIC-derived outputs stay local, and only aggregates are published; any future public MIMIC extract would be ODbL with attribution, never CC0.
+- 2026-10-22: The contract engine is plain Python (`csv`, `re`, `decimal`) instead of pydantic and pandera. Row-by-row checks with stable reason codes and per-row quarantine were simpler to write and test directly than to map out of pandera's error reports, and it keeps the Airflow image's dependencies unchanged. Row-level quarantine for CSV, a Stage 2 item, came with it in Stage 1.
 - 2026-10-21: Added §8.3: a full local Athena vocabulary (never committed; CI stays on Eunomia) and MIT-LCP's MIMIC lab → LOINC map (mimic-code v2.4.0, MIT) through OMOP's SOURCE_TO_CONCEPT_MAP.
 - 2026-10-21: Added §8.4, the R7 plan: read-only Postgres access to `omop_shareable` through a login role in `dip_researcher`, Synthea only, never MIMIC. The build waits for the drift-monitor's cohort service (its PR #4) to merge.
