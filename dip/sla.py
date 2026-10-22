@@ -38,6 +38,12 @@ CREATE TABLE IF NOT EXISTS ops.incident (
     detail        text,
     UNIQUE (feed, kind, window_start)
 );
+-- The metrics exporter reads open incidents (dip/sql/warehouse.sql).
+DO $$ BEGIN
+    IF to_regprocedure('ops.grant_metrics_reader()') IS NOT NULL THEN
+        PERFORM ops.grant_metrics_reader();
+    END IF;
+END $$;
 """
 FIELDS = ((0, 59), (0, 23), (1, 31), (1, 12), (0, 7))
 LOOKBACK = timedelta(days=35)

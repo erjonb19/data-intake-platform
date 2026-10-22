@@ -30,3 +30,20 @@ ALTER ROLE dip_cohort_reader SET default_transaction_read_only = on;
 ALTER ROLE dip_cohort_reader SET statement_timeout = '60s';
 ALTER ROLE dip_cohort_reader SET idle_in_transaction_session_timeout = '60s';
 ALTER ROLE dip_cohort_reader SET search_path = omop_shareable;
+
+-- Read-only login for the warehouse metrics exporter (S3.2, dip/metrics.py). It reads only
+-- the ops columns its queries name: ops.grant_metrics_reader() (dip/sql/warehouse.sql)
+-- grants them where each table is created. Nothing in bronze, silver, gold or the research
+-- tiers. Its password is set by postgres-roles-password.psql from a Kubernetes secret.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_metrics') THEN
+        CREATE ROLE dip_metrics LOGIN;
+    END IF;
+END
+$$;
+ALTER ROLE dip_metrics WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+    NOBYPASSRLS NOINHERIT CONNECTION LIMIT 3;
+ALTER ROLE dip_metrics SET default_transaction_read_only = on;
+ALTER ROLE dip_metrics SET statement_timeout = '10s';
+ALTER ROLE dip_metrics SET search_path = ops;

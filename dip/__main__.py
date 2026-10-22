@@ -23,6 +23,8 @@
   cohort run NAME...           run library cohorts as the read-only cohort reader
                                (DIP_COHORT_DSN; Synthea tier only), suppressed counts as JSON
   cohort verify-audit          check the hash chain of the cohort audit log
+  metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
+                               read-only dip_metrics login (DIP_METRICS_DSN)
 
 Storage is a local directory (`--store-dir`, default ./data/store) unless S3 settings are
 given in the environment (DIP_S3_ENDPOINT, DIP_S3_ACCESS_KEY, DIP_S3_SECRET_KEY).
@@ -307,6 +309,8 @@ def main(argv: list[str] | None = None) -> int:
     coh.add_argument("names", nargs="*")
     coh.add_argument("--audit", type=Path, default=Path("data/cohort_audit.jsonl"))
     coh.add_argument("--requester", default=os.environ.get("USER") or os.environ.get("USERNAME"))
+    met = sub.add_parser("metrics-serve")
+    met.add_argument("--port", type=int, default=9187)
     args = parser.parse_args(argv)
 
     if args.command == "db-init":
@@ -366,6 +370,11 @@ def main(argv: list[str] | None = None) -> int:
         return _triage(args)
     elif args.command == "approvals":
         return _approvals(args)
+    elif args.command == "metrics-serve":
+        from dip.metrics import serve
+
+        serve(args.port)
+        return 0
     elif args.command == "cohort":
         return _cohort(args)
     elif args.command == "dbt":

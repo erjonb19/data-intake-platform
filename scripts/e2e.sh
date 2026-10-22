@@ -67,3 +67,20 @@ wait_port "$API_PORT"
 "$py" "$REPO_ROOT/tests/e2e/fhir_intake.py"
 # Stage 1+: the table-driven file-feed cases (tests/e2e/cases.yaml).
 "$py" "$REPO_ROOT/tests/e2e/run.py"
+
+# Stage 3: the observability profile, when deployed (CI's E2E deploys it).
+if tf output -json profiles | grep -q '"observability"'; then
+  PROM_PORT="${PROM_PORT:-9090}"
+  GRAFANA_PORT="${GRAFANA_PORT:-3000}"
+  kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-obs \
+    port-forward svc/prometheus-server "$PROM_PORT:80" >/dev/null 2>&1 &
+  pids+=("$!")
+  kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-obs \
+    port-forward svc/grafana "$GRAFANA_PORT:80" >/dev/null 2>&1 &
+  pids+=("$!")
+  wait_port "$PROM_PORT"
+  wait_port "$GRAFANA_PORT"
+  PROMETHEUS_URL="http://127.0.0.1:$PROM_PORT" GRAFANA_URL="http://127.0.0.1:$GRAFANA_PORT" \
+    GRAFANA_PASSWORD="$(tf output -raw grafana_admin_password)" \
+    "$py" "$REPO_ROOT/tests/e2e/observability.py"
+fi

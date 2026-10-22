@@ -65,3 +65,17 @@ output "intake_api_keys" {
   value       = { for name in keys(local.api_clients) : name => random_password.api_key[name].result }
   sensitive   = true
 }
+
+output "observability" {
+  description = "How to reach Prometheus and Grafana (observability profile), or null."
+  value = local.observability ? {
+    prometheus = "kubectl -n ${local.obs_ns} port-forward svc/prometheus-server 9090:80"
+    grafana    = "kubectl -n ${local.obs_ns} port-forward svc/grafana 3000:80 (user admin)"
+  } : null
+}
+
+output "grafana_admin_password" {
+  description = "Grafana's admin password (observability profile)."
+  value       = local.pw["grafana_admin"]
+  sensitive   = true
+}

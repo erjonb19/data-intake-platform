@@ -11,7 +11,7 @@ variable "node_image" {
 }
 
 variable "profiles" {
-  description = "Stack profiles to deploy. 'core' is always required; 'observability' arrives in Stage 3."
+  description = "Stack profiles to deploy. 'core' is always required; 'observability' adds Prometheus, Grafana and the metrics exporter (observability.tf)."
   type        = list(string)
   default     = ["core"]
 
@@ -103,4 +103,16 @@ variable "minio_buckets" {
   description = "Buckets created at deploy time."
   type        = list(string)
   default     = ["landing", "raw", "quarantine", "airflow-logs"]
+}
+
+variable "prometheus_chart_version" {
+  description = "prometheus-community/prometheus chart (the plain chart, not kube-prometheus-stack); app v3.15.0."
+  type        = string
+  default     = "29.35.0"
+}
+
+variable "grafana_chart_version" {
+  description = "grafana-community/grafana chart; app 13.2.3."
+  type        = string
+  default     = "13.3.1"
 }

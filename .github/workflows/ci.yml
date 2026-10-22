@@ -32,6 +32,15 @@ jobs:
           bash -n scripts/*.sh packs/*/generators/*.sh packs/mimic/fetch.sh
           shellcheck -x scripts/*.sh packs/*/generators/*.sh packs/mimic/fetch.sh
 
+      # Stage 3 (S3.2): the alert rules load and behave as their unit tests say, and the
+      # dashboards are what their generator writes.
+      - name: Prometheus rules and Grafana dashboards
+        run: |
+          docker run --rm -v "$PWD/observability/prometheus:/r:ro" -w /r             --entrypoint promtool quay.io/prometheus/prometheus:v3.15.0 check rules rules.yml
+          docker run --rm -v "$PWD/observability/prometheus:/r:ro" -w /r             --entrypoint promtool quay.io/prometheus/prometheus:v3.15.0 test rules rules_test.yml
+          python observability/grafana/make_dashboards.py
+          git diff --exit-code observability/grafana
+
       - uses: hashicorp/setup-terraform@v4
         with:
           terraform_version: "1.16.6"

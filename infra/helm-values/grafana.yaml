@@ -1,0 +1,55 @@
+# Values for the grafana-community/grafana chart (version pinned in Terraform), the
+# observability profile (Stage 3, S3.2). Dashboards are files in observability/grafana/,
+# loaded from a ConfigMap Terraform makes; the admin login is a Terraform-made secret.
+
+admin:
+  existingSecret: grafana-admin
+  userKey: admin-user
+  passwordKey: admin-password
+
+persistence:
+  enabled: false
+testFramework:
+  enabled: false
+
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 256Mi }
+
+grafana.ini:
+  analytics:
+    reporting_enabled: false
+    check_for_updates: false
+    check_for_plugin_updates: false
+  users:
+    allow_sign_up: false
+  auth.anonymous:
+    enabled: false
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        uid: prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus-server.dip-obs.svc.cluster.local
+        isDefault: true
+        editable: false
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: dip
+        orgId: 1
+        folder: Data intake platform
+        type: file
+        disableDeletion: true
+        editable: false
+        options:
+          path: /var/lib/grafana/dashboards/dip
+
+dashboardsConfigMaps:
+  dip: grafana-dashboards

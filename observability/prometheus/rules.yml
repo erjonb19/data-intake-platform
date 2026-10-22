@@ -1,0 +1,61 @@
+# Alert rules (Stage 3, S3.2), loaded by Prometheus as alerting_rules.yml. Alerts are shown
+# in Prometheus (/alerts) and Grafana; there is no Alertmanager (PLAN.md section 5: memory),
+# so nothing is sent anywhere. Thresholds suit the demo feeds, not a production SLA.
+# Metric names: dip/metrics.py (dip_*) and the Airflow chart's statsd-exporter (airflow_*).
+groups:
+  - name: dip-feeds
+    rules:
+      - alert: FeedLate
+        expr: sum by (feed) (dip_incidents_open{kind="FEED.LATE"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.feed }} is late"
+          description: >-
+            An expected file for {{ $labels.feed }} has not arrived within its contract's
+            grace window (ops.incident, opened by the feed_sla DAG).
+      - alert: QuarantineRateHigh
+        expr: >-
+          sum by (feed) (dip_files_24h{status="quarantined"})
+            / sum by (feed) (dip_files_24h) > 0.2
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.feed }}: {{ $value | humanizePercentage }} of files quarantined"
+          description: More than 20% of the feed's files in the last 24 hours were quarantined whole.
+      - alert: RowRejectionRateHigh
+        expr: >-
+          sum by (feed) (dip_rows_24h{outcome="rejected"})
+            / sum by (feed) (dip_rows_24h) > 0.1
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.feed }}: {{ $value | humanizePercentage }} of rows rejected"
+          description: More than 10% of the feed's rows in the last 24 hours were rejected.
+      - alert: DataQualityError
+        expr: sum by (test_name) (dip_dq_test_status{status=~"error|fail"}) > 0
+        labels: {severity: critical}
+        annotations:
+          summary: "dbt test {{ $labels.test_name }} failed"
+          description: The test's latest result in ops.dq_results is an error, not a warning.
+      - alert: MetricsQueryFailing
+        expr: dip_metrics_query_ok == 0
+        for: 10m
+        labels: {severity: warning}
+        annotations:
+          summary: "metrics query {{ $labels.query }} fails"
+          description: >-
+            The warehouse exporter cannot run this query (a table not created yet, or a
+            missing grant to dip_metrics).
+  - name: dip-airflow
+    rules:
+      - alert: DagRunFailing
+        expr: sum by (dag_id) (increase(airflow_dagrun_failed_count[1h])) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "DAG {{ $labels.dag_id }} failed in the last hour"
+          description: A run of {{ $labels.dag_id }} ended failed (Airflow statsd, dagrun.duration.failed).
+      - alert: TargetDown
+        expr: up == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.job }} is down"
+          description: Prometheus cannot scrape {{ $labels.job }}.
