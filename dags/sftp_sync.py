@@ -29,7 +29,7 @@ from airflow.sdk import dag, task
 )
 def sftp_sync():
     @task
-    def sync() -> list[str]:
+    def sync() -> dict:
         import base64
         import io
         import os
@@ -47,17 +47,24 @@ def sftp_sync():
         store = S3Store(S3Hook(aws_conn_id="minio").get_conn())
         contracts = load_contracts()
         feeds: set[str] = set()
+        failed: list[str] = []
         for account in os.environ["DIP_SFTP_ACCOUNTS"].split(","):
             ssh = paramiko.SSHClient()
             pinned = paramiko.PKey.from_type_string(key_type, base64.b64decode(key_b64))
             ssh.get_host_keys().add(host, key_type, pinned)
             ssh.set_missing_host_key_policy(paramiko.RejectPolicy())
-            ssh.connect(
-                host, username=account, pkey=pkey, look_for_keys=False, allow_agent=False,
-                timeout=30,
-            )  # fmt: skip
+            # One account failing (auth, network) must not strand the others' files: carry
+            # on, trigger what moved, and fail the run at the end (check_accounts).
             try:
+                ssh.connect(
+                    host, username=account, pkey=pkey, look_for_keys=False, allow_agent=False,
+                    timeout=30,
+                )  # fmt: skip
                 r = sync_account(ssh.open_sftp(), account, store, contracts, datetime.now(UTC))
+            except Exception as exc:
+                failed.append(f"{account}: {type(exc).__name__}: {exc}")
+                print(f"FAILED  {account}: {type(exc).__name__}: {exc}")
+                continue
             finally:
                 ssh.close()
             for _, key in r.moved:
@@ -67,9 +74,25 @@ def sftp_sync():
             for path, why in r.refused:
                 print(f"refused {account}: {path}: {why}")
             feeds.update(r.feeds)
-        return [dag_id_for(f) for f in sorted(feeds)]
+        # Only feeds with a generated intake DAG (CSV and Excel); FHIR has its own DAG.
+        dag_ids = [dag_id_for(f) for f in sorted(feeds)
+                   if contracts[f].format_type in ("csv", "excel")]  # fmt: skip
+        return {"dag_ids": dag_ids, "failed": failed}
 
-    TriggerDagRunOperator.partial(task_id="trigger_intake").expand(trigger_dag_id=sync())
+    @task
+    def dag_ids(result: dict) -> list[str]:
+        return result["dag_ids"]
+
+    @task(trigger_rule="all_done")
+    def check_accounts(result: dict) -> None:
+        if result["failed"]:
+            raise RuntimeError(f"accounts that failed to sync: {result['failed']}")
+
+    result = sync()
+    triggers = TriggerDagRunOperator.partial(task_id="trigger_intake").expand(
+        trigger_dag_id=dag_ids(result)
+    )
+    triggers >> check_accounts(result)
 
 
 sftp_sync()
