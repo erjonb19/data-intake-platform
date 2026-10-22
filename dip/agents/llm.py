@@ -115,7 +115,8 @@ class Recorder:
         doc = [{"content": m.content, "stop_reason": m.stop_reason, "usage": m.usage,
                 "model": m.model, "request_sha256": fp}
                for m, fp in zip(self.messages, self.fingerprints, strict=True)]  # fmt: skip
-        path.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(doc, indent=1, sort_keys=True) + "\n", encoding="utf-8",
+                        newline="\n")  # fmt: skip
 
 
 class Recording:
