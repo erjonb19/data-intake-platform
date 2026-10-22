@@ -1,4 +1,4 @@
-# Observability: Prometheus, alert rules and Grafana (Stage 3, S3.2)
+# Observability: metrics, alerts, dashboards and lineage (Stage 3, S3.2 and S3.3)
 
 An opt-in profile, `profiles = ["core", "observability"]`. CI's E2E always deploys it. On
 the laptop, turn it on only when working on monitoring, because it needs about 0.6 GB more
@@ -8,6 +8,7 @@ the laptop, turn it on only when working on monitoring, because it needs about 0
 TF_VAR_profiles='["core", "observability"]' bash scripts/up.sh
 kubectl -n dip-obs port-forward svc/prometheus-server 9090:80   # http://localhost:9090
 kubectl -n dip-obs port-forward svc/grafana 3000:80             # http://localhost:3000, user admin
+kubectl -n dip-obs port-forward svc/marquez-web 3001:3000       # lineage UI, http://localhost:3001
 terraform -chdir=infra/terraform output -raw grafana_admin_password
 ```
 
@@ -19,6 +20,7 @@ terraform -chdir=infra/terraform output -raw grafana_admin_password
 | statsd-exporter (the Airflow chart's own) | `dip-airflow` | Turns Airflow's StatsD metrics into Prometheus metrics (`airflow_*`). Enabled only with this profile |
 | Warehouse exporter (`python -m dip metrics-serve`, `dip/metrics.py`) | `dip-data` | Feed metrics from the ops tables (`dip_*`). Runs in the platform image as the `dip_metrics` login |
 | Grafana (`grafana-community/grafana`) | `dip-obs` | Two provisioned, read-only dashboards: Feeds, and DAG runs. No anonymous access and no sign-up |
+| Marquez 0.51.1, API and web UI | `dip-obs` | Receives OpenLineage events on the shared Postgres's `marquez` database. Search (OpenSearch) is off |
 
 ## The warehouse exporter's access
 
@@ -76,3 +78,29 @@ Alertmanager.
   E2E ran have metrics, that Airflow's StatsD metrics are present, and that the 7 rules are
   loaded. It also checks that Grafana is up, refuses an anonymous API call, and has both
   dashboards.
+
+## Lineage in Marquez (S3.3)
+
+The platform's own emitter (`dip/lineage.py`, R6) sends three kinds of event:
+
+- **intake:** a landed file goes to its raw copy, bronze and quarantine
+- **dbt:** one job per model, with columns, description and test results
+- **extract:** the shareable tier goes to the extract files
+
+The events go to Marquez through `OPENLINEAGE_URL`, which Terraform sets for Airflow only
+with this profile. Without it, emitting is a no-op. Over HTTP it is best effort: lineage
+describes data that is already committed, so an unreachable Marquez is printed in the task
+log and counted, but never fails a run (`tests/unit/test_lineage.py`).
+
+`tests/e2e/lineage.py` walks Marquez's graph upstream from two gold tables
+(`gold.member_eligibility`, `gold.invoice_match`) and requires the landed fixture among
+their ancestors. It also requires the gold table to carry its dbt test results (the
+`dataQualityAssertions` facet). The same walk passed against a local Marquez 0.51.1 on
+Postgres 17. Marquez's bundled Flyway warns that Postgres 17 is untested, but its
+migrations run.
+
+**A known limit:** every CSV, Excel and PDF feed loads the one table `bronze.csv_record`.
+Dataset-level lineage therefore joins all file feeds at that node, so an eligibility gold
+table also has the finance intake jobs among its ancestors. The per-feed path is still
+there, in the job chain (`intake.<feed>` then `dbt.build.dbt.<model>`). Per-feed bronze
+datasets, a symlink facet or a partition per feed, are a follow-up.
