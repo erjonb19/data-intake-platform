@@ -45,8 +45,10 @@ resource "helm_release" "airflow" {
   values = [file("${path.module}/../helm-values/airflow.yaml")]
 
   set = [
-    { name = "images.airflow.repository", value = var.airflow_image_repository },
-    { name = "images.airflow.tag", value = var.airflow_image_tag },
+    { name = "images.airflow.repository", value = var.airflow_image_repository, type = "string" },
+    # A content-addressed tag can be all digits ("873912234501"); without type = "string"
+    # Helm reads it as a number and the chart's schema refuses it.
+    { name = "images.airflow.tag", value = var.airflow_image_tag, type = "string" },
   ]
 
   set_sensitive = [
