@@ -13,6 +13,10 @@ sources:
     tables:
       - name: intake_file
         description: One row per processed file (feed, sha256, status, received_at).
+      - name: intake_delivery
+        description: >
+          One row per delivery (content sha256 + file name), with the validated business
+          date in the name. Identical content resent under a newer name is a new delivery.
   - name: vocab
     description: >
       OMOP vocabulary loaded by `python -m dip vocab-load`: the public OHDSI Eunomia shard

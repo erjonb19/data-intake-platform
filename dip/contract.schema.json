@@ -17,7 +17,18 @@
       "additionalProperties": false,
       "properties": {
         "channels": {"type": "array", "items": {"enum": ["sftp", "minio", "api"]}, "minItems": 1},
-        "filename_pattern": {"type": "string"}
+        "filename_pattern": {"type": "string"},
+        "filename_date": {
+          "type": "object",
+          "required": ["regex", "format"],
+          "additionalProperties": false,
+          "properties": {
+            "regex": {"type": "string"},
+            "format": {"type": "string"},
+            "max_days_before_received": {"type": "integer", "minimum": 0},
+            "max_days_after_received": {"type": "integer", "minimum": 0}
+          }
+        }
       }
     },
     "format": {

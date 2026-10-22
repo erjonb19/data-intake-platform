@@ -104,3 +104,61 @@ def test_full_file_semantics(warehouse, tmp_path):
     assert (
         scalar(warehouse, "select count(*) from silver.eligibility_record") == 3 + 21 + 1
     )  # day 2: 22 rows, 1 quarantined
+
+
+def test_identical_file_resent_on_a_later_day_is_the_latest(warehouse, tmp_path):
+    """A full-file feed resends yesterday's exact content as today's file: it is not loaded
+    again, but it is a new delivery, so its business date makes it the latest file."""
+    store = LocalStore(tmp_path)
+    both = ("\n".join([HEADER, member("M300000001", "HMO"), member("M300000002", "PPO")])
+            + "\n").encode()  # fmt: skip
+    one = ("\n".join([HEADER, member("M300000001", "EPO")]) + "\n").encode()
+    land(store, warehouse, "elig_20261019.csv", both, datetime(2026, 10, 19, 6, tzinfo=UTC))
+    land(store, warehouse, "elig_20261020.csv", one, datetime(2026, 10, 20, 6, tzinfo=UTC))
+    [again] = land(
+        store, warehouse, "elig_20261021.csv", both, datetime(2026, 10, 21, 6, tzinfo=UTC)
+    )
+    assert again.status == "redelivered"
+    # Re-landing the very same name and content is still only a duplicate.
+    [dup] = land(store, warehouse, "elig_20261021.csv", both, datetime(2026, 10, 21, 7, tzinfo=UTC))
+    assert dup.status == "duplicate"
+    build()
+
+    d3 = date(2026, 10, 21)
+    assert gold(warehouse, "M300000001") == [("HMO", d3, True)]
+    assert gold(warehouse, "M300000002") == [("PPO", d3, True)]
+    assert scalar(warehouse, "select count(*) from ops.intake_file") == 2
+    assert scalar(warehouse, "select count(*) from ops.intake_delivery") == 3
+    assert scalar(warehouse, "select count(*) from silver.eligibility_record") == 3
+
+
+def test_file_name_dates_are_validated(warehouse, tmp_path):
+    """FILE.NAME_DATE: not a real date, after the received date, or more than 7 days before
+    it. Nothing of such a file reaches silver; a name with no date is accepted."""
+    store = LocalStore(tmp_path)
+    at = datetime(2026, 10, 21, 6, tzinfo=UTC)
+    body = ("\n".join([HEADER, member("M400000001", "HMO")]) + "\n").encode()
+    bad = ["elig_20261399.csv", "elig_2026102.csv", "elig_20261022.csv", "elig_20261013.csv"]
+    for name in bad:
+        [o] = land(store, warehouse, name, body, at)
+        assert (o.status, o.reason_codes) == ("quarantined", ("FILE.NAME_DATE",)), name
+    # The same content under a good name loads; resent under a bad name, it is quarantined
+    # again and not recorded as a delivery.
+    [ok] = land(store, warehouse, "elig_20261014.csv", body, at)
+    assert ok.status == "loaded"
+    [o] = land(store, warehouse, "elig_20261023.csv", body, at)
+    assert (o.status, o.reason_codes) == ("quarantined", ("FILE.NAME_DATE",))
+    other = ("\n".join([HEADER, member("M400000002", "PPO")]) + "\n").encode()
+    [undated] = land(store, warehouse, "elig_monthly.csv", other, at)
+    assert undated.status == "loaded"
+    build()
+
+    assert rows(
+        warehouse, "select member_id, file_date from silver.eligibility_record order by 1"
+    ) == [("M400000001", date(2026, 10, 14)), ("M400000002", date(2026, 10, 21))]
+    assert (
+        scalar(
+            warehouse, "select count(*) from ops.quarantine where reason_code = 'FILE.NAME_DATE'"
+        )
+        == len(bad) + 1
+    )

@@ -59,10 +59,13 @@ def test_csv_rows_land_in_bronze_and_rejections_in_ops(warehouse, tmp_path):
         (by_name["elig_bad_rows.csv"].file_sha256,),
     ) == [("record", "VALUE.NOT_ALLOWED:plan_code", "row=7")]
 
-    # Reruns are idempotent: the same bytes are recognized and skipped.
-    store.put(
-        BUCKET_LANDING, f"{FEED}/elig_again.csv", (FIXTURES / "good/elig_good.csv").read_bytes()
-    )
+    # Reruns are idempotent: the same bytes are recognized and not loaded again, under the
+    # same name (a duplicate) or another one (a new delivery of the same content).
+    good = (FIXTURES / "good/elig_good.csv").read_bytes()
+    store.put(BUCKET_LANDING, f"{FEED}/elig_good.csv", good)
     [again] = process_landing(store, warehouse, load_contracts(), NOW)
     assert again.status == "duplicate"
+    store.put(BUCKET_LANDING, f"{FEED}/elig_again.csv", good)
+    [again] = process_landing(store, warehouse, load_contracts(), NOW)
+    assert again.status == "redelivered"
     assert scalar(warehouse, "select count(*) from bronze.csv_record") == 25

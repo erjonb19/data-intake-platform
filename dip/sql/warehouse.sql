@@ -20,6 +20,24 @@ CREATE TABLE IF NOT EXISTS ops.intake_file (
     PRIMARY KEY (feed, file_sha256)
 );
 
+-- One row per delivery: a (content, file name) pair. Content is loaded once (intake_file),
+-- but a full-file feed can resend identical content under a newer name, and that newer
+-- delivery's business date is what makes it the latest file. file_date is the validated
+-- date in the name (NULL when the name has none). Deliveries recorded before this table
+-- existed are backfilled with file_date NULL: they count by the date they were received.
+CREATE TABLE IF NOT EXISTS ops.intake_delivery (
+    feed              text        NOT NULL,
+    file_sha256       text        NOT NULL,
+    source_key        text        NOT NULL,
+    file_date         date,
+    received_at       timestamptz NOT NULL,
+    PRIMARY KEY (feed, file_sha256, source_key),
+    FOREIGN KEY (feed, file_sha256) REFERENCES ops.intake_file (feed, file_sha256)
+);
+INSERT INTO ops.intake_delivery (feed, file_sha256, source_key, received_at)
+SELECT feed, file_sha256, source_key, received_at FROM ops.intake_file
+ON CONFLICT DO NOTHING;
+
 -- One row per quarantined file (level = 'file') or record (level = 'record').
 CREATE TABLE IF NOT EXISTS ops.quarantine (
     quarantine_id     bigserial   PRIMARY KEY,
