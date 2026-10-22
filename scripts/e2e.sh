@@ -36,10 +36,21 @@ for account, key in json.load(sys.stdin).items():
 kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-data \
   port-forward svc/sftp "$SFTP_PORT:22" >/dev/null 2>&1 &
 pf_pid=$!
-trap 'kill "$pf_pid" 2>/dev/null || true; rm -rf "$SFTP_KEY_DIR"' EXIT
-for _ in $(seq 1 30); do
-  (exec 3<>"/dev/tcp/127.0.0.1/$SFTP_PORT") 2>/dev/null && break
-  sleep 1
+
+# Stage 2: the intake API, also through a port-forward, with each vendor's API key.
+API_PORT="${API_PORT:-8001}"
+INTAKE_API_URL="http://127.0.0.1:$API_PORT"
+INTAKE_API_KEYS="$(tf output -json intake_api_keys)"
+export INTAKE_API_URL INTAKE_API_KEYS
+kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-data \
+  port-forward svc/intake-api "$API_PORT:8000" >/dev/null 2>&1 &
+api_pid=$!
+trap 'kill "$pf_pid" "$api_pid" 2>/dev/null || true; rm -rf "$SFTP_KEY_DIR"' EXIT
+for port in "$SFTP_PORT" "$API_PORT"; do
+  for _ in $(seq 1 30); do
+    (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null && break
+    sleep 1
+  done
 done
 
 "$py" "$REPO_ROOT/tests/e2e/fhir_intake.py"

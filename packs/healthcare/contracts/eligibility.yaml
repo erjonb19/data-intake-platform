@@ -8,7 +8,7 @@ description: >
   All data is synthetic.
 classification: restricted
 source:
-  channels: [minio, sftp]
+  channels: [minio, sftp, api]
   filename_pattern: "elig_*.csv"
   # The business date in the name (elig_YYYYMMDD.csv). It must be a real date, not after
   # the day the file was received, and at most 7 days before it; otherwise the file is

@@ -7,8 +7,9 @@
 #   gold_rows  how many of the file's rows must reach gold (0: the file is quarantined
 #              whole, and nothing of it may be in bronze, silver or gold)
 #   exclude_rows  data rows (1-based) expected in quarantine, left out of the checksum
-#   channel    how the fixture is delivered: minio (default, put into landing) or sftp
-#              (uploaded to the vendor's SFTP account, then the sftp_sync DAG moves it);
+#   channel    how the fixture is delivered: minio (default, put into landing), sftp
+#              (uploaded to the vendor's SFTP account, then the sftp_sync DAG moves it)
+#              or api (POSTed to the intake API with the vendor's key);
 #              the delivery's recorded channel is checked too
 feeds:
   healthcare.eligibility:
@@ -37,3 +38,8 @@ feeds:
         status: loaded
         reasons: []
         gold_rows: 3
+      - fixture: eligibility/good/elig_api.csv
+        channel: api
+        status: loaded
+        reasons: []
+        gold_rows: 2

@@ -53,3 +53,9 @@ output "sftp_host_key" {
   description = "The SFTP server's public host key, to pin in known_hosts."
   value       = tls_private_key.sftp_host.public_key_openssh
 }
+
+output "intake_api_keys" {
+  description = "Each client's intake API key (Bearer token), for the e2e and for trying the API by hand."
+  value       = { for name in keys(local.api_clients) : name => random_password.api_key[name].result }
+  sensitive   = true
+}

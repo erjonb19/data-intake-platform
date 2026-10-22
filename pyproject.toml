@@ -20,6 +20,11 @@ dev = [
   "dbt-core==1.12.*",
   "dbt-postgres==1.11.*",
   "paramiko==3.5.*",
+  # The intake API (images/intake-api pins the same versions).
+  "fastapi==0.142.4",
+  "starlette==1.7.0",
+  "uvicorn==0.54.0",
+  "httpx==0.28.1",
 ]
 
 [build-system]

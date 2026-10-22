@@ -53,12 +53,13 @@ load). The channel is recorded on each delivery (`ops.intake_delivery.channel`).
 |---|---|
 | `minio` | put into the landing bucket directly (no channel metadata) |
 | `sftp` | uploaded by the vendor to `/upload/<feed>/` on its own SFTP account (named after its pack, key-only, chrooted), then moved to landing by the `sftp_sync` DAG with `dip-channel: sftp` metadata. A file is taken once a `<name>.done` marker is next to it or it has been unchanged for 2 minutes; `.part`, `.tmp` and hidden files never are. An account can only send its own pack's feeds. The server's host key is pinned on both sides (Terraform generates it) |
-| `api` | the intake API (S2.3) |
+| `api` | `POST /v1/feeds/<feed>/files?filename=<name>` to the intake API with `Authorization: Bearer <key>`. One key per pack (Terraform generates them; the API stores only their SHA-256); a key may send only its pack's feeds. 401 no or unknown key, 403 another pack's feed or a feed without `api`, 404 unknown feed, 409 a same-named file still waiting in landing, 413 over 50 MB, 422 an unsafe file name. The file lands with `dip-channel: api`; the feed's intake DAG takes it from there |
 
 Try it (after `scripts/up.sh`): `terraform -chdir=infra/terraform output -json sftp_vendor_keys`
 gives each account's key, `output -raw sftp_host_key` the host key to pin, and
-`kubectl -n dip-data port-forward svc/sftp 2222:22` the server; `scripts/e2e.sh` does all
-three.
+`kubectl -n dip-data port-forward svc/sftp 2222:22` the server. For the API,
+`output -json intake_api_keys` and `port-forward svc/intake-api 8001:8000`.
+`scripts/e2e.sh` does all of this.
 
 ## Reason codes
 
