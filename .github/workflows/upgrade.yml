@@ -1,0 +1,124 @@
+name: upgrade
+
+# The upgrade path: deploy the previous main, load data with the e2e, upgrade the same
+# cluster in place to this commit, then rerun the e2e and check that nothing loaded before
+# the upgrade was lost. e2e.yml always starts from an empty cluster, so it cannot catch a
+# migration, role or Job that only breaks an existing install.
+#
+# It is two full deploys (about twice e2e.yml), so it runs nightly, on demand, and on PRs
+# that touch what an upgrade exercises: dbt, Terraform and Helm values (infra/), the
+# images, and the warehouse DDL in dip/warehouse.py.
+#   PR:              from = the PR's base commit,      to = the PR merged into its base
+#   nightly, manual: from = the previous main (HEAD^1), to = main
+
+on:
+  schedule:
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "dbt/**"
+      - "infra/**"
+      - "images/**"
+      - "dip/warehouse.py"
+      - "scripts/up.sh"
+      - "scripts/upgrade_snapshot.sh"
+      - ".github/workflows/upgrade.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upgrade-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KIND_VERSION: v0.33.0
+
+jobs:
+  upgrade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Pick the versions
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          to="$(git rev-parse HEAD)"
+          if [[ -n "$PR_BASE" ]]; then from="$PR_BASE"; else from="$(git rev-parse HEAD^1)"; fi
+          echo "FROM_SHA=$from" >> "$GITHUB_ENV"
+          echo "TO_SHA=$to" >> "$GITHUB_ENV"
+          echo "upgrade $(git log -1 --format='%h %s' "$from")"
+          echo "     to $(git log -1 --format='%h %s' "$to")"
+          # The same snapshot script runs before and after, whatever the old version has.
+          cp scripts/upgrade_snapshot.sh "$RUNNER_TEMP/upgrade_snapshot.sh"
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.6"
+          terraform_wrapper: false
+
+      - name: Install kind
+        run: |
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          curl -fsSL "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64.sha256sum" \
+            | awk '{print $1"  kind"}' | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+
+      - name: E2E dependencies
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*"
+
+      # Phase 1: the old version, with data. State (tfstate, kubeconfig, .venv) is
+      # gitignored, so it stays in place when the checkout moves to the new version.
+      - name: Deploy the previous version
+        run: |
+          git checkout -q --detach "$FROM_SHA"
+          bash scripts/up.sh
+          bash scripts/smoke.sh
+          bash scripts/e2e.sh
+
+      - name: Snapshot before the upgrade
+        run: |
+          mkdir -p artifacts/upgrade
+          KUBECONFIG="$(terraform -chdir=infra/terraform output -raw kubeconfig_path)" \
+            bash "$RUNNER_TEMP/upgrade_snapshot.sh" | tee artifacts/upgrade/before.txt
+
+      # Phase 2: upgrade the same cluster in place, and rerun everything on the old data.
+      - name: Upgrade to this commit
+        run: |
+          git checkout -q --detach "$TO_SHA"
+          bash scripts/up.sh
+
+      - name: Smoke and E2E after the upgrade
+        run: |
+          bash scripts/smoke.sh
+          bash scripts/e2e.sh
+
+      - name: Nothing loaded before the upgrade was lost
+        run: |
+          KUBECONFIG="$(terraform -chdir=infra/terraform output -raw kubeconfig_path)" \
+            bash "$RUNNER_TEMP/upgrade_snapshot.sh" | tee artifacts/upgrade/after.txt
+          bash "$RUNNER_TEMP/upgrade_snapshot.sh" --compare \
+            artifacts/upgrade/before.txt artifacts/upgrade/after.txt
+
+      - name: Collect diagnostics
+        if: always()
+        run: bash scripts/diagnostics.sh
+
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: upgrade-diagnostics
+          path: artifacts/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: bash scripts/down.sh

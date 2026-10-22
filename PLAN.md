@@ -203,6 +203,8 @@ kind plus the official Airflow chart **fits in 16 GB, but not in the state your 
 
 **How it grows:** each stage adds cases to a parametrized table (`tests/e2e/cases.yaml`). For example, Stage 2 adds SFTP, API and Excel cases; Stage 3 adds OCR cases, lineage and metrics checks, and MCP read and authentication checks; Stage 4 adds each runbook scenario plus a check of the Propose flow; Stages 5–7 add an agent smoke test. Agent tests use a recorded or mock LLM, so CI needs no API key.
 
+**Upgrade path: `.github/workflows/upgrade.yml`** (added 2026-10-22). `e2e.yml` always starts from an empty cluster, so it cannot catch a migration, role or Job that only breaks an existing install. This job deploys the previous version (a PR's base, or the previous `main` nightly), loads data with the e2e, upgrades the same cluster in place, reruns smoke and e2e, and checks that Postgres kept its data volume and that no table the e2e fills lost rows (`scripts/upgrade_snapshot.sh`). It is two deploys, so it runs nightly, on demand, and on PRs that touch `dbt/`, `infra/` (Terraform and Helm values), `images/` or the warehouse DDL (`dip/warehouse.py`).
+
 Two other workflows run alongside it: `ci.yml` (lint with ruff, type-check with mypy, unit tests, dbt parse, `terraform validate`) and, from Stage 6 on, `evals.yml` (on demand and nightly, using the real LLM key stored as a GitHub secret).
 
 ## 7. Agent layer (designed now; MCP Read tier in Stage 3, Propose in Stage 4, Act in Stage 6)
