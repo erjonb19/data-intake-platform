@@ -109,8 +109,8 @@ def main() -> int:
             failures.append(f"expected 3 de-identified HbA1c rows for the good patient, found {n}")
         cur.execute("select count(*) from bronze.fhir_resource where patient_id = %s", (PATIENT,))
         n = cur.fetchone()[0]
-        if n != 9:
-            failures.append(f"expected 9 bronze resources for the good patient, found {n}")
+        if n != 10:
+            failures.append(f"expected 10 bronze resources for the good patient, found {n}")
         for name, code in EXPECTED_QUARANTINE.items():
             cur.execute(
                 "select reason_code from ops.quarantine where file_sha256 = %s and level = 'file'",
