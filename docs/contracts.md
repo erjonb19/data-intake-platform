@@ -167,3 +167,14 @@ newest register wins; Stage 3's OCR invoices are matched to it). DQ warnings, in
 `invoice_due_after_invoice`. Fixtures (`tests/fixtures/finance/`, from `make_fixtures.py`):
 a clean register, one with every breakage, and one whose sheet was renamed
 (SCHEMA.MISSING_SHEET).
+
+## Late files (`expected_arrival`, Stage 2)
+
+`expected_arrival: {cron: "0 6 * * *", grace: 2h}` says when the feed's file is due (a
+5-field cron, UTC) and how late it may still arrive. Every 15 minutes the `feed_sla` DAG
+(`dip/sla.py`) judges the latest window whose grace has passed: if nothing arrived since
+the scheduled time before it (no delivery of any status, and no file quarantined for its
+name: a bad file is not a late one), it opens one `FEED.LATE` row in `ops.incident` for that
+feed and window. An incident closes when a file arrives; for a feed of daily full files one
+arrival closes every open window. The cron and grace are checked when the contract loads.
+Prometheus alerting on open incidents comes with Stage 3.

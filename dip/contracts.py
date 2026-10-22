@@ -115,6 +115,14 @@ def load_contract(path: str | Path) -> Contract:
             raise ContractError(
                 f"{path.name}: source/filename_date/regex needs exactly one group, has {groups}"
             )
+    if arrival := spec.get("expected_arrival"):
+        from dip.sla import Cron, parse_grace
+
+        try:
+            Cron.parse(arrival["cron"])
+            parse_grace(arrival["grace"])
+        except (KeyError, ValueError) as exc:
+            raise ContractError(f"{path.name}: expected_arrival: {exc}") from exc
     if spec["format"]["type"] in ("csv", "excel"):
         from dip.csvfeed import check_contract
 
