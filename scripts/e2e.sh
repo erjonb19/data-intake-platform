@@ -23,6 +23,8 @@ done
 # host port, so an existing cluster needs no rebuild) with each vendor's own key.
 SFTP_PORT="${SFTP_PORT:-2222}"
 SFTP_KEY_DIR="$(mktemp -d)"
+# Git Bash on Windows: a /tmp path the native Python can open too.
+command -v cygpath >/dev/null 2>&1 && SFTP_KEY_DIR="$(cygpath -m "$SFTP_KEY_DIR")"
 pids=()
 # Set before anything can fail: the vendor keys and port-forwards never outlive the run.
 cleanup() { kill "${pids[@]}" 2>/dev/null || true; rm -rf "$SFTP_KEY_DIR"; }
