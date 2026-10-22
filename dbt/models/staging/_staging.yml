@@ -30,6 +30,12 @@ models:
         description: Onset, else recorded date, else the start of the encounter.
   - name: stg_observation
     description: One row per observed value (components included).
+  - name: stg_procedure
+    columns:
+      - name: procedure_id
+        data_tests: [unique, not_null]
+      - name: performed_at
+        description: When it was done (performedPeriod.start, else performedDateTime).
   - name: stg_medication_request
     columns:
       - name: medication_request_id

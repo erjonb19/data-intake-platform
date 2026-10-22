@@ -20,6 +20,11 @@ dev = [
   "dbt-core==1.12.*",
   "dbt-postgres==1.11.*",
   "paramiko==3.5.*",
+  # The agent layer (Stage 4): Claude, the MCP server and client, and the HTTP server.
+  # Each pin was at least two weeks old when chosen. CI never calls the model.
+  "anthropic==1.12.0",
+  "mcp==2.3.0",
+  "uvicorn==0.54.0",
 ]
 
 [build-system]

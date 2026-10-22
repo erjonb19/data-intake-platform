@@ -16,6 +16,7 @@ clean-targets: [target]
 on-run-end:
   - "{{ store_dq_results(results) }}"
   - "{{ grant_shareable_usage() }}"
+  - "{{ grant_cohort_reader(results) }}"
 
 vars:
   # Which source feeds the staging contract: fhir (Synthea, MIMIC FHIR) or mimic_relational.

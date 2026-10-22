@@ -103,6 +103,28 @@ def test_visits_drugs_and_observation_period(omop):
     ) == [(date(2018, 3, 2), date(2025, 8, 18))]
 
 
+def test_procedure_occurrence(omop):
+    """R7: the fixture's colonoscopy maps to its standard concept, on its visit, inside the
+    observation period; the shareable copy moves by the person's shift."""
+    pid = person_id(omop)
+    assert rows(
+        omop,
+        "select p.procedure_concept_id, p.procedure_date, p.procedure_end_date,"
+        " p.procedure_source_value, v.visit_start_date"
+        " from omop.procedure_occurrence p"
+        " join omop.visit_occurrence v on v.visit_occurrence_id = p.visit_occurrence_id"
+        " where p.person_id = %s",
+        (pid,),
+    ) == [(4249893, date(2025, 2, 10), date(2025, 2, 10), "73761001", date(2025, 2, 10))]
+    shift, pseudo = _shift_and_pseudonym(omop)
+    assert rows(
+        omop,
+        "select procedure_concept_id, procedure_date from omop_shareable.procedure_occurrence"
+        " where person_id = %s",
+        (pseudo,),
+    ) == [(4249893, date(2025, 2, 10) + timedelta(days=shift))]
+
+
 def test_ids_are_stable_across_rebuilds(omop):
     before = person_id(omop)
     assert run_dbt(DSN, "run", "--select", "person", check=False).returncode == 0

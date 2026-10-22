@@ -1,0 +1,166 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_017nwN8jKLzzTJZhW2VMBs2d",
+    "input": {},
+    "name": "list_quarantine_groups",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "96a091c82465546afda1ac5d8fc8e7b4686936a94f2e04a0abdb7976a61d4810",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2736,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 32,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01DYCgNfQhywbSyXNR3E6ffV",
+    "input": {
+     "group_id": "healthcare.fhir_patient_bundle|FHIR.NOT_A_BUNDLE",
+     "limit": 1
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01LK7SDqZNNYZTwfe1GSC64q",
+    "input": {
+     "feed": "healthcare.fhir_patient_bundle"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01GfrxEybawf9E4QRnuZjTo9",
+    "input": {
+     "feed": "healthcare.fhir_patient_bundle",
+     "limit": 10
+    },
+    "name": "get_feed_history",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "b61faa1831354764b5c5b101de9795ae0d559d4d39b3fae5aacf766095185ba6",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 273
+   },
+   "cache_creation_input_tokens": 273,
+   "cache_read_input_tokens": 2736,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 253,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSiAYKEAgTGAI4AUIIdGhpbmtpbmcSDPcssR/Z6Jj0TfJV9hoMqdxzZsYxFPJ/1/bAIjAh/2yLkwMY8DcdmCXfjZuPYg06WkPiWMT625ekfrThe2QmuEFcFqwNb/MifsPQSicqpQWtgEzNqU6L21CMOpP8Mz+L688X+8ZHTkoHYai4z4w02bDxxqvydW/v4KW2l6PUPwWwcSgy86SgT6NAr1QvFh2sxA6299H9UY6Ez9dFB+gLmpOCjUP9AJjaJzvTU4Ep+CV5n0amfjlTaZ0LJODIjiVSRYxWImD4FoyvnRZ39t96697l+fguq+H4VMnuLPL9wkRCbauRgM7j+wvlZ6FC0kzJoDIZeHcn/GYBABbaQaEp4Yr7buozgIsmS/8RM/meP5tUU79i35QweBAOX9yNn0v2W0WQ8nucbcLEuIVkQsgsrdpVkuUDo0KVGXmskckIbEsJAS9F/NbdNnJjuxXTHrFnAUcOsRKQeumwykTDZ/fWe5szD/5O0ZgDieSQ78R6byJ/8okpbXb1c/MZW364BGRvtDvvAI03sBz5UQCOZE1XwEgnTafag8wBkB2TsSYgcme2mLk0vVpIO0ZlgwWbOF/AJnIB6IVnERlKDSD9bSBgGpIFROEPsHrsi/LWseCfRMEG9K7vkGmf/PrAm1mVC2Waj/xY5TntTyULLZKkCx6Vl3n3qAj9U/zSVhVPFv72xPZol7jav7ST9tydZKTi55vefZ86+taP9kac51eiwgHs0w2u/s4Fpr2OVSJGcZp+HoNhxiNu/HelzRE/nmUPcfrObH4UVmUdrEbMfZjp6x/u9FCFcVqYhS4MBzW0KGxbTnSPNF1unkvHI+6A2QNrYdPxqu4fO5OZXa2hNv46BtVvuyTK2MtGppmQFb451zYzUD61RpdtfR+n418Jv62nwuYk46V4jV276I65wlKENH9SyGpd3HOJdf40IM1jPtKXOKqUt8ftNsPNw0Bu2D56D9xg27cwicT7NCbMQxljbwa/HwdzOdO80qvdSCw0zUazT8oBeJ0OrhgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_014qw7UjWobrbPaanooygKoJ",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.9,
+     "group_id": "healthcare.fhir_patient_bundle|FHIR.NOT_A_BUNDLE",
+     "message_to_vendor": "Your file lonely_patient.json was rejected because its root resource is a single FHIR Patient, not a Bundle. Please resend it wrapped in a FHIR R4 Bundle with bundleType of transaction, batch or collection, with the Patient as an entry.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "The file lonely_patient.json (sha 156eee90be33) is a single FHIR Patient resource (resourceType \"Patient\", id \"lonely\"), not a Bundle. The contract (v2) requires format fhir_bundle, R4, with bundle_type transaction, batch or collection. Contract is unchanged and still correct, so the vendor should wrap the patient in a bundle. Only one file, no rows accepted.",
+     "root_cause": "fhir_structure"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "e7bde4cbfe98a5757b14739229c606b4f6d9a146faaf01f4c94d7cb294ba6979",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 819
+   },
+   "cache_creation_input_tokens": 819,
+   "cache_read_input_tokens": 3009,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 521,
+   "output_tokens_details": {
+    "thinking_tokens": 60
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Triage summary, one open group:\n\n- **healthcare.fhir_patient_bundle | FHIR.NOT_A_BUNDLE** (1 entry, id 1, `lonely_patient.json`): The file is a bare FHIR Patient resource, not a Bundle, and the contract (v2) requires an R4 bundle. Proposed `request_resend` with root cause `fhir_structure`, confidence 0.9. The message asks the vendor to wrap the patient in a transaction, batch, or collection bundle. Awaiting approval (approval_id 1).",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "0330058f6c8ca7df7556a5ce724a148e30053688116406a1a032860cf0674bb0",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 561
+   },
+   "cache_creation_input_tokens": 561,
+   "cache_read_input_tokens": 3828,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 188,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

@@ -396,7 +396,7 @@ def load_source_to_concept_map(conn: Any, vocabulary_id: str, rows: list[tuple])
 
 
 # Source vocabularies the pipeline maps codes from today (conditions: ICD9CM, ICD10CM,
-# ICD10; drugs: NDC). Procedure vocabularies join when a procedure model does. Many others
+# ICD10; drugs: NDC; procedures are SNOMED, which is standard). Many others
 # (MeSH, CCAM, Mondo, ...) legitimately have no "Maps to" for most concepts.
 MAPPED_SOURCE_VOCABULARIES = ("ICD9CM", "ICD10", "ICD10CM", "NDC")
 
