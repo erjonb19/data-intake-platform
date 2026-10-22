@@ -52,7 +52,8 @@ from omop_shareable.person
 union all
 select 1, 'adults (18+) with essential hypertension', count(*) from adult_htn
 union all
-select 2, 'observed for 365+ days after the first diagnosis', count(*) from observed_a_year
+select 2, 'observed for 365+ days after the first diagnosis', count(distinct person_id)
+from observed_a_year
 union all
 select 3, '2+ systolic readings in the year after diagnosis', count(*) from followed_up
 union all

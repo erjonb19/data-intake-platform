@@ -91,3 +91,38 @@ def test_audit_chain_detects_edits_and_removals(tmp_path):
     assert "entry 1: does not follow entry 0" in cohorts.verify_audit(
         log.entries()[:1] + log.entries()[2:]
     )
+
+
+@pytest.mark.parametrize(
+    ("rows", "problem"),
+    [
+        ([(0, "a", 500), (1, "b", 120), (2, "c", 125)], "larger than the one before"),
+        ([(0, "a", 500), (2, "b", 120)], "not 0, 1, 2"),
+        ([(0, "a", 500), (1, "b", None)], "must be counts"),
+        ([(0, "a", 500), (1, "b", 120), (2, "c", 120)], None),
+    ],
+)
+def test_check_steps(rows, problem):
+    got = cohorts.check_steps(rows)
+    assert (got is None) if problem is None else (problem in got)
+
+
+def test_comment_lines_only(tmp_path):
+    c = cohorts.load(_write(tmp_path, "demo", 1, HEADER + "select 0, 'a--b', 1\n"))
+    assert c.sql == "select 0, 'a--b', 1"  # "--" inside a string literal is kept
+    with pytest.raises(ValueError, match="block comments"):
+        cohorts.load(_write(tmp_path, "demo2", 1, HEADER + "select /* x */ 1"))
+
+
+def test_appends_wait_for_the_lock_and_chain_in_order(tmp_path):
+    import threading
+
+    log = cohorts.AuditLog(tmp_path / "audit.jsonl")
+    threads = [threading.Thread(target=log.append, args=("ran",), kwargs={"cohort": f"c{i}"})
+               for i in range(8)]  # fmt: skip
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(log.entries()) == 8
+    assert cohorts.verify_audit(log.entries()) == []

@@ -34,6 +34,7 @@ last_year as (
     from omop_shareable.measurement as m
     join omop_shareable.observation_period as op on op.person_id = m.person_id
     where m.measurement_concept_id = 3004410
+        and m.unit_concept_id = 8554
         and m.measurement_date > op.observation_period_end_date - 365
         and m.measurement_date <= op.observation_period_end_date
 ),

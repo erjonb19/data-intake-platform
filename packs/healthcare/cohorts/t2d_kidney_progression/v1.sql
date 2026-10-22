@@ -1,10 +1,11 @@
--- title: Type 2 diabetes progressing to diabetic kidney disease
--- question: Of adults with type 2 diabetes, how many were later diagnosed with a diabetic
--- question: kidney disorder (at least 30 days after their first type 2 diabetes diagnosis),
+-- title: Type 2 diabetes followed by kidney disease
+-- question: Of adults with type 2 diabetes, how many were later diagnosed with kidney
+-- question: disease (at least 30 days after their first type 2 diabetes diagnosis),
 -- question: and how many of those within five years of it?
 -- caveat: Time from diabetes to kidney disease is exact within a person; calendar dates are
 -- caveat: shifted. Kidney concepts are listed explicitly (no concept-ancestor table in this
--- caveat: tier), so a kidney diagnosis coded outside the list is not counted.
+-- caveat: tier), so a kidney diagnosis coded outside the list is not counted. Two are
+-- caveat: diabetes-specific; the CKD stages and ESRD are kidney disease of any cause.
 -- Concepts: 201826 type 2 diabetes mellitus; kidney: 192279 disorder of kidney due to
 -- diabetes mellitus, 45769905 microalbuminuria due to type 2 diabetes, 443614 chronic kidney
 -- disease stage 1, 443601/443597/443612/443611 stages 2-5, 193782 end-stage renal disease.
@@ -37,7 +38,7 @@ from omop_shareable.person
 union all
 select 1, 'adults (18+) with type 2 diabetes', count(*) from adult_t2d
 union all
-select 2, 'a diabetic kidney diagnosis 30+ days after the first diabetes diagnosis', count(*)
+select 2, 'a kidney disease diagnosis 30+ days after the first diabetes diagnosis', count(*)
 from kidney_after
 union all
 select 3, 'within 5 years (1,826 days) of it', count(*)

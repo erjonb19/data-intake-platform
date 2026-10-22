@@ -71,8 +71,18 @@ run NAME` (`dip/cohorts.py`) is the only way one reaches the data. Each run:
 - suppresses small cells: 1 to 10 is shown as `suppressed`, and so is any step whose drop
   from the last shown step is 1 to 10, so a hidden count cannot be recovered by
   subtraction; zero is shown;
-- appends the run to a hash-chained JSONL audit log (`dip cohort verify-audit`), with the
-  SHA-256 of the exact query file and what was released.
+- refuses an attrition table whose steps are not 0, 1, 2, ... or where a step is larger
+  than the one before (a join that duplicated people would otherwise release two counts
+  with a small difference);
+- appends every outcome (ran, refused, failed) to a hash-chained JSONL audit log (`dip cohort
+  verify-audit`), with the SHA-256 of the exact query file and what was released. The chain
+  shows an edited, removed or reordered entry; it cannot show its last entries cut off or
+  the whole file rewritten, so each run prints its entry's hash for the caller to keep.
+
+Connecting means `current_user` **and** `session_user` are the reader, and the cdm_source
+check and the query share one REPEATABLE READ snapshot. Differencing across cohorts, or
+across rebuilds, is not checked by code: every library file is reviewed before it merges,
+against what the library already releases.
 
 Longitudinal criteria are SQL over the tier: diagnosed before a date, two results within a
 year of the end of observation, a second diagnosis 30+ days after the first, a measurement
@@ -83,8 +93,8 @@ move by up to 180 days, which each cohort states as a caveat.
 |---|---|
 | `t2d_hba1c_monitoring` | adults with type 2 diabetes diagnosed before 2020, 2+ HbA1c in their last year, and one of 7.0%+ |
 | `hypertension_bp_followup` | adults with hypertension observed a year after diagnosis, 2+ systolic readings in it, one of 140+ |
-| `t2d_kidney_progression` | adults with type 2 diabetes with a diabetic kidney diagnosis 30+ days later, and within 5 years |
-| `obesity_bmi_followup` | adults with a BMI of 30+, re-measured 365+ days later, and a later BMI 5% lower |
+| `t2d_kidney_progression` | adults with type 2 diabetes with a kidney disease diagnosis 30+ days later, and within 5 years |
+| `obesity_bmi_followup` | adults with a BMI of 30+, re-measured 365+ days later, and any such later BMI 5% lower |
 
 **Measured on 568 Synthea patients** (500 living, seed 42, Synthea v4.0.0; full local
 Athena vocabulary; released counts exactly as the library prints them):
@@ -93,18 +103,21 @@ Athena vocabulary; released counts exactly as the library prints them):
 |---|---|
 | `t2d_hba1c_monitoring` | 568 → 44 adults with T2D → suppressed → 15 with 2+ HbA1c → 0 with a result of 7.0%+ |
 | `hypertension_bp_followup` | 568 → 108 → suppressed → 36 with 2+ systolic readings → suppressed |
-| `t2d_kidney_progression` | 568 → 44 → 16 with a later diabetic kidney diagnosis → suppressed |
+| `t2d_kidney_progression` | 568 → 44 → 16 with a later kidney disease diagnosis → suppressed |
 | `obesity_bmi_followup` | 568 → 201 adults with a BMI of 30+ → 183 re-measured → 136 with a 5% lower BMI |
 
-The zero in the first row is real: 20 of the 44 adults with type 2 diabetes have an
-HbA1c of 7.0% or more at some point, but none of the 15 monitored ones in their last year of
-observation. The source is odd here too: at this scale dbt's plausibility test found 1,633
-of 6,262 HbA1c results (26%) below 3%, the low end of a plausible range. The same build
+The zero in the first row reflects the source, not the query. Every HbA1c result is in %
+(unit 8554, which the query requires), but Synthea's values are low: dbt's plausibility test
+found 1,633 of 6,262 (26%) below 3%, the low end of a plausible range, across every year.
+None of the 15 monitored patients has a result of 7.0% or more in their last year. The same build
 also found events outside their visit's dates (81 drug, 74 measurement and 37 procedure
 rows). Those tests are errors by design, so `dbt build` stops before the shareable tier;
 the counts above come from `dbt run` with the findings reported here rather than hidden.
-CI runs every cohort as the reader on the hand-made fixture patient
-(`tests/integration/test_cohort_library.py`), where each step's raw count is known.
+CI (`tests/integration/test_cohort_library.py`) runs every cohort as the reader on the
+hand-made fixture patient. It checks each step's raw count for `t2d_hba1c_monitoring` on that
+patient, and for the other three on six invented people built to stop at known steps
+(inserted and rolled back in one transaction). It also covers refusals for the owner role,
+for a tier the hook has revoked, and for a readable `cdm_source` that is not DIP-SYNTHEA.
 
 ## What the drift monitor needs (R7b)
 
