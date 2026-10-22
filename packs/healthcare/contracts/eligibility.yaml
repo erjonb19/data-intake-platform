@@ -1,0 +1,28 @@
+# Member eligibility from a (synthetic) payer: one row per member, one file per day.
+# Generated from the Synthea patients by packs/healthcare/generators/eligibility.py.
+feed: healthcare.eligibility
+version: 1
+owner: vendor-ops@example.com
+description: >
+  Daily full eligibility file: every enrolled member with their plan and coverage dates.
+  All data is synthetic.
+classification: restricted
+source: { channels: [minio], filename_pattern: "elig_*.csv" }
+format: { type: csv, delimiter: ",", encoding: utf-8, header: true }
+expected_arrival: { cron: "0 6 * * *", grace: 2h }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.05          # above this, the whole file is rejected
+min_rows: 1
+columns:
+  - { name: member_id, type: string, required: true, unique: true, pattern: "^M[0-9]{9}$" }
+  - { name: first_name, type: string, required: true, phi: true }
+  - { name: last_name, type: string, required: true, phi: true }
+  - { name: dob, type: date, required: true, min: "1900-01-01", max: today, phi: true }
+  - { name: sex, type: string, required: true, allowed: [F, M, U] }
+  - { name: plan_code, type: string, required: true, allowed: [HMO, PPO, EPO, HDHP] }
+  - { name: coverage_start, type: date, required: true, min: "1990-01-01" }
+  - { name: coverage_end, type: date, description: "Empty while coverage is open" }
+  - name: patient_ref
+    type: string
+    description: The payer's link to the clinical record (here the Synthea patient id)
+    phi: true

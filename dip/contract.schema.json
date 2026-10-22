@@ -26,7 +26,11 @@
       "properties": {
         "type": {"enum": ["csv", "excel", "x12", "pdf", "fhir_bundle"]},
         "fhir_version": {"enum": ["R4"]},
-        "bundle_types": {"type": "array", "items": {"type": "string"}}
+        "bundle_types": {"type": "array", "items": {"type": "string"}},
+        "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
+        "encoding": {"type": "string"},
+        "header": {"const": true},
+        "quotechar": {"type": "string", "minLength": 1, "maxLength": 1}
       }
     },
     "expected_arrival": {
@@ -35,7 +39,29 @@
     },
     "on_row_violation": {"enum": ["quarantine_row", "reject_file"]},
     "max_bad_row_ratio": {"type": "number", "minimum": 0, "maximum": 1},
-    "columns": {"type": "array"},
+    "allow_extra_columns": {"type": "boolean"},
+    "min_rows": {"type": "integer", "minimum": 0},
+    "columns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "type": {"enum": ["string", "integer", "decimal", "date", "boolean"]},
+          "description": {"type": "string"},
+          "required": {"type": "boolean"},
+          "unique": {"type": "boolean"},
+          "pattern": {"type": "string"},
+          "allowed": {"type": "array", "minItems": 1},
+          "min": {},
+          "max": {},
+          "phi": {"type": "boolean"}
+        }
+      }
+    },
     "fhir": {
       "type": "object",
       "required": ["patient_resource", "load", "resources"],
@@ -71,6 +97,10 @@
     {
       "if": {"properties": {"format": {"properties": {"type": {"const": "fhir_bundle"}}}}},
       "then": {"required": ["fhir"]}
+    },
+    {
+      "if": {"properties": {"format": {"properties": {"type": {"const": "csv"}}}}},
+      "then": {"required": ["columns"]}
     }
   ]
 }

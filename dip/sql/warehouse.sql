@@ -49,6 +49,17 @@ CREATE TABLE IF NOT EXISTS bronze.fhir_resource (
 );
 CREATE INDEX IF NOT EXISTS fhir_resource_type_idx ON bronze.fhir_resource (resource_type);
 
+-- Accepted rows of CSV feeds (Stage 1), values exactly as received (text), keyed by
+-- column name. Generic across feeds: each pack's silver models type their own feed.
+CREATE TABLE IF NOT EXISTS bronze.csv_record (
+    feed              text        NOT NULL,
+    file_sha256       text        NOT NULL,
+    row_number        integer     NOT NULL,
+    record            jsonb       NOT NULL,
+    loaded_at         timestamptz NOT NULL,
+    PRIMARY KEY (feed, file_sha256, row_number)
+);
+
 -- De-identification (R4). The HMAC key lives here, not in dbt variables, so it never
 -- appears in compiled SQL, dbt logs or query text. Only the warehouse owner can read it.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;

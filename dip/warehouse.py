@@ -10,9 +10,12 @@ import json
 from dataclasses import dataclass
 from datetime import datetime
 from importlib.resources import files
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from dip.fhir import Resource
+
+if TYPE_CHECKING:
+    from dip.csvfeed import Row
 
 
 @dataclass(frozen=True)
@@ -68,10 +71,26 @@ class Warehouse:
         resources: list[Resource],
         patient_id: str | None,
         loaded_at: datetime,
+        csv_rows: list[Row] = (),
     ) -> None:
         """Bronze rows, quarantine rows and the intake row commit together or not at all."""
         try:
             with self.conn.cursor() as cur:
+                if csv_rows:
+                    cur.executemany(
+                        "insert into bronze.csv_record (feed, file_sha256, row_number, record,"
+                        " loaded_at) values (%s, %s, %s, %s::jsonb, %s)",
+                        [
+                            (
+                                intake.feed,
+                                intake.file_sha256,
+                                r.row_number,
+                                json.dumps(r.record, sort_keys=True),
+                                loaded_at,
+                            )
+                            for r in csv_rows
+                        ],
+                    )
                 if resources:
                     cur.executemany(
                         "insert into bronze.fhir_resource (feed, file_sha256, entry_index,"
@@ -142,7 +161,9 @@ class DryRunWarehouse:
     def already_processed(self, feed: str, file_sha256: str) -> bool:
         return any(i.feed == feed and i.file_sha256 == file_sha256 for i in self.intake)
 
-    def record_outcome(self, intake, quarantine, resources, patient_id, loaded_at) -> None:
+    def record_outcome(
+        self, intake, quarantine, resources, patient_id, loaded_at, csv_rows=()
+    ) -> None:
         self.intake.append(intake)
         self.quarantine.extend(quarantine)
-        self.loaded += len(resources)
+        self.loaded += len(resources) + len(csv_rows)
