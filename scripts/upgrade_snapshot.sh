@@ -24,7 +24,10 @@ TABLES=(
 
 if [[ "${1:-}" == "--compare" ]]; then
   before="$2" after="$3"
-  # Same cluster identity; no table lost or shrank (a rerun may add rows, never remove).
+  # Same cluster identity. Intake records (ops.*) never lose rows: a rerun may add, never
+  # remove. dbt-built tables are rebuilt from bronze, so a new version may change their
+  # counts on purpose: shrinking is a warning, but emptying or losing one is a failure.
+  # The system identifier is 64 bits: compared as a string (awk numbers are doubles).
   awk '
     NR == FNR { was[$1] = $2; next }
     { now[$1] = $2 }
@@ -33,10 +36,14 @@ if [[ "${1:-}" == "--compare" ]]; then
       for (k in was) {
         if (!(k in now)) { printf "MISSING %s\n", k; bad = 1; continue }
         if (k == "system_identifier") {
-          if (now[k] != was[k]) { printf "FAIL Postgres was re-initialized (%s -> %s)\n", was[k], now[k]; bad = 1 }
+          if ((now[k] "") != (was[k] "")) { printf "FAIL Postgres was re-initialized (%s -> %s)\n", was[k], now[k]; bad = 1 }
           else printf "ok   same Postgres data volume (system identifier %s)\n", now[k]
-        } else if (was[k] >= 0 && now[k] < was[k]) {
+        } else if (was[k] > 0 && now[k] <= 0) {
+          printf "FAIL %s emptied or gone: %s -> %s\n", k, was[k], now[k]; bad = 1
+        } else if (was[k] >= 0 && now[k] < was[k] && k ~ /^ops\./) {
           printf "FAIL %s shrank: %s -> %s\n", k, was[k], now[k]; bad = 1
+        } else if (was[k] >= 0 && now[k] < was[k]) {
+          printf "WARN %s shrank (dbt rebuild): %s -> %s\n", k, was[k], now[k]
         } else {
           printf "ok   %s %s -> %s\n", k, was[k], now[k]
         }
