@@ -102,3 +102,24 @@ def test_staged_mode_reports_only_this_commits_files(repo):
     _add(repo, "other.txt", "fine\n")
     assert _check(repo, "--staged").returncode == 0
     assert _check(repo).returncode == 1
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "dbt/seeds/CONCEPT.csv",
+        "tests/fixtures/vocab/CONCEPT_CPT4.csv",
+        "tests/fixtures/vocab/CONCEPT_CLASS.csv",
+        "tests/fixtures/vocab/CONCEPT_RELATIONSHIP.csv",
+        "dbt/seeds/DOMAIN.csv",
+        "tests/fixtures/RELATIONSHIP.csv",
+        "tests/fixtures/VOCABULARY.csv",
+        "tests/fixtures/DRUG_STRENGTH.csv",
+        "tests/fixtures/d_labitems_to_loinc.csv",
+    ],
+)
+def test_athena_files_fail_anywhere(repo, path):
+    _add(repo, path, "concept_id\n")
+    result = _check(repo)
+    assert result.returncode == 1
+    assert path in result.stderr

@@ -132,3 +132,32 @@ def test_mapping_gaps_only_checks_mapped_source_vocabularies(warehouse, tmp_path
     assert vocab.mapping_gaps(warehouse.conn) == {
         "ICD10CM": {"non_standard": 3, "without_maps_to": 3}
     }
+
+
+def test_two_maps_to_targets_resolve_to_the_lowest_concept(warehouse, tmp_path):
+    """A code with two standard targets (a vocabulary code or a site-map row) always maps to
+    the lowest standard concept id, whatever order the rows were loaded in."""
+    from dip.dbt_runner import run_dbt
+    from tests.integration.conftest import DSN
+
+    concepts = [
+        "900402\tTarget high\tCondition\tVocabT\tCode\tS\tT2\t20200101\t20991231\t",
+        "900401\tTarget low\tMeasurement\tVocabT\tCode\tS\tT1\t20200101\t20991231\t",
+        "900400\tSource\tCondition\tICD10CM\tCode\t\tQ1\t20200101\t20991231\t",
+    ]
+    rels = [
+        "900400\t900402\tMaps to\t20200101\t20991231\t",
+        "900400\t900401\tMaps to\t20200101\t20991231\t",
+    ]
+    vocab.load_athena(warehouse.conn, [_folder(tmp_path, "VocabT", concepts, rels, "v")])
+    site_map = [
+        ("L1", 0, "TEST_SITE", "Local", target, "VocabT", "1970-01-01", "2099-12-31", None)
+        for target in (900402, 900401)
+    ]
+    vocab.load_source_to_concept_map(warehouse.conn, "TEST_SITE", site_map)
+    assert run_dbt(DSN, "run", "--select", "source_to_standard", check=False).returncode == 0
+    assert rows(
+        warehouse,
+        "select vocabulary_id, concept_code, standard_concept_id, standard_domain_id"
+        " from silver.source_to_standard where concept_code in ('Q1', 'L1') order by 1",
+    ) == [("ICD10CM", "Q1", 900401, "Measurement"), ("TEST_SITE", "L1", 900401, "Measurement")]

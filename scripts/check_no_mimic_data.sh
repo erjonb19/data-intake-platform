@@ -21,7 +21,7 @@ fi
 bulk="$(files | grep -E '(^|/)mimic-iv-[^/]*/|\.ndjson(\.gz)?$|\.csv\.gz$' || true)"
 data="$(files | grep -E '\.(csv|parquet|duckdb|json)$' \
   | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$' || true)"
-athena="$(files | grep -E '(^|/)(CONCEPT|CONCEPT_RELATIONSHIP|CONCEPT_ANCESTOR|CONCEPT_SYNONYM|DRUG_STRENGTH|VOCABULARY)\.csv$|d_labitems_to_loinc\.csv$' || true)"
+athena="$(files | grep -E '(^|/)(CONCEPT[^/]*|DOMAIN|RELATIONSHIP|VOCABULARY|DRUG_STRENGTH)\.csv$|d_labitems_to_loinc\.csv$' || true)"
 
 # This script and the code that writes the local-only marker are the only allowed hits.
 patterns=(

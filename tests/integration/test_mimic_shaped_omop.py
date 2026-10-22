@@ -95,3 +95,44 @@ def test_lab_item_mapped_through_source_to_concept_map(omop):
         "select measurement_source_value, measurement_concept_id, measurement_source_concept_id"
         " from omop.measurement",
     ) == [("99001", LACTATE, 0)]
+
+
+def test_observation_without_category_is_not_dropped(omop):
+    """An unmapped Observation with no category goes to `observation`: the measurement and
+    observation filters are exact complements even when category is NULL."""
+    with omop.conn.cursor() as cur:
+        cur.execute(
+            "insert into bronze.fhir_resource (feed, file_sha256, entry_index, resource_type,"
+            " resource_id, patient_id, resource, loaded_at)"
+            " select feed, 'test-no-category', 0, 'Observation', 'obs-no-category', patient_id,"
+            "   (resource - 'category') || jsonb_build_object('id', 'obs-no-category',"
+            "     'code', jsonb_build_object('coding', jsonb_build_array(jsonb_build_object("
+            "       'system', 'http://example.org/invented', 'code', 'no-category-1')))),"
+            "   loaded_at"
+            " from bronze.fhir_resource where resource_type = 'Observation' limit 1"
+        )
+    omop.conn.commit()
+    try:
+        assert (
+            run_dbt(DSN, "run", "--select", "fhir_resource_current+", check=False).returncode == 0
+        )
+        assert rows(
+            omop,
+            "select observation_concept_id from omop.observation"
+            " where observation_source_value = 'no-category-1'",
+        ) == [(0,)]
+        assert rows(
+            omop,
+            "select count(*) from omop.measurement"
+            " where measurement_source_value = 'no-category-1'",
+        ) == [(0,)]
+        assert (
+            run_dbt(DSN, "test", "--select", "no_source_rows_dropped", check=False).returncode == 0
+        )
+    finally:
+        with omop.conn.cursor() as cur:
+            cur.execute("delete from bronze.fhir_resource where file_sha256 = 'test-no-category'")
+        omop.conn.commit()
+        assert (
+            run_dbt(DSN, "run", "--select", "fhir_resource_current+", check=False).returncode == 0
+        )

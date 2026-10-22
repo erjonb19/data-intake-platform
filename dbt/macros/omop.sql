@@ -42,3 +42,13 @@
 
 {# OMOP type concept for every record here: 32817 "EHR". #}
 {% macro ehr_type_concept() -%}32817{%- endmacro %}
+
+{# Does a staged Observation row go to `measurement`? Its standard concept is in the
+   Measurement domain, or it is unmapped and categorized as a lab or vital sign. Never NULL
+   (a missing domain or category counts as false), so `measurement` takes the rows where it
+   is true and `observation` exactly the rest: no row lands in both or in neither. #}
+{% macro routes_to_measurement(std, obs) -%}
+    (coalesce({{ std }}.standard_domain_id = 'Measurement', false)
+        or ({{ std }}.standard_concept_id is null
+            and coalesce({{ obs }}.category in ('laboratory', 'vital-signs'), false)))
+{%- endmacro %}
