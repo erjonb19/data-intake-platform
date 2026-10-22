@@ -234,9 +234,38 @@ def test_researcher_role_reads_only_the_shareable_tier(omop):
             "ops_secret.deid_key",
             "bronze.fhir_resource",
             "silver.fhir_patient",
+            "ops.intake_file",
+            "vocab.concept",
         ):
             with pytest.raises(psycopg.errors.InsufficientPrivilege):
                 cur.execute(f"select 1 from {table} limit 1")
+        for statement in (
+            "insert into omop_shareable.person (person_id) values (-1)",
+            "update omop_shareable.person set year_of_birth = 1900",
+            "delete from omop_shareable.person",
+            "truncate omop_shareable.person",
+            "create table omop_shareable.scratch (x int)",
+            "create table public.scratch (x int)",
+            "create schema scratch",
+        ):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cur.execute(statement)
+
+
+def test_deid_privacy_catches_an_unshifted_date(omop):
+    """R4 negative test: one shareable date not equal to restricted date + shift fails."""
+    with omop.conn.cursor() as cur:
+        cur.execute(
+            "update omop_shareable.measurement set measurement_date = measurement_date + 1"
+            " where measurement_id = (select min(measurement_id) from omop_shareable.measurement)"
+        )
+    omop.conn.commit()
+    try:
+        result = run_dbt(DSN, "test", "--select", "deid_privacy", check=False)
+        assert result.returncode != 0
+    finally:
+        assert run_dbt(DSN, "run", "--select", "share_measurement", check=False).returncode == 0
+    assert run_dbt(DSN, "test", "--select", "deid_privacy", check=False).returncode == 0
 
 
 def test_no_key_fails_clearly(omop):

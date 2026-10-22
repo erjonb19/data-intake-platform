@@ -127,8 +127,13 @@ resource "kubernetes_stateful_set_v1" "postgres" {
 }
 
 # Roles added after a cluster was first created never reach it through the init script
-# (it runs only on a fresh volume), so this Job applies them on every apply, idempotently.
-# The name carries the SQL's hash: changing the SQL runs a new Job.
+# (it runs only on a fresh volume), so this Job applies them on every apply, idempotently:
+# terraform_data.every_apply changes on each apply, which replaces (reruns) the Job. That
+# also restores a role someone dropped by hand. Plans therefore always show this Job.
+resource "terraform_data" "every_apply" {
+  triggers_replace = timestamp()
+}
+
 resource "kubernetes_config_map_v1" "postgres_roles" {
   metadata {
     name      = "postgres-roles"
@@ -141,7 +146,7 @@ resource "kubernetes_config_map_v1" "postgres_roles" {
 
 resource "kubernetes_job_v1" "postgres_roles" {
   metadata {
-    name      = "postgres-roles-${substr(sha256(file("${path.module}/files/postgres-roles.sql")), 0, 8)}"
+    name      = "postgres-roles"
     namespace = kubernetes_namespace_v1.data.metadata[0].name
   }
   spec {
@@ -191,6 +196,9 @@ resource "kubernetes_job_v1" "postgres_roles" {
     create = "5m"
   }
   depends_on = [kubernetes_stateful_set_v1.postgres]
+  lifecycle {
+    replace_triggered_by = [terraform_data.every_apply, kubernetes_config_map_v1.postgres_roles]
+  }
 }
 
 resource "kubernetes_service_v1" "postgres" {

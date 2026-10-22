@@ -2,8 +2,11 @@
 {{ config(materialized='table', enabled=true) }}
 
 -- Source code -> OMOP source concept and standard concept, via "Maps to".
--- One row per (vocabulary_id, concept_code); if a code maps to several standard concepts,
--- the lowest concept_id wins so the result is deterministic.
+-- One row per (vocabulary_id, concept_code). If a code maps to several standard concepts,
+-- the lowest standard concept_id wins, and the other targets are not used: OMOP would
+-- write one row per target, which this build does not do yet (docs/research/vocabulary.md
+-- counts the rows affected). Every sort below ends on a unique key, so the choice is
+-- deterministic: the same vocabulary always gives the same mapping.
 with from_vocabulary as (
     select distinct on (src.vocabulary_id, src.concept_code)
         src.vocabulary_id,
@@ -24,7 +27,7 @@ with from_vocabulary as (
         and std.invalid_reason is null
     order by
         src.vocabulary_id, src.concept_code,
-        std.concept_id is null, src.invalid_reason is not null, std.concept_id
+        std.concept_id is null, src.invalid_reason is not null, std.concept_id, src.concept_id
 ),
 
 -- Local codes (no concept of their own, so source_concept_id 0) mapped by a
@@ -52,7 +55,13 @@ from_map as (
         and std.standard_concept = 'S'
         and std.invalid_reason is null
     where m.invalid_reason is null
-    order by m.source_vocabulary_id, m.source_code, std.concept_id is null, std.concept_id
+    -- Lowest resulting standard concept first (a standard target is its own result), then
+    -- the lowest target id, so two map rows for one code always resolve the same way.
+    order by
+        m.source_vocabulary_id, m.source_code,
+        coalesce(std.concept_id, case when t.standard_concept = 'S' then t.concept_id end) is null,
+        coalesce(std.concept_id, case when t.standard_concept = 'S' then t.concept_id end),
+        t.concept_id
 )
 
 select * from from_vocabulary
