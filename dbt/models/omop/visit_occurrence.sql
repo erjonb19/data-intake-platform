@@ -1,7 +1,10 @@
+-- One row per encounter that is a visit (ICU stays are visit_detail in OMOP; not built).
+-- visit_concept_id comes from staging: AMB 9202 outpatient, EMER 9203 ER, IMP/ACUTE 9201
+-- inpatient, MIMIC hospital encounters 9201 and MIMIC ED encounters 9203; others 0.
 select
     {{ omop_id('v.encounter_id') }} as visit_occurrence_id,
     {{ omop_id('v.patient_id') }} as person_id,
-    coalesce(m.concept_id, 0) as visit_concept_id,
+    v.visit_concept_id,
     v.start_at::date as visit_start_date,
     v.start_at as visit_start_datetime,
     coalesce(v.end_at, v.start_at)::date as visit_end_date,
@@ -16,6 +19,5 @@ select
     0 as discharged_to_concept_id,
     null::varchar(50) as discharged_to_source_value,
     null::bigint as preceding_visit_occurrence_id
-from {{ ref('fhir_encounter') }} as v
-left join {{ ref('fhir_concept_map') }} as m
-    on m.source_kind = 'encounter_class' and m.source_code = v.class_code
+from {{ ref('stg_encounter') }} as v
+where v.is_visit

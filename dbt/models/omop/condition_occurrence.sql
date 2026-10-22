@@ -13,13 +13,14 @@ select
     0 as condition_status_concept_id,
     null::varchar(20) as stop_reason,
     null::bigint as provider_id,
-    case when c.encounter_id is not null then {{ omop_id('c.encounter_id') }} end
+    case when ve.visit_encounter_id is not null then {{ omop_id('ve.visit_encounter_id') }} end
         as visit_occurrence_id,
     null::bigint as visit_detail_id,
     c.source_code::varchar(50) as condition_source_value,
     coalesce(s.source_concept_id, 0) as condition_source_concept_id,
     c.clinical_status::varchar(50) as condition_status_source_value
-from {{ ref('fhir_condition') }} as c
+from {{ ref('stg_condition') }} as c
+left join {{ ref('stg_encounter') }} as ve on ve.encounter_id = c.encounter_id
 left join {{ ref('source_to_standard') }} as s
     on s.vocabulary_id = c.source_vocabulary_id and s.concept_code = c.source_code
 where coalesce(s.standard_domain_id, 'Condition') = 'Condition'

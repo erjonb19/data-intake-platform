@@ -25,6 +25,23 @@
     )
 {%- endmacro %}
 
+{# The coding to use from a CodeableConcept: the first one whose system is in `systems`
+   (in that order of preference), else the first coding. Returns the coding as jsonb. #}
+{% macro fhir_pick_coding(concept, systems) -%}
+    (
+        select c
+        from jsonb_array_elements(coalesce({{ concept }} -> 'coding', '[]'::jsonb))
+            with ordinality as t (c, n)
+        order by
+            case c ->> 'system'
+                {%- for s in systems %} when '{{ s }}' then {{ loop.index }}{% endfor %}
+                else 999
+            end,
+            n
+        limit 1
+    )
+{%- endmacro %}
+
 {# US Core race/ethnicity extension -> OMB category code. #}
 {% macro us_core_omb(resource, kind) -%}
     (

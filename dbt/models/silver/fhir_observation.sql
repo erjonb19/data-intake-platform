@@ -1,5 +1,6 @@
 -- One row per observed value: the Observation's own value (component_index 0), plus one
 -- row per component (for example systolic and diastolic in a blood pressure panel).
+-- The code is LOINC when present (Synthea), else the source's own code (MIMIC lab items).
 with obs as (
     select *
     from {{ ref('fhir_resource_current') }}
@@ -34,6 +35,13 @@ components as (
     from obs,
         jsonb_array_elements(obs.resource -> 'component') with ordinality as c (component, ordinality)
     where jsonb_typeof(obs.resource -> 'component') = 'array'
+),
+
+picked as (
+    select
+        v.*,
+        {{ fhir_pick_coding('v.code', ['http://loinc.org']) }} as coding
+    from (select * from own_value union all select * from components) as v
 )
 
 select
@@ -43,11 +51,12 @@ select
     {{ fhir_ref_id("resource -> 'encounter' ->> 'reference'") }} as encounter_id,
     resource -> 'category' -> 0 -> 'coding' -> 0 ->> 'code' as category,
     resource ->> 'status' as status,
-    {{ fhir_code('code', 'http://loinc.org') }} as loinc_code,
-    {{ fhir_code('code', 'http://loinc.org', 'display') }} as display,
+    coding ->> 'code' as source_code,
+    {{ fhir_system_to_vocabulary("coding ->> 'system'") }} as source_vocabulary_id,
+    coalesce(coding ->> 'display', code ->> 'text') as display,
     {{ fhir_ts("resource ->> 'effectiveDateTime'") }} as effective_at,
     (value_quantity ->> 'value')::numeric as value_number,
     coalesce(value_quantity ->> 'code', value_quantity ->> 'unit') as unit_code,
     {{ fhir_code('value_concept', 'http://snomed.info/sct') }} as value_snomed_code,
     value_string
-from (select * from own_value union all select * from components) as v
+from picked

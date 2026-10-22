@@ -87,8 +87,13 @@ def _reference_target(resource: dict[str, Any], ref_field: str) -> str | None:
 
 
 def _check_resource(
-    res: Resource, rules: dict[str, Any], received_at: datetime
+    res: Resource,
+    rules: dict[str, Any],
+    received_at: datetime,
+    window: tuple[datetime, datetime] | None = None,
 ) -> Violation | None:
+    """`window`: for sources whose dates are deliberately shifted (MIMIC moves every
+    patient into 2100-2200), dates must fall inside it instead of not after arrival."""
     rt, body = res.resource_type, res.body
 
     def v(code: str, detail: str) -> Violation:
@@ -121,7 +126,10 @@ def _check_resource(
         parsed = parse_fhir_datetime(raw)
         if parsed is None:
             return v(f"FHIR.INVALID_DATE:{rt}.{path}", f"{path}={raw!r} is not a FHIR date")
-        if parsed > received_at:
+        if window is not None:
+            if not window[0] <= parsed <= window[1]:
+                return v(f"FHIR.DATE_OUT_OF_WINDOW:{rt}.{path}", f"{path}={raw} outside {window}")
+        elif parsed > received_at:
             return v(f"FHIR.FUTURE_DATE:{rt}.{path}", f"{path}={raw} is after the file arrived")
     return None
 
@@ -167,10 +175,13 @@ def validate_bundle(data: bytes, contract: Contract, received_at: datetime) -> B
         return reject_file(f"FHIR.PATIENT_COUNT:{len(patients)}", "expected exactly one patient")
 
     rules = spec["resources"]
+    window = None
+    if dw := spec.get("date_window"):
+        window = (parse_fhir_datetime(str(dw["min"])), parse_fhir_datetime(str(dw["max"])))
     seen: set[tuple[str, str]] = set()
     passed: list[Resource] = []
     for res in candidates:
-        violation = _check_resource(res, rules.get(res.resource_type, {}), received_at)
+        violation = _check_resource(res, rules.get(res.resource_type, {}), received_at, window)
         key = (res.resource_type, res.resource_id)
         if violation is None and key in seen:
             violation = Violation(

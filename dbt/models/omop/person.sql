@@ -19,7 +19,7 @@ select
     0 as race_source_concept_id,
     p.ethnicity_code::varchar(50) as ethnicity_source_value,
     0 as ethnicity_source_concept_id
-from {{ ref('fhir_patient') }} as p
+from {{ ref('stg_patient') }} as p
 left join demo as g on g.source_kind = 'gender' and g.source_code = p.gender
 left join demo as r on r.source_kind = 'race' and r.source_code = p.race_code
 left join demo as e on e.source_kind = 'ethnicity' and e.source_code = p.ethnicity_code

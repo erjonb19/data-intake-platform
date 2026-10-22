@@ -15,7 +15,7 @@ with from_conditions as (
         null::text as value_snomed_code,
         null::text as unit_code,
         c.source_code
-    from {{ ref('fhir_condition') }} as c
+    from {{ ref('stg_condition') }} as c
     join {{ ref('source_to_standard') }} as s
         on s.vocabulary_id = c.source_vocabulary_id and s.concept_code = c.source_code
     where s.standard_domain_id = 'Observation'
@@ -33,10 +33,10 @@ from_observations as (
         o.value_string,
         o.value_snomed_code,
         o.unit_code,
-        o.loinc_code
-    from {{ ref('fhir_observation') }} as o
+        o.source_code
+    from {{ ref('stg_observation') }} as o
     join {{ ref('source_to_standard') }} as s
-        on s.vocabulary_id = 'LOINC' and s.concept_code = o.loinc_code
+        on s.vocabulary_id = o.source_vocabulary_id and s.concept_code = o.source_code
     where s.standard_domain_id = 'Observation'
 ),
 
@@ -59,7 +59,7 @@ select
     0 as qualifier_concept_id,
     coalesce(u.standard_concept_id, 0) as unit_concept_id,
     null::bigint as provider_id,
-    case when f.encounter_id is not null then {{ omop_id('f.encounter_id') }} end
+    case when ve.visit_encounter_id is not null then {{ omop_id('ve.visit_encounter_id') }} end
         as visit_occurrence_id,
     null::bigint as visit_detail_id,
     f.source_code::varchar(50) as observation_source_value,
@@ -71,6 +71,7 @@ select
     null::bigint as observation_event_id,
     0 as obs_event_field_concept_id
 from facts as f
+left join {{ ref('stg_encounter') }} as ve on ve.encounter_id = f.encounter_id
 left join {{ ref('source_to_standard') }} as u
     on u.vocabulary_id = 'UCUM' and u.concept_code = f.unit_code
 left join {{ ref('source_to_standard') }} as vs

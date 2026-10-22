@@ -129,3 +129,20 @@ class Warehouse:
         except Exception:
             self.conn.rollback()
             raise
+
+
+class DryRunWarehouse:
+    """Records outcomes in memory and writes nothing: for "what would happen" reports."""
+
+    def __init__(self):
+        self.intake: list[IntakeRecord] = []
+        self.quarantine: list[QuarantineRecord] = []
+        self.loaded: int = 0
+
+    def already_processed(self, feed: str, file_sha256: str) -> bool:
+        return any(i.feed == feed and i.file_sha256 == file_sha256 for i in self.intake)
+
+    def record_outcome(self, intake, quarantine, resources, patient_id, loaded_at) -> None:
+        self.intake.append(intake)
+        self.quarantine.extend(quarantine)
+        self.loaded += len(resources)
