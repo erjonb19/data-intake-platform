@@ -1,6 +1,6 @@
-"""File-feed intake: one DAG per CSV data contract, generated from the contracts (Stage 1).
+"""File-feed intake: one DAG per CSV or Excel data contract, generated from the contracts.
 
-For each contract with `format: csv` in DIP_CONTRACT_DIRS this defines a DAG
+For each contract with `format: csv` or `format: excel` in DIP_CONTRACT_DIRS this defines a DAG
 `intake__<pack>__<feed>`, for example `intake__healthcare__eligibility`. It takes every
 file in `landing/<feed>/`, keeps an immutable raw copy, validates it against the
 contract, and loads accepted rows into `bronze.csv_record` or quarantines the file or
@@ -79,5 +79,5 @@ def build(feed: str):
 
 
 for _contract in load_contracts().values():
-    if _contract.format_type == "csv":
+    if _contract.format_type in ("csv", "excel"):
         globals()[dag_id_for(_contract.feed)] = build(_contract.feed)

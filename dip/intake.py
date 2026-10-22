@@ -23,6 +23,7 @@ from pathlib import PurePosixPath
 from dip import BUCKET_LANDING, BUCKET_QUARANTINE, BUCKET_RAW
 from dip.contracts import Contract
 from dip.csvfeed import CsvResult, Row, validate_csv
+from dip.excelfeed import validate_excel
 from dip.fhir import BundleResult, Resource, Violation, validate_bundle
 from dip.storage import ObjectStore
 from dip.warehouse import IntakeRecord, QuarantineRecord, Warehouse
@@ -100,6 +101,8 @@ def process_file(
         result = validate_bundle(data, contract, received_at=now)
     elif contract.format_type == "csv":
         result = validate_csv(data, contract, received_at=now)
+    elif contract.format_type == "excel":
+        result = validate_excel(data, contract, received_at=now)
     else:
         raise NotImplementedError(f"format {contract.format_type!r} arrives in a later stage")
 

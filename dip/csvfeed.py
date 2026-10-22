@@ -102,7 +102,7 @@ def _allowed(col: dict[str, Any]) -> list[Any]:
 
 
 def check_contract(spec: dict[str, Any]) -> list[str]:
-    """Problems with a csv contract that the JSON Schema cannot express."""
+    """Problems with a csv or excel contract that the JSON Schema cannot express."""
     problems = []
     encoding = spec["format"].get("encoding", "utf-8")
     try:
@@ -220,6 +220,20 @@ def validate_csv(data: bytes, contract: Any, received_at: datetime | None = None
     # empty fields such as ",,,," is data and goes through the checks.
     result.skipped["blank_line"] = sum(1 for r in rows if not r)
     rows = [r for r in rows if r]
+    return check_rows(rows, spec, today, result)
+
+
+def check_rows(
+    rows: list[list[str]],
+    spec: dict[str, Any],
+    today: date,
+    result: CsvResult,
+    row_violations: dict[int, Violation] | None = None,
+) -> CsvResult:
+    """Header, row and file checks on rows of text, the first being the header. Shared by
+    the CSV and Excel readers, so both give the same reason codes for the same problems.
+    `row_violations` are rows (1-based) the reader already found bad, such as Excel error
+    cells; they count like any other bad row."""
     if not rows:
         result.file_violations.append(Violation("FILE.EMPTY", "no header row"))
         return result
@@ -239,8 +253,8 @@ def validate_csv(data: bytes, contract: Any, received_at: datetime | None = None
             checked.append((row, Violation("ROW.FIELD_COUNT", detail)))
             continue
         row = Row(n, dict(zip(header, values, strict=True)))
-        violation = None
-        for col in columns:
+        violation = (row_violations or {}).get(n)
+        for col in columns if violation is None else ():
             violation = _check_value(col, row.record[col["name"]], today)
             if violation:
                 break

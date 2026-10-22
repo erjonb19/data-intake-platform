@@ -41,7 +41,9 @@
         "delimiter": {"type": "string", "minLength": 1, "maxLength": 1},
         "encoding": {"type": "string"},
         "header": {"const": true},
-        "quotechar": {"type": "string", "minLength": 1, "maxLength": 1}
+        "quotechar": {"type": "string", "minLength": 1, "maxLength": 1},
+        "sheet": {"type": "string", "minLength": 1},
+        "header_row": {"type": "integer", "minimum": 1}
       }
     },
     "expected_arrival": {

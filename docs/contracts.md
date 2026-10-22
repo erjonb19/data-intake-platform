@@ -1,7 +1,7 @@
-# Data contracts: CSV feeds
+# Data contracts: CSV and Excel feeds
 
 Every file feed has a YAML contract in its pack (`packs/<pack>/contracts/*.yaml`), checked
-against `dip/contract.schema.json` when it loads. This page covers `format: csv` (Stage 1);
+against `dip/contract.schema.json` when it loads. This page covers `format: csv` (Stage 1) and `format: excel` (Stage 2);
 FHIR bundles are covered in [research/README.md](research/README.md).
 
 Example: [`packs/healthcare/contracts/eligibility.yaml`](../packs/healthcare/contracts/eligibility.yaml).
@@ -23,6 +23,24 @@ Columns may come in any order; their names must match exactly after trimming sur
 whitespace. Contract mistakes that the JSON Schema can't express (a regex that doesn't
 compile, an unknown encoding, a `min`, `max` or `allowed` value of the wrong type) fail when
 the contract loads, not when a file arrives.
+
+## Excel (`format: excel`, Stage 2)
+
+An `.xlsx` workbook is one sheet of rows with the same `columns`, rules and reason codes
+as CSV: the reader (`dip/excelfeed.py`) turns cells into the text a CSV export would hold
+and then runs the CSV checks, so a problem gets the same code in either format.
+
+| Key | Meaning |
+|---|---|
+| `format.sheet` | the sheet to read, by name; without it, the first sheet. A missing sheet is `SCHEMA.MISSING_SHEET:<name>` |
+| `format.header_row` | the row holding the header (default 1). Rows above it (a title, a logo row) are ignored |
+
+Cells: an empty cell is `""`; whole numbers lose Excel's `.0` (`12`); dates are `YYYY-MM-DD`
+(a time of midnight is a date); booleans are `true`/`false`. A formula reads as its cached
+value; one never calculated by Excel has none and reads as empty, so `required` catches it.
+Trailing empty columns and fully empty rows are dropped (empty rows counted as blank lines).
+File codes added by Excel: `FILE.INVALID_XLSX` (not a readable workbook) and `FILE.MACROS`
+(the workbook contains a VBA project; refused whatever its name).
 
 ## Reason codes
 
