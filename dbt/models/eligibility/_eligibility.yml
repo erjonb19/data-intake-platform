@@ -1,0 +1,56 @@
+version: 2
+
+# Healthcare pack, Stage 1: the member eligibility feed (synthetic). Bronze is
+# bronze.csv_record, written by the intake after the contract checks. Tagged file_feed
+# and healthcare.eligibility: the feed's own DAG builds them; the FHIR DAG excludes them.
+models:
+  - name: eligibility_record
+    description: >
+      silver.eligibility_record: one row per accepted row of every eligibility file
+      received, typed. Keyed by (file_sha256, row_number). file_date is the business date
+      in the file name (elig_YYYYMMDD.csv, validated at intake), else the UTC date
+      received; for content delivered more than once, that of its latest delivery.
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [file_sha256, row_number]}
+    columns:
+      - name: file_sha256
+        data_tests: [not_null]
+      - name: member_id
+        data_tests: [not_null]
+      - name: file_date
+        data_tests: [not_null]
+
+  - name: member_eligibility
+    description: >
+      gold.member_eligibility: one row per member ever listed, from the newest file
+      (by file_date, then received_at) that lists them. in_latest_file says whether the
+      newest accepted file lists the member: the feed sends full files, so current members
+      are the rows with in_latest_file = true. patient_ref links to the clinical record
+      (OMOP person_source_value for Synthea patients).
+    columns:
+      - name: member_id
+        description: Payer member id (contract pattern ^M[0-9]{9}$)
+        data_tests: [unique, not_null]
+      - name: plan_code
+        data_tests:
+          - accepted_values:
+              arguments: {values: [HMO, PPO, EPO, HDHP]}
+      - name: sex
+        data_tests:
+          - accepted_values:
+              arguments: {values: [F, M, U]}
+      - name: coverage_start
+        data_tests:
+          - not_null
+          # A warning, not an error: the contract does not check it yet, so one bad vendor
+          # row would otherwise fail every build until a newer file replaced it.
+          - dqd_plausible_start_before_end:
+              arguments: {end_column: coverage_end}
+              config:
+                severity: warn
+                meta: {dq_category: plausibility, dqd_check: plausibleStartBeforeEnd}
+      - name: dob
+        data_tests: [not_null]
+      - name: in_latest_file
+        data_tests: [not_null]

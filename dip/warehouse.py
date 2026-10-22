@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any
 
@@ -31,6 +31,7 @@ class IntakeRecord:
     rejected_count: int
     skipped_count: int
     received_at: datetime
+    file_date: date | None = None  # the validated business date in the file name
 
 
 @dataclass(frozen=True)
@@ -116,23 +117,7 @@ class Warehouse:
                             for r in resources
                         ],
                     )
-                if quarantine:
-                    cur.executemany(
-                        "insert into ops.quarantine (feed, file_sha256, level, reason_code,"
-                        " detail, record_ref, quarantine_key) values (%s, %s, %s, %s, %s, %s, %s)",
-                        [
-                            (
-                                q.feed,
-                                q.file_sha256,
-                                q.level,
-                                q.reason_code,
-                                q.detail,
-                                q.record_ref,
-                                q.quarantine_key,
-                            )
-                            for q in quarantine
-                        ],
-                    )
+                _insert_quarantine(cur, quarantine)
                 cur.execute(
                     "insert into ops.intake_file (file_sha256, feed, contract_version, source_key,"
                     " raw_key, status, accepted_count, rejected_count, skipped_count, received_at)"
@@ -150,10 +135,61 @@ class Warehouse:
                         intake.received_at,
                     ),
                 )
+                _insert_delivery(cur, intake)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
             raise
+
+    def record_delivery(self, intake: IntakeRecord) -> bool:
+        """Record another delivery of content already processed; False if already known."""
+        try:
+            with self.conn.cursor() as cur:
+                inserted = _insert_delivery(cur, intake)
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+        return inserted
+
+    def record_quarantine(self, quarantine: list[QuarantineRecord]) -> None:
+        try:
+            with self.conn.cursor() as cur:
+                _insert_quarantine(cur, quarantine)
+            self.conn.commit()
+        except Exception:
+            self.conn.rollback()
+            raise
+
+
+def _insert_delivery(cur: Any, intake: IntakeRecord) -> bool:
+    cur.execute(
+        "insert into ops.intake_delivery (feed, file_sha256, source_key, file_date, received_at)"
+        " values (%s, %s, %s, %s, %s) on conflict do nothing",
+        (intake.feed, intake.file_sha256, intake.source_key, intake.file_date, intake.received_at),
+    )
+    return cur.rowcount == 1
+
+
+def _insert_quarantine(cur: Any, quarantine: list[QuarantineRecord]) -> None:
+    if not quarantine:
+        return
+    cur.executemany(
+        "insert into ops.quarantine (feed, file_sha256, level, reason_code,"
+        " detail, record_ref, quarantine_key) values (%s, %s, %s, %s, %s, %s, %s)",
+        [
+            (
+                q.feed,
+                q.file_sha256,
+                q.level,
+                q.reason_code,
+                q.detail,
+                q.record_ref,
+                q.quarantine_key,
+            )
+            for q in quarantine
+        ],
+    )
 
 
 class DryRunWarehouse:
@@ -161,6 +197,7 @@ class DryRunWarehouse:
 
     def __init__(self):
         self.intake: list[IntakeRecord] = []
+        self.deliveries: set[tuple[str, str, str]] = set()
         self.quarantine: list[QuarantineRecord] = []
         self.loaded: int = 0
 
@@ -173,3 +210,14 @@ class DryRunWarehouse:
         self.intake.append(intake)
         self.quarantine.extend(quarantine)
         self.loaded += len(resources) + len(csv_rows)
+        self.deliveries.add((intake.feed, intake.file_sha256, intake.source_key))
+
+    def record_delivery(self, intake) -> bool:
+        key = (intake.feed, intake.file_sha256, intake.source_key)
+        if key in self.deliveries:
+            return False
+        self.deliveries.add(key)
+        return True
+
+    def record_quarantine(self, quarantine) -> None:
+        self.quarantine.extend(quarantine)

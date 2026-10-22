@@ -7,7 +7,17 @@ description: >
   Daily full eligibility file: every enrolled member with their plan and coverage dates.
   All data is synthetic.
 classification: restricted
-source: { channels: [minio], filename_pattern: "elig_*.csv" }
+source:
+  channels: [minio]
+  filename_pattern: "elig_*.csv"
+  # The business date in the name (elig_YYYYMMDD.csv). It must be a real date, not after
+  # the day the file was received, and at most 7 days before it; otherwise the file is
+  # quarantined (FILE.NAME_DATE). A name with no digits takes the date it was received.
+  filename_date:
+    regex: "^elig_([0-9]+)"
+    format: "%Y%m%d"
+    max_days_before_received: 7
+    max_days_after_received: 0
 format: { type: csv, delimiter: ",", encoding: utf-8, header: true }
 expected_arrival: { cron: "0 6 * * *", grace: 2h }
 on_row_violation: quarantine_row

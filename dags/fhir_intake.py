@@ -19,10 +19,9 @@ FEED = "healthcare.fhir_patient_bundle"
 
 
 def _dsn(hook: PostgresHook) -> str:
-    from urllib.parse import quote
+    from dip.dbt_runner import connection_dsn
 
-    c = hook.get_connection("warehouse")
-    return f"postgresql://{quote(c.login)}:{quote(c.password)}@{c.host}:{c.port or 5432}/{c.schema}"
+    return connection_dsn(hook.get_connection("warehouse"))
 
 
 @dag(
@@ -77,7 +76,9 @@ def fhir_intake():
         fingerprint = install_key(conn, os.environ.get("DIP_DEID_KEY"))
         print(f"de-identification key fingerprint: {fingerprint}")
         print(f"intake summary: {intake_summary}")
-        run_dbt(dsn, "build")
+        # Everything but the file-feed models: each file feed's own DAG builds those, so two
+        # DAGs never rebuild the same table at once and one feed's checks can't fail another.
+        run_dbt(dsn, "build", "--exclude", "tag:file_feed")
 
     transform(intake())
 

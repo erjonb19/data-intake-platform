@@ -6,9 +6,19 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from typing import Any
+from urllib.parse import quote, unquote, urlsplit
 
 DBT_DIR = Path(os.environ.get("DIP_DBT_DIR", Path(__file__).resolve().parent.parent / "dbt"))
+
+
+def connection_dsn(conn: Any) -> str:
+    """A postgresql:// DSN from an Airflow Connection (login, password, host, port, schema).
+    Every part is quoted with no safe characters, so a password with "/" or "@" survives."""
+    return (
+        f"postgresql://{quote(conn.login, safe='')}:{quote(conn.password, safe='')}"
+        f"@{conn.host}:{conn.port or 5432}/{quote(conn.schema, safe='')}"
+    )
 
 
 def dbt_env(dsn: str) -> dict[str, str]:

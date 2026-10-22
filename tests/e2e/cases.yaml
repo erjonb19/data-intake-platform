@@ -1,0 +1,31 @@
+# End-to-end cases (PLAN.md section 6), run by tests/e2e/run.py against the live stack.
+# Each stage adds rows. Every fixture is hand-written and invented (tests/fixtures/).
+#
+#   fixture    file under tests/fixtures/, dropped into landing/<feed>/
+#   status     expected ops.intake_file status
+#   reasons    expected set of ops.quarantine reason codes for the file
+#   gold_rows  how many of the file's rows must reach gold (0: the file is quarantined
+#              whole, and nothing of it may be in bronze, silver or gold)
+#   exclude_rows  data rows (1-based) expected in quarantine, left out of the checksum
+feeds:
+  healthcare.eligibility:
+    gold_table: gold.member_eligibility
+    silver_table: silver.eligibility_record
+    # Gold rows are compared with the fixture on every contract column (an md5 over the
+    # sorted rows), so a mapping or cast bug in any column fails the case.
+    checksum_columns: [member_id, first_name, last_name, dob, sex, plan_code, coverage_start,
+                       coverage_end, patient_ref]
+    cases:
+      - fixture: eligibility/good/elig_good.csv
+        status: loaded
+        reasons: []
+        gold_rows: 6
+      - fixture: eligibility/bad/elig_missing_member_id.csv
+        status: quarantined
+        reasons: ["SCHEMA.MISSING_COLUMN:member_id"]
+        gold_rows: 0
+      - fixture: eligibility/bad/elig_bad_rows.csv
+        status: loaded_with_rejections
+        reasons: ["VALUE.NOT_ALLOWED:plan_code"]
+        gold_rows: 19
+        exclude_rows: [7]   # the row with plan_code GOLD

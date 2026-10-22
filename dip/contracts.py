@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass
+from datetime import date, datetime
 from fnmatch import fnmatch
 from functools import cache
 from pathlib import Path
@@ -49,6 +51,44 @@ class Contract:
     def matches_filename(self, filename: str) -> bool:
         return fnmatch(filename, self.spec["source"]["filename_pattern"])
 
+    def filename_date(self, filename: str, received: date) -> tuple[date | None, str | None]:
+        """The business date in a file's name, or the problem with it.
+
+        Returns (None, None) when the contract declares no `source.filename_date` or the
+        name carries no date (the file then takes the date it was received). A name whose
+        date is not a real date, is after the received date, or is too far before it,
+        returns the problem, and the intake quarantines the file (FILE.NAME_DATE).
+        """
+        rule = self.spec["source"].get("filename_date")
+        if not rule:
+            return None, None
+        m = re.search(rule["regex"], filename)
+        if not m:
+            return None, None
+        text = m.group(1)
+        try:
+            day = datetime.strptime(text, rule["format"]).date()
+        except ValueError:
+            day = None
+        # strptime accepts short fields ("2026102" as 2026-10-2): the text must round-trip.
+        if day is None or day.strftime(rule["format"]) != text:
+            return None, f"{text!r} in {filename!r} is not a real {rule['format']} date"
+        after = rule.get("max_days_after_received", 0)
+        before = rule.get("max_days_before_received", 7)
+        if (day - received).days > after:
+            return None, f"{day} is after the received date {received} (max {after} days)"
+        if (received - day).days > before:
+            return None, (
+                f"{day} is {(received - day).days} days before the received date"
+                f" {received} (max {before})"
+            )
+        return day, None
+
+
+def dag_id_for(feed: str) -> str:
+    """The intake DAG of a file feed: healthcare.eligibility -> intake__healthcare__eligibility."""
+    return "intake__" + feed.replace(".", "__")
+
 
 @cache
 def _schema() -> dict[str, Any]:
@@ -63,6 +103,15 @@ def load_contract(path: str | Path) -> Contract:
     except jsonschema.ValidationError as exc:
         where = "/".join(str(p) for p in exc.absolute_path) or "<root>"
         raise ContractError(f"{path.name}: {where}: {exc.message}") from exc
+    if rule := spec["source"].get("filename_date"):
+        try:
+            groups = re.compile(rule["regex"]).groups
+        except re.error as exc:
+            raise ContractError(f"{path.name}: source/filename_date/regex: {exc}") from exc
+        if groups != 1:
+            raise ContractError(
+                f"{path.name}: source/filename_date/regex needs exactly one group, has {groups}"
+            )
     if spec["format"]["type"] == "csv":
         from dip.csvfeed import check_contract
 

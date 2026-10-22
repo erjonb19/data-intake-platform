@@ -2,8 +2,14 @@
 
 Files arrive at `landing/<feed>/<filename>`. The raw copy is written to
 `raw/<feed>/<received date>/<sha256><ext>` before anything else and is never changed, so
-any run can be replayed. A file that was already processed (same feed and sha256) is
-skipped, which makes reruns safe.
+any run can be replayed. Content that was already processed (same feed and sha256) is
+not loaded again, which makes reruns safe. If it comes back under a new name (a full-file
+feed resending identical content as a newer dated file), that is recorded as a new
+delivery, so the newer business date still counts (ops.intake_delivery).
+
+A contract can declare a business date in the file name (`source.filename_date`); a name
+whose date is not a real date, is in the future, or is too far before the received date is
+quarantined with FILE.NAME_DATE.
 """
 
 from __future__ import annotations
@@ -11,7 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import PurePosixPath
 
 from dip import BUCKET_LANDING, BUCKET_QUARANTINE, BUCKET_RAW
@@ -26,7 +32,7 @@ from dip.warehouse import IntakeRecord, QuarantineRecord, Warehouse
 class Outcome:
     source_key: str
     file_sha256: str
-    status: str  # loaded | loaded_with_rejections | quarantined | duplicate
+    status: str  # loaded | loaded_with_rejections | quarantined | duplicate | redelivered
     accepted: int = 0
     rejected: int = 0
     reason_codes: tuple[str, ...] = ()
@@ -56,17 +62,41 @@ def process_file(
     day = now.strftime("%Y-%m-%d")
     raw_key = f"{contract.feed}/{day}/{sha}{ext}"
 
-    if warehouse.already_processed(contract.feed, sha):
-        store.delete(BUCKET_LANDING, landing_key)
-        return Outcome(landing_key, sha, "duplicate", raw_key=raw_key)
-
     if not store.exists(BUCKET_RAW, raw_key):
         store.put(BUCKET_RAW, raw_key, data)
 
-    if not contract.matches_filename(filename):
+    file_date, name_problems = _check_name(filename, contract, now)
+    if name_problems:
+        # Checked before the duplicate check and not recorded in ops.intake_file: the
+        # content was never validated, so the same bytes under a correct name still load.
+        qkey = f"{contract.feed}/{day}/{sha}.{_slug(filename)}{ext}"
         result = BundleResult()
-        result.file_violations.append(_name_violation(filename, contract))
-    elif contract.format_type == "fhir_bundle":
+        result.file_violations.extend(name_problems)
+        store.put(BUCKET_QUARANTINE, qkey, data)
+        store.put(BUCKET_QUARANTINE, f"{qkey}.reason.json", _reason_doc(result, landing_key))
+        warehouse.record_quarantine(
+            [
+                QuarantineRecord(contract.feed, sha, "file", v.reason_code, v.detail, None, qkey)
+                for v in name_problems
+            ]
+        )
+        store.delete(BUCKET_LANDING, landing_key)
+        return Outcome(
+            landing_key,
+            sha,
+            "quarantined",
+            reason_codes=tuple(sorted({v.reason_code for v in name_problems})),
+            raw_key=raw_key,
+            quarantine_keys=(qkey,),
+        )
+
+    if warehouse.already_processed(contract.feed, sha):
+        delivery = _intake_record(contract, sha, landing_key, raw_key, "", now, file_date)
+        new = warehouse.record_delivery(delivery)
+        store.delete(BUCKET_LANDING, landing_key)
+        return Outcome(landing_key, sha, "redelivered" if new else "duplicate", raw_key=raw_key)
+
+    if contract.format_type == "fhir_bundle":
         result = validate_bundle(data, contract, received_at=now)
     elif contract.format_type == "csv":
         result = validate_csv(data, contract, received_at=now)
@@ -108,17 +138,17 @@ def process_file(
 
     csv_mode = isinstance(result, CsvResult)
     warehouse.record_outcome(
-        IntakeRecord(
-            file_sha256=sha,
-            feed=contract.feed,
-            contract_version=contract.version,
-            source_key=landing_key,
-            raw_key=raw_key,
-            status=status,
-            accepted_count=len(result.accepted),
-            rejected_count=len(result.rejected),
-            skipped_count=sum(result.skipped.values()),
-            received_at=now,
+        _intake_record(
+            contract,
+            sha,
+            landing_key,
+            raw_key,
+            status,
+            now,
+            file_date,
+            accepted=len(result.accepted),
+            rejected=len(result.rejected),
+            skipped=sum(result.skipped.values()),
         ),
         quarantine,
         [] if csv_mode else result.accepted,
@@ -167,9 +197,46 @@ def _record_ref(r: Row | Resource) -> str:
     return f"{r.resource_type}/{r.resource_id}#entry={r.entry_index}"
 
 
-def _name_violation(filename: str, contract: Contract) -> Violation:
-    pattern = contract.spec["source"]["filename_pattern"]
-    return Violation("FILE.NAME_PATTERN", f"{filename!r} does not match {pattern!r}")
+def _check_name(
+    filename: str, contract: Contract, now: datetime
+) -> tuple[date | None, list[Violation]]:
+    """The file name's business date, and its violations (pattern, then date)."""
+    if not contract.matches_filename(filename):
+        pattern = contract.spec["source"]["filename_pattern"]
+        return None, [Violation("FILE.NAME_PATTERN", f"{filename!r} does not match {pattern!r}")]
+    file_date, problem = contract.filename_date(filename, now.astimezone(UTC).date())
+    return file_date, [Violation("FILE.NAME_DATE", problem)] if problem else []
+
+
+def _slug(filename: str) -> str:
+    return "".join(c if c.isalnum() or c in "-_" else "_" for c in PurePosixPath(filename).stem)
+
+
+def _intake_record(
+    contract: Contract,
+    sha: str,
+    landing_key: str,
+    raw_key: str,
+    status: str,
+    now: datetime,
+    file_date: date | None,
+    accepted: int = 0,
+    rejected: int = 0,
+    skipped: int = 0,
+) -> IntakeRecord:
+    return IntakeRecord(
+        file_sha256=sha,
+        feed=contract.feed,
+        contract_version=contract.version,
+        source_key=landing_key,
+        raw_key=raw_key,
+        status=status,
+        accepted_count=accepted,
+        rejected_count=rejected,
+        skipped_count=skipped,
+        received_at=now,
+        file_date=file_date,
+    )
 
 
 def _reason_doc(result: BundleResult | CsvResult, landing_key: str) -> bytes:

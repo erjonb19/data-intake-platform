@@ -11,6 +11,7 @@ Example: [`packs/healthcare/contracts/eligibility.yaml`](../packs/healthcare/con
 | Key | Meaning |
 |---|---|
 | `source.filename_pattern` | glob the landed file name must match, otherwise `FILE.NAME_PATTERN` |
+| `source.filename_date` | the business date in the name: `regex` (one group), `format` (`strptime`, e.g. `%Y%m%d`), `max_days_before_received` (default 7), `max_days_after_received` (default 0). A name whose date is not a real date (the digits must round-trip exactly), is after the received UTC date, or is too far before it is `FILE.NAME_DATE`. A name with no match takes the date it was received |
 | `format` | `delimiter` (default `,`), `encoding` (default `utf-8`), `quotechar`, `header: true` |
 | `columns[]` | `name`, `type` (`string`, `integer`, `decimal`, `date` as `YYYY-MM-DD`, `boolean`), `required`, `unique` (empty values are not keys), `pattern` (full match), `allowed` (values of the column's type), `min`/`max` for integer, decimal and date columns (`today` = the UTC date the file was received), `description`, `phi` (descriptive metadata for now: nothing enforces it yet; it is meant for the de-identification and masking steps later) |
 | `allow_extra_columns` | default `false`: a column not in the contract is schema drift |
@@ -30,6 +31,7 @@ the contract loads, not when a file arrives.
 | Code | When |
 |---|---|
 | `FILE.NAME_PATTERN` | file name does not match `filename_pattern` |
+| `FILE.NAME_DATE` | the date in the name fails `filename_date` (not a real date, in the future, or too old) |
 | `FILE.ENCODING` | bytes are not valid in the contract's encoding |
 | `FILE.PARSE_ERROR` | not parseable as delimited text (e.g. an unterminated quote) |
 | `FILE.EMPTY` | no header row |
@@ -39,6 +41,9 @@ the contract loads, not when a file arrives.
 | `FILE.TOO_FEW_ROWS` | fewer data rows than `min_rows` |
 | `FILE.ROW_VIOLATIONS` | `reject_file` and at least one bad row |
 | `FILE.BAD_ROW_RATIO` | `quarantine_row` and the bad-row share is above `max_bad_row_ratio` |
+
+A file quarantined for its name is not recorded in `ops.intake_file`: its content was never
+checked, so the same bytes under a correct name still load.
 
 When a file is rejected for its rows (`FILE.ROW_VIOLATIONS`, `FILE.BAD_ROW_RATIO`), each
 bad row's reason is still recorded: in `ops.quarantine` (level `record`) and in the file's
@@ -60,9 +65,21 @@ empty fields (`,,,,`) is checked like any other row; only truly blank lines are 
 - Accepted rows: `bronze.csv_record` (feed, file sha256, row number, and the values as a
   jsonb object of strings, trimmed of surrounding whitespace and otherwise as received).
   Generic across feeds; each pack's silver models type their own feed.
-- Bookkeeping: `ops.intake_file` (one row per file) and `ops.quarantine` (one row per file
-  or row violation, `record_ref = row=<n>`).
-- Reruns: a file with the same sha256 for the same feed is skipped (`duplicate`).
+- Bookkeeping: `ops.intake_file` (one row per file content), `ops.intake_delivery` (one
+  row per content and file name, with the validated business date) and `ops.quarantine`
+  (one row per file or row violation, `record_ref = row=<n>`).
+- Reruns: content with the same sha256 for the same feed is never loaded twice. Under the
+  same name it is a `duplicate`. Under a new name it is `redelivered`: recorded as a new
+  delivery, so a full-file feed that resends yesterday's exact content as today's file
+  still has today's file as its latest.
+- Silver and gold: dbt models tagged with the feed name, built by the feed's DAG
+  (`dags/feed_intake.py` generates one per CSV contract: `intake__<pack>__<feed>`). For
+  eligibility: `silver.eligibility_record` (every accepted row, typed, with the file's
+  business date from its latest delivery) and `gold.member_eligibility`: one row per member ever
+  listed, from the newest file that lists them, ordered by business date so a late older
+  file never overrides newer data. The feed sends full files, so current members are the
+  rows with `in_latest_file`; a disenrolled member, or one whose newest row was
+  quarantined, keeps their last known row with `in_latest_file = false`.
 
 ## Healthcare eligibility (synthetic)
 
