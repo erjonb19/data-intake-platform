@@ -1,0 +1,61 @@
+version: 2
+
+# Shareable tier (R4): de-identified OMOP CDM, the only schema `dip_researcher` can read.
+# Built from the restricted `omop` schema with:
+#   - HMAC-SHA256 pseudonyms for every id (key in ops_secret, never in SQL text)
+#   - one date shift per person, 1-180 days either way, applied to every date, so
+#     intervals within a person's record are exact
+#   - year of birth only (from the shifted birth date); ages 90+ top-coded
+#   - no source identifiers and no free text
+# This shows the method on synthetic data. It is not a certified HIPAA Safe Harbor or
+# Expert Determination process.
+
+models:
+  - name: share_person
+    columns:
+      - name: person_id
+        data_tests: [unique, not_null]
+  - name: share_observation_period
+    columns:
+      - name: observation_period_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('share_person'), field: person_id}
+  - name: share_visit_occurrence
+    columns:
+      - name: visit_occurrence_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('share_person'), field: person_id}
+  - name: share_condition_occurrence
+    columns:
+      - name: condition_occurrence_id
+        data_tests: [unique, not_null]
+      - name: visit_occurrence_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('share_visit_occurrence'), field: visit_occurrence_id}
+  - name: share_measurement
+    columns:
+      - name: measurement_id
+        data_tests: [unique, not_null]
+      - name: visit_occurrence_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('share_visit_occurrence'), field: visit_occurrence_id}
+  - name: share_drug_exposure
+    columns:
+      - name: drug_exposure_id
+        data_tests: [unique, not_null]
+  - name: share_observation
+    columns:
+      - name: observation_id
+        data_tests: [unique, not_null]
+  - name: share_concept
+    columns:
+      - name: concept_id
+        data_tests: [unique]

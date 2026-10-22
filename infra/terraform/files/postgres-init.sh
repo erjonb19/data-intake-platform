@@ -6,6 +6,8 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname postgres <<SQL
 CREATE ROLE airflow   LOGIN PASSWORD '${AIRFLOW_DB_PASSWORD}';
 CREATE ROLE warehouse LOGIN PASSWORD '${WAREHOUSE_DB_PASSWORD}';
 CREATE ROLE marquez   LOGIN PASSWORD '${MARQUEZ_DB_PASSWORD}';
+-- Read-only group for researchers: dbt grants it the shareable tier and nothing else.
+CREATE ROLE dip_researcher NOLOGIN;
 
 CREATE DATABASE airflow   OWNER airflow;
 CREATE DATABASE warehouse OWNER warehouse;
@@ -18,4 +20,5 @@ CREATE SCHEMA IF NOT EXISTS bronze AUTHORIZATION warehouse;
 CREATE SCHEMA IF NOT EXISTS silver AUTHORIZATION warehouse;
 CREATE SCHEMA IF NOT EXISTS gold   AUTHORIZATION warehouse;
 CREATE SCHEMA IF NOT EXISTS ops    AUTHORIZATION warehouse;
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 SQL

@@ -15,6 +15,12 @@ clean-targets: [target]
 # Every test result of a run is recorded in ops.dq_results (macros/dq_results.sql).
 on-run-end:
   - "{{ store_dq_results(results) }}"
+  - "{{ grant_shareable_usage() }}"
+
+vars:
+  # De-identification reference date: ages are top-coded relative to it. Fixed (not
+  # current_date) so a rebuild of the same inputs gives the same extract (R5).
+  deid_reference_date: "2026-01-01"
 
 models:
   dip:
@@ -26,6 +32,16 @@ models:
       # source identifiers. The shareable tier (R4) is derived from it.
       +schema: omop
       +materialized: table
+    deid:
+      # Restricted: the person -> pseudonym and date-shift map. Never granted to anyone.
+      +schema: deid
+      +materialized: table
+    shareable:
+      # Shareable tier: de-identified OMOP. The only schema researchers can read.
+      +schema: omop_shareable
+      +materialized: table
+      +grants:
+        select: ["dip_researcher"]
 
 seeds:
   dip:

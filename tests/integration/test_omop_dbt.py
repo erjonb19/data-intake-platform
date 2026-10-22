@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -16,6 +16,7 @@ import pytest
 from dip import BUCKET_LANDING, vocab
 from dip.contracts import load_contracts
 from dip.dbt_runner import run_dbt
+from dip.deid import install_key
 from dip.intake import process_landing
 from dip.storage import LocalStore
 from tests.fixtures.fhir.make_fixtures import PATIENT, good_bundle
@@ -23,6 +24,8 @@ from tests.integration.conftest import DSN, rows, scalar
 
 FEED = "healthcare.fhir_patient_bundle"
 CACHE = Path(os.environ.get("DIP_CACHE_DIR", "data/cache"))
+# A fixed, public test key: fine for CI on synthetic data, never for a real deployment.
+TEST_DEID_KEY = "ci-test-key-0123456789abcdef0123456789abcdef"
 
 
 @pytest.fixture(scope="module")
@@ -36,6 +39,7 @@ def omop(module_warehouse, tmp_path_factory):
             store.put(BUCKET_LANDING, f"{FEED}/{f.name}", f.read_bytes())
     process_landing(store, warehouse, load_contracts(), datetime.now(UTC))
     vocab.load(warehouse.conn, vocab.fetch(CACHE))
+    install_key(warehouse.conn, TEST_DEID_KEY)
     result = run_dbt(DSN, "build", check=False)
     assert result.returncode == 0, "dbt build failed (models or tests); see output above"
     return warehouse
@@ -169,3 +173,112 @@ def test_dq_catches_implausible_hba1c(omop):
         with omop.conn.cursor() as cur:
             cur.execute("delete from omop.measurement where measurement_id = -1")
         omop.conn.commit()
+
+
+def _shift_and_pseudonym(wh):
+    return rows(
+        wh,
+        "select m.shift_days, m.pseudo_person_id from deid.deid_person_map m"
+        " join omop.person p using (person_id) where p.person_source_value = %s",
+        (PATIENT,),
+    )[0]
+
+
+def test_shareable_tier_shifts_dates_and_keeps_intervals(omop):
+    """R4: the fixture's HbA1c dates move by the person's shift; values and gaps do not."""
+    shift, pseudo = _shift_and_pseudonym(omop)
+    assert 1 <= abs(shift) <= 180
+    got = rows(
+        omop,
+        "select measurement_date, value_as_number from omop_shareable.measurement"
+        " where person_id = %s and measurement_concept_id = 3004410 order by 1",
+        (pseudo,),
+    )
+    real = [date(2018, 3, 2), date(2025, 2, 10), date(2025, 8, 18)]
+    assert [d for d, _ in got] == [d + timedelta(days=shift) for d in real]
+    assert [float(v) for _, v in got] == [7.9, 7.1, 6.8]
+    # Birth is a year only, from the shifted birth date; no source identifier.
+    assert rows(
+        omop,
+        "select year_of_birth, month_of_birth, person_source_value"
+        " from omop_shareable.person where person_id = %s",
+        (pseudo,),
+    ) == [((date(1961, 7, 14) + timedelta(days=shift)).year, None, None)]
+
+
+def test_pseudonyms_depend_on_the_key(omop):
+    """Same key -> same pseudonym on rebuild; a different key -> a different one."""
+    _, before = _shift_and_pseudonym(omop)
+    assert run_dbt(DSN, "run", "--select", "deid_person_map", check=False).returncode == 0
+    assert _shift_and_pseudonym(omop)[1] == before
+    install_key(omop.conn, "another-test-key-" + "x" * 32)
+    try:
+        assert run_dbt(DSN, "run", "--select", "deid_person_map", check=False).returncode == 0
+        assert _shift_and_pseudonym(omop)[1] != before
+    finally:
+        install_key(omop.conn, TEST_DEID_KEY)
+        assert run_dbt(DSN, "run", "--select", "deid_person_map", check=False).returncode == 0
+
+
+def test_researcher_role_reads_only_the_shareable_tier(omop):
+    """R4 governance: dip_researcher can read omop_shareable and nothing restricted."""
+    import psycopg
+
+    with psycopg.connect(DSN, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("set role dip_researcher")
+        cur.execute("select count(*) from omop_shareable.person")
+        assert cur.fetchone()[0] > 0
+        for table in (
+            "omop.person",
+            "deid.deid_person_map",
+            "ops_secret.deid_key",
+            "bronze.fhir_resource",
+            "silver.fhir_patient",
+            "ops.intake_file",
+            "vocab.concept",
+        ):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cur.execute(f"select 1 from {table} limit 1")
+        for statement in (
+            "insert into omop_shareable.person (person_id) values (-1)",
+            "update omop_shareable.person set year_of_birth = 1900",
+            "delete from omop_shareable.person",
+            "truncate omop_shareable.person",
+            "create table omop_shareable.scratch (x int)",
+            "create table public.scratch (x int)",
+            "create schema scratch",
+        ):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                cur.execute(statement)
+
+
+def test_deid_privacy_catches_an_unshifted_date(omop):
+    """R4 negative test: one shareable date not equal to restricted date + shift fails."""
+    with omop.conn.cursor() as cur:
+        cur.execute(
+            "update omop_shareable.measurement set measurement_date = measurement_date + 1"
+            " where measurement_id = (select min(measurement_id) from omop_shareable.measurement)"
+        )
+    omop.conn.commit()
+    try:
+        result = run_dbt(DSN, "test", "--select", "deid_privacy", check=False)
+        assert result.returncode != 0
+    finally:
+        assert run_dbt(DSN, "run", "--select", "share_measurement", check=False).returncode == 0
+    assert run_dbt(DSN, "test", "--select", "deid_privacy", check=False).returncode == 0
+
+
+def test_no_key_fails_clearly(omop):
+    with omop.conn.cursor() as cur:
+        cur.execute("delete from ops_secret.deid_key")
+    omop.conn.commit()
+    try:
+        result = run_dbt(DSN, "run", "--select", "deid_person_map", check=False)
+        assert result.returncode != 0
+    finally:
+        install_key(omop.conn, TEST_DEID_KEY)
+
+
+def test_install_key_rejects_short_keys(omop):
+    with pytest.raises(ValueError, match="at least 32"):
+        install_key(omop.conn, "short")

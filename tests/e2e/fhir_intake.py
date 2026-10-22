@@ -74,6 +74,16 @@ def main() -> int:
         n = cur.fetchone()[0]
         if n != 3:
             failures.append(f"expected 3 OMOP HbA1c measurements for the good patient, found {n}")
+        cur.execute(
+            "select count(*) from omop_shareable.measurement s"
+            " join deid.deid_person_map m on m.pseudo_person_id = s.person_id"
+            " join omop.person p on p.person_id = m.person_id"
+            " where p.person_source_value = %s and s.measurement_concept_id = 3004410",
+            (PATIENT,),
+        )
+        n = cur.fetchone()[0]
+        if n != 3:
+            failures.append(f"expected 3 de-identified HbA1c rows for the good patient, found {n}")
         cur.execute("select count(*) from bronze.fhir_resource where patient_id = %s", (PATIENT,))
         n = cur.fetchone()[0]
         if n != 9:

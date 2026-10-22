@@ -3,7 +3,8 @@
 Every file in `landing/healthcare.fhir_patient_bundle/` gets an immutable raw copy, is
 validated against the `fhir_bundle` data contract, and is either loaded into
 `bronze.fhir_resource` or quarantined with reason codes in `ops.quarantine`. Then dbt
-builds silver (flattened FHIR) and gold (OMOP CDM 5.4) and runs their tests.
+builds silver (flattened FHIR), gold (OMOP CDM 5.4, restricted) and the de-identified
+shareable tier, and runs their tests.
 All data on this feed is synthetic (Synthea).
 """
 
@@ -50,10 +51,12 @@ def fhir_intake():
 
     @task
     def transform(intake_summary: dict) -> None:
+        import os
         from urllib.parse import quote
 
         from dip import vocab
         from dip.dbt_runner import run_dbt
+        from dip.deid import install_key
 
         hook = PostgresHook(postgres_conn_id="warehouse")
         c = hook.get_connection("warehouse")
@@ -63,6 +66,9 @@ def fhir_intake():
         if vocab.needs_load(conn):
             concepts, maps_to = vocab.load(conn, vocab.fetch(vocab.CACHE_DIR))
             print(f"loaded vocabulary: {concepts} concepts, {maps_to} 'Maps to' rows")
+        # The key comes from the dip-deid Kubernetes Secret; only its fingerprint is logged.
+        fingerprint = install_key(conn, os.environ.get("DIP_DEID_KEY"))
+        print(f"de-identification key fingerprint: {fingerprint}")
         print(f"intake summary: {intake_summary}")
         run_dbt(dsn, "build")
 
