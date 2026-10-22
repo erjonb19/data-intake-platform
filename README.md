@@ -24,7 +24,7 @@ and [docs/contracts.md](docs/contracts.md). Research-data track R1–R6 and M1�
 | M1 | MIMIC-IV FHIR demo (Bulk Data) through the FHIR intake into OMOP, with a report of what breaks against Synthea |
 | M2 | MIMIC-IV relational demo through a relational-tables-to-OMOP path (per-table contracts) |
 | M3 | Reconciliation of the two MIMIC OMOP builds by source keys: 0 unexplained differences |
-| V1–V2 | Full local Athena vocabulary (never committed) and MIT-LCP's MIMIC lab → LOINC map; unmapped rates before and after in [docs/research/vocabulary.md](docs/research/vocabulary.md) |
+| V1–V3 | Full local Athena vocabulary (one bundle, never committed) and MIT-LCP's MIMIC lab → LOINC map: Synthea 6.8% → 0.1% of rows unmapped, MIMIC diagnoses 100% → 3.3%; details in [docs/research/vocabulary.md](docs/research/vocabulary.md) |
 
 **Data.** Everything committed, and everything CI runs on, is synthetic (Synthea and
 hand-written fixtures). Separately, two public **real, de-identified** datasets, the

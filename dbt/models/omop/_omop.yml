@@ -147,7 +147,8 @@ models:
           - dqd_is_standard_valid_concept:
               config: {meta: {dq_category: conformance, dqd_check: isStandardValidConcept}}
           - dqd_standard_concept_record_completeness:
-              # The Eunomia shard predates Synthea v4 codes; full Athena would lower this.
+              # Set for the CI shard on purpose (about 50% on Synthea v4); with the full Athena
+              # bundle locally it measures 0.8% (Synthea) and 3.3% (MIMIC).
               arguments: {max_ratio: 0.5}
               config:
                 severity: warn
