@@ -12,9 +12,9 @@ END
 $$;
 
 -- Read-only login for the clinical-drift-monitor's cohort service (R7). It is NOT a member
--- of dip_researcher: dbt grants it the shareable tier only when omop_shareable.cdm_source
--- says DIP-SYNTHEA (macro grant_cohort_reader), and revokes everything otherwise, so a
--- MIMIC build is never readable through it. Read-only by default, short statements, few
+-- of dip_researcher: dbt grants it the shareable tier only while the warehouse holds
+-- Synthea alone, classified live by the hook (macro grant_cohort_reader), and revokes
+-- everything otherwise, so a MIMIC build is never readable through it. Read-only by default, short statements, few
 -- connections. Its password is set by postgres-roles-password.psql from a Kubernetes
 -- secret; tests set their own.
 DO $$

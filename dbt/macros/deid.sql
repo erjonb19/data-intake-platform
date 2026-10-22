@@ -57,16 +57,28 @@
   Feed names are the signal. The guard against MIMIC data sent through the Synthea feed is
   that feed's contract: MIMIC's dates are shifted past 2100, which its FUTURE_DATE check
   rejects (docs/research/cohort-service.md).
+  MIMIC counts whatever its status (a file or table later quarantined or reloaded may
+  already have fed OMOP), and so does a block row: once any dbt run has seen MIMIC, the
+  hook writes ops.cohort_reader_block, and the warehouse stays DIP-MIMIC until a person
+  deletes that row (after rebuilding everything from Synthea alone).
   Shared by the cdm_source model and grant_cohort_reader, so both classify alike.
 #}
 {% macro cdm_source_kind_sql(intake_file) -%}
     {%- set relational = adapter.get_relation(database=target.database, schema='ops',
                                                identifier='relational_load') -%}
+    {%- set block = adapter.get_relation(database=target.database, schema='ops',
+                                          identifier='cohort_reader_block') -%}
     with sources as (
-        select feed as source_name from {{ intake_file }} where status <> 'quarantined'
+        select feed as source_name from {{ intake_file }}
+        where status <> 'quarantined' or feed like 'mimic.%'
         {% if relational -%}
         union all
-        select source || '.' || table_name from {{ relational }} where status = 'loaded'
+        select source || '.' || table_name from {{ relational }}
+        where status = 'loaded' or source like 'mimic%'
+        {% endif -%}
+        {% if block -%}
+        union all
+        select 'mimic.blocked' from {{ block }}
         {% endif -%}
         {% if var('source_kind', 'fhir') == 'mimic_relational' -%}
         union all
@@ -93,7 +105,8 @@
   warehouse holds Synthea alone. The hook classifies the warehouse live (it does not trust
   omop_shareable.cdm_source, which a partial run may not have rebuilt) and then:
     - anything but DIP-SYNTHEA: every grant the reader has on the tier is revoked;
-    - DIP-SYNTHEA: SELECT on exactly the shareable models this run rebuilt successfully
+    - DIP-MIMIC also writes ops.cohort_reader_block, which keeps it DIP-MIMIC from then on;
+    - DIP-SYNTHEA: SELECT on exactly the shareable tables this run rebuilt successfully
       (never `concept`: with a local Athena load it is the downloader's licensed copy),
       plus USAGE on the schema. Tables this run did not rebuild keep what they had, which
       they were only ever given in a Synthea-only run that rebuilt them.
@@ -112,7 +125,8 @@
         {% set rebuilt = [] %}
         {% for r in (results or []) %}
             {% if r.node.resource_type == 'model' and 'shareable' in r.node.fqn
-                  and r.status == 'success' and r.node.alias != 'concept' %}
+                  and r.status == 'success' and r.node.alias != 'concept'
+                  and r.node.config.materialized == 'table' %}
                 {% do rebuilt.append(r.node.alias) %}
             {% endif %}
         {% endfor %}
@@ -120,6 +134,18 @@
             {{ log("role dip_cohort_reader missing; no cohort reader grants", info=True) }}
         {% elif live != 'DIP-SYNTHEA' %}
             {{ log("warehouse holds " ~ live ~ ": dip_cohort_reader gets nothing; revoking its grants", info=True) }}
+            {% if live == 'DIP-MIMIC' %}
+                {% do run_query("""
+                    create table if not exists ops.cohort_reader_block (
+                        blocked_at timestamptz not null default now(),
+                        reason text not null
+                    );
+                    insert into ops.cohort_reader_block (reason)
+                    select 'a dbt run saw a MIMIC source'
+                    where not exists (select 1 from ops.cohort_reader_block);
+                    commit;
+                """) %}
+            {% endif %}
             {% do run_query("""
                 do $$
                 begin

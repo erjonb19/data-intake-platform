@@ -2,8 +2,9 @@
 
 Applies the real role file (infra/terraform/files/postgres-roles.sql), builds the fixture
 patient through dbt, then connects as dip_cohort_reader. The role may read the shareable
-tier only while omop_shareable.cdm_source says DIP-SYNTHEA; a MIMIC or unknown source in
-the same warehouse takes every grant away (macro grant_cohort_reader, dbt on-run-end).
+tier only while the warehouse holds Synthea alone (classified live by the dbt on-run-end
+hook grant_cohort_reader); a MIMIC or unknown source takes every grant away, and MIMIC
+leaves a block row that only a person removes.
 """
 
 from __future__ import annotations
@@ -84,9 +85,12 @@ def add_feed(wh, feed: str) -> None:
     wh.conn.commit()
 
 
-def remove_feed(wh, feed: str) -> None:
+def remove_feed(wh, feed: str, unblock: bool = True) -> None:
+    """Remove the file and, as the documented human step, the MIMIC block row."""
     with wh.conn.cursor() as cur:
         cur.execute("delete from ops.intake_file where feed = %s", (feed,))
+        if unblock:
+            cur.execute("drop table if exists ops.cohort_reader_block")
     wh.conn.commit()
 
 
@@ -223,4 +227,37 @@ def test_run_operation_alone_only_revokes(tier):
         assert not reader_can_read("omop_shareable.person")
     finally:
         remove_feed(tier, "acme.claims")
+    rebuild()
+
+
+def test_mimic_blocks_until_a_person_clears_it(tier):
+    """Second review: classification by what is loaded now would forget MIMIC whose rows
+    were later deleted (or quarantined on a reload) while OMOP still holds what they fed.
+    The block row keeps the warehouse DIP-MIMIC until a person removes it."""
+    add_feed(tier, "mimic.fhir_demo")
+    rebuild()
+    remove_feed(tier, "mimic.fhir_demo", unblock=False)
+    rebuild()
+    assert scalar(tier, "select cdm_source_abbreviation from omop_shareable.cdm_source") == (
+        "DIP-MIMIC"
+    )
+    assert not reader_can_read("omop_shareable.person")
+    assert scalar(tier, "select count(*) from ops.cohort_reader_block") == 1
+    remove_feed(tier, "mimic.fhir_demo")  # the person, after rebuilding from Synthea alone
+    rebuild()
+    assert reader_can_read("omop_shareable.person")
+
+
+def test_a_quarantined_mimic_file_still_counts(tier):
+    add_feed(tier, "mimic.fhir_demo")
+    with tier.conn.cursor() as cur:
+        cur.execute(
+            "update ops.intake_file set status = 'quarantined' where feed = 'mimic.fhir_demo'"
+        )
+    tier.conn.commit()
+    try:
+        rebuild()
+        assert not reader_can_read("omop_shareable.person")
+    finally:
+        remove_feed(tier, "mimic.fhir_demo")
     rebuild()
