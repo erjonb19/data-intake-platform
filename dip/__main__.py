@@ -19,6 +19,10 @@
                                model turns by default; --record calls the model and saves them
   approvals list|show|approve|reject|execute [ID]
                                the human side of agent proposals (audited as human:<you>)
+  cohort list                  the cohort library (packs/healthcare/cohorts), latest versions
+  cohort run NAME...           run library cohorts as the read-only cohort reader
+                               (DIP_COHORT_DSN; Synthea tier only), suppressed counts as JSON
+  cohort verify-audit          check the hash chain of the cohort audit log
 
 Storage is a local directory (`--store-dir`, default ./data/store) unless S3 settings are
 given in the environment (DIP_S3_ENDPOINT, DIP_S3_ACCESS_KEY, DIP_S3_SECRET_KEY).
@@ -228,6 +232,28 @@ def _approvals(args: argparse.Namespace) -> int:
         print(f"refused: {exc}", file=sys.stderr)
         return 1
     print(json.dumps(result, indent=1, default=str))
+
+
+def _cohort(args: argparse.Namespace) -> int:
+    from dip import cohorts
+
+    log = cohorts.AuditLog(args.audit)
+    if args.action == "verify-audit":
+        problems = cohorts.verify_audit(log.entries())
+        print("\n".join(problems) or f"audit chain ok: {len(log.entries())} entries")
+        return 1 if problems else 0
+    lib = cohorts.library()
+    if args.action == "list":
+        for c in lib.values():
+            print(f"{c.name} v{c.version}  {c.title}")
+        return 0
+    unknown = [n for n in args.names if n not in lib]
+    if unknown or not args.names:
+        print(f"name one or more of: {sorted(lib)}; unknown: {unknown}", file=sys.stderr)
+        return 2
+    for name in args.names:
+        r = cohorts.run(lib[name], os.environ["DIP_COHORT_DSN"], log, args.requester or "")
+        print(json.dumps(cohorts.as_dict(r)))
     return 0
 
 
@@ -276,6 +302,11 @@ def main(argv: list[str] | None = None) -> int:
     appr.add_argument("approval_id", type=int, nargs="?")
     appr.add_argument("--note", default="")
     appr.add_argument("--all", action="store_true", help="list every status, not only pending")
+    coh = sub.add_parser("cohort")
+    coh.add_argument("action", choices=["list", "run", "verify-audit"])
+    coh.add_argument("names", nargs="*")
+    coh.add_argument("--audit", type=Path, default=Path("data/cohort_audit.jsonl"))
+    coh.add_argument("--requester", default=os.environ.get("USER") or os.environ.get("USERNAME"))
     args = parser.parse_args(argv)
 
     if args.command == "db-init":
@@ -335,6 +366,8 @@ def main(argv: list[str] | None = None) -> int:
         return _triage(args)
     elif args.command == "approvals":
         return _approvals(args)
+    elif args.command == "cohort":
+        return _cohort(args)
     elif args.command == "dbt":
         from dip.dbt_runner import run_dbt
 
