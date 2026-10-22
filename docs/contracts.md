@@ -133,7 +133,8 @@ adjudication), from the plan's start (2020-01-01) on, with the Blue Button line 
 (billed, allowed, paid, coinsurance, deductible) and the member id eligibility gives that
 patient. No new Synthea run is needed. Contract: `packs/healthcare/contracts/claims.yaml`
 (`claims_YYYYMMDD.csv`, `claim_line_id` unique, amounts as non-negative decimals, at most
-2% bad rows). On the 28 bundles in `data/synthea` it gives 1,976 lines, all of which pass.
+2% bad rows). On the 28 bundles in `data/synthea` it gives 1,976 lines, all of which pass (the file is
+named for today by default: the contract accepts names up to 7 days old).
 
 dbt: `silver.claim_record` (typed) and `gold.claim_line` (one row per line, from the
 newest file that has it, so a corrected resend replaces it). Two DQ tests, warnings by

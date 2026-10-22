@@ -32,6 +32,7 @@ import csv
 import hashlib
 import io
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 COLUMNS = (
@@ -73,6 +74,13 @@ def member_id(patient_id: str) -> str:
     return f"M{digest % 10**9:09d}"
 
 
+def _utc_date(timestamp: str) -> str:
+    """The UTC calendar date of a FHIR dateTime (a bare date is already a date)."""
+    if len(timestamp) <= 10:
+        return timestamp
+    return datetime.fromisoformat(timestamp).astimezone(UTC).date().isoformat()
+
+
 def _ref_id(reference: str) -> str:
     return reference.removeprefix("urn:uuid:")
 
@@ -96,7 +104,7 @@ def claim_rows(bundle_dir: Path) -> list[dict[str, str]]:
                 }
                 if not adjudications:
                     continue  # not a billed line
-                service_date = item["servicedPeriod"]["start"][:10]
+                service_date = _utc_date(item["servicedPeriod"]["start"])
                 if service_date < PLAN_START:
                     continue
                 coding = item["productOrService"]["coding"][0]
@@ -135,7 +143,9 @@ def main() -> int:
     parser.add_argument("bundle_dir", type=Path)
     parser.add_argument("out_dir", type=Path)
     parser.add_argument(
-        "--date", default="20260101", help="file date (default: the Synthea reference date)"
+        "--date",
+        default=datetime.now(UTC).strftime("%Y%m%d"),
+        help="file date (default: today, UTC: the contract accepts names up to 7 days old)",
     )
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
