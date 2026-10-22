@@ -21,6 +21,17 @@ log "loading dip-airflow:$tag into kind"
 kind load docker-image "dip-airflow:$tag" --name "$CLUSTER_NAME"
 printf '{ "airflow_image_tag": "%s" }\n' "$tag" > "$TF_DIR/image.auto.tfvars.json"
 
+# The chart's migration and create-user Jobs are plain Jobs (no Helm hooks, so Terraform's
+# wait works), and a Job's pod template is immutable: a Helm upgrade that changes them (a
+# new image tag) fails with "field is immutable". On an existing install, delete them
+# first; Helm recreates them, so migrations rerun on the new image.
+kubeconfig="$REPO_ROOT/.kube/kind-$CLUSTER_NAME.yaml"
+if [[ -f "$kubeconfig" ]] && command -v kubectl >/dev/null 2>&1; then
+  kubectl --kubeconfig "$kubeconfig" -n dip-airflow delete job --ignore-not-found \
+    airflow-run-airflow-migrations airflow-create-user ||
+    warn "could not delete the chart's Jobs; an upgrade may fail with 'field is immutable'"
+fi
+
 # Phase 2: everything else.
 log "deploying the stack"
 tf apply -input=false -auto-approve
