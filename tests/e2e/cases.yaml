@@ -43,3 +43,19 @@ feeds:
         status: loaded
         reasons: []
         gold_rows: 2
+  healthcare.claims:
+    gold_table: gold.claim_line
+    silver_table: silver.claim_record
+    checksum_columns: [claim_line_id, claim_id, line_number, member_id, service_date,
+                       place_of_service, procedure_code, procedure_system, billed_amount,
+                       allowed_amount, paid_amount, coinsurance_amount, deductible_amount,
+                       payer]
+    cases:
+      - fixture: claims/good/claims_good.csv
+        status: loaded
+        reasons: []
+        gold_rows: 5
+      - fixture: claims/bad/claims_missing_paid_amount.csv
+        status: quarantined
+        reasons: ["SCHEMA.MISSING_COLUMN:paid_amount"]
+        gold_rows: 0

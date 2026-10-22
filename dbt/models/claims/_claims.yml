@@ -1,0 +1,35 @@
+version: 2
+
+# Healthcare pack, Stage 2 (S2.4): the claims feed (synthetic, from Synthea's
+# ExplanationOfBenefit resources). Bronze is bronze.csv_record. Tagged file_feed and
+# healthcare.claims: the feed's own DAG builds them; the FHIR DAG excludes them.
+# DQ tests against eligibility: tests/claims_within_coverage.sql, claims_amounts_ordered.sql.
+models:
+  - name: claim_record
+    description: >
+      silver.claim_record: one row per accepted row of every claims file received, typed
+      (amounts numeric(12,2)). Keyed by (file_sha256, row_number).
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [file_sha256, row_number]}
+    columns:
+      - name: claim_line_id
+        data_tests: [not_null]
+      - name: file_date
+        data_tests: [not_null]
+
+  - name: claim_line
+    description: >
+      gold.claim_line: one row per claim line ever received, from the newest file (by
+      file_date, then received_at) that has it. member_id joins gold.member_eligibility.
+    columns:
+      - name: claim_line_id
+        data_tests: [unique, not_null]
+      - name: member_id
+        data_tests: [not_null]
+      - name: procedure_system
+        data_tests:
+          - accepted_values:
+              arguments: {values: [SNOMED, CDT, LOINC, CVX, LOCAL]}
+      - name: service_date
+        data_tests: [not_null]

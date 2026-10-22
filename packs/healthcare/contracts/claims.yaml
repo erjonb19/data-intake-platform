@@ -1,0 +1,44 @@
+# Paid claim lines from a (synthetic) payer: one row per billed line, one file per day.
+# Generated from the Synthea patients' ExplanationOfBenefit resources by
+# packs/healthcare/generators/claims.py (Stage 2, S2.4).
+feed: healthcare.claims
+version: 1
+owner: vendor-ops@example.com
+description: >
+  Daily file of adjudicated claim lines: the member, the service, where it happened, and
+  the billed, allowed and paid amounts. All data is synthetic.
+classification: restricted
+source:
+  channels: [minio, sftp, api]
+  filename_pattern: "claims_*.csv"
+  # The business date in the name (claims_YYYYMMDD.csv): a real date, not after the day it
+  # was received and at most 7 days before; otherwise FILE.NAME_DATE.
+  filename_date:
+    regex: "^claims_([0-9]+)"
+    format: "%Y%m%d"
+    max_days_before_received: 7
+    max_days_after_received: 0
+format: { type: csv, delimiter: ",", encoding: utf-8, header: true }
+expected_arrival: { cron: "0 7 * * *", grace: 2h }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.02
+min_rows: 1
+columns:
+  - { name: claim_line_id, type: string, required: true, unique: true, pattern: "^[0-9a-f-]{36}-[0-9]{1,3}$" }
+  - { name: claim_id, type: string, required: true, pattern: "^[0-9a-f-]{36}$" }
+  - { name: line_number, type: integer, required: true, min: 1, max: 999 }
+  - { name: member_id, type: string, required: true, pattern: "^M[0-9]{9}$" }
+  - { name: service_date, type: date, required: true, min: "2020-01-01", max: today }
+  - name: place_of_service
+    type: string
+    required: true
+    pattern: "^[0-9]{2}$"
+    description: CMS place-of-service code (11 office, 19/22 outpatient, 21 inpatient, 23 ER, ...)
+  - { name: procedure_code, type: string, required: true, pattern: "^[A-Za-z0-9.-]{1,20}$" }
+  - { name: procedure_system, type: string, required: true, allowed: [SNOMED, CDT, LOINC, CVX, LOCAL] }
+  - { name: billed_amount, type: decimal, required: true, min: 0, max: 10000000 }
+  - { name: allowed_amount, type: decimal, required: true, min: 0, max: 10000000 }
+  - { name: paid_amount, type: decimal, required: true, min: 0, max: 10000000 }
+  - { name: coinsurance_amount, type: decimal, required: true, min: 0, max: 10000000 }
+  - { name: deductible_amount, type: decimal, required: true, min: 0, max: 10000000 }
+  - { name: payer, type: string, required: true }
