@@ -1,0 +1,376 @@
+{
+  "resourceType": "Bundle",
+  "type": "transaction",
+  "entry": [
+    {
+      "fullUrl": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "8f3e6b1a-0000-4000-8000-000000000001",
+        "name": [
+          {
+            "use": "official",
+            "family": "Testperson",
+            "given": [
+              "Fixture"
+            ]
+          }
+        ],
+        "gender": "female",
+        "birthDate": "1961-07-14",
+        "address": [
+          {
+            "city": "Bronx",
+            "state": "NY",
+            "postalCode": "10467"
+          }
+        ],
+        "extension": [
+          {
+            "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-race",
+            "extension": [
+              {
+                "url": "ombCategory",
+                "valueCoding": {
+                  "system": "urn:oid:2.16.840.1.113883.6.238",
+                  "code": "2054-5",
+                  "display": "Black or African American"
+                }
+              }
+            ]
+          },
+          {
+            "url": "http://hl7.org/fhir/us/core/StructureDefinition/us-core-ethnicity",
+            "extension": [
+              {
+                "url": "ombCategory",
+                "valueCoding": {
+                  "system": "urn:oid:2.16.840.1.113883.6.238",
+                  "code": "2186-5",
+                  "display": "Not Hispanic or Latino"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "request": {
+        "method": "POST",
+        "url": "Patient"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:enc-0001",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "enc-0001",
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB"
+        },
+        "type": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "162673000",
+                "display": "General examination of patient (procedure)"
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "period": {
+          "start": "2018-03-02T09:00:00-05:00",
+          "end": "2018-03-02T09:30:00-05:00"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Encounter"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:enc-0002",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "enc-0002",
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB"
+        },
+        "type": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "162673000",
+                "display": "General examination of patient (procedure)"
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "period": {
+          "start": "2025-02-10T10:00:00-05:00",
+          "end": "2025-02-10T10:20:00-05:00"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Encounter"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:enc-0003",
+      "resource": {
+        "resourceType": "Encounter",
+        "id": "enc-0003",
+        "status": "finished",
+        "class": {
+          "system": "http://terminology.hl7.org/CodeSystem/v3-ActCode",
+          "code": "AMB"
+        },
+        "type": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "162673000",
+                "display": "General examination of patient (procedure)"
+              }
+            ]
+          }
+        ],
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "period": {
+          "start": "2025-08-18T14:00:00-04:00",
+          "end": "2025-08-18T14:25:00-04:00"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Encounter"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:cond-0001",
+      "resource": {
+        "resourceType": "Condition",
+        "id": "cond-0001",
+        "clinicalStatus": {
+          "coding": [
+            {
+              "code": "active"
+            }
+          ]
+        },
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "44054006",
+              "display": "Diabetes mellitus type 2 (disorder)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "encounter": {
+          "reference": "urn:uuid:enc-0001"
+        },
+        "onsetDateTime": "2018-03-02T09:00:00-05:00",
+        "recordedDate": "2018-03-02T09:00:00-05:00"
+      },
+      "request": {
+        "method": "POST",
+        "url": "Condition"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-0001",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-0001",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4548-4",
+              "display": "Hemoglobin A1c/Hemoglobin.total in Blood"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "encounter": {
+          "reference": "urn:uuid:enc-0001"
+        },
+        "effectiveDateTime": "2018-03-02T09:10:00-05:00",
+        "valueQuantity": {
+          "value": 7.9,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Observation"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-0002",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-0002",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4548-4",
+              "display": "Hemoglobin A1c/Hemoglobin.total in Blood"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "encounter": {
+          "reference": "urn:uuid:enc-0002"
+        },
+        "effectiveDateTime": "2025-02-10T10:05:00-05:00",
+        "valueQuantity": {
+          "value": 7.1,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Observation"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:obs-0003",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "obs-0003",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://terminology.hl7.org/CodeSystem/observation-category",
+                "code": "laboratory"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://loinc.org",
+              "code": "4548-4",
+              "display": "Hemoglobin A1c/Hemoglobin.total in Blood"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "encounter": {
+          "reference": "urn:uuid:enc-0003"
+        },
+        "effectiveDateTime": "2025-08-18T14:05:00-04:00",
+        "valueQuantity": {
+          "value": 6.8,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Observation"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:medreq-0001",
+      "resource": {
+        "resourceType": "MedicationRequest",
+        "id": "medreq-0001",
+        "status": "active",
+        "intent": "order",
+        "medicationCodeableConcept": {
+          "coding": [
+            {
+              "system": "http://www.nlm.nih.gov/research/umls/rxnorm",
+              "code": "860975",
+              "display": "24 HR metformin hydrochloride 500 MG Extended Release Oral Tablet"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "encounter": {
+          "reference": "urn:uuid:enc-0001"
+        },
+        "authoredOn": "2018-03-02T09:20:00-05:00"
+      },
+      "request": {
+        "method": "POST",
+        "url": "MedicationRequest"
+      }
+    },
+    {
+      "fullUrl": "urn:uuid:claim-0001",
+      "resource": {
+        "resourceType": "Claim",
+        "id": "claim-0001",
+        "status": "active",
+        "patient": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Claim"
+      }
+    }
+  ]
+}

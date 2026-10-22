@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/erjonb19/data-intake-platform/dip/contract.schema.json",
+  "title": "Data intake contract",
+  "type": "object",
+  "required": ["feed", "version", "owner", "source", "format", "on_row_violation"],
+  "additionalProperties": false,
+  "properties": {
+    "feed": {"type": "string", "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"},
+    "version": {"type": "integer", "minimum": 1},
+    "owner": {"type": "string"},
+    "description": {"type": "string"},
+    "classification": {"enum": ["public", "internal", "restricted"]},
+    "source": {
+      "type": "object",
+      "required": ["channels", "filename_pattern"],
+      "additionalProperties": false,
+      "properties": {
+        "channels": {"type": "array", "items": {"enum": ["sftp", "minio", "api"]}, "minItems": 1},
+        "filename_pattern": {"type": "string"}
+      }
+    },
+    "format": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {"enum": ["csv", "excel", "x12", "pdf", "fhir_bundle"]},
+        "fhir_version": {"enum": ["R4"]},
+        "bundle_types": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "expected_arrival": {
+      "type": "object",
+      "properties": {"cron": {"type": "string"}, "grace": {"type": "string"}}
+    },
+    "on_row_violation": {"enum": ["quarantine_row", "reject_file"]},
+    "max_bad_row_ratio": {"type": "number", "minimum": 0, "maximum": 1},
+    "columns": {"type": "array"},
+    "fhir": {
+      "type": "object",
+      "required": ["patient_resource", "load", "resources"],
+      "additionalProperties": false,
+      "properties": {
+        "patient_resource": {"type": "string"},
+        "load": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+        "resources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "required": {"type": "array", "items": {"type": "string"}},
+              "allowed": {"type": "object", "additionalProperties": {"type": "array"}},
+              "required_one_of": {"type": "array", "items": {"type": "string"}, "minItems": 2},
+              "code_systems": {"type": "array", "items": {"type": "string"}, "minItems": 1},
+              "dates": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        "references": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"format": {"properties": {"type": {"const": "fhir_bundle"}}}}},
+      "then": {"required": ["fhir"]}
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+# Data contract: one Synthea patient record exported as a FHIR R4 Bundle per file.
+# All data on this feed is synthetic (Synthea). It is shaped like EHR data, so it is
+# classified as restricted and handled as if it were PHI.
+feed: healthcare.fhir_patient_bundle
+version: 1
+owner: research-data@example.com
+description: >
+  Longitudinal EHR-style patient records (demographics, encounters, conditions,
+  observations, medication orders) exported by Synthea as FHIR R4 Bundles.
+classification: restricted
+source:
+  channels: [minio]
+  filename_pattern: "*.json"
+format:
+  type: fhir_bundle
+  fhir_version: R4
+  bundle_types: [transaction, batch, collection]
+on_row_violation: quarantine_row
+# Above this share of rejected resources, the whole file is rejected.
+max_bad_row_ratio: 0.05
+fhir:
+  # Every file must describe exactly one patient; everything else references it.
+  patient_resource: Patient
+  # Only these resource types are loaded to bronze. Claims, EOBs, care plans, etc. are
+  # counted and skipped (data minimization: research models do not need them yet).
+  load: [Patient, Encounter, Condition, Observation, MedicationRequest, Medication]
+  resources:
+    Patient:
+      required: [id, birthDate, gender]
+      allowed:
+        gender: [male, female, other, unknown]
+      dates: [birthDate, deceasedDateTime]
+    Encounter:
+      required: [id, subject.reference, class.code, period.start]
+      dates: [period.start, period.end]
+    Condition:
+      required: [id, subject.reference, code.coding, onsetDateTime]
+      code_systems: [http://snomed.info/sct]
+      dates: [onsetDateTime, abatementDateTime]
+    Observation:
+      required: [id, subject.reference, status, code.coding, effectiveDateTime]
+      code_systems: [http://loinc.org]
+      dates: [effectiveDateTime]
+    MedicationRequest:
+      required: [id, subject.reference, authoredOn]
+      # Synthea codes most orders inline, and some through a Medication resource.
+      required_one_of: [medicationCodeableConcept.coding, medicationReference.reference]
+      code_systems: [http://www.nlm.nih.gov/research/umls/rxnorm]
+      dates: [authoredOn]
+    Medication:
+      required: [id, code.coding]
+      code_systems: [http://www.nlm.nih.gov/research/umls/rxnorm]
+  # Reference fields that must point at an accepted resource in the same bundle.
+  references:
+    subject: Patient
+    encounter: Encounter
+    medicationReference: Medication
