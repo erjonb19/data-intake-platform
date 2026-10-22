@@ -380,7 +380,7 @@ What is left is below. The date stays **2026-11-30**.
 
 **Total:** 9.5 days plus 2 of buffer.
 
-**Memory.** Measured: the kind node uses 3.05 GiB with the Stage 2 services (SFTP, intake API). The observability profile adds about 1.1 GiB (Prometheus 300 MB, Grafana 150 MB, Marquez API and web 600 MB, exporters 50 MB). The OCR task pod runs only while a scanned file is processed. On the laptop, the observability profile stays opt-in; CI runs it.
+**Memory.** Measured: the kind node uses 3.05 GiB with the Stage 2 services (SFTP, intake API). The observability profile adds about 1.1 GiB (Prometheus 300 MB, Grafana 150 MB, Marquez API and web 600 MB, exporters 50 MB). The PDF feed's intake task runs in the larger OCR image (a short-lived task pod, only while PDF files are processed). On the laptop, the observability profile stays opt-in; CI runs it.
 
 **If it runs late, cut in this order:**
 1. Grafana dashboards (Prometheus alerts already cover monitoring, §10).
@@ -388,6 +388,8 @@ What is left is below. The date stays **2026-11-30**.
 3. `profile_file`.
 
 The MCP Read tier and OCR stay.
+
+**Follow-up (from the S3.1 review):** a PDF stream that inflates to gigabytes is bounded only by the task pod's memory limit; detect it before inflating (stream length caps in the reader), so an OOM-killed task cannot leave the file in landing to fail again.
 
 **LLM calls:** none in Stage 3. **Data:** generated invoices and Synthea only.
 

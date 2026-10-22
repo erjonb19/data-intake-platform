@@ -92,14 +92,97 @@ def test_a_misread_value_gets_the_csv_code(contract, monkeypatch):
 
 
 def test_an_image_only_pdf_without_tesseract_says_so(contract, monkeypatch):
-    import dip.pdffeed as pdffeed
+    import pytesseract
 
-    def no_ocr(*_):
-        raise OSError("tesseract is not installed")
+    def missing(*_, **__):
+        raise pytesseract.TesseractNotFoundError()
 
-    monkeypatch.setattr(pdffeed, "_ocr", no_ocr)
+    monkeypatch.setattr(pytesseract, "image_to_data", missing)
     result = read(contract, "good/invoice_scan.pdf")
     assert [v.reason_code for v in result.file_violations] == ["OCR.UNAVAILABLE"]
+
+
+def test_a_task_without_the_pdf_reader_says_so(contract, monkeypatch):
+    # Not in the OCR image: even a native PDF is refused with a code, never a crash.
+    import builtins
+
+    real = builtins.__import__
+
+    def no_pdfplumber(name, *a, **k):
+        if name == "pdfplumber":
+            raise ImportError("No module named 'pdfplumber'")
+        return real(name, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", no_pdfplumber)
+    result = read(contract, "good/invoice_native_table.pdf")
+    assert [v.reason_code for v in result.file_violations] == ["OCR.UNAVAILABLE"]
+
+
+def _pdf(pages: int = 1, blank_after: bool = False, size=(612, 792)) -> bytes:
+    """A small native invoice, from the fixture's text, built here."""
+    import io
+
+    from reportlab.pdfgen import canvas
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=size, invariant=1)
+    for _ in range(pages):
+        y = size[1] - 72
+        for line in ["Acme Supplies", "Vendor ID V1001", "Invoice number: INV-000001",
+                     "Invoice date: 2026-10-14", "Due date: 2026-11-13", "PO number: PO-000001",
+                     "Payment terms: NET30", "Currency: USD", "Subtotal: 1,000.00",
+                     "Tax: 88.75", "Total: 1,088.75"]:  # fmt: skip
+            c.drawString(72, y, line)
+            y -= 18
+        c.showPage()
+    if blank_after:
+        c.showPage()
+    c.save()
+    return buf.getvalue()
+
+
+def test_a_blank_trailing_page_keeps_a_typed_invoice_native(contract):
+    rec = record(read(contract, "", _pdf(blank_after=True)))
+    assert rec["extraction"] == "native" and rec["total"] == "1088.75"
+
+
+def test_too_many_pages_is_refused_before_reading_them(contract):
+    result = read(contract, "", _pdf(pages=25))
+    assert [v.reason_code for v in result.file_violations] == ["PDF.TOO_MANY_PAGES"]
+
+
+def test_a_huge_scanned_page_is_refused_before_rendering(contract):
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    # A 100 x 100 inch "scan": 9e8 px at 300 dpi, refused before rendering.
+    Image.new("L", (300, 300), 255).save(buf, format="PDF", resolution=3)
+    result = read(contract, "", buf.getvalue())
+    assert [v.reason_code for v in result.file_violations] == ["PDF.PAGE_TOO_LARGE"]
+
+
+def test_a_parser_failure_anywhere_is_pdf_invalid(contract):
+    # A valid header and a broken body: pdfminer fails while reading pages, not on open.
+    data = _pdf()
+    broken = data[: len(data) // 2] + b"garbage" * 50
+    result = read(contract, "", broken)
+    assert [v.reason_code for v in result.file_violations] == ["PDF.INVALID"]
+
+
+def test_an_oversized_file_is_refused(contract, monkeypatch):
+    import dip.pdffeed as pdffeed
+
+    monkeypatch.setattr(pdffeed, "MAX_BYTES", 100)
+    result = read(contract, "good/invoice_native_table.pdf")
+    assert [v.reason_code for v in result.file_violations] == ["FILE.TOO_LARGE"]
+
+
+def test_a_longer_label_is_not_the_value():
+    text = "Tax ID: 99-1234567\nTax: 88.75\nTotal 1,088.75\n"
+    assert _value(text, "Tax") == "88.75"
+    assert _value(text, "Total") == "1,088.75"
 
 
 @needs_tesseract

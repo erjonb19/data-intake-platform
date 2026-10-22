@@ -23,9 +23,16 @@ image of the page). The reader:
 Two columns describe the reading itself: `extraction` (native or ocr) and
 `ocr_confidence` (empty for native files), so gold can tell a typed total from a read one.
 
-File-level codes: PDF.INVALID (not a readable PDF), PDF.EMPTY (no pages), OCR.UNAVAILABLE
-(an image-only file where Tesseract is not installed: the task image is wrong),
-OCR.LOW_CONFIDENCE, PDF.MISSING_FIELD:<column>.
+A page with neither text nor an image (a blank trailing page) is skipped, so it never
+turns a typed invoice into a "scan".
+
+File-level codes: PDF.INVALID (anything the parser cannot read, wherever it fails),
+PDF.EMPTY, PDF.TOO_MANY_PAGES (over 20), FILE.TOO_LARGE (over 20 MB), PDF.PAGE_TOO_LARGE
+(a page that would render over 40 Mpx), OCR.TIMEOUT (60 s per page), OCR.UNAVAILABLE (the
+task is not in the OCR image), OCR.LOW_CONFIDENCE, PDF.MISSING_FIELD:<column>. The limits
+bound what one file can cost; a stream that inflates to gigabytes (a decompression bomb)
+is not detected before pdfminer inflates it, and is bounded only by the pod's memory limit
+(a follow-up in PLAN.md section 8.7).
 """
 
 from __future__ import annotations
@@ -40,25 +47,56 @@ from dip.fhir import Violation
 
 DEFAULT_DPI = 300
 DEFAULT_MIN_CONFIDENCE = 75.0
+# Untrusted input: one invoice is a page or two, so anything far bigger is refused before it
+# can exhaust the task pod (768Mi) or wedge the landing folder.
+MAX_BYTES = 20 * 1024 * 1024
 MAX_PAGES = 20
+MAX_PIXELS = 40_000_000  # per rendered page: a letter page at 600 dpi is 33.7 Mpx
+OCR_TIMEOUT_S = 60  # per page
+
+
+class _Refused(Exception):
+    """A file-level violation found while reading; the reader stops at the first."""
+
+    def __init__(self, code: str, detail: str):
+        super().__init__(detail)
+        self.violation = Violation(code, detail)
 
 
 def _scan_dpi(page: Any, cap: int) -> int:
-    """The resolution of the page's largest embedded image (a scan is one image per page),
-    at most `cap`; `cap` for a page with no image."""
-    sizes = [
-        (im["srcsize"][0] / ((im["x1"] - im["x0"]) / 72))
+    """The resolution of the page's largest embedded image by displayed area (a scan is one
+    page-sized image; a logo is not), at most `cap`; `cap` for a page with no image."""
+    images = [
+        im
         for im in page.images
-        if im.get("srcsize") and im["x1"] > im["x0"]
+        if im.get("srcsize") and im["x1"] > im["x0"] and im["bottom"] > im["top"]
     ]
-    return max(72, min(cap, round(max(sizes)))) if sizes else cap
+    if not images:
+        return cap
+    im = max(images, key=lambda i: (i["x1"] - i["x0"]) * (i["bottom"] - i["top"]))
+    return max(72, min(cap, round(im["srcsize"][0] / ((im["x1"] - im["x0"]) / 72))))
 
 
 def _ocr(page: Any, cap: int) -> tuple[str, list[float]]:
-    import pytesseract
-
-    image = page.to_image(resolution=_scan_dpi(page, cap)).original.convert("L")
-    data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+    try:
+        import pytesseract
+    except ImportError as exc:
+        raise _Refused("OCR.UNAVAILABLE", f"a scanned page and no OCR in this task: {exc}") from exc
+    dpi = _scan_dpi(page, cap)
+    pixels = (page.width * dpi / 72) * (page.height * dpi / 72)
+    if pixels > MAX_PIXELS:
+        raise _Refused("PDF.PAGE_TOO_LARGE",
+                       f"page {page.page_number} would render at {pixels / 1e6:.0f} Mpx"
+                       f" (limit {MAX_PIXELS / 1e6:.0f})")  # fmt: skip
+    image = page.to_image(resolution=dpi).original.convert("L")
+    try:
+        data = pytesseract.image_to_data(
+            image, output_type=pytesseract.Output.DICT, timeout=OCR_TIMEOUT_S
+        )
+    except RuntimeError as exc:  # pytesseract's timeout
+        raise _Refused("OCR.TIMEOUT", f"page {page.page_number}: {exc}") from exc
+    except OSError as exc:  # the tesseract binary is missing
+        raise _Refused("OCR.UNAVAILABLE", f"a scanned page and no OCR in this task: {exc}") from exc
     lines: dict[tuple[int, int, int], list[str]] = {}
     confidences = []
     for i, word in enumerate(data["text"]):
@@ -70,48 +108,71 @@ def _ocr(page: Any, cap: int) -> tuple[str, list[float]]:
     return "\n".join(" ".join(ws) for _, ws in sorted(lines.items())), confidences
 
 
-def read_text(
-    data: bytes, fmt: dict[str, Any], result: CsvResult
-) -> tuple[str, float | None] | None:
-    """The document's text, and the mean OCR confidence (None for a native file)."""
-    import pdfplumber
+def _page_count(pdf: Any) -> int:
+    """From the page tree's /Count, before pdfplumber builds a Page for every page."""
+    from pdfminer.pdftypes import resolve1
 
+    return int(resolve1(resolve1(pdf.doc.catalog["Pages"])["Count"]))
+
+
+def _read(data: bytes, fmt: dict[str, Any]) -> tuple[str, float | None]:
     try:
-        pdf = pdfplumber.open(io.BytesIO(data))
-    except Exception as exc:
-        result.file_violations.append(Violation("PDF.INVALID", f"not a readable PDF: {exc}"))
-        return None
-    with pdf:
-        if not pdf.pages:
-            result.file_violations.append(Violation("PDF.EMPTY", "the PDF has no pages"))
-            return None
-        pages = pdf.pages[:MAX_PAGES]
+        import pdfplumber
+    except ImportError as exc:  # the task is not running in the OCR image
+        raise _Refused("OCR.UNAVAILABLE", f"no PDF reader in this task: {exc}") from exc
+    if len(data) > MAX_BYTES:
+        raise _Refused("FILE.TOO_LARGE", f"{len(data)} bytes (limit {MAX_BYTES})")
+    with pdfplumber.open(io.BytesIO(data)) as pdf:
+        count = _page_count(pdf)
+        if count == 0:
+            raise _Refused("PDF.EMPTY", "the PDF has no pages")
+        if count > MAX_PAGES:
+            raise _Refused("PDF.TOO_MANY_PAGES", f"{count} pages (limit {MAX_PAGES})")
         texts, confidences, ocr_used = [], [], False
-        for page in pages:
+        for page in pdf.pages:
             text = page.extract_text() or ""
             if text.strip():
                 texts.append(text)
-                continue
-            ocr_used = True
-            try:
+            elif page.images:  # a scanned page
+                ocr_used = True
                 text, conf = _ocr(page, int(fmt.get("ocr_dpi", DEFAULT_DPI)))
-            except (ImportError, OSError, RuntimeError) as exc:
-                result.file_violations.append(
-                    Violation("OCR.UNAVAILABLE", f"image-only page and no OCR here: {exc}")
-                )
-                return None
-            texts.append(text)
-            confidences.extend(conf)
+                texts.append(text)
+                confidences.extend(conf)
+            # else: a blank page (a trailing empty page of a typed invoice): nothing to read
     if not ocr_used:
         return "\n".join(texts), None
     mean = sum(confidences) / len(confidences) if confidences else 0.0
     return "\n".join(texts), round(mean, 1)
 
 
+def read_text(
+    data: bytes, fmt: dict[str, Any], result: CsvResult
+) -> tuple[str, float | None] | None:
+    """The document's text, and the mean OCR confidence (None for a native file), or None
+    with a file violation in `result`. Never raises on a bad file: a PDF that breaks the
+    parser anywhere (pdfminer parses lazily, so errors can surface page by page) is
+    PDF.INVALID, and the intake moves it to quarantine like any other bad file."""
+    try:
+        return _read(data, fmt)
+    except _Refused as refused:
+        result.file_violations.append(refused.violation)
+    except Exception as exc:  # noqa: BLE001 - untrusted input: any parser failure
+        result.file_violations.append(
+            Violation("PDF.INVALID", f"not a readable PDF: {type(exc).__name__}: {exc}"[:500])
+        )
+    return None
+
+
 def _value(text: str, label: str) -> str | None:
-    """The rest of the line after `label`, with any ':' and spacing in between."""
-    m = re.search(rf"(?im)^[ \t]*{re.escape(label)}\s*:?[ \t]+(\S.*?)[ \t]*$", text)
-    return m.group(1) if m else None
+    """The rest of the line after `label`: "Label: value", or "Label   value" as a table
+    or an OCR'd line gives it. Never a longer label that starts the same way: "Tax ID: 9"
+    is not the value of "Tax" (the rest of a label-only match may hold no colon)."""
+    lab = re.escape(label)
+    for pattern in (rf"(?im)^[ \t]*{lab}[ \t]*:[ \t]*(\S[^\n]*?)[ \t]*$",
+                    rf"(?im)^[ \t]*{lab}[ \t]+(?![^\n]*:)(\S[^\n]*?)[ \t]*$"):  # fmt: skip
+        if m := re.search(pattern, text):
+            return m.group(1)
+    return None
 
 
 def _normalize(value: str, col_type: str) -> str:
