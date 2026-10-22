@@ -23,19 +23,23 @@ done
 # host port, so an existing cluster needs no rebuild) with each vendor's own key.
 SFTP_PORT="${SFTP_PORT:-2222}"
 SFTP_KEY_DIR="$(mktemp -d)"
+pids=()
+# Set before anything can fail: the vendor keys and port-forwards never outlive the run.
+cleanup() { kill "${pids[@]}" 2>/dev/null || true; rm -rf "$SFTP_KEY_DIR"; }
+trap cleanup EXIT
 SFTP_HOST_KEY="$(tf output -raw sftp_host_key)"
 export SFTP_PORT SFTP_KEY_DIR SFTP_HOST_KEY
 tf output -json sftp_vendor_keys | "$py" -c '
 import json, os, sys
 for account, key in json.load(sys.stdin).items():
     path = os.path.join(os.environ["SFTP_KEY_DIR"], account + ".key")
-    with open(path, "wb") as f:
+    fd = os.open(path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)  # never world-readable
+    with os.fdopen(fd, "wb") as f:
         f.write(key.encode())
-    os.chmod(path, 0o600)
 '
 kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-data \
   port-forward svc/sftp "$SFTP_PORT:22" >/dev/null 2>&1 &
-pf_pid=$!
+pids+=("$!")
 
 # Stage 2: the intake API, also through a port-forward, with each vendor's API key.
 API_PORT="${API_PORT:-8001}"
@@ -44,14 +48,18 @@ INTAKE_API_KEYS="$(tf output -json intake_api_keys)"
 export INTAKE_API_URL INTAKE_API_KEYS
 kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-data \
   port-forward svc/intake-api "$API_PORT:8000" >/dev/null 2>&1 &
-api_pid=$!
-trap 'kill "$pf_pid" "$api_pid" 2>/dev/null || true; rm -rf "$SFTP_KEY_DIR"' EXIT
-for port in "$SFTP_PORT" "$API_PORT"; do
+pids+=("$!")
+
+wait_port() {
+  local _
   for _ in $(seq 1 30); do
-    (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null && break
+    (exec 3<>"/dev/tcp/127.0.0.1/$1") 2>/dev/null && return 0
     sleep 1
   done
-done
+  die "port-forward to 127.0.0.1:$1 did not come up"
+}
+wait_port "$SFTP_PORT"
+wait_port "$API_PORT"
 
 "$py" "$REPO_ROOT/tests/e2e/fhir_intake.py"
 # Stage 1+: the table-driven file-feed cases (tests/e2e/cases.yaml).

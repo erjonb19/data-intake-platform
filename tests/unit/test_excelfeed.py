@@ -186,3 +186,54 @@ def test_intake_loads_a_workbook_and_quarantines_a_macro_one(tmp_path, contract)
     assert [r.record["member_id"] for r in wh.csv_rows] == ["M000000001"]
     assert out["elig_20261021.xlsx"].raw_key.endswith(".xlsx")
     assert store.get(BUCKET_RAW, out["elig_20261021.xlsx"].raw_key)
+
+
+def test_a_tiny_file_spanning_the_whole_sheet_is_refused_before_reading(contract):
+    """Review finding: read-only openpyxl fills every empty cell up to the furthest one,
+    so one cell at XFD1048576 would expand to billions of cells and kill the task."""
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Members"
+    ws.append(HEADER)
+    ws["XFD1048576"] = "far away"
+    buf = io.BytesIO()
+    wb.save(buf)
+    assert len(buf.getvalue()) < 20_000
+    r = validate_excel(buf.getvalue(), contract, NOW)
+    assert codes(r) == ["FILE.TOO_LARGE"]
+
+
+def test_broken_xml_is_quarantined_not_a_crash(contract):
+    buf = io.BytesIO()
+    with (
+        zipfile.ZipFile(io.BytesIO(workbook(HEADER, GOOD))) as src,
+        zipfile.ZipFile(buf, "w") as dst,
+    ):
+        for item in src.infolist():
+            body = b"<workbook><not closed" if item.filename == "xl/workbook.xml" else None
+            dst.writestr(item, body or src.read(item.filename))
+    assert codes(validate_excel(buf.getvalue(), contract, NOW)) == ["FILE.INVALID_XLSX"]
+
+
+def test_an_error_cell_rejects_its_row(contract):
+    row = list(GOOD)
+    row[0] = "M000000002"
+    row[8] = "#N/A"  # patient_ref is optional text: without the check it would load
+    r = validate_excel(workbook(HEADER, GOOD, row, *[GOOD] * 0), contract, NOW)
+    assert [(x.row_number, v.reason_code) for x, v in r.rejected] == [
+        (2, "VALUE.EXCEL_ERROR:patient_ref")
+    ]
+
+
+def test_a_chartsheet_is_not_a_sheet_of_rows(contract):
+    wb = openpyxl.Workbook()
+    wb.active.title = "Data"
+    wb.active.append(HEADER)
+    from openpyxl.chart import BarChart, Reference
+
+    chart = BarChart()
+    chart.add_data(Reference(wb.active, min_col=1, min_row=1, max_row=1))
+    wb.create_chartsheet("Members").add_chart(chart)
+    buf = io.BytesIO()
+    wb.save(buf)
+    assert codes(validate_excel(buf.getvalue(), contract, NOW)) == ["SCHEMA.MISSING_SHEET:Members"]
