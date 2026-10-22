@@ -1,0 +1,111 @@
+# Relational-table contract: MIMIC-IV Clinical Database Demo v2.2 (hosp module).
+#
+# REAL, de-identified patient data (PhysioNet, ODbL v1.0). Local use only; never commit
+# anything this produces. See docs/research/mimic.md.
+#
+# One entry per source table: the file, its exact columns (a header that differs is schema
+# drift and the table is quarantined), Postgres types, the primary key, and columns that
+# must not be null. dip.relational loads each table into schema `mimic`.
+source: mimic.relational_demo
+version: 1
+schema: mimic
+tables:
+  patients:
+    file: hosp/patients.csv.gz
+    primary_key: [subject_id]
+    not_null: [subject_id, gender, anchor_age, anchor_year]
+    columns:
+      subject_id: bigint
+      gender: text
+      anchor_age: integer
+      anchor_year: integer
+      anchor_year_group: text
+      dod: date
+  admissions:
+    file: hosp/admissions.csv.gz
+    primary_key: [hadm_id]
+    not_null: [subject_id, hadm_id, admittime]
+    columns:
+      subject_id: bigint
+      hadm_id: bigint
+      admittime: timestamp
+      dischtime: timestamp
+      deathtime: timestamp
+      admission_type: text
+      admit_provider_id: text
+      admission_location: text
+      discharge_location: text
+      insurance: text
+      language: text
+      marital_status: text
+      race: text
+      edregtime: timestamp
+      edouttime: timestamp
+      hospital_expire_flag: integer
+  diagnoses_icd:
+    file: hosp/diagnoses_icd.csv.gz
+    primary_key: [hadm_id, seq_num]
+    not_null: [subject_id, hadm_id, seq_num, icd_code, icd_version]
+    columns:
+      subject_id: bigint
+      hadm_id: bigint
+      seq_num: integer
+      icd_code: text
+      icd_version: integer
+  labevents:
+    file: hosp/labevents.csv.gz
+    primary_key: [labevent_id]
+    not_null: [labevent_id, subject_id, itemid, charttime]
+    columns:
+      labevent_id: bigint
+      subject_id: bigint
+      hadm_id: bigint
+      specimen_id: bigint
+      itemid: integer
+      order_provider_id: text
+      charttime: timestamp
+      storetime: timestamp
+      value: text
+      valuenum: numeric
+      valueuom: text
+      ref_range_lower: numeric
+      ref_range_upper: numeric
+      flag: text
+      priority: text
+      comments: text
+  prescriptions:
+    file: hosp/prescriptions.csv.gz
+    # No natural key: one pharmacy order can have several prescription rows.
+    primary_key: []
+    not_null: [subject_id, hadm_id, starttime, drug]
+    columns:
+      subject_id: bigint
+      hadm_id: bigint
+      pharmacy_id: bigint
+      poe_id: text
+      poe_seq: integer
+      order_provider_id: text
+      starttime: timestamp
+      stoptime: timestamp
+      drug_type: text
+      drug: text
+      formulary_drug_cd: text
+      gsn: text
+      ndc: text
+      prod_strength: text
+      form_rx: text
+      dose_val_rx: text
+      dose_unit_rx: text
+      form_val_disp: text
+      form_unit_disp: text
+      doses_per_24_hrs: numeric
+      route: text
+  d_labitems:
+    file: hosp/d_labitems.csv.gz
+    primary_key: [itemid]
+    not_null: [itemid]
+    columns:
+      itemid: integer
+      label: text
+      fluid: text
+      category: text

@@ -3,6 +3,13 @@
 -- type; an ED encounter is an ER visit), else from Encounter.class. ICU encounters are OMOP
 -- visit_detail, which is not built, so they are not visits: their events attach to the
 -- hospital encounter they are part of (visit_encounter_id).
+{% if var('source_kind', 'fhir') == 'mimic_relational' %}
+-- The relational source already resolves visit type and visit membership.
+select
+    encounter_id, patient_id, class_code, source_identifier, start_at, end_at,
+    visit_concept_id, is_visit, visit_encounter_id
+from {{ ref('mimic_encounter') }}
+{% else %}
 with e as (select * from {{ ref('fhir_encounter') }}),
 m as (select source_kind, source_code, concept_id from {{ ref('fhir_concept_map') }})
 
@@ -24,3 +31,4 @@ from e
 left join m as mp
     on mp.source_kind = 'encounter_identifier_system' and mp.source_code = e.identifier_system
 left join m as mc on mc.source_kind = 'encounter_class' and mc.source_code = e.class_code
+{% endif %}

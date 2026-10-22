@@ -177,3 +177,50 @@ has no value-plausibility coverage.
 determinism, the MIMIC contract, the date window, the as-delivered rejection
 (`tests/unit/test_fhir_bulk.py`), and the OMOP mapping rules end to end
 (`tests/integration/test_mimic_shaped_omop.py`).
+
+## M2. The relational demo through a relational-tables-to-OMOP path
+
+```bash
+bash packs/mimic/fetch.sh relational
+python packs/mimic/run_relational_demo.py --dsn postgresql://…/mimic_rel   # its own local database
+```
+
+```
+hosp/*.csv.gz ──▶ dip.relational (per-table contract) ──▶ schema mimic ──▶ dbt, source_kind=mimic_relational
+                   header = contract columns?              patients           silver/mimic_*  ──▶ stg_* ──▶ omop.*
+                   COPY into declared types?               admissions         (same staging contract and
+                   primary key unique? not-nulls?          diagnoses_icd       the same OMOP models as FHIR)
+                   any failure ─▶ table quarantined,       labevents
+                   reason in ops.relational_load           prescriptions, d_labitems
+```
+
+**The contract** (`packs/mimic/relational/relational_demo.yaml`) names each table's file,
+exact columns and types, primary key and not-null columns. Reason codes:
+`SCHEMA.MISSING_COLUMN:<col>`, `SCHEMA.UNEXPECTED_COLUMN:<col>`, `SCHEMA.COLUMN_ORDER`,
+`VALUE.TYPE_MISMATCH:<error>`, `KEY.DUPLICATE`, `VALUE.REQUIRED:<col>`. A failed table is
+dropped rather than left half-valid.
+
+**Mapping into the staging contract** (`dbt/models/mimic_relational/`):
+
+| Staging | From | Rule |
+|---|---|---|
+| `stg_patient` | `patients`, `admissions.race` | birth date = Jan 1 of `anchor_year − anchor_age` (MIMIC has no birth date); race and ethnicity from the most recent admission's free text, mapped to OMB categories where the text allows |
+| `stg_encounter` | `admissions` | every admission is inpatient (9201); `admission_type` is the source value |
+| `stg_condition` | `diagnoses_icd` | ICD-9/10 with the dot; dated by the admission start |
+| `stg_observation` | `labevents` | `itemid` as a LOCAL code; text-only results keep their text |
+| `stg_medication_request` | `prescriptions` | NDC when present, else the drug name; the row has no natural key, so its id is a hash of the row |
+
+Times in the relational tables are **local Boston time with no offset**. They are read as
+`America/New_York` and stored in UTC, as the FHIR path does with its `-04:00/-05:00` offsets.
+
+**Result (local, aggregates):** all 6 tables pass the contract. OMOP: 100 persons, 275
+visits, 4,506 conditions, 107,727 measurements, 18,087 drug exposures. DQ: the same as the
+FHIR path (100% unmapped conditions/labs/drugs against the shard; shifted years of birth),
+plus one real source anomaly: **one prescription starts 8 days after its admission ended**
+(a 4-day stay), which `withinVisitDates` flags.
+
+**Tests in CI** (`tests/integration/test_mimic_relational.py`) use synthetic tables in the
+demo's exact column layout (`tests/fixtures/mimic_shaped/make_relational.py`), describing the
+same invented patient as the FHIR-shaped fixture: OMOP values end to end (including the
+Boston-to-UTC conversion), and quarantine for a renamed column, an extra column, a duplicate
+key and a type mismatch.

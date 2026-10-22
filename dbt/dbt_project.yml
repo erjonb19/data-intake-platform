@@ -18,6 +18,8 @@ on-run-end:
   - "{{ grant_shareable_usage() }}"
 
 vars:
+  # Which source feeds the staging contract: fhir (Synthea, MIMIC FHIR) or mimic_relational.
+  source_kind: fhir
   # De-identification reference date: ages are top-coded relative to it. Fixed (not
   # current_date) so a rebuild of the same inputs gives the same extract (R5).
   deid_reference_date: "2026-01-01"
@@ -27,6 +29,13 @@ models:
     silver:
       +schema: silver
       +materialized: view
+      # FHIR silver reads bronze; off when the source is the MIMIC relational tables.
+      +enabled: "{{ var('source_kind', 'fhir') == 'fhir' }}"
+    mimic_relational:
+      # M2: MIMIC-IV relational tables -> the staging contract. Local only (real data).
+      +schema: silver
+      +materialized: view
+      +enabled: "{{ var('source_kind', 'fhir') == 'mimic_relational' }}"
     staging:
       # The contract between sources (FHIR, MIMIC relational) and OMOP.
       +schema: silver
