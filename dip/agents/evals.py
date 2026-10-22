@@ -51,6 +51,8 @@ EVAL_CONTRACTS = REPO_ROOT / "agents" / "evals" / "triage" / "contracts"
 
 def eval_contracts() -> dict[str, Contract]:
     return load_contracts((EVAL_CONTRACTS,))
+
+
 PIPELINE_SCHEMAS = ("bronze", "ops", "ops_secret", "silver", "gold", "omop", "deid",
                     "omop_shareable", "vocab", "dbt")  # fmt: skip
 # Ingest at a fixed time, so file-name dates and "received" dates are the same every run.
