@@ -194,7 +194,7 @@ kind plus the official Airflow chart **fits in 16 GB, but not in the state your 
 3. `terraform apply` with the `core` profile (and the `observability` profile from Stage 3 on).
 4. Wait for the Airflow scheduler and API server to be ready, and for MinIO to be healthy.
 5. Run `tests/e2e/run.py`, which:
-   - drops `fixtures/good/elig_good.csv` and `fixtures/bad/elig_missing_member_id.csv` into the landing bucket,
+   - drops `tests/fixtures/eligibility/good/elig_good.csv` and `tests/fixtures/eligibility/bad/elig_missing_member_id.csv` (plus `bad/elig_bad_rows.csv`, one bad row in 20) into the landing bucket,
    - triggers or waits for the intake DAG run, with a 10-minute timeout,
    - **asserts** that the good file's rows appear in `gold.member_eligibility` with the expected count and checksum,
    - **asserts** that the bad file appears in `ops.quarantine` with `reason_code = 'SCHEMA.MISSING_COLUMN:member_id'`, and that **none** of its rows are in bronze, silver or gold.

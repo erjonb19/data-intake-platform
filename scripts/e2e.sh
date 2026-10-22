@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Run the research-track end-to-end tests against the running stack (after smoke.sh).
-# Needs boto3 and psycopg: uses .venv if present (pip install -e ".[dev]").
+# Run the end-to-end tests against the running stack (after smoke.sh): the research-track
+# FHIR flow, then the file-feed cases in tests/e2e/cases.yaml.
+# Needs boto3, psycopg and pyyaml: uses .venv if present (pip install -e ".[dev]").
 # shellcheck source=scripts/lib.sh
 source "$(dirname "$0")/lib.sh"
 require terraform
@@ -19,3 +20,5 @@ for venv_py in "$REPO_ROOT/.venv/bin/python" "$REPO_ROOT/.venv/Scripts/python.ex
 done
 
 "$py" "$REPO_ROOT/tests/e2e/fhir_intake.py"
+# Stage 1+: the table-driven file-feed cases (tests/e2e/cases.yaml).
+"$py" "$REPO_ROOT/tests/e2e/run.py"

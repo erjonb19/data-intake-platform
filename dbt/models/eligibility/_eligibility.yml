@@ -1,0 +1,40 @@
+version: 2
+
+# Healthcare pack, Stage 1: the member eligibility feed (synthetic). Bronze is
+# bronze.csv_record, written by the intake after the contract checks.
+models:
+  - name: eligibility_record
+    description: >
+      silver.eligibility_record: one row per accepted row of every eligibility file
+      received, typed. Keyed by (file_sha256, row_number).
+    columns:
+      - name: file_sha256
+        data_tests: [not_null]
+      - name: member_id
+        data_tests: [not_null]
+
+  - name: member_eligibility
+    description: >
+      gold.member_eligibility: each member's current eligibility, from the latest file
+      that lists them. `as_of` is when that file was received; `patient_ref` links to the
+      clinical record (OMOP person_source_value for Synthea patients).
+    columns:
+      - name: member_id
+        description: Payer member id (contract pattern ^M[0-9]{9}$)
+        data_tests: [unique, not_null]
+      - name: plan_code
+        data_tests:
+          - accepted_values:
+              arguments: {values: [HMO, PPO, EPO, HDHP]}
+      - name: sex
+        data_tests:
+          - accepted_values:
+              arguments: {values: [F, M, U]}
+      - name: coverage_start
+        data_tests:
+          - not_null
+          - dqd_plausible_start_before_end:
+              arguments: {end_column: coverage_end}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleStartBeforeEnd}}
+      - name: dob
+        data_tests: [not_null]

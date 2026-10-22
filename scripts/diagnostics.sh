@@ -17,4 +17,8 @@ kubectl get pods -A --no-headers -o custom-columns=NS:.metadata.namespace,NAME:.
     kubectl logs -n "$ns" "$pod" --all-containers --prefix > "$out/logs/$ns.$pod.log" 2>&1 || true
   done
 
+# The warehouse's ops schema (intake files, quarantine, DQ results): synthetic data only.
+kubectl -n dip-data exec postgres-0 -- pg_dump -U postgres -d warehouse -n ops --no-owner \
+  > "$out/ops.sql" 2>&1 || true
+
 log "diagnostics written to $out"

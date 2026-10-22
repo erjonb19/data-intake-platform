@@ -2,9 +2,17 @@ version: 2
 
 sources:
   - name: bronze
-    description: Written by the intake (dip.intake). One row per accepted FHIR resource.
+    description: Written by the intake (dip.intake) after the contract checks.
     tables:
       - name: fhir_resource
+        description: One row per accepted FHIR resource.
+      - name: csv_record
+        description: One row per accepted row of a CSV feed (values as a jsonb object).
+  - name: ops
+    description: Intake bookkeeping, written by dip.intake.
+    tables:
+      - name: intake_file
+        description: One row per processed file (feed, sha256, status, received_at).
   - name: vocab
     description: >
       OMOP vocabulary loaded by `python -m dip vocab-load`: the public OHDSI Eunomia shard

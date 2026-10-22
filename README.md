@@ -8,7 +8,9 @@ built in, and AI agents (later stages) can propose fixes, but a human always app
 
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
-**Status: Stage 0 (foundations) complete. Research-data track R1–R6 and M1–M3 built** (see
+**Status: Stage 0 (foundations) complete; Stage 1 (eligibility CSV through raw, contract,
+bronze, silver and gold, with the §6 E2E cases) built; see [docs/demos/stage-1.md](docs/demos/stage-1.md)
+and [docs/contracts.md](docs/contracts.md). Research-data track R1–R6 and M1–M3 built** (see
 [docs/research](docs/research/README.md)):
 
 | | |

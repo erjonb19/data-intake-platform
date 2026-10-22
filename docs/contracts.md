@@ -63,6 +63,11 @@ empty fields (`,,,,`) is checked like any other row; only truly blank lines are 
 - Bookkeeping: `ops.intake_file` (one row per file) and `ops.quarantine` (one row per file
   or row violation, `record_ref = row=<n>`).
 - Reruns: a file with the same sha256 for the same feed is skipped (`duplicate`).
+- Silver and gold: dbt models tagged with the feed name, built by the feed's DAG
+  (`dags/feed_intake.py` generates one per CSV contract: `intake__<pack>__<feed>`). For
+  eligibility: `silver.eligibility_record` (every accepted row, typed) and
+  `gold.member_eligibility` (each member's current eligibility, from the latest file that
+  lists them).
 
 ## Healthcare eligibility (synthetic)
 
