@@ -1,4 +1,4 @@
-{{ config(schema='silver', materialized='view', tags=['file_feed', 'finance.vendor_invoice']) }}
+{{ config(schema='silver', materialized='view', tags=['file_feed', 'finance.vendor_invoice', 'finance.vendor_invoice_pdf']) }}
 
 -- Silver: every accepted invoice row, typed (finance pack, S2.5). The intake read the
 -- workbook (dip/excelfeed.py) and checked each value against the contract, so the casts

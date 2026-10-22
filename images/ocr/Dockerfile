@@ -13,4 +13,6 @@ RUN apt-get update \
 USER airflow
 
 # Each version was at least two weeks old when chosen.
-RUN pip install --no-cache-dir "pdfplumber==0.11.10" "pytesseract==0.3.13" "pillow==12.3.0"
+# pdfplumber's own dependencies are pinned too, so a rebuild cannot move them.
+RUN pip install --no-cache-dir "pdfplumber==0.11.10" "pdfminer.six==20260107" \
+      "pypdfium2==5.14.0" "pytesseract==0.3.13" "pillow==12.3.0"

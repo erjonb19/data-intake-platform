@@ -1,4 +1,4 @@
-{{ config(schema='silver', materialized='view', tags=['file_feed', 'finance.vendor_invoice_pdf']) }}
+{{ config(schema='silver', materialized='view', tags=['file_feed', 'finance.vendor_invoice', 'finance.vendor_invoice_pdf']) }}
 
 -- Silver: every accepted invoice PDF (one row per file), typed (S3.1). dip/pdffeed.py read
 -- the text layer, or OCR'd a scan, and checked the fields against the contract.

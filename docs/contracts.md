@@ -63,10 +63,17 @@ rules, so a misread value gets the usual code (`VALUE.PATTERN:invoice_number`).
 
 Every PDF contract has two more columns, filled by the reader: `extraction` (`native` or
 `ocr`) and `ocr_confidence` (empty for native files), so gold can tell a typed total from
-a read one. File codes: `PDF.INVALID` (not a readable PDF), `PDF.EMPTY`,
-`PDF.MISSING_FIELD:<column>` (a label not found: nothing is guessed),
-`OCR.LOW_CONFIDENCE`, and `OCR.UNAVAILABLE` (a scan reached a task without Tesseract: the
-pod override is missing).
+a read one. A page with neither text nor an image (a blank trailing page) is skipped.
+File codes: `PDF.INVALID` (anything the parser cannot read, wherever it fails),
+`PDF.EMPTY`, `PDF.MISSING_FIELD:<column>` (a label not found: nothing is guessed),
+`OCR.LOW_CONFIDENCE`, and `OCR.UNAVAILABLE` (the task is not running in the OCR image:
+`DIP_OCR_IMAGE` is unset). PDFs are untrusted input, so some files are refused before they
+are read: `FILE.TOO_LARGE` (over 20 MB), `PDF.TOO_MANY_PAGES` (over 20, counted from the
+page tree), `PDF.PAGE_TOO_LARGE` (a scanned page that would render over 40 Mpx), and
+`OCR.TIMEOUT` (60 s per page). A stream that inflates to gigabytes is bounded only by the
+task pod's memory limit (a follow-up in PLAN.md section 8.7). The poor-scan fixture scores
+6.7 against the threshold of 75, a wide margin across Tesseract builds (CI's Ubuntu
+build, the image's Debian build).
 
 ## Channels (`source.channels`, Stage 2)
 

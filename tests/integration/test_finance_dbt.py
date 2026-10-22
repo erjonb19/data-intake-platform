@@ -47,15 +47,20 @@ def test_invoice_registers_reach_gold(warehouse, tmp_path):
         warehouse,
         "select test_name, status, failures from ops.dq_results"
         " where test_name like 'invoice_%' order by 1",
-    ) == [("invoice_due_after_invoice", "pass", 0), ("invoice_totals_add_up", "warn", 1)]
+    ) == [
+        ("invoice_due_after_invoice", "pass", 0),
+        # The register's build rematches the PDFs too (none here).
+        ("invoice_pdf_matches_register", "pass", 0),
+        ("invoice_totals_add_up", "warn", 1),
+    ]
 
 
 def test_invoice_pdfs_are_matched_to_the_register(warehouse, tmp_path):
     """Stage 3 (S3.1): invoice PDFs -> silver -> gold.invoice_match against the Excel
-    register. The native PDFs need no OCR; the scan is added where Tesseract is installed."""
+    register. The PDFs land first, so they match nothing; when the register lands, its
+    feed's build rematches them. The native PDFs need no OCR; the scan is added where
+    Tesseract is installed."""
     store = LocalStore(tmp_path)
-    store.put(BUCKET_LANDING, f"{FEED}/invoices_good.xlsx",
-              (FIXTURES / "good/invoices_good.xlsx").read_bytes())  # fmt: skip
     pdfs = ["invoice_native_stacked.pdf", "invoice_native_table.pdf",
             "invoice_total_differs.pdf", "invoice_not_in_register.pdf"]  # fmt: skip
     if shutil.which("tesseract"):
@@ -68,12 +73,19 @@ def test_invoice_pdfs_are_matched_to_the_register(warehouse, tmp_path):
         store, warehouse, load_contracts(), AT)}  # fmt: skip
     assert outcomes["invoice_not_a_pdf.pdf"].reason_codes == ("PDF.INVALID",)
     assert all(outcomes[n].accepted == 1 for n in pdfs)
-    for tag in (FEED, PDF_FEED):
-        assert run_dbt(DSN, "build", "--select", f"tag:{tag}", check=False).returncode == 0
+    assert run_dbt(DSN, "build", "--select", f"tag:{PDF_FEED}", check=False).returncode == 0
+    statuses = "select match_status, count(*)::int from gold.invoice_match group by 1"
+    assert dict(rows(warehouse, statuses)) == {"not_in_register": len(pdfs)}
 
-    statuses = dict(rows(warehouse, "select match_status, count(*)::int from gold.invoice_match"
-                                    " group by 1"))  # fmt: skip
-    assert statuses == {"matched": len(pdfs) - 2, "total_differs": 1, "not_in_register": 1}
+    store.put(BUCKET_LANDING, f"{FEED}/invoices_good.xlsx",
+              (FIXTURES / "good/invoices_good.xlsx").read_bytes())  # fmt: skip
+    process_landing(store, warehouse, load_contracts(), AT)
+    assert run_dbt(DSN, "build", "--select", f"tag:{FEED}", check=False).returncode == 0
+    assert dict(rows(warehouse, statuses)) == {
+        "matched": len(pdfs) - 2,
+        "total_differs": 1,
+        "not_in_register": 1,
+    }
     assert rows(
         warehouse,
         "select pdf_total - register_total from gold.invoice_match"
@@ -83,5 +95,5 @@ def test_invoice_pdfs_are_matched_to_the_register(warehouse, tmp_path):
     assert rows(
         warehouse,
         "select status, failures from ops.dq_results"
-        " where test_name = 'invoice_pdf_matches_register'",
-    ) == [("warn", 2)]
+        " where test_name = 'invoice_pdf_matches_register' order by recorded_at",
+    ) == [("warn", len(pdfs)), ("warn", 2)]

@@ -1,4 +1,4 @@
-{{ config(schema='gold', materialized='table', tags=['file_feed', 'finance.vendor_invoice_pdf']) }}
+{{ config(schema='gold', materialized='table', tags=['file_feed', 'finance.vendor_invoice', 'finance.vendor_invoice_pdf']) }}
 
 -- Gold (S3.1): each invoice PDF matched to the AP register (gold.vendor_invoice, the Excel
 -- feed) by invoice number, from the newest PDF of each number. The first check that fails
@@ -8,11 +8,9 @@
 --   po_differs       a different PO number
 --   total_differs    a different total (to the cent)
 --   matched          all of the above agree
--- The register is looked up, not ref()'d, so this feed's DAG does not have to build the
--- Excel feed's models (they are the other feed's).
--- depends_on: {{ ref('vendor_invoice_pdf_record') }}
-{% set register = adapter.get_relation(database=target.database, schema='gold',
-                                        identifier='vendor_invoice') %}
+-- The four finance models carry both feeds' tags, so whichever file arrives (a register or
+-- a PDF) rebuilds the match: a PDF that came before its register is matched when the
+-- register lands, and the refs order a full `dbt build` too.
 with pdfs as (
     select distinct on (invoice_number) *
     from {{ ref('vendor_invoice_pdf_record') }}
@@ -38,9 +36,4 @@ select
     p.received_at,
     p.file_sha256 as source_file_sha256
 from pdfs as p
-{% if register %}
-left join {{ register }} as r on r.invoice_number = p.invoice_number
-{% else %}
-left join (select null::text as invoice_number, null::text as vendor_id,
-                  null::text as po_number, null::numeric as total) as r on false
-{% endif %}
+left join {{ ref('vendor_invoice') }} as r on r.invoice_number = p.invoice_number

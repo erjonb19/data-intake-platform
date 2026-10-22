@@ -1,4 +1,4 @@
-{{ config(schema='gold', materialized='table', tags=['file_feed', 'finance.vendor_invoice']) }}
+{{ config(schema='gold', materialized='table', tags=['file_feed', 'finance.vendor_invoice', 'finance.vendor_invoice_pdf']) }}
 
 -- Gold: one row per invoice number ever received, from the newest register that has it
 -- (by business date, then received time). Stage 3 matches native and scanned PDF invoices
