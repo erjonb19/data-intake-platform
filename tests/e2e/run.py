@@ -291,6 +291,14 @@ def main() -> int:
     failures: list[str] = []
     for feed, spec in cases["feeds"].items():
         run_feed(s3, body["access_token"], feed, spec, failures)
+    # Stage 2: the late-file check runs in the cluster and records into ops.incident.
+    trigger_and_wait(body["access_token"], "feed_sla", failures)
+    import psycopg
+
+    with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute("select to_regclass('ops.incident') is not null")
+        if not cur.fetchone()[0]:
+            failures.append("feed_sla ran but ops.incident does not exist")
     for f in failures:
         print(f"FAIL: {f}", file=sys.stderr)
     if failures:
