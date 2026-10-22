@@ -66,19 +66,16 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
 
-      - name: Unit and Postgres integration tests
-        run: pytest -q
-
-      - name: Cache Synthea jar
+      - name: Cache Synthea jar and vocabulary
         uses: actions/cache@v5
         with:
           path: data/cache
-          key: synthea-${{ hashFiles('packs/healthcare/generators/synthea.sha256') }}
+          key: research-cache-${{ hashFiles('packs/healthcare/generators/synthea.sha256', 'dip/vocab.py') }}
 
       - name: Generate synthetic patients (Synthea, fixed seed)
         run: bash packs/healthcare/generators/synthea.sh 25 data/synthea
 
-      - name: Real Synthea export through the intake
+      - name: Unit, Postgres integration and dbt (OMOP) tests
         env:
           DIP_SYNTHEA_DIR: data/synthea
-        run: pytest -q -s tests/integration -k synthea
+        run: pytest -q -s -rs

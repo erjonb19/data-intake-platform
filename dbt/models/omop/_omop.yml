@@ -1,0 +1,118 @@
+version: 2
+
+# Gold layer: OMOP CDM 5.4, restricted tier. Built from synthetic Synthea FHIR data.
+# Keys are stable hashes of FHIR ids (macro omop_id). Concepts come from the Eunomia shard;
+# codes it does not cover are concept_id 0 with the source value kept, as OMOP requires.
+
+models:
+  - name: concept
+    description: OMOP CONCEPT. The Eunomia vocabulary shard plus `omop_fixed_concepts`.
+    columns:
+      - name: concept_id
+        data_tests: [unique, not_null]
+
+  - name: person
+    description: One row per synthetic patient (FHIR Patient).
+    columns:
+      - name: person_id
+        description: Stable 60-bit hash of the FHIR Patient id.
+        data_tests: [unique, not_null]
+      - name: gender_concept_id
+        description: 8507 male, 8532 female, else 0 (FHIR administrative gender).
+        data_tests: [not_null]
+      - name: year_of_birth
+        data_tests: [not_null]
+      - name: race_concept_id
+        description: From the US Core race extension's OMB category; 0 when absent or unmapped.
+      - name: ethnicity_concept_id
+        description: From the US Core ethnicity extension's OMB category.
+      - name: person_source_value
+        description: FHIR Patient id. Restricted; removed in the shareable tier.
+
+  - name: observation_period
+    description: >
+      One period per person, from the first to the last recorded event across visits,
+      conditions, measurements and drug exposures.
+    columns:
+      - name: observation_period_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - unique
+          - relationships:
+              arguments: {to: ref('person'), field: person_id}
+
+  - name: visit_occurrence
+    description: >
+      One row per FHIR Encounter. visit_concept_id from Encounter.class: AMB 9202
+      (outpatient), EMER 9203 (ER), IMP and ACUTE 9201 (inpatient); other classes 0.
+    columns:
+      - name: visit_occurrence_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('person'), field: person_id}
+      - name: visit_start_date
+        data_tests: [not_null]
+
+  - name: condition_occurrence
+    description: >
+      One row per FHIR Condition. The SNOMED code (or, for the few Synthea conditions
+      coded only in ICD-10, the ICD-10 code) is mapped to the standard concept through
+      "Maps to"; condition_end_date from abatementDateTime when present.
+    columns:
+      - name: condition_occurrence_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('person'), field: person_id}
+      - name: condition_start_date
+        data_tests: [not_null]
+      - name: visit_occurrence_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('visit_occurrence'), field: visit_occurrence_id}
+
+  - name: measurement
+    description: >
+      FHIR Observation values (and components) whose LOINC code maps to the Measurement
+      domain, or that are unmapped laboratory or vital-sign results. Example:
+      HbA1c is LOINC 4548-4, concept 3004410, unit % (UCUM).
+    columns:
+      - name: measurement_id
+        description: Hash of the FHIR Observation id and component index.
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('person'), field: person_id}
+      - name: measurement_date
+        data_tests: [not_null]
+      - name: visit_occurrence_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('visit_occurrence'), field: visit_occurrence_id}
+
+  - name: drug_exposure
+    description: >
+      One row per FHIR MedicationRequest (prescription written), RxNorm mapped to the
+      standard concept. The end date equals the start date because the orders carry none.
+    columns:
+      - name: drug_exposure_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('person'), field: person_id}
+      - name: drug_exposure_start_date
+        data_tests: [not_null]
+      - name: visit_occurrence_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('visit_occurrence'), field: visit_occurrence_id}

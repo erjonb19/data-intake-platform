@@ -35,7 +35,8 @@ fhir:
       dates: [period.start, period.end]
     Condition:
       required: [id, subject.reference, code.coding, onsetDateTime]
-      code_systems: [http://snomed.info/sct]
+      # Synthea v4 codes a few conditions in ICD-10 only; OMOP keeps them as source codes.
+      code_systems: [http://snomed.info/sct, http://hl7.org/fhir/sid/icd-10, http://hl7.org/fhir/sid/icd-10-cm]
       dates: [onsetDateTime, abatementDateTime]
     Observation:
       required: [id, subject.reference, status, code.coding, effectiveDateTime]

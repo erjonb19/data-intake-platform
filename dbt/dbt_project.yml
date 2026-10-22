@@ -1,0 +1,28 @@
+# dbt project: FHIR bronze -> silver (flattened FHIR) -> gold (OMOP CDM 5.4).
+# All data is synthetic (Synthea).
+name: dip
+version: "0.1.0"
+config-version: 2
+profile: dip
+
+model-paths: [models]
+seed-paths: [seeds]
+macro-paths: [macros]
+test-paths: [tests]
+target-path: target
+clean-targets: [target]
+
+models:
+  dip:
+    silver:
+      +schema: silver
+      +materialized: view
+    omop:
+      # Gold, restricted tier: pseudonymous OMOP keys, but real (synthetic) dates and
+      # source identifiers. The shareable tier (R4) is derived from it.
+      +schema: omop
+      +materialized: table
+
+seeds:
+  dip:
+    +schema: vocab

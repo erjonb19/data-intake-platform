@@ -78,3 +78,59 @@ The `fhir_bundle` contract type (`dip/contract.schema.json`) adds a `fhir` block
 | Reprocessing the same file is a no-op | `test_rerun_of_same_file_is_a_duplicate` |
 | Bronze, quarantine and intake rows commit together | `test_failed_write_leaves_nothing_behind` (Postgres) |
 | The contract fits real Synthea output (no file-level rejections) | `test_real_synthea_export`, run in CI on 25 fresh Synthea patients |
+
+## R2. OMOP CDM gold layer (dbt)
+
+```
+bronze.fhir_resource ──▶ silver (views, dbt/models/silver)          ──▶ omop (tables, dbt/models/omop)
+                          fhir_resource_current  latest version         person
+                          fhir_patient                                   observation_period
+                          fhir_encounter                                 visit_occurrence
+                          fhir_condition                                 condition_occurrence
+                          fhir_observation       incl. components        measurement
+                          fhir_medication_request incl. Medication refs  drug_exposure
+                          source_to_standard     code → concept          concept
+vocab.concept, vocab.concept_relationship ◀── python -m dip vocab-load (Eunomia shard, pinned + sha256)
+```
+
+```bash
+export DIP_WAREHOUSE_DSN=postgresql://user:pass@localhost:5432/db
+python -m dip db-init && python -m dip land healthcare.fhir_patient_bundle data/synthea/*.json
+python -m dip intake && python -m dip vocab-load && python -m dip dbt build
+```
+
+In the cluster, the `fhir_intake` DAG runs `intake` then `transform` (vocabulary load if
+missing, then `dbt build`) in KubernetesExecutor pods.
+
+### Mapping decisions
+
+| OMOP field | From | Rule |
+|---|---|---|
+| `*_id` keys | FHIR resource id | `omop_id()`: a stable 60-bit hash, so a person keeps the same `person_id` as new files arrive. Uniqueness is a dbt test |
+| `gender_concept_id` | `Patient.gender` | male 8507, female 8532, otherwise 0 |
+| `race_concept_id`, `ethnicity_concept_id` | US Core race/ethnicity OMB category | `seeds/fhir_concept_map.csv`; absent or other → 0 |
+| `visit_concept_id` | `Encounter.class` | AMB 9202 outpatient, EMER 9203 ER, IMP/ACUTE 9201 inpatient, other → 0 |
+| `condition_concept_id` | SNOMED code (ICD-10 when Synthea gives only that) | source concept → "Maps to" → standard concept |
+| `measurement_*` | `Observation` value and each component | routed here when the LOINC code's standard domain is Measurement, or it is an unmapped laboratory/vital-sign result. Units via UCUM |
+| `drug_concept_id` | RxNorm on the order, or on its `Medication` | "Maps to" standard; end date = start date (orders carry none) |
+| `observation_period` | all of the above | one period per person, first to last event |
+| `*_type_concept_id` | | 32817 (EHR) everywhere |
+
+Unmapped codes keep `concept_id = 0` and their `*_source_value`, as OMOP requires. The
+vocabulary is a **shard**, not full Athena, so the unmapped rate on real Synthea output is
+higher than in production; CI prints it per table, and R3 turns it into thresholds.
+
+Concepts the shard lacks (gender, race, the EHR type concept, concept 0) are in
+`dbt/seeds/omop_fixed_concepts.csv`, labeled with where they come from.
+
+**Not built yet:** OMOP `observation` (surveys, social history), `procedure_occurrence`,
+`death`, `provider`, `care_site`, and drug/condition eras.
+
+### Tests
+
+`tests/integration/test_omop_dbt.py` runs `dbt build` (models plus PK, FK and not-null
+tests) on the fixture patient plus 25 Synthea patients, then checks known values: the
+fixture's type 2 diabetes is concept 201826, its three HbA1c results are concept 3004410
+in % (8554), its visits are outpatient (9202), its metformin order is concept 40163924,
+its observation period runs 2018-03-02 to 2025-08-18, and `person_id` is unchanged by a
+rebuild.
