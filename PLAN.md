@@ -1,7 +1,7 @@
 # PLAN — Data Intake Platform
 
 Status: **APPROVED 2026-10-18** with changes: model `claude-haiku-5-5` (kept in config), public repo, the read-only MCP tools moved into Stage 3, and the contract-author agent due by 2026-12-31.
-Plan date: 2026-10-17. Revised: 2026-10-18.
+Plan date: 2026-10-17. Revised: 2026-10-18, and 2026-10-21 (research-data track, §8.1).
 
 ## 1. What we are building
 
@@ -247,13 +247,51 @@ Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run
 |---|---|---|
 | **0. Foundations** | **2026-10-25** | `make up` creates the kind cluster with Terraform, installs Airflow (official chart, KubernetesExecutor), Postgres and MinIO, and the Airflow UI loads. CI runs lint plus a "cluster comes up" job. Includes the repo skeleton, the `.wslconfig` guidance and a prerequisites script |
 | **1. Thin vertical slice + E2E** | **2026-11-08** | Drop a healthcare eligibility CSV into MinIO, and it becomes raw, then contract-validated, then bronze, silver and gold in dbt. A bad file lands in quarantine with its reason code. **The E2E GitHub Actions job (§6) passes on every push** |
-| **2. All channels and formats, both packs** | **2026-11-18** | Files arrive over SFTP and the intake API as well as MinIO. Excel works. Synthea eligibility and claims run end to end. Synthetic 837/835 files are generated and parsed into claims and remittance marts. Finance Excel invoices reach gold. Row-level quarantine works, late-file detection (`FEED.LATE`) works, and the E2E tests cover each channel and format |
-| **3. OCR + monitoring + read-only MCP** | **2026-11-30** | Native and scanned PDF invoices go through OCR and are matched to Excel invoices in gold. Low-confidence pages go to quarantine. DQ checks are surfaced. Marquez shows lineage from file to gold table. Grafana shows files per feed, quarantine rate, freshness or SLA, and DAG duration, with alert rules. **The MCP server goes live with the Read tier only**, over Streamable HTTP with per-agent API keys and read-only default policies, and with `ops.audit_log` recording every call. Its tools are `list_quarantine`, `get_quarantine_sample`, `get_contract`, `profile_file`, `get_dag_run`, `get_task_log`, `get_lineage`, `query_metrics` and `get_dq_results`. A demo: ask any MCP client "why did yesterday's eligibility feed quarantine 40 rows?" and get the answer through MCP. E2E checks lineage events, metrics, and one authenticated MCP read plus one rejected unauthenticated call |
-| **4. Breakage generator + runbooks + Propose tier** | **2026-12-13** | `dip break <scenario>` triggers each failure on purpose. There are 8–10 break-and-fix runbooks in `docs/runbooks/`, each with symptoms, Grafana, Marquez and MCP evidence, a fix and a check. E2E runs each scenario. The MCP Propose tier is added: `propose_contract_pr` (GitHub App that can open PRs but not merge them) and `propose_operation`, plus the `ops.approvals` table and the `dip approvals` CLI |
+| **2. All channels and formats, both packs** | **2026-11-20** (was 11-18) | Files arrive over SFTP and the intake API as well as MinIO. Excel works. Synthea eligibility and claims run end to end. (837/835 moved to Stage 4.) De-identified shareable OMOP tier (R4) and a versioned, rebuild-verified research extract (R5). Finance Excel invoices reach gold. Row-level quarantine works, late-file detection (`FEED.LATE`) works, and the E2E tests cover each channel and format |
+| **3. OCR + monitoring + read-only MCP** | **2026-11-30** | Native and scanned PDF invoices go through OCR and are matched to Excel invoices in gold. Low-confidence pages go to quarantine. DQ checks are surfaced. Marquez shows lineage from file to gold table, including FHIR file → OMOP → shareable extract (R6). Grafana shows files per feed, quarantine rate, freshness or SLA, and DAG duration, with alert rules. **The MCP server goes live with the Read tier only**, over Streamable HTTP with per-agent API keys and read-only default policies, and with `ops.audit_log` recording every call. Its tools are `list_quarantine`, `get_quarantine_sample`, `get_contract`, `profile_file`, `get_dag_run`, `get_task_log`, `get_lineage`, `query_metrics` and `get_dq_results`. A demo: ask any MCP client "why did yesterday's eligibility feed quarantine 40 rows?" and get the answer through MCP. E2E checks lineage events, metrics, and one authenticated MCP read plus one rejected unauthenticated call |
+| **4. Breakage generator + runbooks + Propose tier** | **2026-12-13** | Synthetic 837/835 files are generated and parsed into claims and remittance marts (moved from Stage 2). `dip break <scenario>` triggers each failure on purpose. There are 8 break-and-fix runbooks in `docs/runbooks/`, each with symptoms, Grafana, Marquez and MCP evidence, a fix and a check. E2E runs each scenario. The MCP Propose tier is added: `propose_contract_pr` (GitHub App that can open PRs but not merge them) and `propose_operation`, plus the `ops.approvals` table and the `dip approvals` CLI |
 | **5. Contract-author agent + eval harness** | **2026-12-31** | Hand it a sample file from a new vendor and get a draft contract PR. Hand it a drifted file (from the breakage generator) and get a PR with the contract diff. The agent can only Read and Propose. Eval harness and first results: onboarding and drift scored separately, prompt-injection cases, and comparisons between `claude-haiku-5-5` and the free fallback models |
-| **6. Act tier + triage agent** | **2027-01-24** | `execute_approved_operation` runs only after a human approves, with a matching payload hash and an unexpired approval. The triage agent groups quarantine by root cause and proposes release, discard or replay; a human approves and the action runs. Triage evals and injection cases. The demo shows an Act call denied, then allowed after approval |
-| **7. Incident agent + LangGraph handoff** | **2027-02-14** | A breakage raises an incident. The incident agent diagnoses it from logs, lineage and metrics and hands off to triage through a typed edge in the LangGraph graph. The whole chain is visible in the audit log. Full eval suite, including handoff correctness |
-| **8. Hardening and write-up** | **2027-02-28** | Nightly evals, a README and architecture docs, a recorded demo, and a backlog item for OAuth |
+| **5R. Cohort service (R7)** | **2027-01-10** | The clinical-drift-monitor's cohort service answers longitudinal feasibility questions against the shareable OMOP tier |
+| **6. Act tier + triage agent** | **2027-01-31** (was 01-24) | `execute_approved_operation` runs only after a human approves, with a matching payload hash and an unexpired approval. The triage agent groups quarantine by root cause and proposes release, discard or replay; a human approves and the action runs. Triage evals and injection cases. The demo shows an Act call denied, then allowed after approval |
+| **7. Incident agent + LangGraph handoff** | **2027-02-21** (was 02-14) | A breakage raises an incident. The incident agent diagnoses it from logs, lineage and metrics and hands off to triage through a typed edge in the LangGraph graph. The whole chain is visible in the audit log. Full eval suite, including handoff correctness |
+| **8. Hardening and write-up** | **2027-03-07** (was 02-28) | Nightly evals, a README and architecture docs, a recorded demo, and a backlog item for OAuth |
+
+### 8.1 Research-data track (added 2026-10-21)
+
+**Why.** The healthcare pack so far looks like a payer feed. A research-informatics team needs something else: EHR-style clinical data in FHIR, a standard research model (OMOP CDM), documented quality checks, a de-identified tier that is safe to share, and extracts that can be rebuilt exactly. This track adds that on top of the same intake core. It is still all synthetic data (Synthea patients and the public OHDSI Eunomia vocabulary shard). No real patient data is used anywhere.
+
+| # | Item | Effort (part-time days) | Depends on | JD line it covers |
+|---|---|---|---|---|
+| **R1** | Synthea patients exported as FHIR R4 bundles go through the intake flow: land an immutable raw copy, validate against a `fhir_bundle` data contract, load resources into `bronze.fhir_resource`, and quarantine bad files (and bad resources) with reason codes such as `FHIR.NOT_A_BUNDLE` or `FHIR.MISSING_FIELD:Patient.birthDate` | 3 (includes the contract engine and quarantine core that Stage 1 needed anyway) | Stage 0 | Pipelines integrating EHR data; FHIR; quality checks |
+| **R2** | dbt silver layer flattens FHIR; gold is the **OMOP CDM 5.4** tables `person`, `observation_period`, `visit_occurrence`, `condition_occurrence`, `measurement` and `drug_exposure`, mapped through the Eunomia vocabulary shard (`concept`, `concept_relationship` "Maps to"). Codes the shard does not cover get `concept_id = 0` and keep their source value, as OMOP requires | 3 | R1 | Research-ready datasets; longitudinal patient tracking; OMOP |
+| **R3** | OMOP data quality as dbt tests named after the OHDSI Data Quality Dashboard checks: conformance (`fkDomain`, `fkClass`, valid concept IDs), completeness (`isRequired`, % unmapped per table with thresholds) and plausibility (`plausibleAfterBirth`, `plausibleBeforeDeath`, events inside an observation period, plausible HbA1c values). Results go to `ops.dq_results`. **We do not run DQD itself**, because it is an R package and would need R installed; each test documents the DQD check it mirrors | 1.5 | R2 | Quality checks; documented definitions |
+| **R4** | De-identification between a **restricted** tier (`omop`) and a **shareable** tier (`omop_shareable`): per-person date shifting (±1 to 180 days, key-derived and stable across runs), HMAC-SHA256 pseudonymous person IDs with the key outside the repo, years of birth only, age above 89 collapsed, free-text source values dropped. Postgres roles enforce the split: `dip_researcher` can read only the shareable tier | 1.5 | R2 | Governed and secure data access |
+| **R5** | Versioned research extract: `dip extract build --version X` writes CSV plus a Frictionless `datapackage.json` (column definitions, license, provenance, input checksums, dbt and git versions) and a `manifest.sha256`. `dip extract verify` rebuilds from the same raw inputs and **diffs the two builds byte for byte**; CI fails if they differ | 1 | R4 | Reproducibility; metadata; FAIR reuse |
+| **R6** | OpenLineage from Airflow (the provider package) and dbt (`dbt-ol`) to Marquez, so lineage runs from the raw FHIR file to the shareable extract | 1 extra, because it merges into Stage 3's existing Marquez item | Stage 3 Marquez | Lineage |
+| **R7** | Expose the shareable OMOP tier to the clinical-drift-monitor's cohort service for longitudinal feasibility questions, for example "adults with type 2 diabetes diagnosed before 2020 and two or more HbA1c results in the last year". Includes a SQL cohort library with tests | 2 | R4, R5, plus access to that repo | Cohort identification; trial feasibility; real-world evidence |
+
+**Order:** finish Stage 0 → R1 → R2 → R3 → R4 → R5 → R6 (inside Stage 3) → R7.
+
+**How it fits the dates, and what moves:**
+
+| Stage | Date | Change |
+|---|---|---|
+| 0 | 2026-10-25 | No change. The code is done and CI is green; PR #1 is open |
+| 1 | 2026-11-08 | **Date unchanged, scope reshaped.** R1–R3 are built first and bring in the contract engine, raw landing and quarantine that Stage 1 needed anyway. The eligibility-CSV slice then reuses that engine, so the date holds |
+| 2 | 2026-11-18 → **2026-11-20** | Adds R4 and R5 (2.5 days). To make room, **synthetic 837/835 X12 generation and parsing move to Stage 4**. It is the highest-risk item in Stage 2 (§10), and no research-track item depends on it |
+| 3 | 2026-11-30 | **Date unchanged.** R6 merges into the Marquez lineage work already planned here. The Nov 30 deadline for Stages 1–3 holds |
+| 4 | 2026-12-13 | Adds the 837/835 work moved from Stage 2. The runbooks shrink from 8–10 to 8 |
+| 5 | 2026-12-31 | No change. The contract-author agent deadline holds |
+| 5R | **2027-01-10** (new) | R7, the cohort-service integration. It needs access to the clinical-drift-monitor repo |
+| 6 | 2027-01-24 → **2027-01-31** | Slides one week for R7 |
+| 7 | 2027-02-14 → **2027-02-21** | Slides one week |
+| 8 | 2027-02-28 → **2027-03-07** | Slides one week |
+
+**Research-track rules:**
+- LLM calls: none of R1–R7 calls an LLM. CI never makes live LLM calls.
+- Synthea runs with a pinned release (v4.0.0), a fixed seed and a fixed reference date, inside a Java container (`eclipse-temurin`), so no Java is installed on the laptop and two runs give identical patients. Unit tests use small hand-written FHIR fixtures in Synthea's shape, labeled as such.
+- The vocabulary is the public Eunomia shard (about 2,300 concepts). It is **not** a full Athena vocabulary, so some codes from Synthea v4 will be unmapped. R3 reports the unmapped rate instead of hiding it. A full Athena download needs a free OHDSI account and is the user's call.
+- De-identification here shows the method on synthetic data. It is **not** a certified HIPAA Safe Harbor or Expert Determination process, and the docs say so.
 
 **Changed from the first draft:**
 - The MCP server is split into three parts. The Read tier moves into Stage 3, the Propose tier into Stage 4, and the Act tier into Stage 6.
@@ -265,8 +303,10 @@ Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run
 ```
 infra/            terraform/ (kind, helm releases, profiles), kind/cluster.yaml, helm-values/
 images/           airflow/ (DAGs + dbt baked in), intake-api/, ocr/
-platform/         core Python package: intake, contracts engine, quarantine, parsers registry
+dip/              core Python package: intake, contracts engine, quarantine, parsers, de-id, extracts
+                  (named `dip`, not `platform`, which would shadow Python's stdlib module)
 packs/healthcare/ contracts/ parsers/x12/ generators/ (Synthea + 837/835) dbt/ breakages/
+                  research track: FHIR contract, silver FHIR models, OMOP gold, de-id tier
 packs/finance/    contracts/ parsers/ generators/ (invoices) dbt/ breakages/
 dags/             generic contract-driven DAGs (one DAG factory, one DAG per feed)
 dbt/              project root that includes the packs' models
@@ -295,3 +335,6 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-18: Official MinIO images are no longer published on Docker Hub or quay.io. We use Chainguard's MinIO build from upstream source (`cgr.dev/chainguard/minio`, AGPLv3), pinned by digest. If Chainguard ever drops it, the fallback is to build MinIO from source in `images/minio/`.
 - 2026-10-18: Measured the core profile at **2.6 GiB** for the kind node with everything running, against an estimate of 4.5 GB in §5. Kubernetes is pinned to v1.35.8 to stay within kubectl 1.34's version-skew window.
 - 2026-10-18: The LLM config is `config/llm.toml` (Python's built-in `tomllib`, so no YAML dependency).
+- 2026-10-21: Added the research-data track (§8.1). Stage 2 moves to 2026-11-20 and 837/835 moves to Stage 4. New Stage 5R (R7) on 2027-01-10. Stages 6–8 slide one week; the end date is now 2027-03-07. The Nov 30 and Dec 31 deadlines hold.
+- 2026-10-21: OMOP vocabulary comes from the public OHDSI Eunomia `Synthea27Nj` shard (Apache-2.0), downloaded and checksummed at build time rather than committed. DQ uses dbt tests named after DQD checks instead of running the R-based DQD.
+- 2026-10-21: The core Python package is `dip/`, not `platform/` (that name shadows the stdlib module).
