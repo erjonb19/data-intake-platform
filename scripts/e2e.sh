@@ -12,7 +12,8 @@ AIRFLOW_PASSWORD="$(tf output -raw airflow_admin_password)"
 MINIO_USER="$(tf output -raw minio_root_user)"
 MINIO_PASSWORD="$(tf output -raw minio_root_password)"
 WAREHOUSE_DSN="$(tf output -raw warehouse_dsn)"
-export AIRFLOW_URL MINIO_URL AIRFLOW_PASSWORD MINIO_USER MINIO_PASSWORD WAREHOUSE_DSN
+COHORT_READER_DSN="$(tf output -raw cohort_reader_dsn)"
+export AIRFLOW_URL MINIO_URL AIRFLOW_PASSWORD MINIO_USER MINIO_PASSWORD WAREHOUSE_DSN \n  COHORT_READER_DSN
 
 py="$(python_bin)"
 for venv_py in "$REPO_ROOT/.venv/bin/python" "$REPO_ROOT/.venv/Scripts/python.exe"; do

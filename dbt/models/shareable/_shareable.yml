@@ -59,6 +59,17 @@ models:
         data_tests:
           - relationships:
               arguments: {to: ref('share_person'), field: person_id}
+  - name: share_cdm_source
+    description: >
+      One row: what this tier holds (DIP-SYNTHEA, DIP-MIMIC or DIP-UNKNOWN). The cohort
+      reader role is granted the tier only for DIP-SYNTHEA (macro grant_cohort_reader).
+    columns:
+      - name: cdm_source_abbreviation
+        data_tests:
+          - not_null
+          - unique
+          - accepted_values:
+              arguments: {values: [DIP-SYNTHEA, DIP-MIMIC, DIP-UNKNOWN]}
   - name: share_observation
     columns:
       - name: observation_id

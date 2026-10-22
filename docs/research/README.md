@@ -2,7 +2,7 @@
 
 PLAN.md §8.1 describes the plan. This page documents what is built, item by item.
 
-> **Data in R1–R6 is synthetic.** Patients come from [Synthea](https://github.com/synthetichealth/synthea)
+> **Data in R1–R7 is synthetic.** Patients come from [Synthea](https://github.com/synthetichealth/synthea)
 > (v4.0.0, fixed seed) or from small hand-written fixtures in `tests/fixtures/fhir/`. The
 > feed is still classified `restricted` and handled as if it were PHI, so the controls are
 > realistic. The MIMIC-IV demos (PLAN.md §8.2) are **real, de-identified** data, used
@@ -366,3 +366,11 @@ transport and walks the graph. There must be a path from
 `omop_shareable.measurement` to `extracts/1.0.0/data/measurement.csv`. The bad file's
 lineage must end in raw and quarantine only, never bronze. `dbt.measurement` must carry
 its HbA1c plausibility result as a data-quality assertion.
+
+## R7. Cohort service over the shareable tier
+
+The clinical-drift-monitor's cohort service reads `omop_shareable` through a read-only login
+role (`dip_cohort_reader`). That role is granted the tier only while
+`omop_shareable.cdm_source` says `DIP-SYNTHEA`, so a MIMIC build is never readable through
+it. [cohort-service.md](cohort-service.md) covers this repo's side and the list of changes
+the drift monitor needs.

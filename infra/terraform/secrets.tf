@@ -11,7 +11,8 @@ locals {
     "airflow_admin",
     "airflow_api_secret",
     "airflow_jwt_secret",
-    "dip_deid_key", # HMAC key for the de-identified research tier (R4)
+    "dip_deid_key",     # HMAC key for the de-identified research tier (R4)
+    "pg_cohort_reader", # read-only login for the drift monitor's cohort service (R7)
   ])
 }
 
