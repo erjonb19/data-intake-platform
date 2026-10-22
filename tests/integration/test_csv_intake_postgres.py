@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from dip import BUCKET_LANDING
+from dip import BUCKET_LANDING, BUCKET_QUARANTINE
 from dip.contracts import load_contracts
 from dip.intake import process_landing
 from dip.storage import LocalStore
@@ -44,6 +45,14 @@ def test_csv_rows_land_in_bronze_and_rejections_in_ops(warehouse, tmp_path):
         scalar(warehouse, "select count(*) from bronze.csv_record where file_sha256 = %s", (bad,))
         == 0
     )
+    # ...and the file itself plus a reason document are in the quarantine bucket.
+    [qkey] = by_name["elig_missing_member_id.csv"].quarantine_keys
+    assert (
+        store.get(BUCKET_QUARANTINE, qkey)
+        == (FIXTURES / "bad/elig_missing_member_id.csv").read_bytes()
+    )
+    reason = json.loads(store.get(BUCKET_QUARANTINE, qkey.removesuffix(".csv") + ".reason.json"))
+    assert [v["reason_code"] for v in reason["violations"]] == ["SCHEMA.MISSING_COLUMN:member_id"]
     assert rows(
         warehouse,
         "select level, reason_code, record_ref from ops.quarantine where file_sha256 = %s",

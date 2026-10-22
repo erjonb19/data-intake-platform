@@ -63,6 +63,11 @@ def load_contract(path: str | Path) -> Contract:
     except jsonschema.ValidationError as exc:
         where = "/".join(str(p) for p in exc.absolute_path) or "<root>"
         raise ContractError(f"{path.name}: {where}: {exc.message}") from exc
+    if spec["format"]["type"] == "csv":
+        from dip.csvfeed import check_contract
+
+        if problems := check_contract(spec):
+            raise ContractError(f"{path.name}: " + "; ".join(problems))
     return Contract(feed=spec["feed"], version=spec["version"], spec=spec, path=path)
 
 

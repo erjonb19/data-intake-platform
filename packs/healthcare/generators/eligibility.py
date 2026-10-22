@@ -1,7 +1,8 @@
 """Generate a synthetic payer eligibility file from Synthea patients (Stage 1).
 
 One row per Synthea patient enrolled on or after the plan start (FHIR R4 bundles from
-synthea.sh; patients who died before it are left out), in the layout of the
+synthea.sh; patients who died before it, or lack a name or birth date, are left out
+and counted), in the layout of the
 `healthcare.eligibility` contract. Everything is derived deterministically from the
 bundles, so the same bundles always give a byte-identical file:
 
@@ -70,11 +71,31 @@ def patients(bundle_dir: Path):
                 yield resource
 
 
-def eligibility_csv(bundle_dir: Path) -> bytes:
-    rows = [member_row(p) for p in patients(bundle_dir)]
-    # Patients who died before the plan started were never enrolled.
-    rows = [r for r in rows if not r["coverage_end"] or r["coverage_end"] >= r["coverage_start"]]
+def eligibility_rows(bundle_dir: Path) -> tuple[list[dict[str, str]], dict[str, int]]:
+    """(rows, counts of patients left out by reason)."""
+    rows, left_out = [], {"no_birth_date": 0, "no_name": 0, "died_before_plan": 0}
+    for p in patients(bundle_dir):
+        if not p.get("birthDate"):
+            left_out["no_birth_date"] += 1
+            continue
+        row = member_row(p)
+        if not row["first_name"] or not row["last_name"]:
+            left_out["no_name"] += 1
+        # Patients who died before the plan started were never enrolled.
+        elif row["coverage_end"] and row["coverage_end"] < row["coverage_start"]:
+            left_out["died_before_plan"] += 1
+        else:
+            rows.append(row)
+    ids = [r["member_id"] for r in rows]
+    if len(ids) != len(set(ids)):
+        # 9 hash digits: vanishingly rare, but never emit a file the contract would reject.
+        raise ValueError("member_id collision; derive member ids with more digits")
     rows.sort(key=lambda r: r["member_id"])
+    return rows, left_out
+
+
+def eligibility_csv(bundle_dir: Path) -> bytes:
+    rows, _ = eligibility_rows(bundle_dir)
     out = io.StringIO(newline="")
     writer = csv.DictWriter(out, fieldnames=COLUMNS, lineterminator="\n")
     writer.writeheader()
@@ -92,8 +113,9 @@ def main() -> int:
     args = parser.parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
     out = args.out_dir / f"elig_{args.date}.csv"
+    rows, left_out = eligibility_rows(args.bundle_dir)
     out.write_bytes(eligibility_csv(args.bundle_dir))
-    print(f"wrote {out}")
+    print(f"wrote {out}: {len(rows)} members; left out: {left_out}")
     return 0
 
 

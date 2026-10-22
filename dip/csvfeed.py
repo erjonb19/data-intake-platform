@@ -10,13 +10,17 @@ Row-level checks run per column (`VALUE.REQUIRED`, `VALUE.TYPE`, `VALUE.PATTERN`
 plus `ROW.FIELD_COUNT`. With `on_row_violation: quarantine_row` the bad rows are
 quarantined and the good rows continue, unless more than `max_bad_row_ratio` of the rows
 are bad, which rejects the file (`FILE.BAD_ROW_RATIO`). With `reject_file`, any bad row
-rejects the file (`FILE.ROW_VIOLATIONS`).
+rejects the file (`FILE.ROW_VIOLATIONS`). Either way every bad row keeps its own reason.
 
-Accepted rows keep their values exactly as received (text); silver models type them.
+Values are checked and stored trimmed of surrounding whitespace, otherwise as received
+(text); silver models type them. `check_contract` catches contract mistakes (a bad regex,
+an unknown encoding, a bound or allowed value of the wrong type) when the contract loads,
+not when a file arrives.
 """
 
 from __future__ import annotations
 
+import codecs
 import csv
 import io
 import re
@@ -26,8 +30,9 @@ from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
-from dip.contracts import Contract
 from dip.fhir import Violation
+
+BOM = "\ufeff"
 
 
 @dataclass(frozen=True)
@@ -81,11 +86,49 @@ def _parse(value: str, col_type: str) -> Any:
 
 
 def _bound(raw: Any, col_type: str, today: date) -> Any:
-    if col_type == "date":
-        return today if raw == "today" else date.fromisoformat(str(raw))
-    if col_type == "decimal":
-        return Decimal(str(raw))
-    return raw
+    """A contract `min`/`max` as a value comparable with the column's typed values.
+    `today` (date columns) is the UTC date the file was received."""
+    if col_type == "date" and raw == "today":
+        return today
+    if isinstance(raw, bool) or col_type in ("string", "boolean"):
+        raise ValueError(f"min/max does not apply to {col_type} columns")
+    return _parse(str(raw), col_type)
+
+
+def _allowed(col: dict[str, Any]) -> list[Any]:
+    col_type = col.get("type", "string")
+    return [_parse(str(a).lower() if col_type == "boolean" else str(a), col_type)
+            for a in col["allowed"]]  # fmt: skip
+
+
+def check_contract(spec: dict[str, Any]) -> list[str]:
+    """Problems with a csv contract that the JSON Schema cannot express."""
+    problems = []
+    encoding = spec["format"].get("encoding", "utf-8")
+    try:
+        codecs.lookup(encoding)
+    except LookupError:
+        problems.append(f"format.encoding: unknown encoding {encoding!r}")
+    today = date(2000, 1, 1)
+    for col in spec.get("columns", []):
+        where, col_type = f"columns.{col['name']}", col.get("type", "string")
+        if "pattern" in col:
+            try:
+                re.compile(col["pattern"])
+            except re.error as exc:
+                problems.append(f"{where}.pattern: {exc}")
+        for key in ("min", "max"):
+            if key in col:
+                try:
+                    _bound(col[key], col_type, today)
+                except ValueError:
+                    problems.append(f"{where}.{key}: {col[key]!r} is not a valid {col_type} bound")
+        if "allowed" in col:
+            try:
+                _allowed(col)
+            except ValueError:
+                problems.append(f"{where}.allowed: values must be valid {col_type} values")
+    return problems
 
 
 def _check_value(col: dict[str, Any], value: str, today: date) -> Violation | None:
@@ -100,7 +143,7 @@ def _check_value(col: dict[str, Any], value: str, today: date) -> Violation | No
         return Violation(f"VALUE.TYPE:{name}", f"{name} is not a valid {col_type}")
     if "pattern" in col and not re.fullmatch(col["pattern"], value):
         return Violation(f"VALUE.PATTERN:{name}", f"{name} does not match {col['pattern']}")
-    if "allowed" in col and typed not in col["allowed"]:
+    if "allowed" in col and typed not in _allowed(col):
         return Violation(f"VALUE.NOT_ALLOWED:{name}", f"{name} is not one of {col['allowed']}")
     if "min" in col and typed < _bound(col["min"], col_type, today):
         return Violation(f"VALUE.OUT_OF_RANGE:{name}", f"{name} is below {col['min']}")
@@ -109,8 +152,8 @@ def _check_value(col: dict[str, Any], value: str, today: date) -> Violation | No
     return None
 
 
-def _header_violations(header: list[str], contract: Contract) -> list[Violation]:
-    expected = [c["name"] for c in contract.spec["columns"]]
+def _header_violations(header: list[str], spec: dict[str, Any]) -> list[Violation]:
+    expected = [c["name"] for c in spec["columns"]]
     out = [
         Violation(f"SCHEMA.DUPLICATE_COLUMN:{name}", f"column {name!r} appears {n} times")
         for name, n in sorted(Counter(header).items())
@@ -121,7 +164,7 @@ def _header_violations(header: list[str], contract: Contract) -> list[Violation]
         for name in expected
         if name not in header
     ]
-    if not contract.spec.get("allow_extra_columns", False):
+    if not spec.get("allow_extra_columns", False):
         out += [
             Violation(f"SCHEMA.UNEXPECTED_COLUMN:{name}", f"column {name!r} is not in the contract")
             for name in header
@@ -130,9 +173,27 @@ def _header_violations(header: list[str], contract: Contract) -> list[Violation]
     return out
 
 
-def validate_csv(data: bytes, contract: Contract, received_at: datetime | None = None) -> CsvResult:
-    fmt = contract.spec["format"]
-    today = (received_at or datetime.now(UTC)).date()
+def _mark_duplicates(
+    checked: list[tuple[Row, Violation | None]], name: str
+) -> list[tuple[Row, Violation | None]]:
+    """Every row sharing a non-empty key is rejected, because the file does not say which
+    one is right. Keys are counted over all rows that have a value for the column, so a
+    copy that fails another check still makes the other copy ambiguous; a row already
+    rejected keeps its first reason."""
+    keys = Counter(r.record.get(name, "") for r, _ in checked)
+    keys.pop("", None)
+    return [
+        (r, v)
+        if v is not None or keys[r.record.get(name, "")] < 2
+        else (r, Violation(f"KEY.DUPLICATE:{name}", f"{name} appears more than once"))
+        for r, v in checked
+    ]
+
+
+def validate_csv(data: bytes, contract: Any, received_at: datetime | None = None) -> CsvResult:
+    spec = contract.spec
+    fmt = spec["format"]
+    today = (received_at or datetime.now(UTC)).astimezone(UTC).date()
     result = CsvResult()
     try:
         text = data.decode(fmt.get("encoding", "utf-8"))
@@ -141,7 +202,7 @@ def validate_csv(data: bytes, contract: Contract, received_at: datetime | None =
             Violation("FILE.ENCODING", f"not valid {fmt.get('encoding', 'utf-8')}: {exc.reason}")
         )
         return result
-    text = text.removeprefix("﻿")
+    text = text.removeprefix(BOM)
     reader = csv.reader(
         io.StringIO(text, newline=""),
         delimiter=fmt.get("delimiter", ","),
@@ -155,58 +216,48 @@ def validate_csv(data: bytes, contract: Contract, received_at: datetime | None =
             Violation("FILE.PARSE_ERROR", f"line {reader.line_num}: {exc}")
         )
         return result
-    # Blank lines (often a trailing newline) carry no data.
-    rows = [r for r in rows if any(v.strip() for v in r)]
+    # Only truly blank lines (often a trailing newline) are dropped and counted. A row of
+    # empty fields such as ",,,," is data and goes through the checks.
+    result.skipped["blank_line"] = sum(1 for r in rows if not r)
+    rows = [r for r in rows if r]
     if not rows:
         result.file_violations.append(Violation("FILE.EMPTY", "no header row"))
         return result
 
     header = [h.strip() for h in rows[0]]
-    result.file_violations.extend(_header_violations(header, contract))
+    result.file_violations.extend(_header_violations(header, spec))
     if result.file_violations:
         return result
 
-    columns = contract.spec["columns"]
+    columns = spec["columns"]
     checked: list[tuple[Row, Violation | None]] = []
     for n, values in enumerate(rows[1:], start=1):
+        values = [v.strip() for v in values]
         if len(values) != len(header):
             row = Row(n, dict(zip(header, values, strict=False)))
-            checked.append(
-                (
-                    row,
-                    Violation("ROW.FIELD_COUNT", f"{len(values)} fields, header has {len(header)}"),
-                )
-            )
+            detail = f"{len(values)} fields, header has {len(header)}"
+            checked.append((row, Violation("ROW.FIELD_COUNT", detail)))
             continue
         row = Row(n, dict(zip(header, values, strict=True)))
         violation = None
         for col in columns:
-            violation = _check_value(col, row.record[col["name"]].strip(), today)
+            violation = _check_value(col, row.record[col["name"]], today)
             if violation:
                 break
         checked.append((row, violation))
-
-    # Uniqueness over the rows that passed: every row sharing a duplicated key is
-    # rejected, because the file does not say which one is right.
     for col in (c for c in columns if c.get("unique")):
-        name = col["name"]
-        counts = Counter(r.record[name].strip() for r, v in checked if v is None)
-        checked = [
-            (r, v)
-            if v is not None or counts[r.record[name].strip()] < 2
-            else (r, Violation(f"KEY.DUPLICATE:{name}", f"{name} appears more than once"))
-            for r, v in checked
-        ]
+        checked = _mark_duplicates(checked, col["name"])
 
     result.accepted = [r for r, v in checked if v is None]
     result.rejected = [(r, v) for r, v in checked if v is not None]
     total = len(checked)
-    min_rows = contract.spec.get("min_rows", 1)
+    min_rows = spec.get("min_rows", 1)
+    max_ratio = float(spec.get("max_bad_row_ratio", 0.0))
     if total < min_rows:
         result.file_violations.append(
             Violation("FILE.TOO_FEW_ROWS", f"{total} data rows, contract requires {min_rows}")
         )
-    elif result.rejected and contract.rejects_file_on_row_violation:
+    elif result.rejected and spec["on_row_violation"] == "reject_file":
         first = result.rejected[0][1].reason_code
         result.file_violations.append(
             Violation(
@@ -214,15 +265,16 @@ def validate_csv(data: bytes, contract: Contract, received_at: datetime | None =
                 f"{len(result.rejected)} of {total} rows failed (first: {first})",
             )
         )
-    elif total and len(result.rejected) / total > contract.max_bad_row_ratio:
+    elif total and len(result.rejected) / total > max_ratio:
         result.file_violations.append(
             Violation(
                 "FILE.BAD_ROW_RATIO",
                 f"{len(result.rejected)} of {total} rows failed, above the contract's"
-                f" max_bad_row_ratio of {contract.max_bad_row_ratio}",
+                f" max_bad_row_ratio of {max_ratio}",
             )
         )
     if result.file_violations:
-        # The file is quarantined whole; per-row outcomes are reported, not loaded.
+        # The file is quarantined whole: nothing loads, and the intake records each bad
+        # row's reason alongside the file-level one.
         result.accepted = []
     return result

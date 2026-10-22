@@ -121,7 +121,9 @@ def test_encoding_empty_and_header_only(contract):
     assert codes(validate_csv(b"\n\n", contract, NOW)) == ["FILE.EMPTY"]
     assert codes(check(contract, HEADER)) == ["FILE.TOO_FEW_ROWS"]
     # A UTF-8 byte order mark is not part of the first column name.
-    assert not validate_csv(("﻿" + HEADER + "\n" + GOOD_ROW).encode(), contract, NOW).file_rejected
+    assert not validate_csv(
+        ("\ufeff" + HEADER + "\n" + GOOD_ROW).encode(), contract, NOW
+    ).file_rejected
 
 
 def test_bad_row_ratio_boundary(contract):

@@ -83,6 +83,15 @@ def process_file(
             QuarantineRecord(contract.feed, sha, "file", v.reason_code, v.detail, None, qkey)
             for v in result.file_violations
         ]
+        if isinstance(result, CsvResult):
+            # Rejected for its rows (FILE.BAD_ROW_RATIO, FILE.ROW_VIOLATIONS): each bad
+            # row keeps its own reason, pointing at the quarantined file.
+            quarantine += [
+                QuarantineRecord(
+                    contract.feed, sha, "record", v.reason_code, v.detail, _record_ref(r), qkey
+                )
+                for r, v in result.rejected
+            ]
         status = "quarantined"
     else:
         if result.rejected:
@@ -170,4 +179,8 @@ def _reason_doc(result: BundleResult | CsvResult, landing_key: str) -> bytes:
             {"reason_code": v.reason_code, "detail": v.detail} for v in result.file_violations
         ],
     }
+    if isinstance(result, CsvResult) and result.rejected:
+        doc["rows"] = [
+            {"row_number": r.row_number, "reason_code": v.reason_code} for r, v in result.rejected
+        ]
     return json.dumps(doc, indent=2, sort_keys=True).encode("utf-8")

@@ -7,6 +7,7 @@ with the psycopg2 connection that Airflow's PostgresHook returns.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from importlib.resources import files
@@ -71,7 +72,7 @@ class Warehouse:
         resources: list[Resource],
         patient_id: str | None,
         loaded_at: datetime,
-        csv_rows: list[Row] = (),
+        csv_rows: Sequence[Row] = (),
     ) -> None:
         """Bronze rows, quarantine rows and the intake row commit together or not at all."""
         try:
