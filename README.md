@@ -8,7 +8,20 @@ built in, and AI agents (later stages) can propose fixes, but a human always app
 
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
-**Status: Stage 0 (foundations) complete. Research-data track in progress: R1 (FHIR intake), see [docs/research](docs/research/README.md).**
+**Status: Stage 0 (foundations) complete. Research-data track R1–R6 built** (see
+[docs/research](docs/research/README.md)):
+
+| | |
+|---|---|
+| R1 | Synthea FHIR R4 through the intake: data contract, sha256 raw copy, quarantine with reason codes |
+| R2 | dbt gold layer as OMOP CDM 5.4 (person, observation_period, visit, condition, measurement, drug_exposure, observation) |
+| R3 | OMOP data quality: dbt tests named after OHDSI DQD checks, results in `ops.dq_results` |
+| R4 | De-identified shareable tier (keyed pseudonyms, date shifting, top-coding) with Postgres-enforced access |
+| R5 | Versioned Frictionless extracts, proven byte-identical across independent rebuilds |
+| R6 | OpenLineage events from intake, dbt and extracts (Marquez arrives in Stage 3) |
+
+**All data is synthetic** (Synthea and hand-written fixtures). No real patient data is used,
+stored or committed anywhere.
 
 ## Quick start
 

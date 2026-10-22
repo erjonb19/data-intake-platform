@@ -26,7 +26,7 @@ from pathlib import Path
 
 from dip import BUCKET_LANDING
 from dip.contracts import load_contracts
-from dip.intake import process_landing
+from dip.intake import feed_of, process_landing
 from dip.storage import LocalStore, ObjectStore, S3Store
 from dip.warehouse import Warehouse
 
@@ -59,7 +59,12 @@ def _extract(args: argparse.Namespace) -> int:
 
     conn = _warehouse().conn
     if args.action == "build":
+        from dip import lineage
+
         r = extract.build(conn, args.out, args.version, args.license)
+        lineage.extract_event(
+            lineage.Emitter(), os.environ["DIP_WAREHOUSE_DSN"], r, list(extract.TABLES)
+        )
         state = "reproduced the existing" if r.reproduced_existing else "wrote"
         print(f"{state} extract {args.version} at {r.path} (manifest sha256 {r.manifest_sha256})")
         return 0
@@ -111,8 +116,12 @@ def main(argv: list[str] | None = None) -> int:
             store.put(BUCKET_LANDING, f"{args.feed}/{f.name}", f.read_bytes())
         print(f"landed {len(args.files)} file(s) for {args.feed}")
     elif args.command == "intake":
+        from dip import lineage
+
         outcomes = process_landing(_store(args), _warehouse(), load_contracts())
+        emitter = lineage.Emitter()
         for o in outcomes:
+            lineage.intake_event(emitter, os.environ["DIP_WAREHOUSE_DSN"], feed_of(o.source_key), o)
             print(json.dumps(asdict(o)))
         statuses = [o.status for o in outcomes]
         print(
