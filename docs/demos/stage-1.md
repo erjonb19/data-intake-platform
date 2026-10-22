@@ -19,8 +19,8 @@ generates from the contract:
 
 | File | What happens |
 |---|---|
-| `elig_good.csv` | all 6 members reach `gold.member_eligibility`; the checksum over the key columns matches the file |
-| `elig_missing_member_id.csv` | schema drift: the file is quarantined with `SCHEMA.MISSING_COLUMN:member_id`, and none of its rows reach bronze, silver or gold |
+| `elig_good.csv` | all 6 members reach `gold.member_eligibility`; the checksum over every column matches the file |
+| `elig_missing_member_id.csv` | schema drift: the file is quarantined with `SCHEMA.MISSING_COLUMN:member_id`, and none of its rows reach bronze, silver or gold (each is checked) |
 | `elig_bad_rows.csv` | 1 of 20 rows has an invalid plan code: that row is quarantined (`VALUE.NOT_ALLOWED:plan_code`), the other 19 load |
 
 ## 2. Look at it
@@ -36,7 +36,8 @@ select status, accepted_count, rejected_count, source_key from ops.intake_file
  where feed = 'healthcare.eligibility';
 select level, reason_code, record_ref from ops.quarantine
  where feed = 'healthcare.eligibility';
-select * from gold.member_eligibility order by member_id;
+select member_id, plan_code, file_date, in_latest_file from gold.member_eligibility
+ order by member_id;
 ```
 
 ## 3. Try your own file

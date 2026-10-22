@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from dip import BUCKET_LANDING
@@ -14,8 +14,7 @@ from tests.integration.conftest import DSN, rows, scalar
 
 FIXTURES = Path(__file__).resolve().parents[1] / "fixtures" / "eligibility"
 FEED = "healthcare.eligibility"
-DAY1 = datetime(2026, 10, 21, 6, 0, tzinfo=UTC)
-DAY2 = datetime(2026, 10, 22, 6, 0, tzinfo=UTC)
+HEADER = "member_id,first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref"
 
 
 def build():
@@ -23,11 +22,29 @@ def build():
     assert result.returncode == 0, "dbt build of the eligibility models failed; see output"
 
 
-def test_eligibility_reaches_gold_and_the_latest_file_wins(warehouse, tmp_path):
+def land(store, warehouse, name: str, data: bytes, at: datetime):
+    store.put(BUCKET_LANDING, f"{FEED}/{name}", data)
+    return process_landing(store, warehouse, load_contracts(), at)
+
+
+def member(member_id: str, plan: str, name: str = "Pat") -> str:
+    return f"{member_id},{name},Invented,1980-01-01,F,{plan},2024-01-01,,"
+
+
+def gold(warehouse, member_id: str):
+    return rows(
+        warehouse,
+        "select plan_code, file_date, in_latest_file from gold.member_eligibility"
+        " where member_id = %s",
+        (member_id,),
+    )
+
+
+def test_fixtures_reach_gold(warehouse, tmp_path):
     store = LocalStore(tmp_path)
+    at = datetime(2026, 10, 21, 6, 0, tzinfo=UTC)
     for name in ("good/elig_good.csv", "bad/elig_missing_member_id.csv", "bad/elig_bad_rows.csv"):
-        store.put(BUCKET_LANDING, f"{FEED}/{Path(name).name}", (FIXTURES / name).read_bytes())
-    process_landing(store, warehouse, load_contracts(), DAY1)
+        land(store, warehouse, Path(name).name, (FIXTURES / name).read_bytes(), at)
     build()
 
     assert scalar(warehouse, "select count(*) from silver.eligibility_record") == 25
@@ -38,33 +55,52 @@ def test_eligibility_reaches_gold_and_the_latest_file_wins(warehouse, tmp_path):
         " from gold.member_eligibility where member_id in ('M000000002', 'M000000004')"
         " order by 1",
     ) == [
-        ("M000000002", _d("1975-07-30"), "PPO", _d("2023-06-01"), _d("2026-06-30"),
+        ("M000000002", date(1975, 7, 30), "PPO", date(2023, 6, 1), date(2026, 6, 30),
          "fixture-0002"),
-        ("M000000004", _d("1990-03-21"), "HDHP", _d("2022-09-15"), None, None),
+        ("M000000004", date(1990, 3, 21), "HDHP", date(2022, 9, 15), None, None),
     ]  # fmt: skip
+    # No date in these names: file_date falls back to the UTC date received.
+    assert rows(warehouse, "select distinct file_date from silver.eligibility_record") == [
+        (date(2026, 10, 21),)
+    ]
     # Nothing from the quarantined row reached silver or gold.
     assert (
-        scalar(warehouse, "select count(*) from gold.member_eligibility where plan_code = 'GOLD'")
+        scalar(warehouse, "select count(*) from silver.eligibility_record where plan_code = 'GOLD'")
         == 0
     )
 
-    # Day 2: member 2 changes plan. Gold follows the newest file; silver keeps both.
-    day2 = (FIXTURES / "good/elig_good.csv").read_text(encoding="utf-8")
-    day2 = day2.replace(
-        "M000000002,Sam,Sample,1975-07-30,M,PPO", "M000000002,Sam,Sample,1975-07-30,M,EPO"
+
+def test_full_file_semantics(warehouse, tmp_path):
+    store = LocalStore(tmp_path)
+    day1 = "\n".join([HEADER, member("M200000001", "HMO"), member("M200000002", "PPO"),
+                      member("M200000003", "EPO")]) + "\n"  # fmt: skip
+    land(
+        store, warehouse, "elig_20261020.csv", day1.encode(), datetime(2026, 10, 20, 6, tzinfo=UTC)
     )
-    store.put(BUCKET_LANDING, f"{FEED}/elig_20261022.csv", day2.encode("utf-8"))
-    process_landing(store, warehouse, load_contracts(), DAY2)
+    # Day 2: member 1 changes plan, member 2 is gone (disenrolled), member 3's row is bad.
+    day2 = "\n".join([HEADER, member("M200000001", "EPO"), member("M200000003", "GOLD")]) + "\n"
+    # 20 more members keep the one bad row under the contract's 5% bad-row limit.
+    day2 += "\n".join(member(f"M2000001{i:02d}", "HMO") for i in range(20)) + "\n"
+    land(
+        store, warehouse, "elig_20261021.csv", day2.encode(), datetime(2026, 10, 21, 6, tzinfo=UTC)
+    )
     build()
-    assert rows(
-        warehouse,
-        "select plan_code, as_of from gold.member_eligibility where member_id = 'M000000002'",
-    ) == [("EPO", DAY2)]
-    assert scalar(warehouse, "select count(*) from silver.eligibility_record") == 31
-    assert scalar(warehouse, "select count(*) from gold.member_eligibility") == 25
 
+    d1, d2 = date(2026, 10, 20), date(2026, 10, 21)
+    assert gold(warehouse, "M200000001") == [("EPO", d2, True)]
+    assert gold(warehouse, "M200000002") == [("PPO", d1, False)]  # disenrolled: not current
+    assert gold(warehouse, "M200000003") == [("EPO", d1, False)]  # newest row quarantined
+    assert (
+        scalar(warehouse, "select count(*) from gold.member_eligibility where in_latest_file") == 21
+    )
 
-def _d(text: str):
-    from datetime import date
-
-    return date.fromisoformat(text)
+    # A late copy of an older file (received after day 2, dated before it) changes nothing.
+    late = "\n".join([HEADER, member("M200000001", "HDHP", name="Late")]) + "\n"
+    land(
+        store, warehouse, "elig_20261019.csv", late.encode(), datetime(2026, 10, 22, 6, tzinfo=UTC)
+    )
+    build()
+    assert gold(warehouse, "M200000001") == [("EPO", d2, True)]
+    assert (
+        scalar(warehouse, "select count(*) from silver.eligibility_record") == 3 + 21 + 1
+    )  # day 2: 22 rows, 1 quarantined

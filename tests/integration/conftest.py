@@ -15,6 +15,7 @@ OWNED_SCHEMAS = (
     "ops",
     "ops_secret",
     "silver",
+    "gold",
     "omop",
     "deid",
     "omop_shareable",

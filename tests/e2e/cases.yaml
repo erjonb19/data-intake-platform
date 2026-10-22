@@ -4,14 +4,17 @@
 #   fixture    file under tests/fixtures/, dropped into landing/<feed>/
 #   status     expected ops.intake_file status
 #   reasons    expected set of ops.quarantine reason codes for the file
-#   gold_rows  how many of the file's rows must reach gold (0: none may reach bronze,
-#              silver or gold)
+#   gold_rows  how many of the file's rows must reach gold (0: the file is quarantined
+#              whole, and nothing of it may be in bronze, silver or gold)
 #   exclude_rows  data rows (1-based) expected in quarantine, left out of the checksum
 feeds:
   healthcare.eligibility:
     gold_table: gold.member_eligibility
-    # Gold rows are compared with the fixture on these columns (an md5 over sorted rows).
-    checksum_columns: [member_id, plan_code, coverage_start, coverage_end]
+    silver_table: silver.eligibility_record
+    # Gold rows are compared with the fixture on every contract column (an md5 over the
+    # sorted rows), so a mapping or cast bug in any column fails the case.
+    checksum_columns: [member_id, first_name, last_name, dob, sex, plan_code, coverage_start,
+                       coverage_end, patient_ref]
     cases:
       - fixture: eligibility/good/elig_good.csv
         status: loaded

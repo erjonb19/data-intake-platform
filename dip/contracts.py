@@ -50,6 +50,11 @@ class Contract:
         return fnmatch(filename, self.spec["source"]["filename_pattern"])
 
 
+def dag_id_for(feed: str) -> str:
+    """The intake DAG of a file feed: healthcare.eligibility -> intake__healthcare__eligibility."""
+    return "intake__" + feed.replace(".", "__")
+
+
 @cache
 def _schema() -> dict[str, Any]:
     return json.loads((Path(__file__).parent / "contract.schema.json").read_text("utf-8"))

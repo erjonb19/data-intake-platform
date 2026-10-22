@@ -65,9 +65,12 @@ empty fields (`,,,,`) is checked like any other row; only truly blank lines are 
 - Reruns: a file with the same sha256 for the same feed is skipped (`duplicate`).
 - Silver and gold: dbt models tagged with the feed name, built by the feed's DAG
   (`dags/feed_intake.py` generates one per CSV contract: `intake__<pack>__<feed>`). For
-  eligibility: `silver.eligibility_record` (every accepted row, typed) and
-  `gold.member_eligibility` (each member's current eligibility, from the latest file that
-  lists them).
+  eligibility: `silver.eligibility_record` (every accepted row, typed, with the file's
+  business date from its name) and `gold.member_eligibility`: one row per member ever
+  listed, from the newest file that lists them, ordered by business date so a late older
+  file never overrides newer data. The feed sends full files, so current members are the
+  rows with `in_latest_file`; a disenrolled member, or one whose newest row was
+  quarantined, keeps their last known row with `in_latest_file = false`.
 
 ## Healthcare eligibility (synthetic)
 

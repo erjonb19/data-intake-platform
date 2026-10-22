@@ -365,7 +365,8 @@ infra/            terraform/ (kind, helm releases, profiles), kind/cluster.yaml,
 images/           airflow/ (DAGs + dbt baked in), intake-api/, ocr/
 dip/              core Python package: intake, contracts engine, quarantine, parsers, de-id, extracts
                   (named `dip`, not `platform`, which would shadow Python's stdlib module)
-packs/healthcare/ contracts/ parsers/x12/ generators/ (Synthea + 837/835) dbt/ breakages/
+packs/healthcare/ contracts/ parsers/x12/ generators/ (Synthea + 837/835) breakages/
+                  (its dbt models live in dbt/models/, e.g. eligibility/, next to the FHIR ones)
                   research track: FHIR contract, silver FHIR models, OMOP gold, de-id tier
 packs/finance/    contracts/ parsers/ generators/ (invoices) dbt/ breakages/
 dags/             generic contract-driven DAGs (one DAG factory, one DAG per feed)

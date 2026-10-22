@@ -3,9 +3,10 @@
 For each feed: drop its fixtures into `landing/<feed>/`, trigger the feed's intake DAG,
 wait for it, then check every case in the warehouse:
   - the file's ops.intake_file status and its set of quarantine reason codes;
-  - its rows in gold: the expected count, and a checksum over the key columns computed
-    independently from the fixture (minus `exclude_rows`);
-  - a file expected to reach gold with 0 rows left nothing in bronze, silver or gold.
+  - a file quarantined whole has a file-level quarantine row and nothing of it is in
+    bronze, silver or gold;
+  - otherwise its rows in gold: the expected count, and a checksum over every contract
+    column computed independently from the fixture (minus `exclude_rows`).
 
 Safe to rerun: processed files are recognized by sha256.
 Env: as smoke.py, plus MINIO_USER, MINIO_PASSWORD and WAREHOUSE_DSN.
@@ -20,16 +21,20 @@ import os
 import sys
 from pathlib import Path
 
-import boto3
-import psycopg
 import yaml
-from smoke import AIRFLOW_URL, MINIO_URL, PASSWORD, USER, request, step, wait_for
 
 HERE = Path(__file__).resolve().parent
 FIXTURES = HERE.parent / "fixtures"
+EMPTY = (0, hashlib.md5(b"").hexdigest())
+
+
+def load_cases() -> dict:
+    return yaml.safe_load((HERE / "cases.yaml").read_text("utf-8"))
 
 
 def dag_id_for(feed: str) -> str:
+    # Same rule as dip.contracts.dag_id_for (a unit test keeps them equal); the E2E venv
+    # does not install the dip package.
     return "intake__" + feed.replace(".", "__")
 
 
@@ -47,7 +52,58 @@ def gold_checksum(cur, table: str, sha: str, columns: list[str]) -> tuple[int, s
     return len(lines), hashlib.md5("\n".join(lines).encode()).hexdigest()
 
 
+def count(cur, sql: str, *params) -> int:
+    cur.execute(sql, params)
+    return cur.fetchone()[0]
+
+
+def check_case(cur, feed: str, spec: dict, case: dict, sha: str, failures: list[str]) -> None:
+    name = case["fixture"]
+    cur.execute(
+        "select status from ops.intake_file where feed = %s and file_sha256 = %s", (feed, sha)
+    )
+    got = cur.fetchone()
+    if not got or got[0] != case["status"]:
+        failures.append(f"{name}: status {got and got[0]!r}, expected {case['status']!r}")
+    cur.execute(
+        "select distinct reason_code from ops.quarantine where feed = %s and file_sha256 = %s",
+        (feed, sha),
+    )
+    reasons = sorted(r[0] for r in cur.fetchall())
+    if reasons != sorted(case["reasons"]):
+        failures.append(f"{name}: reasons {reasons}, expected {sorted(case['reasons'])}")
+
+    got_gold = gold_checksum(cur, spec["gold_table"], sha, spec["checksum_columns"])
+    if case["gold_rows"] == 0:
+        if got_gold != EMPTY:
+            failures.append(f"{name}: {got_gold[0]} rows reached gold, expected none")
+        q = (
+            "select count(*) from ops.quarantine"
+            " where feed = %s and file_sha256 = %s and level = 'file'"
+        )
+        if count(cur, q, feed, sha) == 0:
+            failures.append(f"{name}: no file-level quarantine row")
+        for table, column in (
+            ("bronze.csv_record", "file_sha256"),
+            (spec["silver_table"], "file_sha256"),
+        ):
+            if count(cur, f"select count(*) from {table} where {column} = %s", sha):
+                failures.append(f"{name}: rows from a quarantined file reached {table}")
+        return
+    want = fixture_checksum(
+        (FIXTURES / name).read_bytes(), set(case.get("exclude_rows", [])), spec["checksum_columns"]
+    )
+    if got_gold != want or want[0] != case["gold_rows"]:
+        failures.append(
+            f"{name}: gold has {got_gold[0]} rows (checksum {got_gold[1][:12]}), expected"
+            f" {case['gold_rows']} (fixture: {want[0]} rows, checksum {want[1][:12]})"
+        )
+
+
 def run_feed(s3, token: str, feed: str, spec: dict, failures: list[str]) -> None:
+    import psycopg
+    from smoke import AIRFLOW_URL, request, step, wait_for
+
     api = f"{AIRFLOW_URL}/api/v2"
     dag_id = dag_id_for(feed)
     sha = {}
@@ -77,45 +133,14 @@ def run_feed(s3, token: str, feed: str, spec: dict, failures: list[str]) -> None
     step(f"{feed}: checking the warehouse")
     with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
         for case in spec["cases"]:
-            name, s = case["fixture"], sha[case["fixture"]]
-            cur.execute(
-                "select status from ops.intake_file where feed = %s and file_sha256 = %s", (feed, s)
-            )
-            got = cur.fetchone()
-            if not got or got[0] != case["status"]:
-                failures.append(f"{name}: status {got and got[0]!r}, expected {case['status']!r}")
-            cur.execute(
-                "select distinct reason_code from ops.quarantine"
-                " where feed = %s and file_sha256 = %s",
-                (feed, s),
-            )
-            reasons = sorted(r[0] for r in cur.fetchall())
-            if reasons != sorted(case["reasons"]):
-                failures.append(f"{name}: reasons {reasons}, expected {sorted(case['reasons'])}")
-            want = fixture_checksum(
-                (FIXTURES / name).read_bytes(),
-                set(case.get("exclude_rows", [])),
-                spec["checksum_columns"],
-            )
-            if case["gold_rows"] == 0:
-                want = (0, hashlib.md5(b"").hexdigest())
-            got_gold = gold_checksum(cur, spec["gold_table"], s, spec["checksum_columns"])
-            if got_gold[0] != case["gold_rows"] or got_gold != want:
-                failures.append(
-                    f"{name}: gold has {got_gold[0]} rows (checksum {got_gold[1][:12]}),"
-                    f" expected {case['gold_rows']} (checksum {want[1][:12]})"
-                )
-            if case["gold_rows"] == 0:
-                cur.execute(
-                    "select count(*) from bronze.csv_record where feed = %s and file_sha256 = %s",
-                    (feed, s),
-                )
-                if cur.fetchone()[0]:
-                    failures.append(f"{name}: rows from a quarantined file reached bronze")
+            check_case(cur, feed, spec, case, sha[case["fixture"]], failures)
 
 
 def main() -> int:
-    cases = yaml.safe_load((HERE / "cases.yaml").read_text("utf-8"))
+    import boto3
+    from smoke import AIRFLOW_URL, MINIO_URL, PASSWORD, USER, request
+
+    cases = load_cases()
     s3 = boto3.client(
         "s3",
         endpoint_url=MINIO_URL,

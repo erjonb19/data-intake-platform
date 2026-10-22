@@ -1,10 +1,17 @@
-{{ config(schema='silver', materialized='view', tags=['healthcare.eligibility']) }}
+{{ config(schema='silver', materialized='view', tags=['file_feed', 'healthcare.eligibility']) }}
 
 -- Silver: every accepted eligibility row, typed. The intake already checked each value
 -- against the contract (dip/csvfeed.py) and stored it trimmed, so the casts cannot fail.
+-- file_date is the file's business date, from its name (elig_YYYYMMDD.csv); a file named
+-- otherwise falls back to the UTC date it was received.
 select
     b.file_sha256,
     b.row_number,
+    f.source_key,
+    coalesce(
+        to_date(substring(f.source_key from 'elig_([0-9]{8})[^/]*$'), 'YYYYMMDD'),
+        (f.received_at at time zone 'UTC')::date
+    ) as file_date,
     f.received_at,
     f.contract_version,
     b.record ->> 'member_id' as member_id,
