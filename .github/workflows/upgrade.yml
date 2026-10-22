@@ -8,7 +8,7 @@ name: upgrade
 # It is two full deploys (about twice e2e.yml), so it runs nightly, on demand, and on PRs
 # that touch what an upgrade exercises: dbt, Terraform and Helm values (infra/), the
 # images, and the warehouse DDL in dip/warehouse.py.
-#   PR:              from = the PR's base commit,      to = the PR merged into its base
+#   PR:              from = the base (HEAD^1),         to = the PR merged into its base
 #   nightly, manual: from = the previous main (HEAD^1), to = main
 
 on:
@@ -44,12 +44,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      # HEAD is a merge commit either way (a PR's test merge, or main's last merge), and
+      # its first parent is the version to upgrade from.
       - name: Pick the versions
-        env:
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
         run: |
           to="$(git rev-parse HEAD)"
-          if [[ -n "$PR_BASE" ]]; then from="$PR_BASE"; else from="$(git rev-parse HEAD^1)"; fi
+          from="$(git rev-parse HEAD^1)"
           echo "FROM_SHA=$from" >> "$GITHUB_ENV"
           echo "TO_SHA=$to" >> "$GITHUB_ENV"
           echo "upgrade $(git log -1 --format='%h %s' "$from")"
