@@ -76,7 +76,56 @@ vocabulary `MIMIC_LAB`, which both MIMIC paths now use for lab codes.
 
 **The fix is a single Athena download** that selects SNOMED, ICD10CM, ICD9CM, ICD9Proc,
 ICD10PCS, NDC, RxNorm, RxNorm Extension and LOINC together (plus anything else wanted).
-NDC → RxNorm has the same gap: NDC and RxNorm must be in the same download.
+NDC → RxNorm has the same gap: NDC and RxNorm must be in the same download. That download
+arrived the next day; see below.
+
+## The full bundle (2026-10-22)
+
+One Athena download (`athena_vocab_full`, release **v5.0 29-AUG-26**, still local only,
+never committed) with every vocabulary, including SNOMED, ICD9CM, ICD9Proc, ICD10CM,
+ICD10PCS, NDC, RxNorm, RxNorm Extension, LOINC, CVX, Gender, Race and Ethnicity:
+**10,167,185 concepts and 7,433,971 "Maps to" rows**. CPT4 is skipped: Athena ships it
+separately (`CONCEPT_CPT4.csv` plus a tool that needs a UMLS key to fill in names), and the
+loader reads only `CONCEPT.csv`. The loader's gap warning is silent for all of the source
+vocabularies the pipeline maps from.
+
+Unmapped rows, Eunomia → the two separate downloads → the full bundle:
+
+| Build | Table | Eunomia | Two downloads | **Full bundle** |
+|---|---|---:|---:|---:|
+| Synthea | condition_occurrence | 49.7% | 2.4% | **0.8%** (4 of 484) |
+| Synthea | observation | 0% | 0.1% | **0.1%** (6 of 5,987) |
+| Synthea | measurement | 3.9% | 0.1% | **0.1%** (6 of 6,695) |
+| Synthea | drug_exposure | 20.5% | 0% | **0%** (0 of 648) |
+| MIMIC FHIR | condition_occurrence | 100% | 100% | **3.3%** (139 of 4,237) |
+| MIMIC FHIR | observation | — | — | **0%** (0 of 814) |
+| MIMIC FHIR | measurement | 100% | 4.8% | **4.8%** (5,158 of 107,727) |
+| MIMIC FHIR | drug_exposure | 100% | 100% | **34.3%** (6,021 of 17,552) |
+| MIMIC relational | condition_occurrence | 100% | 100% | **3.3%** (125 of 3,774) |
+| MIMIC relational | observation | — | — | **0%** (0 of 732) |
+| MIMIC relational | measurement | 100% | 4.8% | **4.8%** (5,158 of 107,727) |
+| MIMIC relational | drug_exposure | 100% | 100% | **16.8%** (3,043 of 18,087) |
+
+Synthea overall: **16 of 13,814 rows (0.1%)** unmapped. Counts only; no MIMIC row leaves
+the laptop.
+
+- **Diagnoses:** now that ICD9CM and ICD10CM map to SNOMED, 814 FHIR and 732 relational MIMIC
+  diagnoses have Observation-domain targets (most often "History of event", "Long-term current
+  use of insulin" or anticoagulants, "Not for resuscitation"). They move to
+  `observation`, as OMOP requires: 4,237 + 814 = 5,051 and 3,774 + 732 = 4,506, so no row is
+  lost.
+- **Drugs:** almost every unmapped MIMIC drug row has no NDC at all. Its source value is a
+  local drug name or an IV mix (5,882 of 6,021 on the FHIR path, 2,631 of 3,043 relational).
+  Rows that carry an NDC map at 98.9% (FHIR) and 97.4% (relational). The FHIR export takes
+  more of its orders from local names than the relational `prescriptions` table does, which
+  explains the gap between 34.3% and 16.8%.
+- **One more pipeline fix:** 9 NDC codes (in each MIMIC build) map to the **Device** domain
+  (syringes and similar), which failed DQD `fkDomain` on `drug_exposure`. OMOP puts devices in
+  `device_exposure`, which this build doesn't have, so they stay as drug rows with concept
+  0 and their source concept, like the Episode diagnoses above.
+- **Reconciliation** of the two MIMIC builds: still 0 unexplained differences.
+- **DQ on MIMIC** now fails only the two known, explained checks: shifted years of birth,
+  and one prescription that starts after its admission ends.
 
 ## What the full vocabulary found in the pipeline
 

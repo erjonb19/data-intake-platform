@@ -3,7 +3,11 @@
 select
     {{ omop_id('m.medication_request_id') }} as drug_exposure_id,
     {{ omop_id('m.patient_id') }} as person_id,
-    coalesce(s.standard_concept_id, 0) as drug_concept_id,
+    -- Only Drug-domain concepts. Some NDC codes are devices (syringes, test strips: domain
+    -- Device), which belong in DEVICE_EXPOSURE, not built here: they stay as drug rows with
+    -- concept 0 and keep their source concept, so they are counted, not dropped.
+    case when s.standard_domain_id = 'Drug' then s.standard_concept_id else 0 end
+        as drug_concept_id,
     m.authored_at::date as drug_exposure_start_date,
     m.authored_at as drug_exposure_start_datetime,
     m.authored_at::date as drug_exposure_end_date,
