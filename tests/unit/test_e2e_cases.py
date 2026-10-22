@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 from datetime import UTC, datetime
 
 import pytest
@@ -35,6 +36,8 @@ def test_runner_names_dags_like_the_dag_factory():
 def test_case_matches_what_the_contract_does(feed, spec, case):
     contract = load_contracts()[feed]
     data = (RUN.FIXTURES / case["fixture"]).read_bytes()
+    if contract.format_type == "pdf":
+        return check_pdf_case(contract, spec, case, data)
     validate = validate_excel if contract.format_type == "excel" else validate_csv
     result = validate(data, contract, datetime(2026, 10, 21, tzinfo=UTC))
     reasons = sorted({v.reason_code for v in result.file_violations} |
@@ -58,6 +61,36 @@ def test_case_matches_what_the_contract_does(feed, spec, case):
             got = RUN._xlsx_rows(data, fmt["sheet"], fmt["header_row"])
             kept = [r for i, r in enumerate(got, 1) if i not in set(case.get("exclude_rows", []))]
             assert kept == expected
+
+
+# The gold.invoice_match columns a PDF case's `expect` gives, and the contract column each
+# comes from (match_status is gold's own: the live E2E checks it).
+PDF_COLUMNS = {
+    "invoice_number": "invoice_number",
+    "vendor_id": "vendor_id",
+    "po_number": "po_number",
+    "pdf_total": "total",
+    "extraction": "extraction",
+}
+
+
+def check_pdf_case(contract, spec, case, data):
+    if "scan" in case["fixture"] and shutil.which("tesseract") is None:
+        pytest.skip("Tesseract is only in the OCR image and on CI")
+    from dip.pdffeed import validate_pdf
+
+    result = validate_pdf(data, contract, datetime(2026, 10, 21, tzinfo=UTC))
+    reasons = sorted({v.reason_code for v in result.file_violations} |
+                     {v.reason_code for _, v in result.rejected})  # fmt: skip
+    assert reasons == sorted(case["reasons"])
+    assert len(result.accepted) == case["gold_rows"] == len(case.get("expect", []))
+    assert spec["checksum_columns"] == [*PDF_COLUMNS, "match_status"]
+    for row, want in zip(result.accepted, case.get("expect", []), strict=True):
+        assert {k: row.record[c] for k, c in PDF_COLUMNS.items()} == {
+            k: str(want[k]) for k in PDF_COLUMNS
+        }
+        assert want["match_status"] in ("matched", "not_in_register", "vendor_differs",
+                                        "po_differs", "total_differs")  # fmt: skip
 
 
 @pytest.mark.parametrize(("feed", "spec", "case"), CASES, ids=[c["fixture"] for _, _, c in CASES])

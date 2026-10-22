@@ -69,6 +69,12 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
 
+      # Stage 3: the PDF invoice tests OCR scans with it (they skip without it, as on a laptop).
+      - name: Tesseract (the OCR image's engine)
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-eng
+
       - name: Cache Synthea jar and vocabulary
         uses: actions/cache@v5
         with:

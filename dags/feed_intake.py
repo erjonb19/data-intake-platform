@@ -21,6 +21,21 @@ from airflow.sdk import dag, task
 from dip.contracts import dag_id_for, load_contracts
 
 
+def _executor_config(feed: str) -> dict:
+    """PDF feeds read scans with Tesseract, which only the OCR image has (images/ocr): their
+    intake task runs in it. Every other task keeps the Airflow image."""
+    import os
+
+    image = os.environ.get("DIP_OCR_IMAGE", "")
+    if load_contracts()[feed].format_type != "pdf" or not image:
+        return {}
+    from kubernetes.client import models as k8s
+
+    return {"pod_override": k8s.V1Pod(spec=k8s.V1PodSpec(
+        containers=[k8s.V1Container(name="base", image=image)]
+    ))}  # fmt: skip
+
+
 def build(feed: str):
     @dag(
         dag_id=dag_id_for(feed),
@@ -32,7 +47,7 @@ def build(feed: str):
         doc_md=__doc__,
     )
     def feed_intake():
-        @task
+        @task(executor_config=_executor_config(feed))
         def intake() -> dict:
             from dip import BUCKET_LANDING, lineage
             from dip.contracts import load_contracts
@@ -79,5 +94,5 @@ def build(feed: str):
 
 
 for _contract in load_contracts().values():
-    if _contract.format_type in ("csv", "excel"):
+    if _contract.format_type in ("csv", "excel", "pdf"):
         globals()[dag_id_for(_contract.feed)] = build(_contract.feed)

@@ -4,9 +4,11 @@ A vendor invoice arrives as a PDF: either native (it has a text layer) or scanne
 image of the page). The reader:
 
 1. takes the text layer with pdfplumber; a page without one is OCR'd with Tesseract
-   (pytesseract) on the page rendered at `format.ocr_dpi` (default 300), keeping each
-   word's confidence. Tesseract runs only in the OCR task image (images/ocr), never on the
-   laptop or in the main Airflow image;
+   (pytesseract), keeping each word's confidence. The page is rendered at the scan's own
+   resolution, capped at `format.ocr_dpi` (default 300): upsampling a 200 dpi scan to 300
+   only blurs it (on the test scan, mean confidence 91.0 at 200 dpi, 74.9 at 300).
+   Tesseract runs only in the OCR task image (images/ocr) and on CI, never in the main
+   Airflow image;
 2. if the mean word confidence of an OCR'd file is under `format.min_ocr_confidence`
    (default 75), quarantines the whole file with `OCR.LOW_CONFIDENCE`: a guessed number is
    worse than a quarantined one;
@@ -41,10 +43,21 @@ DEFAULT_MIN_CONFIDENCE = 75.0
 MAX_PAGES = 20
 
 
-def _ocr(page: Any, dpi: int) -> tuple[str, list[float]]:
+def _scan_dpi(page: Any, cap: int) -> int:
+    """The resolution of the page's largest embedded image (a scan is one image per page),
+    at most `cap`; `cap` for a page with no image."""
+    sizes = [
+        (im["srcsize"][0] / ((im["x1"] - im["x0"]) / 72))
+        for im in page.images
+        if im.get("srcsize") and im["x1"] > im["x0"]
+    ]
+    return max(72, min(cap, round(max(sizes)))) if sizes else cap
+
+
+def _ocr(page: Any, cap: int) -> tuple[str, list[float]]:
     import pytesseract
 
-    image = page.to_image(resolution=dpi).original.convert("L")
+    image = page.to_image(resolution=_scan_dpi(page, cap)).original.convert("L")
     data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
     lines: dict[tuple[int, int, int], list[str]] = {}
     confidences = []
@@ -57,7 +70,9 @@ def _ocr(page: Any, dpi: int) -> tuple[str, list[float]]:
     return "\n".join(" ".join(ws) for _, ws in sorted(lines.items())), confidences
 
 
-def read_text(data: bytes, fmt: dict[str, Any], result: CsvResult) -> tuple[str, float | None] | None:
+def read_text(
+    data: bytes, fmt: dict[str, Any], result: CsvResult
+) -> tuple[str, float | None] | None:
     """The document's text, and the mean OCR confidence (None for a native file)."""
     import pdfplumber
 

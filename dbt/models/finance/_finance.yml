@@ -26,3 +26,29 @@ models:
         data_tests:
           - accepted_values:
               arguments: {values: [NET15, NET30, NET45, NET60]}
+
+  - name: vendor_invoice_pdf_record
+    description: >
+      silver.vendor_invoice_pdf_record: one row per accepted invoice PDF (native or OCR'd
+      scan), typed, with how it was read and the OCR confidence.
+    columns:
+      - name: file_sha256
+        data_tests: [unique, not_null]
+      - name: extraction
+        data_tests:
+          - accepted_values:
+              arguments: {values: [native, ocr]}
+
+  - name: invoice_match
+    description: >
+      gold.invoice_match: each invoice PDF (newest per number) matched to the Excel
+      register, with one match_status per invoice (matched, not_in_register,
+      vendor_differs, po_differs, total_differs).
+    columns:
+      - name: invoice_number
+        data_tests: [unique, not_null]
+      - name: match_status
+        data_tests:
+          - accepted_values:
+              arguments: {values: [matched, not_in_register, vendor_differs, po_differs,
+                                   total_differs]}

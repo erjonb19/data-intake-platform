@@ -6,7 +6,8 @@ wait for it, then check every case in the warehouse:
   - a file quarantined whole has a file-level quarantine row and nothing of it is in
     bronze, silver or gold;
   - otherwise its rows in gold: the expected count, and a checksum over every contract
-    column computed independently from the fixture (minus `exclude_rows`).
+    column computed independently from the fixture (minus `exclude_rows`), or, for a
+    PDF (Stage 3), from the values the case lists under `expect`.
 
 Cases with `channel: sftp` are uploaded to the feed's vendor account over SFTP instead,
 and the `sftp_sync` DAG moves them to landing first (Stage 2); their delivery must be
@@ -82,9 +83,12 @@ def fixture_checksum(
         rows = _xlsx_rows(data, excel["sheet"], excel.get("header_row", 1))
     else:
         rows = list(csv.DictReader(io.StringIO(data.decode("utf-8-sig"))))
-    kept = [r for n, r in enumerate(rows, start=1) if n not in exclude]
-    lines = sorted("|".join(r[c].strip() for c in columns) for r in kept)
-    return len(kept), hashlib.md5("\n".join(lines).encode()).hexdigest()
+    return rows_checksum([r for n, r in enumerate(rows, start=1) if n not in exclude], columns)
+
+
+def rows_checksum(rows: list[dict[str, str]], columns: list[str]) -> tuple[int, str]:
+    lines = sorted("|".join(r[c].strip() for c in columns) for r in rows)
+    return len(rows), hashlib.md5("\n".join(lines).encode()).hexdigest()
 
 
 def gold_checksum(cur, table: str, sha: str, columns: list[str]) -> tuple[int, str]:
@@ -141,12 +145,16 @@ def check_case(cur, feed: str, spec: dict, case: dict, sha: str, failures: list[
             if count(cur, f"select count(*) from {table} where {column} = %s", sha):
                 failures.append(f"{name}: rows from a quarantined file reached {table}")
         return
-    want = fixture_checksum(
-        (FIXTURES / name).read_bytes(),
-        set(case.get("exclude_rows", [])),
-        spec["checksum_columns"],
-        spec.get("excel"),
-    )
+    if "expect" in case:  # a PDF: its values are written in the case, not parsed here
+        want = rows_checksum([{k: str(v) for k, v in r.items()} for r in case["expect"]],
+                             spec["checksum_columns"])  # fmt: skip
+    else:
+        want = fixture_checksum(
+            (FIXTURES / name).read_bytes(),
+            set(case.get("exclude_rows", [])),
+            spec["checksum_columns"],
+            spec.get("excel"),
+        )
     if got_gold != want or want[0] != case["gold_rows"]:
         failures.append(
             f"{name}: gold has {got_gold[0]} rows (checksum {got_gold[1][:12]}), expected"

@@ -1,7 +1,8 @@
-# Data contracts: CSV and Excel feeds
+# Data contracts: CSV, Excel and PDF feeds
 
 Every file feed has a YAML contract in its pack (`packs/<pack>/contracts/*.yaml`), checked
-against `dip/contract.schema.json` when it loads. This page covers `format: csv` (Stage 1) and `format: excel` (Stage 2);
+against `dip/contract.schema.json` when it loads. This page covers `format: csv` (Stage 1), `format: excel` (Stage 2)
+and `format: pdf` (Stage 3);
 FHIR bundles are covered in [research/README.md](research/README.md).
 
 Example: [`packs/healthcare/contracts/eligibility.yaml`](../packs/healthcare/contracts/eligibility.yaml).
@@ -41,6 +42,31 @@ value; one never calculated by Excel has none and reads as empty, so `required` 
 Trailing empty columns and fully empty rows are dropped (empty rows counted as blank lines).
 File codes added by Excel: `FILE.INVALID_XLSX` (not a readable workbook) and `FILE.MACROS`
 (the workbook contains a VBA project; refused whatever its name).
+
+## PDF (`format: pdf`, Stage 3)
+
+One document per file, giving one row (`min_rows: 1`, `on_row_violation: reject_file`).
+The reader (`dip/pdffeed.py`) takes the PDF's text layer; a page with none (a scan) is
+OCR'd with Tesseract. OCR runs only in the OCR task image (`images/ocr`: the Airflow image
+plus Tesseract 5 and the English model), which the PDF feed's intake task alone uses (a
+KubernetesExecutor pod override); CI installs Tesseract to run the same tests, and on a
+laptop without it the OCR tests skip. Each field is found by its label, whatever the
+layout (`Invoice number: INV-1`, or `Invoice number` and the value in a table cell), then
+normalized (amounts lose thousands separators and currency signs) and checked by the CSV
+rules, so a misread value gets the usual code (`VALUE.PATTERN:invoice_number`).
+
+| Key | Meaning |
+|---|---|
+| `format.fields` | column -> the label printed before its value; `{first_line: true}` takes the page's first line (a letterhead) |
+| `format.min_ocr_confidence` | a scan whose mean Tesseract word confidence is below this (default 75) is quarantined whole |
+| `format.ocr_dpi` | the highest resolution a scan is OCR'd at (default 300); a scan is read at its own resolution, since upsampling only blurs it |
+
+Every PDF contract has two more columns, filled by the reader: `extraction` (`native` or
+`ocr`) and `ocr_confidence` (empty for native files), so gold can tell a typed total from
+a read one. File codes: `PDF.INVALID` (not a readable PDF), `PDF.EMPTY`,
+`PDF.MISSING_FIELD:<column>` (a label not found: nothing is guessed),
+`OCR.LOW_CONFIDENCE`, and `OCR.UNAVAILABLE` (a scan reached a task without Tesseract: the
+pod override is missing).
 
 ## Channels (`source.channels`, Stage 2)
 
@@ -167,6 +193,26 @@ newest register wins; Stage 3's OCR invoices are matched to it). DQ warnings, in
 `invoice_due_after_invoice`. Fixtures (`tests/fixtures/finance/`, from `make_fixtures.py`):
 a clean register, one with every breakage, and one whose sheet was renamed
 (SCHEMA.MISSING_SHEET).
+
+## Finance invoice PDFs (generated, Stage 3)
+
+`packs/finance/generators/invoice_pdfs.py` prints the same invoices as the vendors would
+send them, one per PDF: native (reportlab, a text layer) or scanned (the page rendered at
+200 dpi, rotated up to 1.2 degrees, blurred and speckled, saved as an image-only PDF; a
+`poor` scan at 70 dpi is unreadable on purpose). Two layouts by vendor, `stacked` (label:
+value lines) and `table` (a bordered grid). Deterministic: reportlab's invariant mode, a
+seeded noise generator and fixed PDF dates.
+
+Contract: `packs/finance/contracts/vendor_invoice_pdf.yaml`. dbt:
+`silver.vendor_invoice_pdf_record` (one row per accepted PDF) and `gold.invoice_match`:
+the newest PDF of each invoice number against the Excel register (`gold.vendor_invoice`),
+with one `match_status`, the first check that fails: `not_in_register`, `vendor_differs`,
+`po_differs`, `total_differs` (to the cent), else `matched`. The DQ warning
+`invoice_pdf_matches_register` counts the mismatches: they are work for AP, not a reason to
+drop a document. Fixtures: two native PDFs (one per layout) and a scan that match the
+register, one billed $10 over it, one the register lacks, an unreadable scan
+(OCR.LOW_CONFIDENCE) and a file that is not a PDF (PDF.INVALID). On the test scan,
+Tesseract's mean word confidence is 91.0 and every field reads correctly.
 
 ## Late files (`expected_arrival`, Stage 2)
 

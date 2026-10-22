@@ -42,11 +42,10 @@ def _money(v: Decimal) -> str:
 
 
 def native_pdf(inv: dict) -> bytes:
+    import reportlab.rl_config as rl
     from reportlab.lib.pagesizes import LETTER
     from reportlab.pdfgen import canvas
     from reportlab.rl_config import _reset
-
-    import reportlab.rl_config as rl
 
     rl.invariant = 1
     _reset()
