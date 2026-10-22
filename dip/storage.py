@@ -14,7 +14,12 @@ from typing import Any, Protocol
 class ObjectStore(Protocol):
     def get(self, bucket: str, key: str) -> bytes: ...
     def put(
-        self, bucket: str, key: str, data: bytes, metadata: dict[str, str] | None = None
+        self,
+        bucket: str,
+        key: str,
+        data: bytes,
+        metadata: dict[str, str] | None = None,
+        if_absent: bool = False,
     ) -> None: ...
     def metadata(self, bucket: str, key: str) -> dict[str, str]: ...
     def exists(self, bucket: str, key: str) -> bool: ...
@@ -43,11 +48,18 @@ class LocalStore:
         return self.root / ".meta" / bucket / f"{key}.json"
 
     def put(
-        self, bucket: str, key: str, data: bytes, metadata: dict[str, str] | None = None
+        self,
+        bucket: str,
+        key: str,
+        data: bytes,
+        metadata: dict[str, str] | None = None,
+        if_absent: bool = False,
     ) -> None:
+        """With if_absent, raise FileExistsError instead of replacing an object."""
         p = self._path(bucket, key)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_bytes(data)
+        with p.open("xb" if if_absent else "wb") as f:
+            f.write(data)
         m = self._meta_path(bucket, key)
         if metadata:
             m.parent.mkdir(parents=True, exist_ok=True)
@@ -84,9 +96,24 @@ class S3Store:
         return self.client.get_object(Bucket=bucket, Key=key)["Body"].read()
 
     def put(
-        self, bucket: str, key: str, data: bytes, metadata: dict[str, str] | None = None
+        self,
+        bucket: str,
+        key: str,
+        data: bytes,
+        metadata: dict[str, str] | None = None,
+        if_absent: bool = False,
     ) -> None:
-        self.client.put_object(Bucket=bucket, Key=key, Body=data, Metadata=metadata or {})
+        """With if_absent, a conditional write (If-None-Match: *): FileExistsError if the
+        object exists, decided by the store, so two writers cannot both succeed."""
+        extra = {"IfNoneMatch": "*"} if if_absent else {}
+        try:
+            self.client.put_object(Bucket=bucket, Key=key, Body=data, Metadata=metadata or {},
+                                   **extra)  # fmt: skip
+        except Exception as exc:
+            code = getattr(exc, "response", {}).get("Error", {}).get("Code")
+            if if_absent and code in ("PreconditionFailed", "412"):
+                raise FileExistsError(f"{bucket}/{key}") from exc
+            raise
 
     def metadata(self, bucket: str, key: str) -> dict[str, str]:
         return dict(self.client.head_object(Bucket=bucket, Key=key).get("Metadata", {}))

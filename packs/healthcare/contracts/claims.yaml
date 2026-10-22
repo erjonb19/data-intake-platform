@@ -22,6 +22,8 @@ format: { type: csv, delimiter: ",", encoding: utf-8, header: true }
 expected_arrival: { cron: "0 7 * * *", grace: 2h }
 on_row_violation: quarantine_row
 max_bad_row_ratio: 0.02
+# Amounts have at most 2 decimals (pattern below): gold stores numeric(12,2), and a
+# third decimal would otherwise be rounded away without anyone noticing.
 min_rows: 1
 columns:
   - { name: claim_line_id, type: string, required: true, unique: true, pattern: "^[0-9a-f-]{36}-[0-9]{1,3}$" }
@@ -36,9 +38,9 @@ columns:
     description: CMS place-of-service code (11 office, 19/22 outpatient, 21 inpatient, 23 ER, ...)
   - { name: procedure_code, type: string, required: true, pattern: "^[A-Za-z0-9.-]{1,20}$" }
   - { name: procedure_system, type: string, required: true, allowed: [SNOMED, CDT, LOINC, CVX, LOCAL] }
-  - { name: billed_amount, type: decimal, required: true, min: 0, max: 10000000 }
-  - { name: allowed_amount, type: decimal, required: true, min: 0, max: 10000000 }
-  - { name: paid_amount, type: decimal, required: true, min: 0, max: 10000000 }
-  - { name: coinsurance_amount, type: decimal, required: true, min: 0, max: 10000000 }
-  - { name: deductible_amount, type: decimal, required: true, min: 0, max: 10000000 }
+  - { name: billed_amount, type: decimal, required: true, min: 0, max: 10000000, pattern: "^[0-9]+(\\.[0-9]{1,2})?$" }
+  - { name: allowed_amount, type: decimal, required: true, min: 0, max: 10000000, pattern: "^[0-9]+(\\.[0-9]{1,2})?$" }
+  - { name: paid_amount, type: decimal, required: true, min: 0, max: 10000000, pattern: "^[0-9]+(\\.[0-9]{1,2})?$" }
+  - { name: coinsurance_amount, type: decimal, required: true, min: 0, max: 10000000, pattern: "^[0-9]+(\\.[0-9]{1,2})?$" }
+  - { name: deductible_amount, type: decimal, required: true, min: 0, max: 10000000, pattern: "^[0-9]+(\\.[0-9]{1,2})?$" }
   - { name: payer, type: string, required: true }

@@ -10,7 +10,7 @@
   403  the client may not send this feed, or the feed's contract does not list `api`
   404  no contract for the feed
   409  landing already holds an unprocessed file of that name
-  413  the body is over the size limit (DIP_API_MAX_BYTES, default 50 MB)
+  413  the body is over the size limit (DIP_API_MAX_BYTES, default 20 MB)
   422  a missing or unsafe filename (only letters, digits, `.`, `_` and `-`; no paths)
 
   GET /healthz   200 {"status": "ok"}
@@ -40,7 +40,7 @@ from dip.contracts import Contract
 from dip.storage import ObjectStore
 
 SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
-DEFAULT_MAX_BYTES = 50 * 1024 * 1024
+DEFAULT_MAX_BYTES = 20 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -93,11 +93,12 @@ def create_app(
         client = _client_for(clients, authorization)
         if client is None:
             raise HTTPException(401, "missing or unknown API key", {"WWW-Authenticate": "Bearer"})
+        # Authorization first: a client learns nothing about feeds outside its own patterns.
+        if not client.may_send(feed):
+            raise HTTPException(403, f"client {client.name!r} may not send {feed!r}")
         contract = contracts.get(feed)
         if contract is None:
             raise HTTPException(404, f"no contract for feed {feed!r}")
-        if not client.may_send(feed):
-            raise HTTPException(403, f"client {client.name!r} may not send {feed!r}")
         if "api" not in contract.spec["source"]["channels"]:
             raise HTTPException(403, f"feed {feed!r} does not accept the api channel")
         if not SAFE_NAME.match(filename) or ".." in filename:
@@ -111,12 +112,14 @@ def create_app(
             if len(body) > max_bytes:
                 raise HTTPException(413, f"over the {max_bytes}-byte limit")
         key = f"{feed}/{filename}"
-        if store.exists(BUCKET_LANDING, key):
-            raise HTTPException(409, f"{key} is waiting to be processed; send it later")
         data = bytes(body)
-        store.put(
-            BUCKET_LANDING, key, data, metadata={CHANNEL_KEY: "api", "dip-api-client": client.name}
-        )
+        del body
+        try:
+            # Conditional: two uploads of one name at once cannot overwrite each other.
+            store.put(BUCKET_LANDING, key, data, if_absent=True,
+                      metadata={CHANNEL_KEY: "api", "dip-api-client": client.name})  # fmt: skip
+        except FileExistsError:
+            raise HTTPException(409, f"{key} is waiting to be processed; send it later") from None
         return JSONResponse(
             {
                 "feed": feed,

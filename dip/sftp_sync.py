@@ -9,14 +9,16 @@ to its own home. It uploads into `/upload/<feed>/`, for example
 2. takes only **complete** files. A file is complete when the vendor has uploaded a
    `<name>.done` marker next to it, or when it has not changed for `quiet_seconds`
    (default 120; uploads in progress keep moving their modification time). Hidden files,
-   `.part`/`.tmp` names and markers themselves are never taken;
+   `.part`/`.tmp`/`.filepart` names and markers themselves are never taken, and a marker
+   left without its file is removed. A feed whose contract does not list `sftp` in
+   `source.channels` is refused at the folder, not moved;
 3. copies each complete file to `landing/<feed>/<name>` with the object metadata
    `dip-channel: sftp` and `dip-sftp-user: <account>`, then deletes it (and its marker)
    from the server. If landing still holds an unprocessed file of that name, the file
    waits for the next pass rather than overwrite it.
 
-The intake then treats it like any other landed file, and quarantines it with
-`FILE.CHANNEL:sftp` if the feed's contract does not list `sftp` in `source.channels`.
+The intake then treats it like any other landed file (and would still quarantine it with
+`FILE.CHANNEL:sftp` if the contract changed in between).
 
 `client` is anything with paramiko's SFTPClient methods used here (`listdir_attr`, `open`,
 `remove`), so tests use a local fake and the DAG a real connection.
@@ -35,7 +37,7 @@ from dip.storage import ObjectStore
 
 UPLOAD_ROOT = "/upload"
 DONE = ".done"
-NEVER_TAKEN = (".part", ".tmp", DONE)
+NEVER_TAKEN = (".part", ".tmp", ".filepart", DONE)  # .filepart: WinSCP
 
 
 @dataclass
@@ -78,8 +80,15 @@ def sync_account(
         if feed.split(".")[0] != account:
             result.refused.append((path, f"account {account!r} may not send {feed!r}"))
             continue
+        if "sftp" not in contracts[feed].spec["source"]["channels"]:
+            result.refused.append((path, f"{feed!r} does not accept the sftp channel"))
+            continue
         entries = {a.filename: a for a in client.listdir_attr(path) if not _is_dir(a)}
         for name in sorted(entries):
+            # A marker whose file is gone (taken on a quiet period earlier) is dropped.
+            if name.endswith(DONE) and name[: -len(DONE)] not in entries:
+                client.remove(f"{path}/{name}")
+                continue
             attr = entries[name]
             remote = f"{path}/{name}"
             if name.startswith(".") or name.endswith(NEVER_TAKEN):

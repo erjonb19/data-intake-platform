@@ -128,3 +128,11 @@ def test_uploaded_file_goes_through_the_intake_as_api(setup):
     [o] = process_landing(store, wh, contracts(), datetime(2026, 10, 22, tzinfo=UTC))
     assert (o.status, o.accepted) == ("loaded", 6)
     assert [i.channel for i in wh.intake] == ["api"]
+
+
+def test_another_packs_feed_names_cannot_be_probed(setup):
+    """Review finding: a client must not tell 'no such feed' from 'not yours' outside its
+    own patterns, so authorization comes before the 404."""
+    _, api = setup
+    assert post(api, feed="healthcare.nothing", key=KEYS["finance"]).status_code == 403
+    assert post(api, feed="healthcare.nothing").status_code == 404  # its own pack: 404

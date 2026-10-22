@@ -52,7 +52,7 @@ load). The channel is recorded on each delivery (`ops.intake_delivery.channel`).
 | Channel | How a file arrives |
 |---|---|
 | `minio` | put into the landing bucket directly (no channel metadata) |
-| `sftp` | uploaded by the vendor to `/upload/<feed>/` on its own SFTP account (named after its pack, key-only, chrooted), then moved to landing by the `sftp_sync` DAG with `dip-channel: sftp` metadata. A file is taken once a `<name>.done` marker is next to it or it has been unchanged for 2 minutes; `.part`, `.tmp` and hidden files never are. An account can only send its own pack's feeds. The server's host key is pinned on both sides (Terraform generates it) |
+| `sftp` | uploaded by the vendor to `/upload/<feed>/` on its own SFTP account (named after its pack, key-only, chrooted), then moved to landing by the `sftp_sync` DAG with `dip-channel: sftp` metadata. A file is taken once a `<name>.done` marker is next to it or it has been unchanged for 2 minutes; `.part`, `.tmp` and hidden files never are. An account can only send its own pack's feeds, and only feeds whose contract lists `sftp`; other folders are left in place and reported. If one account fails to sync, the others still go through and the run fails at the end. The server's host key is pinned on both sides (Terraform generates it). Known limit: the platform's SFTP key is in the environment of every Airflow pod, not only `sftp_sync`'s (a per-task pod override would narrow it) |
 | `api` | `POST /v1/feeds/<feed>/files?filename=<name>` to the intake API with `Authorization: Bearer <key>`. One key per pack (Terraform generates them; the API stores only their SHA-256); a key may send only its pack's feeds. 401 no or unknown key, 403 another pack's feed or a feed without `api`, 404 unknown feed, 409 a same-named file still waiting in landing, 413 over 50 MB, 422 an unsafe file name. The file lands with `dip-channel: api`; the feed's intake DAG takes it from there |
 
 Try it (after `scripts/up.sh`): `terraform -chdir=infra/terraform output -json sftp_vendor_keys`
@@ -133,7 +133,8 @@ adjudication), from the plan's start (2020-01-01) on, with the Blue Button line 
 (billed, allowed, paid, coinsurance, deductible) and the member id eligibility gives that
 patient. No new Synthea run is needed. Contract: `packs/healthcare/contracts/claims.yaml`
 (`claims_YYYYMMDD.csv`, `claim_line_id` unique, amounts as non-negative decimals, at most
-2% bad rows). On the 28 bundles in `data/synthea` it gives 1,976 lines, all of which pass.
+2% bad rows). On the 28 bundles in `data/synthea` it gives 1,976 lines, all of which pass (the file is
+named for today by default: the contract accepts names up to 7 days old).
 
 dbt: `silver.claim_record` (typed) and `gold.claim_line` (one row per line, from the
 newest file that has it, so a corrected resend replaces it). Two DQ tests, warnings by
