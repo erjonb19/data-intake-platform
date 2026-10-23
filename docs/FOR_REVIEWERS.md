@@ -1,9 +1,9 @@
 # For reviewers
 
-This page maps the Data Engineer, Research Informatics role to what this repository
-actually contains: the file, the PR that built it, and the result it produced. Every
-number here is from a committed result or a CI run. Anything not built is marked
-**planned**.
+This page maps what clinical research informatics and data engineering roles ask for
+to what this repository actually contains: the file, the PR that built it, and the result
+it produced. Every number here is from a committed result or a CI run. Anything not built
+is marked **planned**.
 
 **Data.** Everything committed, and everything CI runs on, is synthetic (Synthea, and
 generated or invented fixtures). Two public de-identified datasets (the MIMIC-IV demos,
@@ -58,9 +58,9 @@ flowchart LR
   AP -->|person approves + executes| I
 ```
 
-## The role, line by line
+## What these roles ask for, line by line
 
-| The role asks for | Evidence in this repo | Built in | Result |
+| These roles ask for | Evidence in this repo | Built in | Result |
 |---|---|---|---|
 | Research data pipelines integrating EHR data | Synthea FHIR R4 through a FHIR contract into bronze ([docs/research/README.md](research/README.md) R1); MIMIC-IV FHIR demo (Bulk Data) through the same intake, locally ([docs/research/mimic.md](research/mimic.md)) | #3, #11 | CI runs the FHIR flow end to end on every push |
 | ...registries and external data | External vocabularies: the full OHDSI Athena bundle (local, never committed) and MIT-LCP's MIMIC lab → LOINC map ([docs/research/vocabulary.md](research/vocabulary.md)); the MIMIC-IV relational demo as a second external source with per-table contracts; payer eligibility (#16, #17) and claims, AP invoices as Excel, PDF and scans. **No disease registry feed is built**; the per-table relational path is how one would be added | #12, #14, #18, #23–#26, #29, #32 | Unmapped rows: Synthea 6.8% → 0.1%, MIMIC diagnoses 100% → 3.3% with the full vocabulary |
