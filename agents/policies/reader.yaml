@@ -8,6 +8,8 @@ description: >
   Read-only access to the platform's operational state for a person's MCP client. No
   proposals, no actions.
 max_tier: read
+# Values of PHI columns are hidden in samples and details (dip/agents/tools.py).
+mask_phi: true
 tools:
   - list_quarantine_groups
   - get_quarantine_sample

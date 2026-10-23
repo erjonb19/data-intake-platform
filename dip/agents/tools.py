@@ -18,7 +18,7 @@ from typing import Any
 
 from dip import BUCKET_QUARANTINE
 from dip.agents import approvals
-from dip.agents.registry import Registry, Tool
+from dip.agents.registry import Registry, Tool, phi_masked
 from dip.contracts import Contract
 from dip.storage import ObjectStore
 
@@ -37,6 +37,44 @@ ROOT_CAUSES = (
     "unknown",
 )  # fmt: skip
 MAX_TEXT = 1500
+
+
+MASK = "(PHI: not shown)"
+
+
+def _phi_columns(contract: Contract | None) -> set[str]:
+    return {c["name"] for c in (contract.spec.get("columns", []) if contract else [])
+            if c.get("phi")}  # fmt: skip
+
+
+def _masked_record(record: Any, contract: Contract | None) -> Any:
+    """A rejected record with its PHI values hidden. A CSV or Excel record keeps only the
+    values of declared, non-PHI columns (a column the contract does not know may be PHI
+    under a new name); a FHIR resource shows only its type, id and field names; a raw row
+    of a file rejected whole shows its header and how many fields it has."""
+    if record is None:
+        return None
+    declared = {c["name"] for c in (contract.spec.get("columns", []) if contract else [])}
+    phi = _phi_columns(contract)
+    if isinstance(record, dict) and "resourceType" in record:
+        return {"resourceType": record.get("resourceType"), "id": record.get("id"),
+                "fields": sorted(record), "values": MASK}  # fmt: skip
+    if isinstance(record, dict) and set(record) == {"header", "row"}:
+        return {"header": record["header"], "row": f"({record['row'].count(',') + 1} fields; "
+                "values not shown: PHI)"}  # fmt: skip
+    if isinstance(record, dict):
+        return {k: (v if k.strip() in declared and k.strip() not in phi else MASK)
+                for k, v in record.items()}  # fmt: skip
+    return MASK
+
+
+def _masked_detail(detail: str | None, reason_code: str, contract: Contract | None) -> str | None:
+    """A violation's detail quotes the value; hide it when the column is PHI or unknown."""
+    column = reason_code.split(":", 1)[1] if ":" in reason_code else ""
+    declared = {c["name"] for c in (contract.spec.get("columns", []) if contract else [])}
+    if column and (column in _phi_columns(contract) or column not in declared):
+        return MASK
+    return detail
 
 
 def _group_key(feed: str, reason_code: str) -> str:
@@ -85,7 +123,11 @@ def build_registry(
                     "open_since": since,
                     "quarantine_ids": ids[:200],
                     "first_detail": {
-                        "untrusted_vendor_content": (detail or "")[:300],
+                        "untrusted_vendor_content": (
+                            _masked_detail(detail, code, contracts.get(f))
+                            if phi_masked()
+                            else detail or ""
+                        )[:300],
                         "notice": UNTRUSTED,
                     },  # fmt: skip
                 }
@@ -107,13 +149,20 @@ def build_registry(
             rows = cur.fetchall()
         conn.commit()
         samples = []
+        masked, contract = phi_masked(), contracts.get(feed)
         for qid, level, ref, qkey, detail in rows:
-            item: dict[str, Any] = {"quarantine_id": qid, "level": level, "detail": detail}
+            item: dict[str, Any] = {
+                "quarantine_id": qid, "level": level,
+                "detail": _masked_detail(detail, reason, contract) if masked else detail,
+            }  # fmt: skip
             if level == "record":
-                item["record"] = _record(store, qkey, ref)
+                rec = _record(store, qkey, ref)
+                item["record"] = _masked_record(rec, contract) if masked else rec
             else:
                 item["file_name"] = PurePosixPath(qkey).name
-                item["file_start"] = _file_start(store, qkey)
+                start = _file_start(store, qkey)
+                # Masked: the header line only, which is where a schema problem shows.
+                item["file_start"] = start.splitlines()[0][:MAX_TEXT] if masked and start else start
             samples.append(item)
         return {"group_id": group_id, "untrusted_vendor_content": samples, "notice": UNTRUSTED}
 

@@ -116,8 +116,9 @@ resource "kubernetes_job_v1" "mcp_minio_user" {
   depends_on = [kubernetes_job_v1.minio_buckets]
 }
 
-# A Viewer login in Airflow for get_dag_run and get_task_log. `users create` fails if the
-# user exists, so an existing one gets its password reset to the current one instead.
+# A Viewer login in Airflow for get_dag_run and get_task_log. `users create` prints a
+# warning and exits 0 when the user exists, so an existing one is found first and gets its
+# password reset to the current one instead (the Job is renamed when the password changes).
 resource "kubernetes_job_v1" "mcp_airflow_viewer" {
   metadata {
     name      = "airflow-mcp-viewer-${substr(sha256(local.pw["airflow_mcp_viewer"]), 0, 8)}"
@@ -134,9 +135,13 @@ resource "kubernetes_job_v1" "mcp_airflow_viewer" {
           image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
           command = ["bash", "-c"]
           args = [<<-EOT
-            airflow users create --role Viewer --username "$VIEWER" --password "$VIEWER_PASSWORD" \
-              --email mcp-viewer@example.com --firstname MCP --lastname Viewer \
-            || airflow users reset-password --username "$VIEWER" --password "$VIEWER_PASSWORD"
+            set -euo pipefail
+            if airflow users list --output plain | awk '{print $2}' | grep -qx "$VIEWER"; then
+              airflow users reset-password --username "$VIEWER" --password "$VIEWER_PASSWORD"
+            else
+              airflow users create --role Viewer --username "$VIEWER" --password "$VIEWER_PASSWORD" \
+                --email mcp-viewer@example.com --firstname MCP --lastname Viewer
+            fi
           EOT
           ]
           env {

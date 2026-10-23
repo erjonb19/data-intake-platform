@@ -77,12 +77,34 @@ def test_profile_file_counts_but_never_shows_phi(reader):
     assert plan.get("GOLD") == 1  # the vendor's new plan code, visible: not PHI
 
 
+def test_profile_file_shows_no_values_of_an_unknown_column(module_warehouse, reader, tmp_path):
+    # A vendor renames dob to " DOB": the contract has no DOB, so it may be PHI. Counts only.
+    _, conn = reader
+    lines = (FIXTURES / "good/elig_good.csv").read_text(encoding="utf-8").splitlines()
+    lines[0] = lines[0].replace("dob", " DOB")
+    store = LocalStore(tmp_path)
+    data = ("\n".join(lines) + "\n").encode()
+    store.put(BUCKET_LANDING, f"{FEED}/elig_renamed.csv", data)
+    [o] = process_landing(store, module_warehouse, load_contracts(), datetime.now(UTC))
+    reg = build_registry(conn, store, load_contracts(), ReadServices())
+    got = reg.call(Policy.load("reader"), "t", "profile_file",
+                   {"feed": FEED, "file_sha256": o.file_sha256[:12]})  # fmt: skip
+    cols = {c["column"]: c for c in got["untrusted_vendor_content"]}
+    assert "DOB" in cols and not cols["DOB"]["in_contract"] and "top_values" not in cols["DOB"]
+    assert got["missing_contract_columns"] == ["dob"]
+
+
 def test_the_quarantine_tools_work_as_the_mcp_login(reader):
     call, _ = reader
-    groups = call("list_quarantine_groups", feed=FEED)["groups"]
-    assert [g["reason_code"] for g in groups] == ["VALUE.NOT_ALLOWED:plan_code"]
-    sample = call("get_quarantine_sample", group_id=groups[0]["group_id"])
-    assert sample["untrusted_vendor_content"][0]["record"]["plan_code"] == "GOLD"
+    groups = {g["reason_code"]: g for g in call("list_quarantine_groups", feed=FEED)["groups"]}
+    group = groups["VALUE.NOT_ALLOWED:plan_code"]
+    sample = call("get_quarantine_sample", group_id=group["group_id"])
+    record = sample["untrusted_vendor_content"][0]["record"]
+    # The reader sees the bad value (not PHI) but never a PHI column's value.
+    assert record["plan_code"] == "GOLD" and record["member_id"].startswith("M")
+    assert {record[c] for c in ("first_name", "last_name", "dob", "patient_ref")} == {
+        "(PHI: not shown)"
+    }
 
 
 @pytest.mark.parametrize("sql", [

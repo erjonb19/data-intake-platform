@@ -5,8 +5,11 @@ Every tool is a read with no side effects, thin over an API that already exists,
 takes free-form queries: metrics are a fixed list of PromQL templates whose only parameter
 is a feed name from the contracts; lineage takes a table name checked against a pattern;
 Airflow calls take ids checked the same way. Anything a vendor could have written (a task
-log, a file's values) is returned under `untrusted_vendor_content`. A file profile never
-shows values of a column the contract marks `phi`, only counts.
+log, a file's values, a landed file's name) is returned under `untrusted_vendor_content`.
+A file profile shows top values only for declared, non-PHI columns (a renamed or new
+column may be PHI under another name): every other column gets counts only. Task logs are
+the platform's own (codes, counts, file names), but an error message can quote a value, so
+they are untrusted content too; the reader policy's masking does not rewrite logs.
 
 Services are reached over HTTP with the stdlib (Airflow's REST API with a read-only Viewer
 login, Marquez, Prometheus), configured by `ReadServices.from_env()`; a service not
@@ -85,7 +88,7 @@ class ReadServices:
                 return json.loads(raw)
             return raw.decode("utf-8", "replace")
 
-    def airflow(self, path: str, accept_text: bool = False) -> Any:
+    def airflow(self, path: str, accept_text: bool = False, retried: bool = False) -> Any:
         if not self.airflow_url:
             raise LookupError("Airflow is not configured for this server (DIP_AIRFLOW_URL)")
         if not self._token:
@@ -98,9 +101,9 @@ class ReadServices:
         try:
             return self._call("GET", f"{self.airflow_url}/api/v2{path}", None, headers)
         except urllib.error.HTTPError as exc:
-            if exc.code == 401:  # the token expired: once more with a new one
+            if exc.code == 401 and not retried:  # the token expired: once, with a new one
                 self._token = ""
-                return self.airflow(path, accept_text)
+                return self.airflow(path, accept_text, retried=True)
             raise
 
     def get(self, base: str, name: str, path: str) -> Any:
@@ -114,9 +117,9 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
     obj = {"type": "object", "additionalProperties": False}
 
     def _ident(value: str, what: str) -> str:
-        if not IDENT.match(value or ""):
-            raise ValueError(f"{what} must match {IDENT.pattern}")
-        return value
+        if not IDENT.match(value or "") or value in (".", "..") or ".." in value:
+            raise ValueError(f"{what} must match {IDENT.pattern}, without '..'")
+        return urllib.parse.quote(value, safe="")
 
     def get_dq_results(principal: str, run_id: str | None, model: str = "",
                        status: str = "", limit: int = 50) -> dict:  # fmt: skip
@@ -137,12 +140,13 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         return {"results": [dict(zip(keys, r, strict=True)) for r in rows], "note": note}
 
     def get_dag_run(principal: str, run_id: str | None, dag_id: str, limit: int = 5) -> dict:
-        _ident(dag_id, "dag_id")
-        n = max(1, min(int(limit), 25))
-        runs = svc.airflow(f"/dags/{dag_id}/dagRuns?order_by=-logical_date&limit={n}")
+        dag = _ident(dag_id, "dag_id")
+        n = max(1, min(int(limit), 10))
+        # run_after: always set in Airflow 3 (a triggered run may have no logical date).
+        runs = svc.airflow(f"/dags/{dag}/dagRuns?order_by=-run_after&limit={n}")
         out = []
         for r in runs.get("dag_runs", []):
-            tis = svc.airflow(f"/dags/{dag_id}/dagRuns/{urllib.parse.quote(r['dag_run_id'], '')}"
+            tis = svc.airflow(f"/dags/{dag}/dagRuns/{urllib.parse.quote(r['dag_run_id'], '')}"
                               "/taskInstances")  # fmt: skip
             out.append({
                 "dag_run_id": r["dag_run_id"], "state": r.get("state"),
@@ -155,11 +159,10 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
 
     def get_task_log(principal: str, run_id: str | None, dag_id: str, dag_run_id: str,
                      task_id: str, try_number: int = 1, tail_lines: int = 200) -> dict:  # fmt: skip
-        for v, w in ((dag_id, "dag_id"), (dag_run_id, "dag_run_id"), (task_id, "task_id")):
-            _ident(v, w)
-        q = urllib.parse.quote
-        got = svc.airflow(f"/dags/{dag_id}/dagRuns/{q(dag_run_id, '')}/taskInstances/"
-                          f"{task_id}/logs/{int(try_number)}?full_content=true")  # fmt: skip
+        dag, run, task = (_ident(v, w) for v, w in ((dag_id, "dag_id"),
+                          (dag_run_id, "dag_run_id"), (task_id, "task_id")))  # fmt: skip
+        got = svc.airflow(f"/dags/{dag}/dagRuns/{run}/taskInstances/{task}/logs/"
+                          f"{max(1, int(try_number))}?full_content=true")  # fmt: skip
         if isinstance(got, dict):  # Airflow 3: {"content": [{"event": ...}, ...]}
             content = got.get("content", [])
             lines = [c.get("event", "") if isinstance(c, dict) else str(c) for c in content]
@@ -195,8 +198,12 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             kind, rest = i.split(":", 1)
             return f"{kind}:{rest.split(':', 1)[1] if kind == 'job' else rest}"
 
+        # Capped: every landed file is a dataset, and all file feeds meet at
+        # bronze.csv_record. Names of landed files are vendor-chosen: untrusted.
         note = "Nearest first: jobs and the datasets they read, back to landed files."
-        return {"table": table, "upstream": [short(i) for i in up], "note": note}
+        return {"table": table, "upstream_total": len(up),
+                "untrusted_vendor_content": [short(i) for i in up[:100]],
+                "notice": UNTRUSTED, "note": note}  # fmt: skip
 
     def query_metrics(principal: str, run_id: str | None, metric: str, feed: str = "") -> dict:
         if metric not in METRICS:
@@ -248,7 +255,7 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             text = data.decode(c.spec["format"].get("encoding", "utf-8"), "replace")
             table = list(csv.reader(io.StringIO(text), delimiter=c.spec["format"].get(
                 "delimiter", ",")))  # fmt: skip
-        header, body = (table[0], table[1:]) if table else ([], [])
+        header, body = ([h.strip() for h in table[0]], table[1:]) if table else ([], [])
         declared = {col["name"]: col for col in c.spec["columns"]}
         cols = []
         for i, name in enumerate(header):
@@ -258,7 +265,9 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             item: dict[str, Any] = {"column": name, "in_contract": name in declared,
                                     "empty": sum(1 for v in values if v == ""),
                                     "distinct": len(counts), "phi": phi}  # fmt: skip
-            if not phi:  # a PHI column's values never leave the warehouse through MCP
+            # Values only for a declared, non-PHI column: an unknown column ("DOB", a new
+            # SSN column) may be PHI under a name the contract does not have.
+            if name in declared and not phi:
                 item["top_values"] = [[v[:60], n] for v, n in counts.most_common(5)]
             cols.append(item)
         return {"feed": feed, "file_sha256": sha, "status": status, "rows": len(body),

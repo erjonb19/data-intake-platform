@@ -108,8 +108,11 @@ def test_lineage_walks_upstream_nearest_first():
                  "/api/v1/lineage": graph})  # fmt: skip
     t = tools(fake, marquez_url="http://mq")
     got = t["get_lineage"]("reader", None, "gold.g")
-    assert got["upstream"] == ["job:dbt.build.dbt.g", f"dataset:{ns}:warehouse.silver.s",
-                               "dataset:s3://landing:feed/a.csv"]  # fmt: skip
+    assert got["untrusted_vendor_content"] == [
+        "job:dbt.build.dbt.g",
+        f"dataset:{ns}:warehouse.silver.s",
+        "dataset:s3://landing:feed/a.csv",
+    ]
     with pytest.raises(ValueError):
         t["get_lineage"]("reader", None, "gold.g; drop")
 
@@ -129,3 +132,32 @@ def test_the_reader_policy_is_read_only_and_names_real_tools():
     assert set(t) <= p.tools  # every read tool here is in the reader's policy
     assert json.dumps(sorted(p.tools))  # and the policy has nothing else odd in it
     assert "propose_operation" not in p.tools and "execute_approved_operation" not in p.tools
+
+
+def test_phi_is_masked_for_a_masking_policy_only_in_what_it_returns():
+    from dip.agents.tools import MASK, _masked_detail, _masked_record
+
+    c = load_contracts()["healthcare.eligibility"]
+    rec = {"member_id": "M000000001", "first_name": "Alex", "plan_code": "GOLD", "DOB": "1980"}
+    masked = _masked_record(rec, c)
+    # Declared non-PHI values stay; PHI and unknown columns (PHI under a new name) do not.
+    assert masked == {"member_id": "M000000001", "first_name": MASK, "plan_code": "GOLD",
+                      "DOB": MASK}  # fmt: skip
+    patient = {"resourceType": "Patient", "id": "p1", "birthDate": "1980-01-01",
+               "name": [{"family": "Example"}]}  # fmt: skip
+    assert _masked_record(patient, c) == {"resourceType": "Patient", "id": "p1",
+                                          "fields": ["birthDate", "id", "name", "resourceType"],
+                                          "values": MASK}  # fmt: skip
+    raw = _masked_record({"header": "a,b,c", "row": "1,Alex,3"}, c)
+    assert raw["header"] == "a,b,c" and "Alex" not in raw["row"]
+    assert _masked_detail("value '1850-01-01' out of range", "VALUE.OUT_OF_RANGE:dob", c) == MASK
+    assert _masked_detail("'GOLD' not allowed", "VALUE.NOT_ALLOWED:plan_code", c) == (
+        "'GOLD' not allowed"
+    )
+    assert _masked_detail("x", "SCHEMA.MISSING_COLUMN:member_id", c) == "x"
+
+
+def test_the_reader_policy_masks_phi_and_triage_does_not():
+    from dip.agents.registry import Policy
+
+    assert Policy.load("reader").mask_phi and not Policy.load("triage").mask_phi

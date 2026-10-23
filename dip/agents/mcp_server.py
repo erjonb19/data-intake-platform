@@ -83,7 +83,7 @@ def build_server(
                     meta={"dip/tier": t.tier},
                 )
                 for t in registry.tools.values()
-                if t.name in policy.tools or t.tier == "act"
+                if "*" in policy.tools or t.name in policy.tools or t.tier == "act"
             ]
         )
 

@@ -108,6 +108,15 @@ def main() -> int:
     _, sample = s.call("get_quarantine_sample", group_id=group["group_id"], limit=3)
     rec = (sample.get("untrusted_vendor_content") or [{}])[0].get("record") or {}
     check(rec.get("plan_code") == "GOLD", "the sample shows the rejected record (plan_code GOLD)")
+    check(rec.get("first_name") == "(PHI: not shown)", "the reader never sees a PHI value")
+    missing = codes.get("SCHEMA.MISSING_COLUMN:member_id", {"files": [{"sha256": "0" * 12}]})
+    err, prof = s.call("profile_file", feed=feed, file_sha256=missing["files"][0]["sha256"])
+    check(
+        not err and "member_id" in prof.get("missing_contract_columns", []),
+        "profile_file reads the raw copy (MinIO read-only user) and finds the missing column",
+    )
+    err, dq = s.call("get_dq_results", model="member_eligibility")
+    check(not err and bool(dq.get("results")), "DQ results for gold.member_eligibility")
     _, history = s.call("get_feed_history", feed=feed)
     check(len(history["files"]) >= 3, f"feed history: {len(history['files'])} files")
     _, contract = s.call("get_contract", feed=feed)
@@ -134,7 +143,7 @@ def main() -> int:
         ]
         check(bool(plan), "the metric shows the open plan_code quarantine")
         _, lin = s.call("get_lineage", table="gold.member_eligibility")
-        check(any("s3://landing" in u for u in lin.get("upstream", [])),
+        check(any("s3://landing" in u for u in lin.get("untrusted_vendor_content", [])),
               "lineage from gold back to the landed files")  # fmt: skip
     err, denied = s.call("propose_operation", action="discard", group_id=group["group_id"],
                          quarantine_ids=[1], root_cause="vendor_change", rationale="x",
