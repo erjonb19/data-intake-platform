@@ -86,7 +86,8 @@ person's, on a laptop with a key ([docs/agents/EVALS.md](../agents/EVALS.md)).
 ## The fresh-clone quickstart
 
 Checked on 2026-10-23 on a 16 GB Windows laptop, Git Bash, from a fresh clone of `main`
-(f05e351), following the README's quick start, with the observability profile:
+(f05e351): the README's quick start plus the E2E and its venv, with the observability
+profile:
 
 ```bash
 git clone https://github.com/erjonb19/data-intake-platform && cd data-intake-platform
@@ -136,10 +137,16 @@ What the run found, and what changed:
   of 8,000. The two runs that filed nothing almost certainly hit the cap mid-turn, and
   the loop treats any stop other than a tool call as the end.
   - The cap is now 16,000.
-  - `dip triage run` and `act` warn, and exit non-zero, when the agent stops before it
+  - `dip triage run` and `act` warn and exit non-zero when the agent stops before it
     finishes.
   - The evals never had a queue this large or this mixed. Their largest case is the break
     loop's delimiter scenario: 10 groups, but all from one file with one cause.
 - In the approvals frame, approval 1 came from the E2E's break-loop stage, filed before the
   E2E was stopped. Approvals 2–16 came from the triage agent's third live run. That frame
   shows proposals only; none was approved or run.
+- Approvals 1 and 11 are for the same group (the eligibility file missing `member_id`).
+  Neither the agent nor the server skips a group that already has a pending proposal. A
+  person sees both and approves one; deduplicating is in PLAN.md's backlog.
+- Cosmetic: the Airflow frame shows a chart tooltip that stuck where the mouse last was,
+  and the Grafana frame cuts off one legend and the last table row (the page is taller than
+  the window).

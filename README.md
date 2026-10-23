@@ -118,7 +118,7 @@ about 34 minutes on a first run, with the kind node at 3.3 GiB
 ([docs/demos/stage-3.md](docs/demos/stage-3.md)). Checked again from a fresh clone on
 2026-10-23 with the observability profile (`TF_VAR_profiles='["core", "observability"]'`):
 `up.sh` took 9 minutes (Docker already had the images' layers cached), the smoke test passed,
-and the E2E passed every stage up to the last; see
+and the E2E passed every stage up to the last, which was stopped for low memory; see
 [docs/demos/stage-8.md](docs/demos/stage-8.md#the-fresh-clone-quickstart). With both
 profiles, the laptop's available memory fell from 3.2 GB to about 150 MB during the E2E:
 start with at least 4 GB free.

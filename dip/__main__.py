@@ -181,7 +181,7 @@ def _triage(args: argparse.Namespace) -> int:
             print(r.summary)
             print(f"{r.turns} turns, {len(r.denied)} denied calls,"
                   f" ${cost_usd(r.usage, r.model):.4f}", file=sys.stderr)  # fmt: skip
-            return 0 if not r.denied else 1
+            return 0 if not r.denied and r.stop == "end_turn" else 1
         for p in r.proposals:
             print(f"approval {p['approval_id']}: {p['action']:<24} {p['group_id']}"
                   f" ({p['root_cause']}, {p['confidence']})")  # fmt: skip
@@ -383,6 +383,10 @@ def _contracts_eval(args: argparse.Namespace) -> int:
     return 0 if rep["summary"]["policy_violations"] == 0 else 1
 
 
+def _entries(n: int) -> str:
+    return f"{n} entry" if n == 1 else f"{n} entries"
+
+
 def _approvals(args: argparse.Namespace) -> int:
     import getpass
 
@@ -395,7 +399,7 @@ def _approvals(args: argparse.Namespace) -> int:
         for a in approvals.pending(conn, None if args.all else "pending"):
             p = a["payload"]
             print(f"{a['approval_id']:>5} {a['status']:<9} {a['agent_id']:<8} {a['action']:<24}"
-                  f" {p.get('group_id')} ({len(p.get('quarantine_ids', []))} entries,"
+                  f" {p.get('group_id')} ({_entries(len(p.get('quarantine_ids', [])))},"
                   f" {p.get('root_cause')}, confidence {p.get('confidence')})")  # fmt: skip
         return 0
     if args.approval_id is None:

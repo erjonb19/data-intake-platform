@@ -25,6 +25,7 @@ import base64
 import contextlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,7 +36,6 @@ from pathlib import Path
 import websocket
 
 CHROME = os.environ.get("CHROME", r"C:\Program Files\Google\Chrome\Application\chrome.exe")
-PORT = 9333
 W, H = 1440, 900
 
 
@@ -110,36 +110,59 @@ def terminal_page(text: str) -> str:
     )
 
 
-def chrome() -> tuple[subprocess.Popen, Page]:
+def chrome() -> tuple[subprocess.Popen, Page, str]:
+    """A headless Chrome with its own throwaway profile and a DevTools port of its own
+    choosing (bound to 127.0.0.1, read back from DevToolsActivePort): never another Chrome
+    that happens to listen on a fixed port. Returns the process, its page and the profile
+    directory (the caller removes it)."""
     profile = tempfile.mkdtemp(prefix="dip-shots-")
-    proc = subprocess.Popen([CHROME, "--headless=new", f"--remote-debugging-port={PORT}",
-                             f"--user-data-dir={profile}", f"--window-size={W},{H}",
-                             "--hide-scrollbars", "--no-first-run", "about:blank"])  # fmt: skip
+    args = [
+        CHROME,
+        "--headless=new",
+        "--remote-debugging-port=0",
+        f"--user-data-dir={profile}",
+        f"--window-size={W},{H}",
+        "--hide-scrollbars",
+        "--no-first-run",
+        "about:blank",
+    ]
+    proc = subprocess.Popen(args)
+    active = Path(profile) / "DevToolsActivePort"
     for _ in range(60):
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{PORT}/json") as r:
+            port = int(active.read_text().splitlines()[0])
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/json") as r:
                 tabs = [t for t in json.load(r) if t.get("type") == "page"]
             if tabs:
                 page = Page(tabs[0]["webSocketDebuggerUrl"])
                 page.send("Page.enable")
                 page.send("Emulation.setDeviceMetricsOverride", width=W, height=H,
                           deviceScaleFactor=1, mobile=False)  # fmt: skip
-                return proc, page
-        except OSError:
+                return proc, page, profile
+        except (OSError, ValueError, IndexError):
             pass
         except Exception:
-            proc.kill()
+            stop(proc, profile)
             raise
         time.sleep(0.5)
-    proc.kill()
+    stop(proc, profile)
     raise RuntimeError("headless Chrome did not start")
+
+
+def stop(proc: subprocess.Popen, *dirs: str) -> None:
+    proc.kill()
+    with contextlib.suppress(subprocess.TimeoutExpired):
+        proc.wait(10)
+    for d in dirs:
+        shutil.rmtree(d, ignore_errors=True)
 
 
 def main() -> int:
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
     e = os.environ
-    proc, p = chrome()
+    proc, p, profile = chrome()
+    scratch = tempfile.mkdtemp(prefix="dip-shots-")
     try:
         # 1. Airflow: the eligibility feed's intake DAG and its runs.
         p.go("http://localhost:8080/auth/login/")
@@ -174,14 +197,14 @@ def main() -> int:
         p.shot(out / "quarantine-reason.png")
 
         # 5. The approvals queue: `dip approvals list` and `show`, as printed.
-        page = Path(tempfile.mkdtemp(prefix="dip-shots-")) / "approvals.html"
+        page = Path(scratch) / "approvals.html"
         page.write_text(terminal_page(Path(e["APPROVALS_TEXT"]).read_text("utf-8")), "utf-8")
         p.go(page.as_uri(), settle=1)
         p.shot(out / "approvals-queue.png")
     finally:
         with contextlib.suppress(Exception):
             p.send("Browser.close")
-        proc.kill()
+        stop(proc, profile, scratch)
     return 0
 
 
