@@ -57,6 +57,7 @@ def test_clean_repo_passes(repo):
     _add(repo, "tests/fixtures/x/rows.csv", "a,b\n1,2\n")
     _add(repo, "dbt/seeds/map.csv", "a,b\n")
     _add(repo, "dip/contract.schema.json", "{}")
+    _add(repo, "agents/evals/triage/recordings/missing_column.json", "[]")
     assert _check(repo).returncode == 0
     assert _check(repo, "--staged").returncode == 0
 
@@ -69,6 +70,8 @@ def test_clean_repo_passes(repo):
         "warehouse.duckdb",
         "packs/mimic/datapackage.json",
         "dbt/seeds/nested/map.csv",
+        "agents/evals/triage/recordings/nested/case.json",
+        "agents/evals/triage/results.json",
         "mimic-iv-demo/hosp/patients.txt",
         "bundle/Patient.ndjson",
     ],

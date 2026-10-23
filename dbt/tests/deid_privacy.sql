@@ -76,6 +76,8 @@ where t.restricted <> t.shareable
         ['drug_exposure_start_datetime', 'drug_exposure_end_datetime']),
     ('measurement', 'measurement_id', 'measurement', ['measurement_date'], ['measurement_datetime']),
     ('observation', 'observation_id', 'observation', ['observation_date'], ['observation_datetime']),
+    ('procedure_occurrence', 'procedure_occurrence_id', 'procedure',
+        ['procedure_date', 'procedure_end_date'], ['procedure_datetime', 'procedure_end_datetime']),
     ('observation_period', 'observation_period_id', 'observation_period',
         ['observation_period_start_date', 'observation_period_end_date'], []),
 ] %}
@@ -105,7 +107,7 @@ where s.year_of_birth > {{ ref_year - 90 }}
 -- 7. No column of any shareable table holds a restricted person_source_value.
 {% if execute %}
 {% for table in ['person', 'visit_occurrence', 'condition_occurrence', 'drug_exposure',
-                 'measurement', 'observation', 'observation_period'] %}
+                 'measurement', 'observation', 'observation_period', 'procedure_occurrence'] %}
 {% for col in adapter.get_columns_in_relation(ref('share_' ~ table)) %}
 union all
 select 'person_source_value in {{ table }}.{{ col.name }}', s.{{ col.name }}::text

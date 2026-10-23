@@ -279,6 +279,56 @@ models:
           - relationships:
               arguments: {to: ref('visit_occurrence'), field: visit_occurrence_id}
 
+  - name: procedure_occurrence
+    description: >
+      One row per FHIR Procedure that was done (R7), SNOMED mapped to the standard concept.
+      Procedures whose standard concept is in another domain keep concept 0 here.
+    columns:
+      - name: procedure_occurrence_id
+        data_tests: [unique, not_null]
+      - name: person_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments: {to: ref('person'), field: person_id}
+      - name: procedure_concept_id
+        data_tests:
+          - dqd_fk_domain:
+              arguments: {domain: Procedure}
+              config: {meta: {dq_category: conformance, dqd_check: fkDomain}}
+          - dqd_is_standard_valid_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isStandardValidConcept}}
+          - dqd_standard_concept_record_completeness:
+              arguments: {max_ratio: 0.3}
+              config:
+                severity: warn
+                meta: {dq_category: completeness, dqd_check: standardConceptRecordCompleteness}
+      - name: procedure_source_value
+        data_tests:
+          - dqd_source_value_completeness:
+              arguments: {concept_column: procedure_concept_id}
+              config: {meta: {dq_category: completeness, dqd_check: sourceValueCompleteness}}
+      - name: procedure_date
+        data_tests:
+          - not_null
+          - dqd_plausible_after_birth:
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleAfterBirth}}
+          - dqd_plausible_start_before_end:
+              arguments: {end_column: procedure_end_date}
+              config: {meta: {dq_category: plausibility, dqd_check: plausibleStartBeforeEnd}}
+          - dqd_within_visit_dates:
+              config: {meta: {dq_category: plausibility, dqd_check: withinVisitDates}}
+          - omop_in_observation_period:
+              config: {meta: {dq_category: plausibility, dqd_check: inObservationPeriod}}
+      - name: procedure_type_concept_id
+        data_tests:
+          - dqd_is_foreign_key_concept:
+              config: {meta: {dq_category: conformance, dqd_check: isForeignKey}}
+      - name: visit_occurrence_id
+        data_tests:
+          - relationships:
+              arguments: {to: ref('visit_occurrence'), field: visit_occurrence_id}
+
   - name: drug_exposure
     description: >
       One row per FHIR MedicationRequest (prescription written), RxNorm mapped to the

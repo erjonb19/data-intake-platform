@@ -7,10 +7,11 @@ resource "kubernetes_secret_v1" "postgres" {
     namespace = kubernetes_namespace_v1.data.metadata[0].name
   }
   data = {
-    POSTGRES_PASSWORD     = local.pw["pg_superuser"]
-    AIRFLOW_DB_PASSWORD   = local.pw["pg_airflow"]
-    WAREHOUSE_DB_PASSWORD = local.pw["pg_warehouse"]
-    MARQUEZ_DB_PASSWORD   = local.pw["pg_marquez"]
+    POSTGRES_PASSWORD      = local.pw["pg_superuser"]
+    AIRFLOW_DB_PASSWORD    = local.pw["pg_airflow"]
+    WAREHOUSE_DB_PASSWORD  = local.pw["pg_warehouse"]
+    MARQUEZ_DB_PASSWORD    = local.pw["pg_marquez"]
+    COHORT_READER_PASSWORD = local.pw["pg_cohort_reader"]
   }
 }
 
@@ -140,7 +141,8 @@ resource "kubernetes_config_map_v1" "postgres_roles" {
     namespace = kubernetes_namespace_v1.data.metadata[0].name
   }
   data = {
-    "roles.sql" = file("${path.module}/files/postgres-roles.sql")
+    "roles.sql"     = file("${path.module}/files/postgres-roles.sql")
+    "password.psql" = file("${path.module}/files/postgres-roles-password.psql")
   }
 }
 
@@ -158,7 +160,7 @@ resource "kubernetes_job_v1" "postgres_roles" {
         container {
           name    = "psql"
           image   = var.postgres_image
-          command = ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/sql/roles.sql"]
+          command = ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/sql/roles.sql", "-f", "/sql/password.psql"]
           env {
             name  = "PGHOST"
             value = kubernetes_service_v1.postgres.metadata[0].name
@@ -173,6 +175,15 @@ resource "kubernetes_job_v1" "postgres_roles" {
               secret_key_ref {
                 name = kubernetes_secret_v1.postgres.metadata[0].name
                 key  = "POSTGRES_PASSWORD"
+              }
+            }
+          }
+          env {
+            name = "COHORT_READER_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.postgres.metadata[0].name
+                key  = "COHORT_READER_PASSWORD"
               }
             }
           }
