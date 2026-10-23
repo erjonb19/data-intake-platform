@@ -84,7 +84,9 @@ def feeds():
 def dag_runs():
     return dashboard("dip-dag-runs", "DAG runs", [
         panel(1, "Failed DAG runs (1 h)", "timeseries",
-              ["sum by (dag_id) (increase(airflow_dagrun_failed_count[1h]))"], 0, 0,
+              ["sum by (dag_id) (increase(airflow_dagrun_failed_count[1h]))"
+               " or sum by (dag_id) (airflow_dagrun_failed_count"
+               " unless airflow_dagrun_failed_count offset 1h)"], 0, 0,
               legend=["{{dag_id}}"], desc="Alert DagRunFailing fires above 0."),
         panel(2, "Successful run duration (p50)", "timeseries",
               ['airflow_dagrun_duration{quantile="0.5"}'], 12, 0, unit="s",

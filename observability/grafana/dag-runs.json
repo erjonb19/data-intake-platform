@@ -37,7 +37,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by (dag_id) (increase(airflow_dagrun_failed_count[1h]))",
+          "expr": "sum by (dag_id) (increase(airflow_dagrun_failed_count[1h])) or sum by (dag_id) (airflow_dagrun_failed_count unless airflow_dagrun_failed_count offset 1h)",
           "legendFormat": "{{dag_id}}"
         }
       ],

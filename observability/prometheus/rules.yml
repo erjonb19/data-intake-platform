@@ -47,7 +47,12 @@ groups:
   - name: dip-airflow
     rules:
       - alert: DagRunFailing
-        expr: sum by (dag_id) (increase(airflow_dagrun_failed_count[1h])) > 0
+        # A DAG's first failure creates its series at 1, which increase() cannot see:
+        # the second term catches a series that did not exist an hour ago.
+        expr: >-
+          sum by (dag_id) (increase(airflow_dagrun_failed_count[1h])) > 0
+          or sum by (dag_id) (airflow_dagrun_failed_count
+                              unless airflow_dagrun_failed_count offset 1h)
         labels: {severity: warning}
         annotations:
           summary: "DAG {{ $labels.dag_id }} failed in the last hour"
