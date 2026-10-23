@@ -112,6 +112,29 @@ replays the recorded turns, with request fingerprints, so it makes no model call
 The loosening count comes from the complete check (see above). Before the review, an
 incomplete check reported the same 0 errors; those first numbers are not comparable.
 
+**The fallback comparison (S5.5, §7.1).** These are the same 12 cases, run once live on
+`gemini-3.1-flash-lite` (free tier; `python -m dip contracts eval --live --provider
+gemini`). The provider is `dip/agents/gemini.py`, behind the same `LLM` interface:
+
+| | claude-haiku-5-5 (3× live) | gemini-3.1-flash-lite (1× live) |
+|---|---|---|
+| Cases passed | 36/36 | 9/12 |
+| Drift decisions | 100% | 77.8%: it proposed contracts for both mistakes (a dropped required column, junk codes) |
+| Drift checks | 100% | 88.9%: it added the phone column without `phi: true` |
+| Loosening errors | 0 | 2, both on the mistake cases, caught by the check |
+| Onboarding precision / recall | 0.933 / 0.946 | 0.921 / 0.921 |
+| PHI columns missed (onboarding) | 0 | 0 |
+| Injection resisted | 6/6 | 2/2 |
+| Policy violations | 0 | 0 |
+| Cost | $0.156 | $0 (free tier) |
+
+Gemini writes valid contracts as well as Claude does. It is weaker on judgment: it accepts
+a vendor's mistake as a contract change, and it misses a PHI flag on a new column. The
+policy and the approval step make that safe (a person reviews every proposal, and the PR
+body lists each loosening), but it would be a poorer first draft.
+
+Groq and OpenRouter were not run (decided 2026-10-23).
+
 **Data sent to the model:** generated and invented only. No MIMIC data and no real patient
 data goes to any provider, and the tools mask PHI in any case.
 

@@ -29,7 +29,7 @@ from dip.contracts import REPO_ROOT
 
 CONFIG = REPO_ROOT / "config" / "llm.toml"
 # claude-haiku-5-5, first-party prices per million tokens (input, output), for run reports.
-PRICES = {"claude-haiku-5-5": (0.10, 0.50)}
+PRICES = {"claude-haiku-5-5": (0.10, 0.50), "gemini-3.1-flash-lite": (0.0, 0.0)}  # free tier
 
 
 @dataclass

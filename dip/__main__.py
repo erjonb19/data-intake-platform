@@ -200,7 +200,14 @@ def _contracts_eval(args: argparse.Namespace) -> int:
     results = []
     for case in cases * max(1, args.repeat if args.live else 1):
         path = author_evals.RECORDINGS / f"{case['name']}.json"
-        if args.record:
+        if args.provider == "gemini":
+            from dip.agents.gemini import GeminiLLM
+
+            if not args.live:
+                parser_error = "--provider gemini runs live only (recordings are Claude's)"
+                raise SystemExit(parser_error)
+            llm = GeminiLLM()
+        elif args.record:
             llm = Recorder(AnthropicLLM())
         else:
             llm = AnthropicLLM() if args.live else Recording(path)
@@ -360,6 +367,12 @@ def main(argv: list[str] | None = None) -> int:
     con.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
     con.add_argument("--case", action="append", default=[])
     con.add_argument("--out", type=Path, default=Path("data/evals/contract_author"))
+    con.add_argument(
+        "--provider",
+        choices=["anthropic", "gemini"],
+        default="anthropic",
+        help="the model for --live (gemini: the S5.5 fallback comparison)",
+    )
     brk = sub.add_parser("break")
     brk.add_argument("scenario")
     brk.add_argument("good", type=Path)
