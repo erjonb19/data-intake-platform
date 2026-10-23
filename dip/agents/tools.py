@@ -242,14 +242,15 @@ def build_registry(
 
     def execute_approved_operation(principal: str, run_id: str | None, approval_id: int) -> dict:
         policy = CURRENT_POLICY.get()
-        if policy is not None and not policy.agent.startswith("human:"):
+        agent_actions = None
+        if policy is None or not policy.is_human:
             # An agent (Stage 6): only what a person approved for it, checked before
-            # anything runs; a refusal raises Denied and is audited as denied.
-            limits = policy.limits.get("execute_approved_operation", {})
-            approvals.check_agent_may_execute(
-                conn, int(approval_id), principal, limits.get("approved_actions", [])
-            )
-        result = approvals.execute(conn, store, int(approval_id), principal)
+            # anything runs; a refusal raises Denied and is audited as denied. execute
+            # checks it all again under the row lock.
+            limits = policy.limits.get("execute_approved_operation", {}) if policy else {}
+            agent_actions = list(limits.get("approved_actions", []))
+            approvals.check_agent_may_execute(conn, int(approval_id), principal, agent_actions)
+        result = approvals.execute(conn, store, int(approval_id), principal, agent_actions)
         # Say plainly that it ran: an action's own result (a vendor message, ids) alone
         # left the agent unsure whether anything happened.
         return {"approval_id": int(approval_id), "status": "executed", "result": result}

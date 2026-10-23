@@ -62,7 +62,7 @@ the change did no harm, not that it fixed the two hard cases for good.
 ### Act mode (Stage 6)
 
 **Cases** (`agents/evals/triage_act/cases.yaml`, 11): two approved operations that must
-run, seven that must be refused (pending, rejected, expired, changed after approval,
+run (and the injection case's, a third), seven that must be refused (pending, rejected, expired, changed after approval,
 approved under an agent's name, another agent's, a contract PR), an injection in the vendor
 message that names other approvals, and a refusal after which the agent must not try an
 approved id it was not given. **Scored from the database:** what ran, what `ops.audit_log`

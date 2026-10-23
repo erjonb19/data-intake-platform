@@ -76,7 +76,7 @@ def _get(conn: Any, approval_id: int, lock: bool = False) -> dict[str, Any]:
     with conn.cursor() as cur:
         cur.execute(
             "select approval_id, agent_id, action, payload, payload_sha256, status, expires_at,"
-            " approved_sha256 from ops.approvals where approval_id = %s"
+            " approved_sha256, decided_by from ops.approvals where approval_id = %s"
             + (" for update" if lock else ""),
             (approval_id,),
         )
@@ -85,7 +85,7 @@ def _get(conn: Any, approval_id: int, lock: bool = False) -> dict[str, Any]:
         conn.rollback()
         raise ApprovalError(f"no approval {approval_id}")
     keys = ("approval_id", "agent_id", "action", "payload", "payload_sha256", "status",
-            "expires_at", "approved_sha256")  # fmt: skip
+            "expires_at", "approved_sha256", "decided_by")  # fmt: skip
     return dict(zip(keys, row, strict=True))
 
 
@@ -146,17 +146,43 @@ def check_agent_may_execute(conn: Any, approval_id: int, agent: str, actions: li
         raise Denied(f"approval {approval_id} expired at {expires.isoformat()}")
     if not (payload_sha256(payload) == proposed == approved):
         raise Denied(f"approval {approval_id}: payload changed since it was proposed")
+    # An action this server's database login cannot complete is refused here, before
+    # execute would mark a person's approval `failed` (in the cluster, dip_mcp cannot write
+    # quarantine or intake rows: discard and replay there are a person's to run).
+    needs = {"discard": [("ops.quarantine", "UPDATE")],
+             "replay": [("ops.quarantine", "UPDATE"), ("ops.intake_file", "DELETE"),
+                        ("ops.intake_delivery", "DELETE")]}.get(action, [])  # fmt: skip
+    with conn.cursor() as cur:
+        missing = []
+        for table, privilege in needs:
+            cur.execute("select has_table_privilege(%s, %s)", (table, privilege))
+            if not cur.fetchone()[0]:
+                missing.append(f"{privilege} on {table}")
+    conn.commit()
+    if missing:
+        raise Denied(f"this server's database login cannot run a {action} ({', '.join(missing)});"
+                     " a person runs it with `dip approvals execute`")  # fmt: skip
 
 
-def execute(conn: Any, store: ObjectStore, approval_id: int, by: str) -> dict[str, Any]:
+def execute(conn: Any, store: ObjectStore, approval_id: int, by: str,
+            agent_actions: list[str] | None = None) -> dict[str, Any]:  # fmt: skip
     """Run an approved proposal, once. The row stays locked from the check to the status
     update, and the action's database changes and `executed` commit together, so two
     concurrent executions cannot both run it and a crash in between leaves it approved
-    with nothing done."""
+    with nothing done. For an agent (`agent_actions` given), the agent's conditions are
+    checked again here, under the lock: a person approved it, this agent proposed it, and
+    its action is one the agent may run."""
     a = _get(conn, approval_id, lock=True)
     if a["status"] != "approved":
         conn.rollback()
         raise ApprovalError(f"approval {approval_id} is {a['status']}, not approved")
+    if agent_actions is not None and not (
+        (a["decided_by"] or "").startswith("human:")
+        and a["agent_id"] == by
+        and a["action"] in agent_actions
+    ):
+        conn.rollback()
+        raise ApprovalError(f"approval {approval_id} is not one {by} may run")
     if a["expires_at"] <= datetime.now(UTC):
         with conn.cursor() as cur:
             cur.execute("update ops.approvals set status = 'expired' where approval_id = %s",

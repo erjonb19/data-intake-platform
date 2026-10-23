@@ -81,3 +81,44 @@ def test_recorded_act_case(case, tmp_path):
     llm = Recording(act_evals.RECORDINGS / f"{case['name']}.json")
     result = act_evals.run_case(DOC, case, DSN, llm, tmp_path)
     assert result.passed, result
+
+
+@pytest.mark.parametrize(
+    ("setup", "sql", "why"),
+    [
+        ("approved", "update ops.approvals set status = 'pending'", "cannot become"),
+        ("pending", "update ops.approvals set status = 'executed', executed_by = 'human:x'",
+         "cannot become"),
+        ("pending", "update ops.approvals set status = 'approved'", "records who decided"),
+        ("approved", "update ops.approvals set decided_by = 'human:someone-else'",
+         "cannot be rewritten"),
+        ("approved", "update ops.approvals set status = 'executed'", "records who ran it"),
+    ],
+)  # fmt: skip
+def test_the_status_moves_one_way_for_every_login(world, setup, sql, why):
+    import psycopg
+
+    wh, _, _, ids = world
+    act_evals._write_approvals(wh.conn, [{"action": "discard", "state": setup}], ids)
+    with pytest.raises(psycopg.errors.RaiseException, match=why), wh.conn.cursor() as cur:
+        cur.execute(sql)
+    wh.conn.rollback()
+
+
+def test_an_executed_approval_cannot_be_re_armed_and_run_twice(world):
+    import psycopg
+
+    wh, _, reg, ids = world
+    act_evals._write_approvals(wh.conn, [{"action": "request_resend", "state": "approved"}], ids)
+    reg.call(Policy.load("triage"), "r1", "execute_approved_operation", {"approval_id": 1})
+    with pytest.raises(psycopg.errors.RaiseException), wh.conn.cursor() as cur:
+        cur.execute("update ops.approvals set status = 'approved' where approval_id = 1")
+    wh.conn.rollback()
+    with pytest.raises(Denied, match="is executed"):
+        reg.call(Policy.load("triage"), "r2", "execute_approved_operation", {"approval_id": 1})
+
+
+def test_no_agent_id_can_claim_to_be_a_person(tmp_path):
+    (tmp_path / "human:x.yaml").write_text("agent: 'human:x'\nmax_tier: act\ntools: ['*']\n")
+    with pytest.raises(ValueError, match="may not start with 'human:'"):
+        Policy.load("human:x", tmp_path)

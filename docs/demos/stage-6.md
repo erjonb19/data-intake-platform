@@ -12,6 +12,12 @@ runs (dip/agents/approvals.py `check_agent_may_execute`):
   (agents/policies/triage.yaml). A `contract_pr` stays a person's.
 
 A refusal changes nothing and is written to `ops.audit_log` as **denied**, with the reason.
+The checks run again under the row lock when it executes. Under every login, a trigger moves
+an approval's status one way only: pending to approved, rejected or expired; approved to
+executed, failed or expired. Once a decision or an execution is recorded, it cannot be
+rewritten. So no login can re-arm an executed approval to run it twice, or approve one
+without recording who approved it and what. A review found that hole in the first version
+of this stage, and the trigger closed it.
 
 ## The run (2026-10-23)
 
@@ -64,8 +70,11 @@ stands in for the model there. The check fails unless the audit log ends with
 `execute_approved_operation` denied, then allowed, and the approval was executed by
 `triage`. In the cluster, the agent's database login (`dip_mcp`) can complete only
 `request_resend`, which changes no data. Discard and replay write to the quarantine and
-intake tables and to landing, so in the cluster a person runs those with
-`dip approvals execute`.
+intake tables and to landing, so in the cluster the server refuses them to the agent before
+anything runs (the approval stays approved), and a person runs them with
+`dip approvals execute`. That login can also read every proposal's payload, and whoever holds
+it could record an approved row as executed without running it. It could not run anything
+a person did not approve. Separate database logins per agent are a follow-up.
 
 ## Act evals
 

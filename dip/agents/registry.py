@@ -70,12 +70,19 @@ class Policy:
     # Hide the values of contract columns marked `phi` in what the tools return (the
     # reader: any person's MCP client). The triage agent sees records as received.
     mask_phi: bool = False
+    # A person at the CLI (human_policy), never an agent: set only in code, never from a
+    # policy file, so no agent id can claim it.
+    is_human: bool = False
 
     @classmethod
     def load(cls, agent: str, root: Path = POLICY_DIR) -> Policy:
         spec = yaml.safe_load((root / f"{agent}.yaml").read_text(encoding="utf-8"))
         if spec.get("agent") != agent or spec.get("max_tier") not in TIERS:
             raise ValueError(f"policy {agent}: bad 'agent' or 'max_tier'")
+        if agent.startswith("human:"):
+            raise ValueError(f"policy {agent}: an agent id may not start with 'human:'")
+        if agent.startswith("human:"):
+            raise ValueError(f"policy {agent}: an agent id may not start with 'human:'")
         return cls(
             agent,
             spec["max_tier"],
@@ -87,7 +94,7 @@ class Policy:
 
 # A person at the CLI: every tool, every tier. Their calls are audited like an agent's.
 def human_policy(name: str) -> Policy:
-    return Policy(f"human:{name}", "act", frozenset({"*"}))
+    return Policy(f"human:{name}", "act", frozenset({"*"}), is_human=True)
 
 
 def args_sha256(args: dict[str, Any]) -> str:
