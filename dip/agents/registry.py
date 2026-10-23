@@ -101,6 +101,17 @@ def args_sha256(args: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(args, sort_keys=True, default=str).encode()).hexdigest()
 
 
+def _argument_error(tool: Tool, args: dict[str, Any]) -> dict[str, str] | None:
+    """An argument the tool's schema does not declare, or a required one missing, is an
+    error the model can correct (a tool result), never a crash in the tool."""
+    props = tool.input_schema.get("properties", {})
+    unknown = sorted(set(args) - set(props))
+    missing = sorted(set(tool.input_schema.get("required", [])) - set(args))
+    if unknown or missing:
+        return {"error": f"{tool.name}: unknown arguments {unknown}, missing {missing}"}
+    return None
+
+
 class Registry:
     def __init__(self, conn: Any):
         self.conn = conn
@@ -191,7 +202,9 @@ class Registry:
         try:
             token = CURRENT_POLICY.set(policy)
             try:
-                result = self.tools[name].fn(principal=policy.agent, run_id=run_id, **args)
+                result = _argument_error(self.tools[name], args) or self.tools[name].fn(
+                    principal=policy.agent, run_id=run_id, **args
+                )
             finally:
                 CURRENT_POLICY.reset(token)
             if isinstance(result, dict) and "error" in result:

@@ -1,0 +1,31 @@
+# Policy for the incident agent (Stage 7; PLAN.md sections 7 and 8.10). Enforced by the tool
+# registry behind the MCP server, never by the model: a call outside it is refused and
+# audited. It reads and reports; the only write is its diagnosis (ops.incident_diagnosis),
+# which changes no data. Any handoff to triage is decided in code (dip/agents/graph.py).
+agent: incident
+description: >
+  Diagnoses one incident (a late file, a file quarantined whole, a failed DAG run) from the
+  incident, quarantine, contracts, feed history, DAG runs and task logs, DQ results,
+  lineage and metrics, and reports a root cause. Never proposes or runs an operation.
+max_tier: propose
+# The incident agent needs codes, counts, states and log lines, not values: PHI is masked
+# for it as for the reader (dip/agents/tools.py, read_tools.py).
+mask_phi: true
+tools:
+  - get_incident
+  - list_quarantine_groups
+  - get_quarantine_sample
+  - get_contract
+  - get_feed_history
+  - get_dq_results
+  - get_dag_run
+  - get_task_log
+  - get_lineage
+  - query_metrics
+  - report_diagnosis
+limits:
+  max_calls_per_run: 40
+  max_calls_per_hour: 400
+  report_diagnosis:
+    max_per_run: 3   # a call with a malformed argument is answered with an error to fix
+    max_per_hour: 50

@@ -12,7 +12,9 @@ image with the PDF readers and Tesseract; without it set, its files are quaranti
 OCR.UNAVAILABLE rather than read.
 
 The DAGs are triggered: by the sftp_sync DAG, the E2E test, or by hand. Late files
-(`FEED.LATE`) are found by the feed_sla DAG from each contract's `expected_arrival`.
+(`FEED.LATE`) are found by the feed_sla DAG from each contract's `expected_arrival`. A file
+quarantined whole opens a FILE.QUARANTINED incident (the intake), and a failed run a
+DAG.FAILED one (the run callbacks below): the incident agent's input (Stage 7).
 """
 
 from __future__ import annotations
@@ -40,6 +42,19 @@ def _executor_config(format_type: str) -> dict:
     ))}  # fmt: skip
 
 
+def _run_callback(feed: str, failed: bool):
+    """Stage 7: a failed run opens a DAG.FAILED incident for the feed, the next successful
+    one closes it (dip/incidents.py)."""
+
+    def callback(context: dict) -> None:
+        from dip.incidents import dag_callback
+
+        dag_callback(feed, failed, context,
+                     lambda: PostgresHook(postgres_conn_id="warehouse").get_conn())  # fmt: skip
+
+    return callback
+
+
 def build(feed: str, format_type: str):
     @dag(
         dag_id=dag_id_for(feed),
@@ -47,6 +62,8 @@ def build(feed: str, format_type: str):
         start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
         catchup=False,
         max_active_runs=1,
+        on_failure_callback=_run_callback(feed, failed=True),
+        on_success_callback=_run_callback(feed, failed=False),
         tags=["intake", format_type, feed.split(".")[0]],
         doc_md=__doc__,
     )

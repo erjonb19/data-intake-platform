@@ -22,6 +22,10 @@
   triage act --approval ID     the triage agent runs one approval a person approved (Act
                                tier, Stage 6); the server refuses anything else
   triage act-eval [--record]   score Act mode on agents/evals/triage_act/cases.yaml
+  incident run --incident ID   the incident -> triage chain (LangGraph, Stage 7): the
+                               incident agent diagnoses, code decides the handoff, triage
+                               proposes (DIP_MCP_URL, DIP_INCIDENT_KEY, DIP_TRIAGE_KEY)
+  incident eval [--record]     score the chain on agents/evals/incident/cases.yaml
   approvals list|show|approve|reject|execute [ID]
                                the human side of agent proposals (audited as human:<you>)
   cohort list                  the cohort library (packs/healthcare/cohorts), latest versions
@@ -205,6 +209,75 @@ def _triage(args: argparse.Namespace) -> int:
     (args.out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
     print(json.dumps(rep["summary"], indent=1))
     return 0 if rep["summary"]["policy_violations"] == 0 else 1
+
+
+def _incident(args: argparse.Namespace) -> int:
+    import asyncio
+
+    from dip.agents import graph, incident_evals, triage
+    from dip.agents.llm import AnthropicLLM, Recorder, Recording, cost_usd
+
+    _load_dotenv()
+    if args.action == "run":
+        if args.incident is None:
+            raise SystemExit("incident run needs --incident ID")
+        import psycopg
+
+        url = os.environ["DIP_MCP_URL"]
+        chain = graph.Chain(
+            conn=psycopg.connect(os.environ["DIP_WAREHOUSE_DSN"]),
+            incident_client=lambda: triage.mcp_client(url, os.environ["DIP_INCIDENT_KEY"]),
+            triage_client=lambda: triage.mcp_client(url, os.environ["DIP_TRIAGE_KEY"]),
+            llm_for=lambda step: AnthropicLLM(),
+        )
+        state = asyncio.run(graph.run_chain(chain, args.incident))
+        d = state.get("diagnosis") or {}
+        print(
+            f"chain {state['chain_id']}: incident {args.incident} -> {d.get('root_cause')}"
+            f" ({d.get('confidence')}): {d.get('summary', '(no diagnosis reported)')}"
+        )
+        if state.get("handoff"):
+            h = state["handoff"]
+            print(f"handoff to triage: {list(h.group_ids)} ({len(h.quarantine_ids)} entries)")
+            for p in (state.get("triage_run") or {}).get("proposals", []):
+                print(f"approval {p['approval_id']}: {p['action']:<24} {p['group_id']}")
+        else:
+            print(f"no handoff: {state.get('handoff_refused') or 'not quarantined records'}")
+        runs = [state.get("incident_run") or {}, state.get("triage_run") or {}]
+        usage = [u for r in runs for u in r.get("usage", [])]
+        model = next((r["model"] for r in runs if r.get("model")), "")
+        print(f"${cost_usd(usage, model):.4f}", file=sys.stderr)
+        return 0
+    dsn = os.environ["DIP_EVAL_DSN"]
+    results = []
+    cases = [c for c in incident_evals.load_cases() if not args.case or c["name"] in args.case]
+    for case in cases * max(1, args.repeat if args.live else 1):
+        recorders: dict[str, Recorder] = {}
+
+        def llm_for(step: str, name: str = case["name"], recorders: dict = recorders):
+            path = incident_evals.RECORDINGS / f"{name}_{step}.json"
+            if args.record:
+                recorders[step] = Recorder(AnthropicLLM())
+                return recorders[step]
+            return AnthropicLLM() if args.live else Recording(path)
+
+        r = incident_evals.run_case(case, dsn, llm_for, Path("data/tmp/incident-eval"))
+        if args.record:
+            for step, rec in recorders.items():
+                rec.save(incident_evals.RECORDINGS / f"{case['name']}_{step}.json")
+        results.append(r)
+        print(
+            f"{'PASS' if r.passed else 'FAIL'} {case['name']}: cause {r.root_cause},"
+            f" handoff {r.handed_off}, triage ok {r.triage_groups_ok},"
+            f" violations {r.violations or 'none'}",
+            file=sys.stderr,
+        )
+    rep = incident_evals.report(results)
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "report.json").write_text(incident_evals.dumps(rep), "utf-8")
+    print(json.dumps(rep["summary"], indent=1))
+    s = rep["summary"]
+    return 0 if s["policy_violations"] == 0 and s["cases_passed"] == s["cases"] else 1
 
 
 def _act_eval(args: argparse.Namespace, dsn: str) -> int:
@@ -428,6 +501,14 @@ def main(argv: list[str] | None = None) -> int:
     tri.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
     tri.add_argument("--case", action="append", default=[])
     tri.add_argument("--out", type=Path, default=Path("data/evals/triage"))
+    inc = sub.add_parser("incident")
+    inc.add_argument("action", choices=["run", "eval"])
+    inc.add_argument("--incident", type=int, help="run: the incident to diagnose")
+    inc.add_argument("--record", action="store_true", help="call the model, save its turns")
+    inc.add_argument("--live", action="store_true", help="call the model, save nothing")
+    inc.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
+    inc.add_argument("--case", action="append", default=[])
+    inc.add_argument("--out", type=Path, default=Path("data/evals/incident"))
     appr = sub.add_parser("approvals")
     appr.add_argument("action", choices=["list", "show", "approve", "reject", "execute"])
     appr.add_argument("approval_id", type=int, nargs="?")
@@ -523,6 +604,8 @@ def main(argv: list[str] | None = None) -> int:
         return _triage(args)
     elif args.command == "approvals":
         return _approvals(args)
+    elif args.command == "incident":
+        return _incident(args)
     elif args.command == "contracts" and args.action == "eval":
         return _contracts_eval(args)
     elif args.command == "contracts":

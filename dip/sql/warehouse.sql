@@ -73,6 +73,42 @@ BEGIN
     END IF;
 END $$;
 
+-- Incidents (Stage 2 FEED.LATE in dip/sla.py, which creates the same table; Stage 7
+-- FILE.QUARANTINED and DAG.FAILED in dip/incidents.py), and the incident agent's
+-- diagnoses (Stage 7, report_diagnosis: a report for people and for the triage handoff;
+-- it changes no data).
+CREATE TABLE IF NOT EXISTS ops.incident (
+    incident_id   bigserial   PRIMARY KEY,
+    feed          text        NOT NULL,
+    kind          text        NOT NULL,
+    window_start  timestamptz NOT NULL,
+    since         timestamptz NOT NULL,   -- an arrival after this closes a FEED.LATE
+    opened_at     timestamptz NOT NULL DEFAULT now(),
+    closed_at     timestamptz,
+    detail        text,
+    UNIQUE (feed, kind, window_start)
+);
+-- The files a FILE.QUARANTINED incident is about: it closes when none of them has an open
+-- file-level quarantine entry, and its handoff to triage is those files' entries.
+CREATE TABLE IF NOT EXISTS ops.incident_file (
+    incident_id   bigint      NOT NULL REFERENCES ops.incident (incident_id),
+    file_sha256   text        NOT NULL,
+    PRIMARY KEY (incident_id, file_sha256)
+);
+CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
+    diagnosis_id    bigserial   PRIMARY KEY,
+    incident_id     bigint      NOT NULL REFERENCES ops.incident (incident_id),
+    agent_id        text        NOT NULL,
+    run_id          text,
+    root_cause      text        NOT NULL CHECK (root_cause IN ('late_delivery',
+        'quarantined_records', 'transform_failure', 'platform_failure', 'unknown')),
+    summary         text        NOT NULL,
+    evidence        jsonb       NOT NULL,
+    quarantine_ids  jsonb       NOT NULL,
+    confidence      numeric(3, 2) NOT NULL CHECK (confidence BETWEEN 0 AND 1),
+    created_at      timestamptz NOT NULL DEFAULT now()
+);
+
 -- Accepted FHIR resources, as received. The silver dbt models flatten them.
 CREATE TABLE IF NOT EXISTS bronze.fhir_resource (
     feed              text        NOT NULL,
@@ -279,6 +315,17 @@ BEGIN
     IF to_regclass('ops.audit_log') IS NOT NULL THEN
         GRANT INSERT ON ops.audit_log TO dip_mcp;
         GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_mcp;
+    END IF;
+    -- The incident agent (Stage 7): reads incidents, writes its diagnosis.
+    IF to_regclass('ops.incident') IS NOT NULL THEN
+        GRANT SELECT ON ops.incident TO dip_mcp;
+    END IF;
+    IF to_regclass('ops.incident_file') IS NOT NULL THEN
+        GRANT SELECT ON ops.incident_file TO dip_mcp;
+    END IF;
+    IF to_regclass('ops.incident_diagnosis') IS NOT NULL THEN
+        GRANT SELECT, INSERT ON ops.incident_diagnosis TO dip_mcp;
+        GRANT USAGE ON SEQUENCE ops.incident_diagnosis_diagnosis_id_seq TO dip_mcp;
     END IF;
     -- The triage agent's proposals (Stage 4, S4.5): a pending row for a person to
     -- approve. And its Act tier (Stage 6): reading an approval to check it (this login can

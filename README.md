@@ -19,9 +19,10 @@ Stage 3 (PDF invoices with OCR, Prometheus and Grafana, Marquez lineage, the MCP
 deployed); Stage 5 (the contract-author agent and its evals); the failure-triage agent
 with human approval; Stage 4 (synthetic 837P/835 X12 into claims and remittance marts,
 `dip break`, 8 runbooks, and the break-and-fix loop for every scenario); Stage 6 (the triage
-agent runs an operation only after a person approved it); the research-data track R1–R7a
-and M1–M3. **Not started:** Stage 7
-(incident agent, LangGraph) and most of Stage 8. Demos: [docs/demos](docs/demos/).
+agent runs an operation only after a person approved it); Stage 7 (incidents from
+breakages, the incident agent, and a LangGraph chain that hands quarantined records to
+triage through a typed edge decided in code); the research-data track R1–R7a and M1–M3.
+**Not started:** most of Stage 8. Demos: [docs/demos](docs/demos/).
 Agents and their evals: [docs/agents/EVALS.md](docs/agents/EVALS.md). Research track (see
 [docs/research](docs/research/README.md)):
 
