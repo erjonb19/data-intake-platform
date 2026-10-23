@@ -28,7 +28,8 @@ local. Both repos enforce the rule, independently.
   an intake feed or relational table named `mimic.*`, or a build with
   `source_kind: mimic_relational`.
 - **`DIP-SYNTHEA`:** no MIMIC source, the Synthea FHIR feed is loaded, and every other source
-  is one of this repo's synthetic `healthcare.*` feeds.
+  is one of this repo's generated packs' feeds: `healthcare.*` (synthetic) or `finance.*`
+  (invented AP invoices, which never feed OMOP). Any other pack's feed is `DIP-UNKNOWN`.
 - **`DIP-UNKNOWN`:** anything else, including an empty warehouse.
 
 Tables that dbt rebuilds start with no grants. So a run that fails before on-run-end

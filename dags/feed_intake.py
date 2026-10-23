@@ -72,7 +72,9 @@ def build(feed: str, format_type: str):
                 warehouse.init()
                 for key in store.list(BUCKET_LANDING, f"{feed}/"):
                     o = process_file(store, warehouse, contract, key)
-                    lineage.intake_event(emitter, dsn, feed, o, bronze="csv_record")
+                    lineage.intake_event(
+                        emitter, dsn, feed, o, bronze=lineage.bronze_table(contract.format_type)
+                    )
                     print(
                         f"{o.status:<24} {key} accepted={o.accepted} rejected={o.rejected}"
                         f" {list(o.reason_codes)}"

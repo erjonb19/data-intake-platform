@@ -47,32 +47,40 @@ def _phi_columns(contract: Contract | None) -> set[str]:
             if c.get("phi")}  # fmt: skip
 
 
+def shown_columns(contract: Contract | None) -> set[str]:
+    """The columns whose values a masking policy may see: declared, not `phi`, and not a
+    date (HIPAA counts every date of an individual). Everything else, including a column
+    the contract does not declare (it may be PHI under a new name), is hidden."""
+    cols = contract.spec.get("columns", []) if contract else []
+    return {c["name"] for c in cols if not c.get("phi") and c.get("type", "string") != "date"}
+
+
 def _masked_record(record: Any, contract: Contract | None) -> Any:
     """A rejected record with its PHI values hidden. A CSV or Excel record keeps only the
-    values of declared, non-PHI columns (a column the contract does not know may be PHI
-    under a new name); a FHIR resource shows only its type, id and field names; a raw row
-    of a file rejected whole shows its header and how many fields it has."""
+    values of `shown_columns`; a FHIR resource shows only its type and field names (not its
+    id: vendors put MRNs there); a raw row of a file rejected whole shows its header and how
+    many fields it has."""
     if record is None:
         return None
-    declared = {c["name"] for c in (contract.spec.get("columns", []) if contract else [])}
-    phi = _phi_columns(contract)
+    shown = shown_columns(contract)
     if isinstance(record, dict) and "resourceType" in record:
-        return {"resourceType": record.get("resourceType"), "id": record.get("id"),
-                "fields": sorted(record), "values": MASK}  # fmt: skip
+        return {"resourceType": record.get("resourceType"), "fields": sorted(record),
+                "values": MASK}  # fmt: skip
     if isinstance(record, dict) and set(record) == {"header", "row"}:
         return {"header": record["header"], "row": f"({record['row'].count(',') + 1} fields; "
                 "values not shown: PHI)"}  # fmt: skip
     if isinstance(record, dict):
-        return {k: (v if k.strip() in declared and k.strip() not in phi else MASK)
-                for k, v in record.items()}  # fmt: skip
+        return {k: (v if k.strip() in shown else MASK) for k, v in record.items()}
     return MASK
 
 
 def _masked_detail(detail: str | None, reason_code: str, contract: Contract | None) -> str | None:
     """A violation's detail quotes the value; hide it when the column is PHI or unknown."""
     column = reason_code.split(":", 1)[1] if ":" in reason_code else ""
-    declared = {c["name"] for c in (contract.spec.get("columns", []) if contract else [])}
-    if column and (column in _phi_columns(contract) or column not in declared):
+    # Only value checks quote a value (VALUE.*, KEY.*); schema and file details name
+    # columns and counts.
+    quotes_value = reason_code.startswith(("VALUE.", "KEY."))
+    if column and quotes_value and column not in shown_columns(contract):
         return MASK
     return detail
 
@@ -161,8 +169,13 @@ def build_registry(
             else:
                 item["file_name"] = PurePosixPath(qkey).name
                 start = _file_start(store, qkey)
-                # Masked: the header line only, which is where a schema problem shows.
-                item["file_start"] = start.splitlines()[0][:MAX_TEXT] if masked and start else start
+                if masked and start:
+                    # A CSV's header line is where a schema problem shows. Any other file's
+                    # first line can be a whole record (minified or NDJSON FHIR): not shown.
+                    tabular = contract is not None and contract.format_type == "csv"
+                    start = (start.splitlines()[0][:MAX_TEXT] if tabular
+                             else f"({len(start)} characters; values not shown: PHI)")  # fmt: skip
+                item["file_start"] = start
             samples.append(item)
         return {"group_id": group_id, "untrusted_vendor_content": samples, "notice": UNTRUSTED}
 

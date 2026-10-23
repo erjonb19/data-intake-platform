@@ -52,7 +52,9 @@ QUERIES: dict[str, tuple[str, str, str]] = {
     "dip_feed_last_received_timestamp_seconds": (
         "When the feed's newest file was received (Unix time).",
         "gauge",
-        "select feed, extract(epoch from max(received_at)) from ops.intake_file group by 1",
+        # Deliveries, as the late-file check counts them: a full-file feed that resends the
+        # same content under a new name has one intake_file row but a new delivery.
+        "select feed, extract(epoch from max(received_at)) from ops.intake_delivery group by 1",
     ),
     "dip_quarantine_open": (
         "Quarantine rows waiting for a person.",
@@ -130,7 +132,7 @@ def _connect(dsn: str):
         import psycopg
     except ImportError:  # the Airflow image ships psycopg2
         import psycopg2 as psycopg  # type: ignore[no-redef]
-    conn = psycopg.connect(dsn)
+    conn = psycopg.connect(dsn, connect_timeout=3)  # never hold the scrape on a dead server
     conn.autocommit = True
     return conn
 

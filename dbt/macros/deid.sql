@@ -52,7 +52,8 @@
     DIP-MIMIC    any MIMIC source (an intake feed or relational table named mimic.*, or a
                  build of the MIMIC relational tables), whatever else is loaded with it
     DIP-SYNTHEA  otherwise, if the Synthea FHIR feed is loaded and every other source is
-                 one of this repo's synthetic healthcare.* feeds
+                 one of this repo's generated packs' feeds (healthcare.*, finance.*: all
+                 synthetic or invented; finance never feeds OMOP)
     DIP-UNKNOWN  anything else, including an empty warehouse
   Feed names are the signal. The guard against MIMIC data sent through the Synthea feed is
   that feed's contract: MIMIC's dates are shifted past 2100, which its FUTURE_DATE check
@@ -92,7 +93,8 @@
             when exists (
                 select 1 from sources where source_name = 'healthcare.fhir_patient_bundle'
             ) and not exists (
-                select 1 from sources where source_name not like 'healthcare.%'
+                select 1 from sources
+                where source_name not like 'healthcare.%' and source_name not like 'finance.%'
             )
                 then 'DIP-SYNTHEA'
             else 'DIP-UNKNOWN'

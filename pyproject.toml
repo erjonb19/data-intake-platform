@@ -28,6 +28,8 @@ dev = [
   # Stage 3 PDF invoices (images/ocr pins the same readers; Tesseract itself is only in
   # that image and on CI, so the OCR tests skip without it).
   "pdfplumber==0.11.10",
+  "pdfminer.six==20260107",
+  "pypdfium2==5.14.0",
   "pytesseract==0.3.13",
   "pillow==12.3.0",
   "reportlab==5.0.1",
