@@ -498,7 +498,7 @@ item. **Built** means merged and covered by CI; **partly** says what is missing.
 | 5R. Cohort service (R7) | **R7a built** | #20, #21, #27, #38 | R7b, in the drift monitor |
 | 6. Act tier + triage agent | **Built** | The triage agent and its evals (#28); the agent runs `execute_approved_operation` only after a person approved it, checked by the server first, refusals audited as denied; the "denied, then allowed" demo (`docs/demos/stage-6.md`, and in the kind E2E); Act evals (Stage 6 PR) | In the cluster the agent completes only `request_resend` (its login cannot change quarantine or intake rows); release without replay and DAG reruns are not built (decisions log, 2026-10-23) |
 | 7. Incident agent + LangGraph | **Built** | Incidents from breakages (FILE.QUARANTINED, DAG.FAILED, with FEED.LATE); the incident agent (own key and policy, `get_incident`, `report_diagnosis`); the LangGraph graph with a typed `HandoffToTriage` built and checked in code, audited, one chain id across the audit log; evals 6/6 recorded, 18/18 over 3 live runs (`docs/agents/incident.md`, `docs/demos/stage-7.md`) | The incident key on the in-cluster MCP server; running the chain automatically on a new incident; the DAG callbacks are not exercised by the E2E |
-| 8. Hardening and write-up | **Partly** | README, architecture and reviewer docs (docs/FOR_REVIEWERS.md); nightly evals replaying every agent's recordings (`.github/workflows/evals.yml`, no key); the recorded demo (`scripts/demo.sh`, `docs/demos/stage-8.md`); the OAuth backlog item (§11) | The README screenshots and the fresh-clone quickstart check, from the next local stack run |
+| 8. Hardening and write-up | **Built** (one check incomplete) | README, architecture and reviewer docs (docs/FOR_REVIEWERS.md); nightly evals replaying every agent's recordings (`.github/workflows/evals.yml`, no key); the recorded demo (`scripts/demo.sh`, `docs/demos/stage-8.md`); the OAuth backlog item (§11); the README screenshots and the fresh-clone quickstart check, from one local run (`docs/demos/stage-8.md`) | The fresh-clone E2E's last stage (the break loop) was stopped by the session's memory guard; it passes in CI |
 
 ### 8.10 Stages 4, 6, 7 and 8: what is left and how it is built (added 2026-10-23)
 
@@ -585,6 +585,8 @@ docs/             runbooks/ demos/ adr/
   the chain started automatically on a new incident.
 - **Contract PRs by a GitHub App** (§7): today a person publishes the contract author's
   local branch with `gh pr create` (decisions log, 2026-10-23).
+- **One pending proposal per group** (S8.3 run): `propose_operation` accepts a second
+  proposal for a group that already has a pending one; refuse it, or point to the first.
 
 ## 12. Decisions log
 

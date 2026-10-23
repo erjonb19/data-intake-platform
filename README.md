@@ -10,6 +10,40 @@ either flow through bronze, silver, and gold layers (dbt on Postgres) or land in
 quarantine with a machine-readable reason. Lineage, data quality, and metrics are
 built in, and AI agents propose fixes and contracts, but a person always approves them.
 
+## What it looks like
+
+From one local run on 2026-10-23: a fresh clone of `main`, `scripts/up.sh` with the
+observability profile, the smoke test and the E2E, then these five screens
+(`scripts/screenshots.py`; every value is synthetic or invented).
+
+**An intake DAG in Airflow.** The eligibility feed's DAG (`intake` then dbt `transform`, one
+pod per task) and its runs from the E2E.
+
+![Airflow: the eligibility feed's intake DAG and its runs](docs/images/airflow-dag-run.png)
+
+**Quarantined files and their reason codes.** The 837P claims feed's intake task log: one
+file loaded, and two quarantined whole, one an 835 sent to the 837 feed
+(`X12.TRANSACTION:835`), one with a segment lost in transfer (`X12.ENVELOPE:SE01`).
+
+![Airflow task log: two X12 files quarantined with their reason codes](docs/images/quarantine-reason.png)
+
+**Feed health in Grafana.** Files by outcome, files quarantined whole, rows rejected,
+freshness per feed, late-file incidents, and the open quarantine by reason code.
+
+![Grafana: the Feeds dashboard](docs/images/grafana-feeds.png)
+
+**Lineage in Marquez.** `gold.member_eligibility` back through silver, the dbt jobs and
+`bronze.csv_record` to the intake jobs and the files they read.
+
+![Marquez: lineage from gold back to the landed files](docs/images/marquez-lineage.png)
+
+**Agent proposals waiting for a person.** The triage agent (`claude-haiku-5-5`, live,
+through the in-cluster MCP server with its own key) proposed one action per quarantine
+group; nothing happens until a person approves. The queue has no web UI: it is
+`python -m dip approvals`, shown as printed.
+
+![The approvals queue: the triage agent's pending proposals](docs/images/approvals-queue.png)
+
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
 **Status (PLAN.md §8.9 has the item-by-item check).** Built and merged: Stage 0
@@ -24,8 +58,8 @@ breakages, the incident agent, and a LangGraph chain that hands quarantined reco
 triage through a typed edge decided in code); the research-data track R1–R7a and M1–M3.
 Stage 8 in part: nightly evals that replay every agent's recordings, and a recorded
 demo of the whole chain (`bash scripts/demo.sh`: no API key, a throwaway Postgres in
-Docker; [docs/demos/stage-8.md](docs/demos/stage-8.md)). **Planned:** README screenshots of
-the running stack (they need a local stack run). Demos: [docs/demos](docs/demos/).
+Docker; [docs/demos/stage-8.md](docs/demos/stage-8.md)); and the screenshots above, from a
+fresh-clone run. Demos: [docs/demos](docs/demos/).
 Agents and their evals: [docs/agents/EVALS.md](docs/agents/EVALS.md). Research track (see
 [docs/research](docs/research/README.md)):
 
@@ -81,7 +115,13 @@ them with `kubectl port-forward` (docs/observability.md, docs/agents/mcp-read.md
 
 Measured once on a 16 GB laptop: `up.sh`, the smoke test and the full E2E together take
 about 34 minutes on a first run, with the kind node at 3.3 GiB
-([docs/demos/stage-3.md](docs/demos/stage-3.md)).
+([docs/demos/stage-3.md](docs/demos/stage-3.md)). Checked again from a fresh clone on
+2026-10-23 with the observability profile (`TF_VAR_profiles='["core", "observability"]'`):
+`up.sh` took 9 minutes (Docker already had the images' layers cached), the smoke test passed,
+and the E2E passed every stage up to the last, which was stopped for low memory; see
+[docs/demos/stage-8.md](docs/demos/stage-8.md#the-fresh-clone-quickstart). With both
+profiles, the laptop's available memory fell from 3.2 GB to about 150 MB during the E2E:
+start with at least 4 GB free.
 
 ## What runs where
 
