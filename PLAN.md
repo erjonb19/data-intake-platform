@@ -243,7 +243,7 @@ Two other workflows run alongside it: `ci.yml` (lint with ruff, type-check with 
 
 ## 8. Stages and dates
 
-Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run. Dates assume part-time work. **Stages 1–3 finish in November, as you asked.**
+Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run. Dates assumed part-time work; from 2026-10-23 the remaining stages (4, 6, 7, 8) run full-time and continuously, so their dates moved up (decisions log, 2026-10-23; the build plan is §8.10). **Stages 1–3 finish in November, as you asked.**
 
 | Stage | Done by | What you can demo |
 |---|---|---|
@@ -251,12 +251,12 @@ Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run
 | **1. Thin vertical slice + E2E** | **2026-11-08** | Drop a healthcare eligibility CSV into MinIO, and it becomes raw, then contract-validated, then bronze, silver and gold in dbt. A bad file lands in quarantine with its reason code. **The E2E GitHub Actions job (§6) passes on every push** |
 | **2. All channels and formats, both packs** | **2026-11-20** (was 11-18) | Files arrive over SFTP and the intake API as well as MinIO. Excel works. Synthea eligibility and claims run end to end. (837/835 moved to Stage 4.) De-identified shareable OMOP tier (R4) and a versioned, rebuild-verified research extract (R5). Finance Excel invoices reach gold. Row-level quarantine works, late-file detection (`FEED.LATE`) works, and the E2E tests cover each channel and format |
 | **3. OCR + monitoring + read-only MCP** | **2026-11-30** | Native and scanned PDF invoices go through OCR and are matched to Excel invoices in gold. Low-confidence pages go to quarantine. DQ checks are surfaced. Marquez shows lineage from file to gold table, including FHIR file → OMOP → shareable extract (R6). Grafana shows files per feed, quarantine rate, freshness or SLA, and DAG duration, with alert rules. **The MCP server goes live with the Read tier only**, over Streamable HTTP with per-agent API keys and read-only default policies, and with `ops.audit_log` recording every call. Its tools are `list_quarantine`, `get_quarantine_sample`, `get_contract`, `profile_file`, `get_dag_run`, `get_task_log`, `get_lineage`, `query_metrics` and `get_dq_results`. A demo: ask any MCP client "why did yesterday's eligibility feed quarantine 40 rows?" and get the answer through MCP. E2E checks lineage events, metrics, and one authenticated MCP read plus one rejected unauthenticated call |
-| **4. Breakage generator + runbooks + Propose tier** | **2026-12-13** | Synthetic 837/835 files are generated and parsed into claims and remittance marts (moved from Stage 2). `dip break <scenario>` triggers each failure on purpose. There are 8 break-and-fix runbooks in `docs/runbooks/`, each with symptoms, Grafana, Marquez and MCP evidence, a fix and a check. E2E runs each scenario. The MCP Propose tier is added: `propose_contract_pr` (GitHub App that can open PRs but not merge them) and `propose_operation`, plus the `ops.approvals` table and the `dip approvals` CLI |
+| **4. Breakage generator + runbooks + Propose tier** | **2026-10-24** (was 12-13) | Synthetic 837/835 files are generated and parsed into claims and remittance marts (moved from Stage 2). `dip break <scenario>` triggers each failure on purpose. There are 8 break-and-fix runbooks in `docs/runbooks/`, each with symptoms, Grafana, Marquez and MCP evidence, a fix and a check. E2E runs each scenario. The MCP Propose tier is added: `propose_contract_pr` (GitHub App that can open PRs but not merge them) and `propose_operation`, plus the `ops.approvals` table and the `dip approvals` CLI |
 | **5. Contract-author agent + eval harness** | **2026-12-31** | Hand it a sample file from a new vendor and get a draft contract PR. Hand it a drifted file (from the breakage generator) and get a PR with the contract diff. The agent can only Read and Propose. Eval harness and first results: onboarding and drift scored separately, prompt-injection cases, and comparisons between `claude-haiku-5-5` and the free fallback models |
 | **5R. Cohort service (R7)** | **2027-01-10** | The clinical-drift-monitor's cohort service answers longitudinal feasibility questions against the shareable OMOP tier. **R7a (this repo) was built on 2026-10-22**; R7b is the drift monitor's side (§8.4) |
-| **6. Act tier + triage agent** | **2027-01-31** (was 01-24) | `execute_approved_operation` runs only after a human approves, with a matching payload hash and an unexpired approval. The triage agent groups quarantine by root cause and proposes release, discard or replay; a human approves and the action runs. Triage evals and injection cases. The demo shows an Act call denied, then allowed after approval |
-| **7. Incident agent + LangGraph handoff** | **2027-02-21** (was 02-14) | A breakage raises an incident. The incident agent diagnoses it from logs, lineage and metrics and hands off to triage through a typed edge in the LangGraph graph. The whole chain is visible in the audit log. Full eval suite, including handoff correctness |
-| **8. Hardening and write-up** | **2027-03-07** (was 02-28) | Nightly evals, a README and architecture docs, a recorded demo, and a backlog item for OAuth |
+| **6. Act tier + triage agent** | **2026-10-25** (was 2027-01-31) | `execute_approved_operation` runs only after a human approves, with a matching payload hash and an unexpired approval. The triage agent groups quarantine by root cause and proposes release, discard or replay; a human approves and the action runs. Triage evals and injection cases. The demo shows an Act call denied, then allowed after approval |
+| **7. Incident agent + LangGraph handoff** | **2026-10-27** (was 2027-02-21) | A breakage raises an incident. The incident agent diagnoses it from logs, lineage and metrics and hands off to triage through a typed edge in the LangGraph graph. The whole chain is visible in the audit log. Full eval suite, including handoff correctness |
+| **8. Hardening and write-up** | **2026-10-28** (was 2027-03-07) | Nightly evals, a README and architecture docs, a recorded demo, and a backlog item for OAuth |
 
 ### 8.1 Research-data track (added 2026-10-21)
 
@@ -500,6 +500,47 @@ item. **Built** means merged and covered by CI; **partly** says what is missing.
 | 7. Incident agent + LangGraph | **Not started** | | All of it |
 | 8. Hardening and write-up | **Partly** | README, architecture and reviewer docs (docs/FOR_REVIEWERS.md) | Nightly evals, a recorded demo, the OAuth backlog item |
 
+### 8.10 Stages 4, 6, 7 and 8: what is left and how it is built (added 2026-10-23)
+
+Built ahead of these stages already (§8.9): the Propose tier, `ops.approvals` and `dip approvals` (#28); the triage agent and its evals (#28); `dip break` and the 8 runbooks (#37, #39). What is left, in build order. Each item is one PR, reviewed before it merges.
+
+**Stage 4 (2026-10-24)**
+
+| # | Item | How |
+|---|---|---|
+| **S4.1** | Synthetic **837P** (professional claims) and **835** (remittance) X12 5010 files | `packs/healthcare/generators/x12.py` writes both from the Synthea-derived claim lines (`claims.py`): one 837P claim (CLM, with SV1 lines) per claim, and one 835 payment (CLP, with SVC lines and CAS adjustments: CO-45 contractual, PR-1 deductible, PR-2 coinsurance) per claim, so billed − adjustments = paid, line by line. Deterministic: the same bundles give the same bytes. All synthetic: invented payer, provider and NPI-shaped ids |
+| **S4.2** | An `x12` contract format and parser (`dip/x12feed.py`); the `healthcare.claims_837` and `healthcare.remittance_835` contracts | Envelope checks quarantine the whole file: `X12.INVALID` (no ISA, or not X12), `X12.ENVELOPE:<what>` (ISA/IEA control numbers differ, a GE or IEA count is wrong, an SE segment count is wrong), `X12.TRANSACTION:<id>` (an 837 sent to the 835 feed). Each claim line (837) or service payment (835) becomes a row and goes through the CSV engine's row checks (`check_rows`), so a bad value gets the same `VALUE.*` code as in any other format, and row quarantine works. Pure Python, so it runs in the main Airflow image |
+| **S4.3** | Claims and remittance marts | dbt silver `x12_claim_line` and `x12_remit_line`; gold `professional_claim_line`, `remittance_line`, and `claim_payment` (each claim line with what the 835 paid and why: paid, adjusted, denied, or not yet remitted), with DQ tests (billed − adjustments = paid on every remitted line; every remit line matches a billed line) |
+| **S4.4** | E2E cases for both feeds, and `dip break x12_envelope` (a wrong SE count) | `tests/e2e/cases.yaml`, as for every other feed |
+| **S4.5** | The break-and-fix loop for every `dip break` scenario: detect, triage, propose, approve, fix, check | Two layers. (1) `tests/integration/test_break_loop.py`, in CI's test job: for each scenario, break a good file, land it through the real intake into Postgres, run the triage agent (a recorded model) over the real MCP server on HTTP, approve as a person, execute, apply the fix (a corrected resend, or the contract change and then a replay), and check that the file loads and the group is closed. (2) In the kind E2E, one scenario through the deployed stack: MinIO, the intake DAG, the in-cluster MCP server with the agent's key, `dip approvals`, and a replay that the DAG reprocesses. The cluster run uses a scripted MCP client instead of a model, because the cluster's state (every other E2E case's quarantine) would change a recording on every run |
+
+**Stage 6 (2026-10-25)**
+
+| # | Item | How |
+|---|---|---|
+| **S6.1** | The triage agent may call `execute_approved_operation` | Its policy's `max_tier` becomes `act`. The tool runs an approval only if a person approved it (`decided_by` is `human:*`), it is unexpired, its payload still hashes to the proposed and approved hashes, the same agent proposed it, and its action is one the policy lets the agent execute (`replay`, `discard`, `request_resend`; never `contract_pr`, which stays a person's). Any other call is refused and audited as **denied**, with the reason |
+| **S6.2** | `dip triage act <approval_id>`, and the "denied, then allowed" demo (`docs/demos/stage-6.md`) | The agent is asked to execute one approval. Before a person approves it, the server refuses; after `dip approvals approve`, the same request runs. `ops.audit_log` shows both |
+| **S6.3** | Act evals | `agents/evals/triage_act/cases.yaml`: approved (runs), pending, rejected, expired, tampered payload, another agent's approval, a `contract_pr`, and injection (vendor content naming other approval ids). Pass: exactly the approved one runs, everything else is refused, and no approval the task did not name is attempted. Recorded live once; CI replays |
+
+**Stage 7 (2026-10-27)**
+
+| # | Item | How |
+|---|---|---|
+| **S7.1** | Incidents raised by breakages | `ops.incident` (today only `FEED.LATE`) also gets `FILE.QUARANTINED` (a file quarantined whole; one open incident per feed and day) and `DAG.FAILED`, from the intake task and the DAG's failure callback |
+| **S7.2** | The incident agent | An MCP client with its own key and policy (`agents/policies/incident.yaml`: the Read tier plus `report_diagnosis`). It reads the incident, DAG runs and task logs, lineage, metrics, quarantine and feed history, and reports a diagnosis: the root cause, the evidence, and whether quarantined records are the cause |
+| **S7.3** | The LangGraph graph (§4.1: no LLM supervisor) | `dip/agents/graph.py`: incident node → a conditional edge in code → triage node. The handoff is a typed state field, `HandoffToTriage{incident_id, quarantine_ids, hypothesis}`, validated in code (the ids must be open quarantine of the incident's feed) before triage sees it. One chain id ties the run ids together, and the handoff is written to the audit log, so `ops.audit_log` shows the whole chain |
+| **S7.4** | Incident and handoff evals | Cases: a late file (no handoff), schema drift (handoff, with complete ids), a DAG failure in dbt (no handoff), and an injection in a task log. Scored: the root cause, whether the handoff is correct (to triage or not, and the ids), and triage's proposals after the handoff. Recorded once; CI replays. LangGraph (`langgraph`, MIT) is a Python package in the agents extra, not system software |
+
+**Stage 8 (2026-10-28)**
+
+| # | Item | How |
+|---|---|---|
+| **S8.1** | Nightly evals in CI | `.github/workflows/evals.yml`, nightly and on demand: every agent's recorded evals replayed against a Postgres service, with the results uploaded. No API key in CI and no live call (a change from §6, which planned live nightly runs) |
+| **S8.2** | A recorded demo | `scripts/demo.sh`: the break → incident → handoff → triage → approve → act chain on a local Postgres with recorded model turns, printing each step and the audit trail; `docs/demos/stage-8.md` |
+| **S8.3** | Write-up | README "What it looks like" screenshots (an Airflow DAG run, a Grafana dashboard, Marquez lineage, a quarantined file with its reason code, a proposal in the approvals queue), captured in the next full local stack proof; the OAuth backlog item; FOR_REVIEWERS and EVALS updated |
+
+**Memory.** Routine E2E runs in GitHub's kind job. Locally: one heavy job at a time (a kind proof or the full test suite, never both), and the cluster is torn down after its proof.
+
 ## 9. Repo layout (proposed)
 
 ```
@@ -557,3 +598,4 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-23: The upgrade job found a real R7 bug on main: with the finance pack loaded, a FHIR rebuild classified the warehouse DIP-UNKNOWN and took the cohort reader's grants away. Fixed in #38 (`finance.*`, invented and never feeding OMOP, counts as synthetic; any other pack is still DIP-UNKNOWN, MIMIC still blocks).
 - 2026-10-23: Reviews tightened what a masked reader (any person's MCP client, and the contract author) may see: no value of a PHI, undeclared or date column, no FHIR id, no first line of a non-CSV file, only the platform's own log lines; `member_id` is now `phi` in both healthcare CSV contracts (eligibility, claims). The contract-author evals were re-recorded under it (§8.8).
 - 2026-10-23: Stage 4's runbooks (8) and `dip break` (7 scenarios) were written ahead of the stage; its 837/835 files and the per-scenario E2E loop are not built. §8.9 records each stage's status against this plan.
+- 2026-10-23: The remaining stages run full-time and continuously from today, Stages 4 and 6 first. New dates: Stage 4 2026-10-24, Stage 6 2026-10-25, Stage 7 2026-10-27, Stage 8 2026-10-28 (were 2026-12-13, 2027-01-31, 2027-02-21 and 2027-03-07). Stage 5R (R7b) stays with the drift monitor. §8.10 is the build plan. Two changes from earlier sections: nightly evals replay recordings with no API key (§6 planned live runs), and the kind E2E runs the break loop with a scripted MCP client, while the model-driven loop runs on recordings in CI's test job.
