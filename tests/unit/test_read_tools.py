@@ -141,11 +141,12 @@ def test_phi_is_masked_for_a_masking_policy_only_in_what_it_returns():
     rec = {"member_id": "M000000001", "first_name": "Alex", "plan_code": "GOLD", "DOB": "1980"}
     masked = _masked_record(rec, c)
     # Declared non-PHI values stay; PHI and unknown columns (PHI under a new name) do not.
-    assert masked == {"member_id": "M000000001", "first_name": MASK, "plan_code": "GOLD",
+    # member_id is a health-plan identifier (phi in the contract); dates are never shown.
+    assert masked == {"member_id": MASK, "first_name": MASK, "plan_code": "GOLD",
                       "DOB": MASK}  # fmt: skip
     patient = {"resourceType": "Patient", "id": "p1", "birthDate": "1980-01-01",
                "name": [{"family": "Example"}]}  # fmt: skip
-    assert _masked_record(patient, c) == {"resourceType": "Patient", "id": "p1",
+    assert _masked_record(patient, c) == {"resourceType": "Patient",
                                           "fields": ["birthDate", "id", "name", "resourceType"],
                                           "values": MASK}  # fmt: skip
     raw = _masked_record({"header": "a,b,c", "row": "1,Alex,3"}, c)
@@ -176,3 +177,25 @@ def test_task_logs_are_read_in_every_shape_airflow_returns(answer):
     fake = Fake({"http://af/auth/token": {"access_token": "t"}, "/logs/1": answer})
     got = tools(fake, airflow_url="http://af")["get_task_log"]("reader", None, "d", "r", "intake")
     assert "loaded x accepted=3" in got["untrusted_vendor_content"]
+
+
+def test_a_masked_reader_never_sees_a_fhir_line_or_an_unknown_log_line():
+    from dip.agents.registry import CURRENT_POLICY, Policy
+    from dip.agents.tools import MASK, _masked_record
+
+    patient = {"resourceType": "Patient", "id": "MRN-123", "birthDate": "1980-01-01"}
+    assert "MRN-123" not in str(_masked_record(patient, None)) and MASK in str(
+        _masked_record(patient, None))  # fmt: skip
+    log = {"content": [
+        {"event": "loaded                   healthcare.eligibility/a.csv accepted=3 rejected=0 []"},
+        {"event": "psycopg.errors.UniqueViolation: Key (member_id)=(M000000001) exists"},
+    ]}  # fmt: skip
+    fake = Fake({"http://af/auth/token": {"access_token": "t"}, "/logs/1": log})
+    t = tools(fake, airflow_url="http://af")
+    token = CURRENT_POLICY.set(Policy.load("reader"))
+    try:
+        got = t["get_task_log"]("reader", None, "d", "r", "intake")
+    finally:
+        CURRENT_POLICY.reset(token)
+    assert got["lines_hidden"] == 1 and "M000000001" not in str(got)
+    assert any("accepted=3" in ln for ln in got["untrusted_vendor_content"])

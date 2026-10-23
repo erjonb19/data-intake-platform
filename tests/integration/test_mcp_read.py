@@ -101,10 +101,11 @@ def test_the_quarantine_tools_work_as_the_mcp_login(reader):
     sample = call("get_quarantine_sample", group_id=group["group_id"])
     record = sample["untrusted_vendor_content"][0]["record"]
     # The reader sees the bad value (not PHI) but never a PHI column's value.
-    assert record["plan_code"] == "GOLD" and record["member_id"].startswith("M")
-    assert {record[c] for c in ("first_name", "last_name", "dob", "patient_ref")} == {
-        "(PHI: not shown)"
-    }
+    assert record["plan_code"] == "GOLD" and record["sex"] in ("F", "M", "U")
+    assert {
+        record[c]
+        for c in ("member_id", "first_name", "last_name", "dob", "patient_ref", "coverage_start")
+    } == {"(PHI: not shown)"}
 
 
 @pytest.mark.parametrize("sql", [

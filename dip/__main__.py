@@ -392,10 +392,14 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "intake":
         from dip import lineage
 
-        outcomes = process_landing(_store(args), _warehouse(), load_contracts())
+        contracts = load_contracts()
+        outcomes = process_landing(_store(args), _warehouse(), contracts)
         emitter = lineage.Emitter()
         for o in outcomes:
-            lineage.intake_event(emitter, os.environ["DIP_WAREHOUSE_DSN"], feed_of(o.source_key), o)
+            feed = feed_of(o.source_key)
+            kind = contracts[feed].format_type if feed in contracts else "fhir"
+            lineage.intake_event(emitter, os.environ["DIP_WAREHOUSE_DSN"], feed, o,
+                                 bronze=lineage.bronze_table(kind))  # fmt: skip
             print(json.dumps(asdict(o)))
         statuses = [o.status for o in outcomes]
         print(
@@ -459,7 +463,7 @@ def main(argv: list[str] | None = None) -> int:
         step: dict = {"op": args.scenario}
         for kv in args.arg:
             k, _, v = kv.partition("=")
-            step[k] = int(v) if v.isdigit() else v
+            step[k] = int(v) if k in ("every", "row") else v  # values stay text
         args.out.write_bytes(apply(args.good.read_bytes(), [step]))
         s = SCENARIOS[args.scenario]
         print(f"wrote {args.out}: {s.describe} ({s.kind}; intake: {s.reason_code or 'n/a'})")

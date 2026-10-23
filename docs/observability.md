@@ -2,7 +2,7 @@
 
 An opt-in profile, `profiles = ["core", "observability"]`. CI's E2E always deploys it. On
 the laptop, turn it on only when working on monitoring, because it needs about 0.8 GB more
-(requests; up to 1.6 GB at the limits, Marquez's JVM the largest; PLAN.md section 5):
+(requests; up to 1.7 GB at the limits, Marquez's JVM the largest; PLAN.md section 5):
 
 ```bash
 TF_VAR_profiles='["core", "observability"]' bash scripts/up.sh
@@ -28,6 +28,8 @@ terraform -chdir=infra/terraform output -raw grafana_admin_password
 nothing else:
 
 - `ops.intake_file`: feed, status, row counts, received_at
+- `ops.intake_delivery`: feed, received_at (freshness counts every delivery, as the
+  late-file check does, so a resend of the same content is an arrival)
 - `ops.quarantine`: feed, reason_code, status
 - `ops.dq_results`: test name, category, status, failures, time
 - `ops.incident`: feed, kind, closed_at
@@ -87,6 +89,12 @@ The platform's own emitter (`dip/lineage.py`, R6) sends three kinds of event:
 - **dbt:** one job per model, with columns, description and test results
 - **extract:** the shareable tier goes to the extract files
 
+In the cluster, Airflow sends the intake and dbt events. No DAG builds extracts: run
+`dip extract build` with `OPENLINEAGE_URL` pointing at Marquez (`kubectl -n dip-obs
+port-forward svc/marquez 5000:5000`, then `OPENLINEAGE_URL=http://127.0.0.1:5000`) to add
+the extract leg. The E2E checks file to gold only; the FHIR to OMOP to extract path is
+checked by `tests/integration/test_lineage.py` (events to a file, not to Marquez).
+
 The events go to Marquez through `OPENLINEAGE_URL`, which Terraform sets for Airflow only
 with this profile. Without it, emitting is a no-op. Over HTTP it is best effort: lineage
 describes data that is already committed, so an unreachable Marquez is printed in the task
@@ -96,7 +104,8 @@ log and counted, but never fails a run (`tests/unit/test_lineage.py`).
 (`gold.member_eligibility`, `gold.invoice_match`). It requires the feed's intake job
 among their ancestors, and a run of that job that read the landed fixture. Marquez draws
 the graph from each job's latest version, so after several runs the graph shows only the
-last run's files; which file each run read is in the job's run history. It also requires the gold table to carry its dbt test results (the
+last run's files; which file each run read is in the job's run history. It also requires
+the gold table to carry its dbt test results (the
 `dataQualityAssertions` facet). The same walk passed against a local Marquez 0.51.1 on
 Postgres 17. Marquez's bundled Flyway warns that Postgres 17 is untested, but its
 migrations run.

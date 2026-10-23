@@ -28,7 +28,7 @@ from typing import Any
 from dip.agents.llm import CONFIG, Message
 
 API = "https://generativelanguage.googleapis.com/v1beta/models"
-RETRY = (429, 500, 503)
+RETRY = (429, 500, 502, 503, 504)
 
 
 def gemini_settings() -> dict[str, Any]:
@@ -79,7 +79,12 @@ def to_contents(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def to_message(d: dict[str, Any], model: str) -> Message:
-    cand = (d.get("candidates") or [{}])[0]
+    """A blocked prompt (no candidates) or an answer with no parts is not an answer: its
+    stop reason says so, so the evals cannot score it as a deliberate decline."""
+    if not d.get("candidates"):
+        reason = (d.get("promptFeedback") or {}).get("blockReason", "no_candidates")
+        return Message([], f"blocked:{reason}", {}, d.get("modelVersion") or model)
+    cand = d["candidates"][0]
     blocks: list[dict[str, Any]] = []
     for part in (cand.get("content") or {}).get("parts", []):
         if "functionCall" in part:
@@ -90,6 +95,10 @@ def to_message(d: dict[str, Any], model: str) -> Message:
         elif part.get("text") and not part.get("thought"):
             blocks.append({"type": "text", "text": part["text"], "_gemini_part": part})
     finish = cand.get("finishReason", "")
+    if not blocks:
+        return Message(
+            [], f"empty:{(finish or 'none').lower()}", {}, d.get("modelVersion") or model
+        )
     stop = ("tool_use" if any(b["type"] == "tool_use" for b in blocks)
             else "max_tokens" if finish == "MAX_TOKENS" else "end_turn" if finish == "STOP"
             else (finish or "end_turn").lower())  # fmt: skip
@@ -128,5 +137,10 @@ class GeminiLLM:
                 if exc.code not in RETRY or attempt == self.tries - 1:
                     detail = exc.read().decode("utf-8", "replace")[:300]
                     raise RuntimeError(f"Gemini {exc.code}: {detail}") from exc
+                wait = exc.headers.get("Retry-After", "") if exc.headers else ""
+                time.sleep(min(60, int(wait) if wait.isdigit() else 5 * 2**attempt))
+            except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+                if attempt == self.tries - 1:
+                    raise RuntimeError(f"Gemini unreachable: {exc}") from exc
                 time.sleep(min(60, 5 * 2**attempt))
         raise RuntimeError("unreachable")

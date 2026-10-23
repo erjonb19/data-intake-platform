@@ -1,8 +1,10 @@
 # Marquez (Stage 3, S3.3), in the observability profile: the OpenLineage API and its web
 # UI, on the shared Postgres's `marquez` database (created by postgres-init.sh). The
-# platform's own emitter (dip/lineage.py) sends the intake, dbt and extract events to it
-# through OPENLINEAGE_URL, so lineage runs from a landed file to gold and on to the
-# shareable extract (R6). Search (OpenSearch) is off: it would double the memory.
+# platform's own emitter (dip/lineage.py) sends the Airflow tasks' intake and dbt events to
+# it through OPENLINEAGE_URL, so lineage runs from a landed file to gold. Extracts are built
+# by hand (`dip extract build`), not by a DAG: their events reach Marquez when that command
+# runs with OPENLINEAGE_URL set (a port-forward). Search (OpenSearch) is off: it would
+# double the memory.
 # ClusterIP only: `kubectl -n dip-obs port-forward svc/marquez-web 3001:3000`.
 
 locals {
@@ -83,8 +85,9 @@ resource "kubernetes_deployment_v1" "marquez" {
             value = "/config/marquez.yml"
           }
           env {
-            name  = "JAVA_OPTS"
-            value = "-Xms128m -Xmx320m"
+            name = "JAVA_OPTS"
+            # Heap plus capped metaspace, code cache and thread stacks, inside the limit.
+            value = "-Xms128m -Xmx288m -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=48m -Xss512k"
           }
           env_from {
             secret_ref {
@@ -114,7 +117,7 @@ resource "kubernetes_deployment_v1" "marquez" {
           }
           resources {
             requests = { cpu = "50m", memory = "320Mi" }
-            limits   = { memory = "512Mi" }
+            limits   = { memory = "640Mi" }
           }
         }
         volume {

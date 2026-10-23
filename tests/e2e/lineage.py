@@ -81,7 +81,13 @@ def main() -> int:
         # run's files; which file a run read is in the job's runs.
         runs = get(f"/api/v1/namespaces/dip/jobs/{urllib.parse.quote(intake_job, '')}"
                    "/runs?limit=100")  # fmt: skip
-        if f'"{landed}"' not in json.dumps(runs) or "s3://landing" not in json.dumps(runs):
+        ids = [
+            v.get("datasetVersionId") or {}
+            for r in runs.get("runs", [])
+            for v in r.get("inputDatasetVersions", [])
+        ]
+        inputs = {f"{i.get('namespace', '')}|{i.get('name', '')}" for i in ids}
+        if f"s3://landing|{landed}" not in inputs:
             failures.append(f"{table}: no run of {intake_job} read {landed}")
             continue
         jobs = sorted(a.split(":", 2)[2] for a in up if a.startswith("job:"))

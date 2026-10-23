@@ -108,8 +108,8 @@ workers:
       limits: { memory: 768Mi }
 
 # `env` (extra environment for every Airflow container) is set by Terraform (airflow.tf:
-# DIP_OCR_IMAGE, OPENLINEAGE_URL). Helm replaces lists whole, so an `env:` list here would be dropped; add
-# entries there instead.
+# DIP_OCR_IMAGE, OPENLINEAGE_URL). Helm replaces lists whole, so an `env:` list here would
+# be dropped; add entries there instead.
 
 # Cut to save memory (PLAN.md section 5): no deferrable operators yet.
 triggerer:

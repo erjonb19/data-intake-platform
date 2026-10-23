@@ -122,20 +122,24 @@ def main() -> int:
     _, contract = s.call("get_contract", feed=feed)
     allowed = next(c for c in contract["columns"] if c["name"] == "plan_code")["allowed"]
     check("GOLD" not in allowed, f"the contract allows {allowed}: GOLD is the vendor's change")
-    err, runs = s.call("get_dag_run", dag_id="intake__healthcare__eligibility", limit=3)
-    run = (runs.get("runs") or [{}])[0] if not err else {}
+    err, runs = s.call("get_dag_run", dag_id="intake__healthcare__eligibility", limit=10)
+    recent = (runs.get("runs") or []) if not err else []
+    run = recent[0] if recent else {}
     check(not err and run.get("state") == "success", f"the DAG run: {run.get('state')}")
-    if run:
-        err, log = s.call(
-            "get_task_log",
-            dag_id="intake__healthcare__eligibility",
-            dag_run_id=run["dag_run_id"],
-            task_id="intake",
-        )
+    # The feed's DAG runs several times in the E2E (each channel triggers it), and a run
+    # that finds landing empty logs no file; one of the recent runs processed the files.
+    seen, last = False, None
+    for r in recent:
+        err, log = s.call("get_task_log", dag_id="intake__healthcare__eligibility",
+                          dag_run_id=r["dag_run_id"], task_id="intake")  # fmt: skip
+        last = log
         text = "\n".join(map(str, log.get("untrusted_vendor_content", []))) if not err else ""
-        if "accepted=" not in text:  # what came back, for the diagnosis
-            print(f"    get_task_log: error={err} {str(log)[:600]}", file=sys.stderr)
-        check("accepted=" in text, "the intake task's log shows the files it processed")
+        if "accepted=" in text:
+            seen = True
+            break
+    if not seen:  # what came back, for the diagnosis
+        print(f"    get_task_log: {str(last)[:600]}", file=sys.stderr)
+    check(seen, f"a recent intake task's log shows the files it processed ({len(recent)} runs)")
     if OBS:
         _, m = s.call("query_metrics", metric="open_quarantine", feed=feed)
         plan = [

@@ -46,3 +46,58 @@ def test_a_final_answer_ends_the_turn():
     m = to_message({"candidates": [{"finishReason": "STOP", "content": {"parts": [
         {"text": "Proposed."}]}}]}, "gemini-3.1-flash-lite")  # fmt: skip
     assert m.stop_reason == "end_turn" and m.text == "Proposed."
+
+
+def test_a_blocked_or_empty_answer_is_never_an_end_turn():
+    blocked = to_message({"promptFeedback": {"blockReason": "SAFETY"}}, "g")
+    assert blocked.stop_reason == "blocked:SAFETY" and blocked.content == []
+    empty = to_message({"candidates": [{"finishReason": "STOP", "content": {"parts": []}}]}, "g")
+    assert empty.stop_reason == "empty:stop"
+
+
+def test_dropped_connections_are_retried(monkeypatch):
+    import urllib.error
+
+    import dip.agents.gemini as gemini
+
+    monkeypatch.setenv("GEMINI_API_KEY", "k")
+    calls = []
+
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            part = b'{"text": "ok"}'
+            return (
+                b'{"candidates": [{"finishReason": "STOP", "content": {"parts": [' + part + b"]}}]}"
+            )
+
+    def flaky(req, timeout):
+        calls.append(1)
+        if len(calls) < 3:
+            raise urllib.error.URLError(ConnectionResetError("reset"))
+        return Resp()
+
+    monkeypatch.setattr(gemini.urllib.request, "urlopen", flaky)
+    monkeypatch.setattr(gemini.time, "sleep", lambda s: None)
+    m = gemini.GeminiLLM().create(system="s", tools=[], messages=[{"role": "user", "content": "x"}])
+    assert m.text == "ok" and len(calls) == 3
+
+
+def test_reset_refuses_a_database_that_only_contains_test():
+    from dip.agents.evals import _reset
+
+    class Info:
+        dbname = "latest_dw"
+
+    class Conn:
+        info = Info()
+
+    import pytest
+
+    with pytest.raises(RuntimeError, match="refusing"):
+        _reset(Conn())
