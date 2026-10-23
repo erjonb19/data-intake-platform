@@ -44,6 +44,8 @@ dev = [
   "langgraph-checkpoint==4.2.0",
   "langgraph-prebuilt==1.1.0",
   "langgraph-sdk==0.4.6",
+  # Stage 8 (S8.3): scripts/screenshots.py drives a headless Chrome over DevTools.
+  "websocket-client==1.9.2",
 ]
 
 [build-system]

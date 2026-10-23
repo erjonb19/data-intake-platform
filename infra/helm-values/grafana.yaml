@@ -12,9 +12,11 @@ persistence:
 testFramework:
   enabled: false
 
+# 384Mi: at 256Mi the pod was OOM-killed (exit 137) while serving the Feeds dashboard to
+# a browser in the 2026-10-23 local run; CI's checks use Grafana's API only and passed.
 resources:
   requests: { cpu: 50m, memory: 128Mi }
-  limits: { memory: 256Mi }
+  limits: { memory: 384Mi }
 
 grafana.ini:
   analytics:

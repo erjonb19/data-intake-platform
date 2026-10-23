@@ -63,7 +63,10 @@ def settings() -> dict[str, Any]:
 
 
 class AnthropicLLM:
-    def __init__(self, max_tokens: int = 8000):
+    # 16k output tokens per turn: a triage turn that files proposals for 15 groups at once
+    # used 7,853 tokens live (2026-10-23), and two runs that hit the old 8k cap stopped
+    # mid-turn with nothing filed. Under the SDK's limit for non-streaming requests.
+    def __init__(self, max_tokens: int = 16000):
         import anthropic
 
         cfg = settings()

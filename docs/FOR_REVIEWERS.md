@@ -79,8 +79,7 @@ flowchart LR
 
 ## What is planned, not built
 
-From [PLAN.md](../PLAN.md)'s stages: the README screenshots (Stage 8); R7b, the cohort
-service's side in the drift monitor; the backlog in PLAN.md §12 (OAuth for MCP, separate
+From [PLAN.md](../PLAN.md)'s stages: R7b, the cohort service's side in the drift monitor; the backlog in PLAN.md §12 (OAuth for MCP, separate
 database logins per agent, the incident agent in the cluster). The incident agent's key is not on the
 in-cluster MCP server (the chain runs against a local server and in the evals), and
 nothing runs the chain automatically on a new incident. In the cluster, the triage agent can complete only `request_resend` (its

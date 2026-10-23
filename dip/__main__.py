@@ -173,6 +173,10 @@ def _triage(args: argparse.Namespace) -> int:
                 return await triage.run(client, AnthropicLLM())
 
         r = asyncio.run(go())
+        if r.stop != "end_turn":
+            # The model stopped for another reason (max_tokens, the turn limit): what it
+            # did is below, but it did not finish its task.
+            print(f"WARNING: the agent stopped with {r.stop!r} before finishing", file=sys.stderr)
         if args.action == "act":
             print(r.summary)
             print(f"{r.turns} turns, {len(r.denied)} denied calls,"
@@ -184,7 +188,7 @@ def _triage(args: argparse.Namespace) -> int:
         print(r.summary)
         print(f"{r.turns} turns, {len(r.denied)} denied calls,"
               f" ${cost_usd(r.usage, r.model):.4f}", file=sys.stderr)  # fmt: skip
-        return 0
+        return 0 if r.stop == "end_turn" else 1
     dsn = os.environ["DIP_EVAL_DSN"]
     if args.action == "loop":
         return _break_loop(args, dsn)
