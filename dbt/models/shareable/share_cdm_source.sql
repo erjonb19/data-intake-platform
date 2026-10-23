@@ -6,7 +6,7 @@
 --   DIP-MIMIC    any MIMIC source (an intake feed or relational table named mimic.*, or a
 --                build of the MIMIC relational tables), whatever else is loaded with it
 --   DIP-SYNTHEA  otherwise, if the Synthea FHIR feed is loaded and every other source is
---                one of this repo's synthetic healthcare.* feeds
+--                one of this repo's generated packs' feeds (healthcare.*, finance.*)
 --   DIP-UNKNOWN  anything else, including an empty warehouse
 -- The classification is macro cdm_source_kind_sql. The on-run-end macro
 -- grant_cohort_reader() works it out again, live, rather than trusting this table, which

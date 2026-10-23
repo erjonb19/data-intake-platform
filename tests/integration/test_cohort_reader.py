@@ -181,6 +181,23 @@ def test_any_other_source_takes_every_grant_away(tier, feed, expected):
     assert reader_can_read("omop_shareable.person")
 
 
+def test_the_finance_pack_keeps_the_tier_synthetic(tier):
+    """Found by the upgrade job: once the E2E had loaded the finance pack's invoices, the
+    next FHIR build classified the warehouse DIP-UNKNOWN and took the reader's grants away.
+    The finance feeds are this repo's own invented data and never feed OMOP."""
+    add_feed(tier, "finance.vendor_invoice")
+    try:
+        rebuild()
+        assert scalar(tier, "select cdm_source_abbreviation from omop_shareable.cdm_source") == (
+            "DIP-SYNTHEA"
+        )
+        assert reader_can_read("omop_shareable.person")
+        assert reader_can_read("omop_shareable.cdm_source")
+    finally:
+        remove_feed(tier, "finance.vendor_invoice")
+    rebuild()
+
+
 def test_a_partial_run_cannot_grant_through_a_stale_cdm_source(tier):
     """Review finding: MIMIC arrives, and a run rebuilds share_person but not cdm_source,
     which still says DIP-SYNTHEA. The hook classifies live, so it revokes instead."""
