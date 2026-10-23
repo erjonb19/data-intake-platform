@@ -192,6 +192,7 @@ def test_the_finance_pack_keeps_the_tier_synthetic(tier):
             "DIP-SYNTHEA"
         )
         assert reader_can_read("omop_shareable.person")
+        assert reader_can_read("omop_shareable.cdm_source")
     finally:
         remove_feed(tier, "finance.vendor_invoice")
     rebuild()
