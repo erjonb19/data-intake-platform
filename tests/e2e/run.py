@@ -145,7 +145,7 @@ def check_case(cur, feed: str, spec: dict, case: dict, sha: str, failures: list[
             if count(cur, f"select count(*) from {table} where {column} = %s", sha):
                 failures.append(f"{name}: rows from a quarantined file reached {table}")
         return
-    if "expect" in case:  # a PDF: its values are written in the case, not parsed here
+    if "expect" in case:  # a PDF or X12 file: its values are written in the case
         want = rows_checksum([{k: str(v) for k, v in r.items()} for r in case["expect"]],
                              spec["checksum_columns"])  # fmt: skip
     else:

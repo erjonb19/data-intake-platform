@@ -1,0 +1,41 @@
+# Professional claims as X12 5010 837P from a (synthetic) clearinghouse: one row per
+# service line (Stage 4, S4.2). Generated from the Synthea claim lines by
+# packs/healthcare/generators/x12.py; parsed by dip/x12feed.py, which checks the envelope
+# (ISA/GS/ST counts and control numbers) before any line is read.
+feed: healthcare.claims_837
+version: 1
+owner: vendor-ops@example.com
+description: >
+  Daily 837P interchange of professional claims submitted for the plan's members: the
+  claim, the member, the billing provider, and each service line with its charge. All data
+  is synthetic.
+classification: restricted
+source:
+  channels: [minio, sftp, api]
+  filename_pattern: "claims837_*.x12"
+  # claims837_YYYYMMDD.x12: a real date, not after the day received, at most 7 days before.
+  filename_date:
+    regex: "^claims837_([0-9]+)"
+    format: "%Y%m%d"
+    max_days_before_received: 7
+    max_days_after_received: 0
+format: { type: x12, transaction: "837", version: 005010X222A1 }
+expected_arrival: { cron: "0 6 * * *", grace: 2h }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.02
+min_rows: 1
+columns:
+  - { name: claim_id, type: string, required: true, pattern: "^[0-9a-f-]{36}$", description: CLM01 }
+  - { name: claim_line_id, type: string, required: true, unique: true, pattern: "^[0-9a-f-]{36}-[0-9]{1,3}$", description: "REF*6R, the line item control number" }
+  - { name: line_number, type: integer, required: true, min: 1, max: 999, description: LX01 }
+  - { name: member_id, type: string, required: true, pattern: "^M[0-9]{9}$", phi: true, description: "NM1*IL09, the subscriber's member id" }
+  - { name: payer_id, type: string, required: true, pattern: "^P[0-9]{5}$", description: NM1*PR09 }
+  - { name: billing_npi, type: string, required: true, pattern: "^[0-9]{10}$", description: "NM1*85 09 (an invented, NPI-shaped id)" }
+  - { name: place_of_service, type: string, required: true, pattern: "^[0-9]{2}$", description: CLM05-1 }
+  - { name: claim_frequency, type: string, required: true, allowed: ["1", "7", "8"], description: "CLM05-3: 1 original, 7 replacement, 8 void" }
+  - { name: claim_total, type: decimal, required: true, min: 0, max: 10000000, pattern: "^[0-9]+(\\.[0-9]{1,2})?$", description: CLM02 }
+  - { name: procedure_qualifier, type: string, required: true, allowed: [HC, ZZ], description: "SV101-1: HC is CPT/HCPCS; ZZ (mutually defined) carries Synthea's SNOMED, CDT, LOINC and CVX codes" }
+  - { name: procedure_code, type: string, required: true, pattern: "^[A-Za-z0-9.-]{1,20}$", description: SV101-2 }
+  - { name: charge_amount, type: decimal, required: true, min: 0, max: 10000000, pattern: "^[0-9]+(\\.[0-9]{1,2})?$", description: SV102 }
+  - { name: units, type: decimal, required: true, min: 0, max: 9999, description: SV104 }
+  - { name: service_date, type: date, required: true, min: "2020-01-01", max: today, description: "DTP*472" }

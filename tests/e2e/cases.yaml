@@ -62,6 +62,56 @@ feeds:
         status: quarantined
         reasons: ["SCHEMA.MISSING_COLUMN:paid_amount"]
         gold_rows: 0
+  # Stage 4: X12 5010 837P claims and 835 remittance (generated from claims_good.csv by
+  # tests/fixtures/x12/make_fixtures.py). Gold rows are written out under `expect`, as
+  # for PDFs: an X12 file has no rows to read here. The 837 runs first, so the 835's
+  # build finds the claim lines for gold.claim_payment.
+  healthcare.claims_837:
+    gold_table: gold.professional_claim_line
+    silver_table: silver.x12_claim_line
+    checksum_columns: [claim_line_id, claim_id, member_id, payer_id, procedure_code,
+                       charge_amount, service_date]
+    cases:
+      - fixture: x12/good/claims837_good.x12
+        status: loaded
+        reasons: []
+        gold_rows: 5
+        expect:
+          - {claim_line_id: "00000000-0000-4000-8000-000000000003-1", claim_id: "00000000-0000-4000-8000-000000000003", member_id: "M000000005", payer_id: "P45575", procedure_code: "140", charge_amount: "90.00", service_date: "2026-02-01"}
+          - {claim_line_id: "00000000-0000-4000-8000-000000000004-1", claim_id: "00000000-0000-4000-8000-000000000004", member_id: "M000000999", payer_id: "P45575", procedure_code: "D1110", charge_amount: "120.00", service_date: "2025-01-15"}
+          - {claim_line_id: "00000000-0000-4000-8000-000000000001-1", claim_id: "00000000-0000-4000-8000-000000000001", member_id: "M000000001", payer_id: "P70055", procedure_code: "185349003", charge_amount: "200.00", service_date: "2024-03-04"}
+          - {claim_line_id: "00000000-0000-4000-8000-000000000001-2", claim_id: "00000000-0000-4000-8000-000000000001", member_id: "M000000001", payer_id: "P70055", procedure_code: "4548-4", charge_amount: "45.50", service_date: "2024-03-04"}
+          - {claim_line_id: "00000000-0000-4000-8000-000000000002-1", claim_id: "00000000-0000-4000-8000-000000000002", member_id: "M000000003", payer_id: "P70055", procedure_code: "73761001", charge_amount: "1800.00", service_date: "2025-06-10"}
+      - fixture: x12/bad/claims837_segment_lost.x12
+        status: quarantined
+        reasons: ["X12.ENVELOPE:SE01"]
+        gold_rows: 0
+      - fixture: x12/bad/claims837_is_a_835.x12
+        channel: sftp
+        status: quarantined
+        reasons: ["X12.TRANSACTION:835"]
+        gold_rows: 0
+  healthcare.remittance_835:
+    gold_table: gold.remittance_line
+    silver_table: silver.x12_remit_line
+    checksum_columns: [claim_line_id, claim_status, procedure_code, charge_amount, paid_amount,
+                       contractual_adjustment, deductible_amount, coinsurance_amount,
+                       service_date]
+    cases:
+      - fixture: x12/good/remit835_good.x12
+        status: loaded
+        reasons: []
+        gold_rows: 4
+        expect:
+          - {claim_line_id: "00000000-0000-4000-8000-000000000004-1", claim_status: "1", procedure_code: "D1110", charge_amount: "120.00", paid_amount: "80.00", contractual_adjustment: "20.00", deductible_amount: "0.00", coinsurance_amount: "20.00", service_date: "2025-01-15"}
+          - {claim_line_id: "00000000-0000-4000-8000-000000000001-1", claim_status: "1", procedure_code: "185349003", charge_amount: "200.00", paid_amount: "120.00", contractual_adjustment: "50.00", deductible_amount: "0.00", coinsurance_amount: "30.00", service_date: "2024-03-04"}
+          - {claim_line_id: "00000000-0000-4000-8000-000000000001-2", claim_status: "1", procedure_code: "4548-4", charge_amount: "45.50", paid_amount: "32.00", contractual_adjustment: "5.50", deductible_amount: "0.00", coinsurance_amount: "8.00", service_date: "2024-03-04"}
+          - {claim_line_id: "00000000-0000-4000-8000-000000000002-1", claim_status: "1", procedure_code: "73761001", charge_amount: "1800.00", paid_amount: "960.00", contractual_adjustment: "600.00", deductible_amount: "100.00", coinsurance_amount: "140.00", service_date: "2025-06-10"}
+      - fixture: x12/bad/remit835_bad_date.x12
+        channel: api
+        status: quarantined
+        reasons: ["FILE.BAD_ROW_RATIO", "VALUE.TYPE:service_date"]
+        gold_rows: 0
   finance.vendor_invoice:
     gold_table: gold.vendor_invoice
     silver_table: silver.vendor_invoice_record

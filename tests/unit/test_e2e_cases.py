@@ -38,6 +38,8 @@ def test_case_matches_what_the_contract_does(feed, spec, case):
     data = (RUN.FIXTURES / case["fixture"]).read_bytes()
     if contract.format_type == "pdf":
         return check_pdf_case(contract, spec, case, data)
+    if contract.format_type == "x12":
+        return check_x12_case(contract, spec, case, data)
     validate = validate_excel if contract.format_type == "excel" else validate_csv
     result = validate(data, contract, datetime(2026, 10, 21, tzinfo=UTC))
     reasons = sorted({v.reason_code for v in result.file_violations} |
@@ -91,6 +93,21 @@ def check_pdf_case(contract, spec, case, data):
         }
         assert want["match_status"] in ("matched", "not_in_register", "vendor_differs",
                                         "po_differs", "total_differs")  # fmt: skip
+
+
+def check_x12_case(contract, spec, case, data):
+    from dip.x12feed import validate_x12
+
+    result = validate_x12(data, contract, datetime(2026, 10, 21, tzinfo=UTC))
+    reasons = sorted({v.reason_code for v in result.file_violations} |
+                     {v.reason_code for _, v in result.rejected})  # fmt: skip
+    assert reasons == sorted(case["reasons"])
+    assert len(result.accepted) == case["gold_rows"] == len(case.get("expect", []))
+    # The checksum columns are contract columns, and `expect` is exactly what was parsed.
+    names = [c["name"] for c in contract.spec["columns"]]
+    assert set(spec["checksum_columns"]) <= set(names)
+    got = [{c: r.record[c] for c in spec["checksum_columns"]} for r in result.accepted]
+    assert got == [{k: str(v) for k, v in want.items()} for want in case.get("expect", [])]
 
 
 @pytest.mark.parametrize(("feed", "spec", "case"), CASES, ids=[c["fixture"] for _, _, c in CASES])

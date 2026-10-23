@@ -159,7 +159,18 @@ def parse_contract(text: str, path: Path) -> Contract:
                 f"{path.name}: format.fields must map contract columns (unknown: {missing}),"
                 f" and the columns must include extraction and ocr_confidence ({absent})"
             )
-    if spec["format"]["type"] in ("csv", "excel", "pdf"):
+    if spec["format"]["type"] == "x12":
+        from dip.x12feed import COLUMNS
+
+        names = [c["name"] for c in spec["columns"]]
+        parsed = list(COLUMNS[spec["format"]["transaction"]])
+        if sorted(names) != sorted(parsed):
+            raise ContractError(
+                f"{path.name}: an x12 {spec['format']['transaction']} contract's columns are"
+                f" the parser's: {parsed} (missing {sorted(set(parsed) - set(names))},"
+                f" unknown {sorted(set(names) - set(parsed))})"
+            )
+    if spec["format"]["type"] in ("csv", "excel", "pdf", "x12"):
         from dip.csvfeed import check_contract
 
         if problems := check_contract(spec):

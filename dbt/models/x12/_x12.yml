@@ -1,0 +1,47 @@
+version: 2
+
+# Healthcare pack, Stage 4 (S4.3): 837P claims and 835 remittance, parsed from X12 by
+# dip/x12feed.py into bronze.csv_record. Every model and test here is tagged with both
+# feeds, so either feed's DAG rebuilds the whole mart (gold.claim_payment reads both).
+# DQ tests: tests/x12_remit_balances.sql, x12_claim_total_matches_lines.sql,
+# x12_remit_line_was_billed.sql, x12_remit_charge_matches_billed.sql.
+models:
+  - name: x12_claim_line
+    description: >
+      silver.x12_claim_line: one row per accepted 837P service line of every file
+      received, typed. Keyed by (file_sha256, row_number).
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [file_sha256, row_number]}
+  - name: x12_remit_line
+    description: >
+      silver.x12_remit_line: one row per accepted 835 service payment of every file
+      received, typed. Keyed by (file_sha256, row_number).
+    data_tests:
+      - unique_combination:
+          arguments: {columns: [file_sha256, row_number]}
+  - name: professional_claim_line
+    description: >
+      gold.professional_claim_line: the current version of each 837P claim (taken whole
+      from the newest file that has it; voids removed), one row per line.
+    columns:
+      - name: claim_line_id
+        data_tests: [unique, not_null]
+      - name: member_id
+        data_tests: [not_null]
+  - name: remittance_line
+    description: gold.remittance_line, one row per remitted line (the newest 835 wins).
+    columns:
+      - name: claim_line_id
+        data_tests: [unique, not_null]
+  - name: claim_payment
+    description: >
+      gold.claim_payment: each 837P line with its 835 payment and a payment_status
+      (not_remitted, denied, paid_in_full, paid_adjusted).
+    columns:
+      - name: claim_line_id
+        data_tests: [unique, not_null]
+      - name: payment_status
+        data_tests:
+          - accepted_values:
+              arguments: {values: [not_remitted, denied, paid_in_full, paid_adjusted]}

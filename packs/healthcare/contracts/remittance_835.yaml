@@ -1,0 +1,41 @@
+# Remittance advice as X12 5010 835 from a (synthetic) payer: one row per service payment
+# (Stage 4, S4.2). Generated from the Synthea claim lines by
+# packs/healthcare/generators/x12.py; parsed by dip/x12feed.py after the envelope checks.
+# Adjustments (CAS) are summed per line into the contractual (CO-45), deductible (PR-1),
+# coinsurance (PR-2) and other columns.
+feed: healthcare.remittance_835
+version: 1
+owner: vendor-ops@example.com
+description: >
+  Daily 835 interchange: what the payer paid on each claim line, and why the rest was not
+  paid. All data is synthetic.
+classification: restricted
+source:
+  channels: [minio, sftp, api]
+  filename_pattern: "remit835_*.x12"
+  filename_date:
+    regex: "^remit835_([0-9]+)"
+    format: "%Y%m%d"
+    max_days_before_received: 7
+    max_days_after_received: 0
+format: { type: x12, transaction: "835", version: 005010X221A1 }
+expected_arrival: { cron: "0 9 * * 1-5", grace: 4h }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.02
+min_rows: 1
+columns:
+  - { name: payment_trace, type: string, required: true, pattern: "^[A-Za-z0-9-]{1,50}$", description: "TRN02, the check or EFT trace number" }
+  - { name: payment_date, type: date, required: true, min: "2020-01-01", max: today, description: BPR16 }
+  - { name: payer_name, type: string, required: true, description: "N1*PR02" }
+  - { name: claim_id, type: string, required: true, pattern: "^[0-9a-f-]{36}$", description: "CLP01, the provider's claim id (CLM01)" }
+  - { name: claim_status, type: string, required: true, allowed: ["1", "2", "3", "4", "19", "20", "21"], description: "CLP02: 1-3 processed, 4 denied, 19-21 processed and forwarded. 22 (a reversal) is not accepted: a reversal and its correction share the line id, and this feed keeps one payment per line" }
+  - { name: payer_claim_control, type: string, required: true, pattern: "^[A-Za-z0-9-]{1,50}$", description: CLP07 }
+  - { name: claim_line_id, type: string, required: true, unique: true, pattern: "^[0-9a-f-]{36}-[0-9]{1,3}$", description: "REF*6R, the 837's line item control number" }
+  - { name: procedure_code, type: string, required: true, pattern: "^[A-Za-z0-9.-]{1,20}$", description: SVC01-2 }
+  - { name: charge_amount, type: decimal, required: true, min: 0, max: 10000000, pattern: "^[0-9]+(\\.[0-9]{1,2})?$", description: SVC02 }
+  - { name: paid_amount, type: decimal, required: true, min: -10000000, max: 10000000, pattern: "^-?[0-9]+(\\.[0-9]{1,2})?$", description: SVC03 }
+  - { name: contractual_adjustment, type: decimal, required: true, min: -10000000, max: 10000000, pattern: "^-?[0-9]+(\\.[0-9]{1,2})?$", description: "CAS CO-45" }
+  - { name: deductible_amount, type: decimal, required: true, min: -10000000, max: 10000000, pattern: "^-?[0-9]+(\\.[0-9]{1,2})?$", description: "CAS PR-1" }
+  - { name: coinsurance_amount, type: decimal, required: true, min: -10000000, max: 10000000, pattern: "^-?[0-9]+(\\.[0-9]{1,2})?$", description: "CAS PR-2" }
+  - { name: other_adjustment, type: decimal, required: true, min: -10000000, max: 10000000, pattern: "^-?[0-9]+(\\.[0-9]{1,2})?$", description: "every other CAS group and reason, summed" }
+  - { name: service_date, type: date, required: true, min: "2020-01-01", max: today, description: "DTM*472" }
