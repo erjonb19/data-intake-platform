@@ -48,3 +48,14 @@ output "cohort_reader_dsn" {
 output "profiles" {
   value = var.profiles
 }
+
+output "sftp_vendor_keys" {
+  description = "Each SFTP account's private key (OpenSSH), for the e2e and for trying the channel by hand."
+  value       = { for a in local.sftp_accounts : a => tls_private_key.sftp_vendor[a].private_key_openssh }
+  sensitive   = true
+}
+
+output "sftp_host_key" {
+  description = "The SFTP server's public host key, to pin in known_hosts."
+  value       = tls_private_key.sftp_host.public_key_openssh
+}

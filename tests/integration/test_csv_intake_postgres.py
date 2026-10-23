@@ -69,3 +69,25 @@ def test_csv_rows_land_in_bronze_and_rejections_in_ops(warehouse, tmp_path):
     [again] = process_landing(store, warehouse, load_contracts(), NOW)
     assert again.status == "redelivered"
     assert scalar(warehouse, "select count(*) from bronze.csv_record") == 25
+
+
+def test_delivery_channel_is_recorded(warehouse, tmp_path):
+    """Stage 2: a file moved from SFTP keeps its channel in ops.intake_delivery; files put
+    into MinIO directly are recorded as minio."""
+    from dip import CHANNEL_KEY
+
+    store = LocalStore(tmp_path)
+    store.put(
+        BUCKET_LANDING,
+        f"{FEED}/elig_sftp.csv",
+        (FIXTURES / "good/elig_sftp.csv").read_bytes(),
+        metadata={CHANNEL_KEY: "sftp"},
+    )
+    store.put(
+        BUCKET_LANDING, f"{FEED}/elig_good.csv", (FIXTURES / "good/elig_good.csv").read_bytes()
+    )
+    process_landing(store, warehouse, load_contracts(), NOW)
+    assert rows(warehouse, "select source_key, channel from ops.intake_delivery order by 1") == [
+        (f"{FEED}/elig_good.csv", "minio"),
+        (f"{FEED}/elig_sftp.csv", "sftp"),
+    ]

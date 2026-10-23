@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS ops.intake_delivery (
     PRIMARY KEY (feed, file_sha256, source_key),
     FOREIGN KEY (feed, file_sha256) REFERENCES ops.intake_file (feed, file_sha256)
 );
+-- Stage 2: how each delivery arrived (minio, sftp, api). Older rows were all MinIO.
+ALTER TABLE ops.intake_delivery ADD COLUMN IF NOT EXISTS channel text NOT NULL DEFAULT 'minio';
 INSERT INTO ops.intake_delivery (feed, file_sha256, source_key, received_at)
 SELECT feed, file_sha256, source_key, received_at FROM ops.intake_file
 ON CONFLICT DO NOTHING;

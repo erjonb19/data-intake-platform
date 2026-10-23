@@ -7,6 +7,13 @@ locals {
     "airflow-api-secret-key" = { "api-secret-key" = local.pw["airflow_api_secret"] }
     "airflow-jwt-secret"     = { "jwt-secret" = local.pw["airflow_jwt_secret"] }
     "dip-deid"               = { key = local.pw["dip_deid_key"] }
+    # SFTP channel: where the server is, its pinned host key, and the platform's login key.
+    "dip-sftp" = {
+      host     = local.sftp_host
+      host_key = tls_private_key.sftp_host.public_key_openssh
+      key      = tls_private_key.sftp_platform.private_key_openssh
+      accounts = join(",", local.sftp_accounts)
+    }
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod
     # (including KubernetesExecutor task pods) via the chart's `secret` list.

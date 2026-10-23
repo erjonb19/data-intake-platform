@@ -42,6 +42,24 @@ Trailing empty columns and fully empty rows are dropped (empty rows counted as b
 File codes added by Excel: `FILE.INVALID_XLSX` (not a readable workbook) and `FILE.MACROS`
 (the workbook contains a VBA project; refused whatever its name).
 
+## Channels (`source.channels`, Stage 2)
+
+A file reaches `landing/<feed>/` through one of the channels its contract lists; a file
+that arrives by any other channel is quarantined with `FILE.CHANNEL:<channel>` (before the
+duplicate check, like a bad name, so the same bytes through an allowed channel still
+load). The channel is recorded on each delivery (`ops.intake_delivery.channel`).
+
+| Channel | How a file arrives |
+|---|---|
+| `minio` | put into the landing bucket directly (no channel metadata) |
+| `sftp` | uploaded by the vendor to `/upload/<feed>/` on its own SFTP account (named after its pack, key-only, chrooted), then moved to landing by the `sftp_sync` DAG with `dip-channel: sftp` metadata. A file is taken once a `<name>.done` marker is next to it or it has been unchanged for 2 minutes; `.part`, `.tmp` and hidden files never are. An account can only send its own pack's feeds, and only feeds whose contract lists `sftp`; other folders are left in place and reported. If one account fails to sync, the others still go through and the run fails at the end. The server's host key is pinned on both sides (Terraform generates it). Known limit: the platform's SFTP key is in the environment of every Airflow pod, not only `sftp_sync`'s (a per-task pod override would narrow it) |
+| `api` | the intake API (S2.3) |
+
+Try it (after `scripts/up.sh`): `terraform -chdir=infra/terraform output -json sftp_vendor_keys`
+gives each account's key, `output -raw sftp_host_key` the host key to pin, and
+`kubectl -n dip-data port-forward svc/sftp 2222:22` the server; `scripts/e2e.sh` does all
+three.
+
 ## Reason codes
 
 **File level** (the whole file goes to quarantine, nothing reaches bronze):
