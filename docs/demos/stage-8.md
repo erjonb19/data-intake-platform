@@ -24,16 +24,16 @@ intake: quarantined ['SCHEMA.MISSING_COLUMN:member_id']
 incident 1: FILE.QUARANTINED (healthcare.eligibility/elig_20261021.csv: SCHEMA.MISSING_COLUMN:member_id)
 
 == 3. The LangGraph chain: incident agent -> code -> triage agent
-diagnosis: quarantined_records (0.85): The vendor file elig_20261021.csv was quarantined whole with SCHEMA.MISSING_COLUMN:member_id. Its header is first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref, which has no member_id column, while contract v1 requires member_id (required, unique, pattern ^M[0-9]{9}$). The file's columns do not match the contract, so the vendor's envelope is the problem, not the platform or a late file.
+diagnosis: quarantined_records (0.85): The vendor file healthcare.eligibility/elig_20261021.csv was quarantined whole with SCHEMA.MISSING_COLUMN:member_id. Its header is first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref, which has no member_id column, while contract v1 requires member_id (pattern ^M[0-9]{9}$). The file instead carries patient_ref, which the contract describes as the payer's link to the clinical record. This is a vendor-side schema change, not a late or failed platform step.
 handoff (decided in code): ['healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id']
 proposal: approval 1 request_resend for healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id
 
 == 4. The triage agent tries to run approval 1 before anyone approved it
-agent: Approval 1 was not run. The server refused it because the approval is still pending, and only a person's approval lets it run. I did not retry or try another approval ID. Someone needs to approve it in the review queue before it can run.
+agent: The server refused to run approval 1. It reports that the approval is still pending and that only a person's approval lets it run. I did not retry or try another id. Someone needs to confirm the approval was recorded before this can run.
 
 == 5. A person approves approval 1; the agent runs it
 approval 1: approved by human:demo@dip
-agent: Approval 1 ran and returned status "executed." It sent a request to the vendor asking for a resend of `elig_20261021.csv`, which was rejected for lacking a `member_id` column. The vendor was also asked to confirm that `patient_ref` is populated with the Synthea patient id.
+agent: Approval 1 ran and returned status "executed." It sent the vendor a request_resend for quarantine entry 1 (elig_20261021.csv), which was rejected because the required column member_id is missing. The vendor's reply says they will resend under the same file name.
 
 == 6. The vendor's corrected file arrives
 intake: loaded, 1 quarantine entries superseded
@@ -78,6 +78,7 @@ agent's recorded evals against a Postgres service:
 - the incident chain;
 - the contract author.
 
-It uploads the reports and writes a summary table. It fails if any case fails, and it
-refuses to run if a model key is set. Live runs, for new recordings or variance, are a
+It uploads the reports and writes a summary table, and it fails if any case fails. The job
+is never given a model key: no secret is mapped into it, and a guard step fails the run if
+one is ever added to its environment. Live runs, for new recordings or variance, are a
 person's, on a laptop with a key ([docs/agents/EVALS.md](../agents/EVALS.md)).

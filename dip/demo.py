@@ -110,7 +110,7 @@ def run(dsn: str, work: Path, record: bool = False, say: Any = print) -> int:
             r = asyncio.run(act("demo_act_denied"))
             say(f"agent: {r.summary}")
             step(5, f"A person approves approval {aid}; the agent runs it")
-            approvals.decide(conn, aid, True, "human:demo@dip", "the vendor must resend")
+            status = approvals.decide(conn, aid, True, "human:demo@dip", "the vendor must resend")
             # As `dip approvals approve` does: a person's decision is audited too.
             Registry(conn).audit(
                 "human:demo@dip",
@@ -120,10 +120,12 @@ def run(dsn: str, work: Path, record: bool = False, say: Any = print) -> int:
                 {"approval_id": aid},
                 "allowed",
                 None,
-                "approved",
+                status,
                 None,
             )
-            say(f"approval {aid}: approved by human:demo@dip")
+            say(f"approval {aid}: {status} by human:demo@dip")
+            if status != "approved":
+                return 1
             r = asyncio.run(act("demo_act"))
             say(f"agent: {r.summary}")
 

@@ -614,7 +614,13 @@ def main(argv: list[str] | None = None) -> int:
         from dip import demo as demo_mod
 
         _load_dotenv()
-        return demo_mod.run(os.environ["DIP_EVAL_DSN"], Path("data/tmp/demo"), args.record)
+        if not os.environ.get("DIP_EVAL_DSN"):
+            raise SystemExit("dip demo needs DIP_EVAL_DSN (a throwaway database), or run"
+                             " scripts/demo.sh, which starts one")  # fmt: skip
+        from dip.contracts import REPO_ROOT
+
+        work = REPO_ROOT / "data" / "tmp" / "demo"
+        return demo_mod.run(os.environ["DIP_EVAL_DSN"], work, args.record)
     elif args.command == "contracts" and args.action == "eval":
         return _contracts_eval(args)
     elif args.command == "contracts":

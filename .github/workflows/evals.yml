@@ -44,6 +44,8 @@ jobs:
       - name: Install
         run: pip install -e ".[dev]"
 
+      # The job is never given a model key (no secret is mapped into it); this step only
+      # guards against one being added to its environment by mistake.
       - name: No model key in this job
         run: |
           if [ -n "${ANTHROPIC_API_KEY:-}${GEMINI_API_KEY:-}" ]; then
@@ -84,8 +86,10 @@ jobs:
               s = json.loads(report.read_text())["summary"]
               passed = s.get("cases_passed", s.get("passed"))
               total = s.get("cases", s.get("scenarios"))
-              notes = ", ".join(f"{k} {s[k]}" for k in ("policy_violations", "unauthorized_runs",
-                                "loosening_errors") if k in s)
+              found = {k: s[k] for k in ("policy_violations", "unauthorized_runs") if k in s}
+              if "drift" in s:
+                  found["loosening_errors"] = s["drift"].get("loosening_errors")
+              notes = ", ".join(f"{k} {v}" for k, v in found.items())
               print(f"| {report.parent.name} | {passed}/{total} | {notes} |")
           EOF
 

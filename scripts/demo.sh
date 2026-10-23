@@ -21,15 +21,21 @@ if [[ -z "${DIP_EVAL_DSN:-}" ]]; then
   name="dip-demo-pg"
   port="${DEMO_PG_PORT:-55439}"
   log "starting a throwaway Postgres ($name, port $port)"
+  # A container of that name is this script's own leftover (it is removed on exit).
   docker rm -f "$name" >/dev/null 2>&1 || true
+  trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
   docker run -d --rm --name "$name" -p "127.0.0.1:$port:5432" \
     -e POSTGRES_USER=dip -e POSTGRES_PASSWORD=dip -e POSTGRES_DB=dip_demo_eval \
     postgres:17 >/dev/null
-  trap 'docker rm -f "$name" >/dev/null 2>&1 || true' EXIT
+  # Over TCP: the image's first-boot server listens only on its socket, then restarts.
+  ready=""
   for _ in $(seq 1 60); do
-    docker exec "$name" pg_isready -U dip -d dip_demo_eval >/dev/null 2>&1 && break
+    if docker exec "$name" pg_isready -h 127.0.0.1 -U dip -d dip_demo_eval >/dev/null 2>&1; then
+      ready=1 && break
+    fi
     sleep 1
   done
+  [[ -n "$ready" ]] || die "Postgres did not become ready in 60 s"
   export DIP_EVAL_DSN="postgresql://dip:dip@127.0.0.1:$port/dip_demo_eval"
 fi
 
