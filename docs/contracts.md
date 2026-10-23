@@ -124,3 +124,27 @@ empty fields (`,,,,`) is checked like any other row; only truly blank lines are 
 Synthea patients: one member per patient, with `member_id`, plan and coverage dates derived
 deterministically from the patient id, and `patient_ref` linking back to the clinical record.
 All of it is synthetic. Hand-written, invented test files are in `tests/fixtures/eligibility/`.
+
+## Healthcare claims (synthetic, Stage 2)
+
+`packs/healthcare/generators/claims.py` writes a daily claims file from the same Synthea
+bundles: one row per **billed** line of each `ExplanationOfBenefit` (lines with an
+adjudication), from the plan's start (2020-01-01) on, with the Blue Button line amounts
+(billed, allowed, paid, coinsurance, deductible) and the member id eligibility gives that
+patient. No new Synthea run is needed. Contract: `packs/healthcare/contracts/claims.yaml`
+(`claims_YYYYMMDD.csv`, `claim_line_id` unique, amounts as non-negative decimals, at most
+2% bad rows). On the 28 bundles in `data/synthea` it gives 1,976 lines, all of which pass (the file is
+named for today by default: the contract accepts names up to 7 days old).
+
+dbt: `silver.claim_record` (typed) and `gold.claim_line` (one row per line, from the
+newest file that has it, so a corrected resend replaces it). Two DQ tests, warnings by
+design, recorded in `ops.dq_results`:
+
+| Test | Finds |
+|---|---|
+| `claims_within_coverage` | a line whose member is not in `gold.member_eligibility`, or whose service date is outside the member's coverage |
+| `claims_amounts_ordered` | a line where paid > allowed, allowed > billed, or paid + coinsurance + deductible > allowed |
+
+They warn rather than fail: a claim outside coverage is a finding for the payer to work,
+not a reason to drop the line. Hand-written, invented test files are in
+`tests/fixtures/claims/`.
