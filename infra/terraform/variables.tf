@@ -55,6 +55,12 @@ variable "airflow_image_tag" {
   default     = "dev"
 }
 
+variable "ocr_image_tag" {
+  description = "OCR task image (images/ocr) tag, written by scripts/up.sh; empty: none built."
+  type        = string
+  default     = ""
+}
+
 variable "intake_api_image_repository" {
   description = "Intake API image (built from images/intake-api and loaded into kind)."
   type        = string

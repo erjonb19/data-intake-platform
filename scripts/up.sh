@@ -20,14 +20,21 @@ docker tag dip-airflow:build "dip-airflow:$tag"
 log "loading dip-airflow:$tag into kind"
 kind load docker-image "dip-airflow:$tag" --name "$CLUSTER_NAME"
 
+log "building the OCR task image (Airflow + Tesseract)"
+docker build -t dip-ocr:build --build-arg "BASE=dip-airflow:$tag" \
+  -f "$REPO_ROOT/images/ocr/Dockerfile" "$REPO_ROOT"
+ocr_tag="$(docker image inspect -f '{{.Id}}' dip-ocr:build | sed 's/^sha256://' | cut -c1-12)"
+docker tag dip-ocr:build "dip-ocr:$ocr_tag"
+kind load docker-image "dip-ocr:$ocr_tag" --name "$CLUSTER_NAME"
+
 log "building the intake API image"
 docker build -t dip-intake-api:build -f "$REPO_ROOT/images/intake-api/Dockerfile" "$REPO_ROOT"
 api_tag="$(docker image inspect -f '{{.Id}}' dip-intake-api:build | sed 's/^sha256://' | cut -c1-12)"
 docker tag dip-intake-api:build "dip-intake-api:$api_tag"
 kind load docker-image "dip-intake-api:$api_tag" --name "$CLUSTER_NAME"
 
-printf '{ "airflow_image_tag": "%s", "intake_api_image_tag": "%s" }\n' "$tag" "$api_tag" \
-  > "$TF_DIR/image.auto.tfvars.json"
+printf '{ "airflow_image_tag": "%s", "intake_api_image_tag": "%s", "ocr_image_tag": "%s" }\n' \
+  "$tag" "$api_tag" "$ocr_tag" > "$TF_DIR/image.auto.tfvars.json"
 
 # The chart's migration and create-user Jobs are plain Jobs (no Helm hooks, so Terraform's
 # wait works), and a Job's pod template is immutable: a Helm upgrade that changes them (a

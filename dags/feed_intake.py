@@ -1,14 +1,18 @@
-"""File-feed intake: one DAG per CSV or Excel data contract, generated from the contracts.
+"""File-feed intake: one DAG per CSV, Excel or PDF data contract, generated from the contracts.
 
-For each contract with `format: csv` or `format: excel` in DIP_CONTRACT_DIRS this defines a DAG
+For each contract with `format: csv`, `excel` or `pdf` in DIP_CONTRACT_DIRS this defines a DAG
 `intake__<pack>__<feed>`, for example `intake__healthcare__eligibility`. It takes every
 file in `landing/<feed>/`, keeps an immutable raw copy, validates it against the
 contract, and loads accepted rows into `bronze.csv_record` or quarantines the file or
 row with reason codes in `ops.quarantine`. Then dbt builds and tests only the models
 tagged with the feed name (bronze -> silver -> gold).
 
-The DAGs are triggered (by the E2E test, or by hand). Scheduling from the contract's
-`expected_arrival` and late-file detection (`FEED.LATE`) arrive in Stage 2.
+A PDF feed's intake task runs in the OCR image (images/ocr, `DIP_OCR_IMAGE`), the only
+image with the PDF readers and Tesseract; without it set, its files are quarantined with
+OCR.UNAVAILABLE rather than read.
+
+The DAGs are triggered: by the sftp_sync DAG, the E2E test, or by hand. Late files
+(`FEED.LATE`) are found by the feed_sla DAG from each contract's `expected_arrival`.
 """
 
 from __future__ import annotations
@@ -21,18 +25,33 @@ from airflow.sdk import dag, task
 from dip.contracts import dag_id_for, load_contracts
 
 
-def build(feed: str):
+def _executor_config(format_type: str) -> dict:
+    """PDF feeds read scans with Tesseract, which only the OCR image has (images/ocr): their
+    intake task runs in it. Every other task keeps the Airflow image."""
+    import os
+
+    image = os.environ.get("DIP_OCR_IMAGE", "")
+    if format_type != "pdf" or not image:
+        return {}
+    from kubernetes.client import models as k8s
+
+    return {"pod_override": k8s.V1Pod(spec=k8s.V1PodSpec(
+        containers=[k8s.V1Container(name="base", image=image)]
+    ))}  # fmt: skip
+
+
+def build(feed: str, format_type: str):
     @dag(
         dag_id=dag_id_for(feed),
         schedule=None,
         start_date=pendulum.datetime(2026, 1, 1, tz="UTC"),
         catchup=False,
         max_active_runs=1,
-        tags=["intake", "csv", feed.split(".")[0]],
+        tags=["intake", format_type, feed.split(".")[0]],
         doc_md=__doc__,
     )
     def feed_intake():
-        @task
+        @task(executor_config=_executor_config(format_type))
         def intake() -> dict:
             from dip import BUCKET_LANDING, lineage
             from dip.contracts import load_contracts
@@ -79,5 +98,5 @@ def build(feed: str):
 
 
 for _contract in load_contracts().values():
-    if _contract.format_type in ("csv", "excel"):
-        globals()[dag_id_for(_contract.feed)] = build(_contract.feed)
+    if _contract.format_type in ("csv", "excel", "pdf"):
+        globals()[dag_id_for(_contract.feed)] = build(_contract.feed, _contract.format_type)

@@ -56,6 +56,9 @@ resource "helm_release" "airflow" {
     # A content-addressed tag can be all digits ("873912234501"); without type = "string"
     # Helm reads it as a number and the chart's schema refuses it.
     { name = "images.airflow.tag", value = var.airflow_image_tag, type = "string" },
+    # The PDF feed's intake task runs in the OCR image (dags/feed_intake.py).
+    { name = "env[0].name", value = "DIP_OCR_IMAGE", type = "string" },
+    { name = "env[0].value", value = var.ocr_image_tag == "" ? "" : "dip-ocr:${var.ocr_image_tag}", type = "string" },
   ]
 
   set_sensitive = [

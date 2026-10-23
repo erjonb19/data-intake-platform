@@ -416,6 +416,38 @@ The SFTP and Excel items stay, because Stage 3's OCR matching needs Excel invoic
 - The contract-author agent moves from 2027-01-25 to **2026-12-31**. It needs only Read and Propose, so it no longer waits for the Act tier.
 - The last stage now finishes on 2027-02-28 instead of 2027-03-01.
 
+### 8.7 Stage 3 plan: OCR, monitoring, lineage and the read-only MCP tools (added 2026-10-22)
+
+**Where things stand.** Parts of Stage 3 are already done:
+- the MCP server, its API keys, the append-only audit log, and Read tools over quarantine, contracts and feed history all came with the triage agent (§11, 2026-10-22);
+- lineage events (R6, `dip/lineage.py`) are emitted, but nothing receives them yet.
+
+What is left is below. The date stays **2026-11-30**.
+
+| # | Item | Effort (part-time days) | Depends on | Dates |
+|---|---|---|---|---|
+| **S3.1** | **PDF invoices, native and scanned.** The finance generator also writes each invoice as a native PDF (reportlab) and as a "scanned" one (rasterized, with noise, skew and blur). A `pdf` contract format: native PDFs are read with pdfplumber; scanned ones are OCR'd with Tesseract (pytesseract, word confidences kept) in their own task image (`images/ocr`, so nothing is installed on the laptop). Fields are found by their printed labels, so two vendor layouts need no per-vendor template. A file whose mean OCR confidence is below the contract's threshold is quarantined with `OCR.LOW_CONFIDENCE`. Gold `gold.invoice_match` joins PDFs to the Excel register by invoice number, with total, vendor and PO checks, and every mismatch has a reason | 3 | S2.5 | 10-26 → 11-02 |
+| **S3.2** | **Observability profile.** `profiles = ["core", "observability"]`: Prometheus with a statsd-exporter for Airflow's metrics, plus Grafana, from the plain charts (§3), and a small warehouse exporter for ops tables: files, quarantine and DQ results per feed, freshness, and open `FEED.LATE` incidents. Grafana gets two dashboards (feeds; DAG runs), and Prometheus gets alert rules (a feed late, quarantine rate over a threshold, DQ errors, a DAG failing) | 2 | Stage 2 | 11-02 → 11-06 |
+| **S3.3** | **Marquez.** The API and web UI on the shared Postgres (`marquez` database, already created). Airflow tasks and dbt get `OPENLINEAGE_URL`, so lineage runs from the raw file to gold and on to the shareable extract (R6) | 1 | S3.2 profile | 11-06 → 11-08 |
+| **S3.4** | **Read tier, complete and deployed.** The MCP server runs in the cluster (ClusterIP, a port-forward for local use). It gains `get_dag_run` and `get_task_log` (Airflow REST), `get_lineage` (Marquez), `query_metrics` (Prometheus, a fixed list of queries, never free PromQL), `get_dq_results`, `profile_file`, and `get_contract`. Each new tool gets a read-only policy. A demo question such as "why did yesterday's eligibility feed quarantine 40 rows?" is answered over MCP by the triage agent's tools | 2 | S3.2, S3.3 | 11-09 → 11-13 |
+| **S3.5** | **E2E and demo.** The E2E adds: a native and a scanned PDF to gold and to the match table, a low-confidence scan quarantined, a lineage path in Marquez from a landed file to gold, metrics in Prometheus, one authenticated MCP read, and one rejected unauthenticated call. Also `docs/demos/stage-3.md`. The upgrade job stays green | 1.5 | all | 11-16 → 11-20 |
+| | Buffer | 2 | | 11-20 → 11-30 |
+
+**Total:** 9.5 days plus 2 of buffer.
+
+**Memory.** Measured: the kind node uses 3.05 GiB with the Stage 2 services (SFTP, intake API). The observability profile adds about 1.1 GiB (Prometheus 300 MB, Grafana 150 MB, Marquez API and web 600 MB, exporters 50 MB). The PDF feed's intake task runs in the larger OCR image (a short-lived task pod, only while PDF files are processed). On the laptop, the observability profile stays opt-in; CI runs it.
+
+**If it runs late, cut in this order:**
+1. Grafana dashboards (Prometheus alerts already cover monitoring, §10).
+2. The scanned-PDF noise model (keep clean scans).
+3. `profile_file`.
+
+The MCP Read tier and OCR stay.
+
+**Follow-up (from the S3.1 review):** a PDF stream that inflates to gigabytes is bounded only by the task pod's memory limit; detect it before inflating (stream length caps in the reader), so an OOM-killed task cannot leave the file in landing to fail again.
+
+**LLM calls:** none in Stage 3. **Data:** generated invoices and Synthea only.
+
 ### 8.8 Stage 5 plan: the contract-author agent and its eval harness (added 2026-10-23; not started)
 
 **Goal (§8, unchanged): 2026-12-31.** The agent gets a sample file from a new vendor and returns a draft contract. It gets a drifted file and returns the contract diff that accepts the vendor's legitimate change. It may only Read and Propose (§4.2: one agent, two modes, scored per mode).

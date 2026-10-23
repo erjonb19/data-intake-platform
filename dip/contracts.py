@@ -123,7 +123,16 @@ def load_contract(path: str | Path) -> Contract:
             parse_grace(arrival["grace"])
         except (KeyError, ValueError) as exc:
             raise ContractError(f"{path.name}: expected_arrival: {exc}") from exc
-    if spec["format"]["type"] in ("csv", "excel"):
+    if spec["format"]["type"] == "pdf":
+        names = {c["name"] for c in spec.get("columns", [])}
+        missing = sorted(set(spec["format"].get("fields", {})) - names)
+        absent = sorted({"extraction", "ocr_confidence"} - names)
+        if missing or absent or "fields" not in spec["format"]:
+            raise ContractError(
+                f"{path.name}: format.fields must map contract columns (unknown: {missing}),"
+                f" and the columns must include extraction and ocr_confidence ({absent})"
+            )
+    if spec["format"]["type"] in ("csv", "excel", "pdf"):
         from dip.csvfeed import check_contract
 
         if problems := check_contract(spec):

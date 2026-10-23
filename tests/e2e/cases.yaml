@@ -8,6 +8,8 @@
 #              whole, and nothing of it may be in bronze, silver or gold)
 #   exclude_rows  data rows (1-based) expected in quarantine, left out of the checksum
 #   excel      (per feed) {sheet, header_row} when the feed's fixtures are .xlsx workbooks
+#   expect     (PDF cases) the gold row(s) the document must give, written out, since a
+#              PDF has no rows to parse here; checked by the same checksum
 #   channel    how the fixture is delivered: minio (default, put into landing), sftp
 #              (uploaded to the vendor's SFTP account, then the sftp_sync DAG moves it)
 #              or api (POSTed to the intake API with the vendor's key);
@@ -80,4 +82,56 @@ feeds:
       - fixture: finance/bad/invoices_sheet_renamed.xlsx
         status: quarantined
         reasons: ["SCHEMA.MISSING_SHEET:Invoices"]
+        gold_rows: 0
+  # Stage 3: invoice PDFs, native and scanned (OCR'd in the OCR task image), matched to the
+  # register above in gold.invoice_match. Runs after finance.vendor_invoice (file order).
+  finance.vendor_invoice_pdf:
+    gold_table: gold.invoice_match
+    silver_table: silver.vendor_invoice_pdf_record
+    checksum_columns: [invoice_number, vendor_id, po_number, pdf_total, extraction,
+                       match_status]
+    cases:
+      - fixture: finance/good/invoice_native_stacked.pdf
+        status: loaded
+        reasons: []
+        gold_rows: 1
+        expect:
+          - {invoice_number: INV-483001, vendor_id: V1006, po_number: PO-895547,
+             pdf_total: "12940.71", extraction: native, match_status: matched}
+      - fixture: finance/good/invoice_native_table.pdf
+        status: loaded
+        reasons: []
+        gold_rows: 1
+        expect:
+          - {invoice_number: INV-483000, vendor_id: V1001, po_number: PO-794816,
+             pdf_total: "1014.32", extraction: native, match_status: matched}
+      - fixture: finance/good/invoice_scan.pdf
+        status: loaded
+        reasons: []
+        gold_rows: 1
+        expect:
+          - {invoice_number: INV-483004, vendor_id: V1006, po_number: PO-504016,
+             pdf_total: "14314.85", extraction: ocr, match_status: matched}
+      - fixture: finance/good/invoice_total_differs.pdf
+        status: loaded
+        reasons: []
+        gold_rows: 1
+        expect:
+          - {invoice_number: INV-483002, vendor_id: V1002, po_number: PO-329521,
+             pdf_total: "6505.37", extraction: native, match_status: total_differs}
+      - fixture: finance/good/invoice_not_in_register.pdf
+        channel: api
+        status: loaded
+        reasons: []
+        gold_rows: 1
+        expect:
+          - {invoice_number: INV-999999, vendor_id: V1001, po_number: PO-552326,
+             pdf_total: "24982.29", extraction: native, match_status: not_in_register}
+      - fixture: finance/bad/invoice_scan_poor.pdf
+        status: quarantined
+        reasons: ["OCR.LOW_CONFIDENCE"]
+        gold_rows: 0
+      - fixture: finance/bad/invoice_not_a_pdf.pdf
+        status: quarantined
+        reasons: ["PDF.INVALID"]
         gold_rows: 0

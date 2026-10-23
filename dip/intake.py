@@ -108,6 +108,10 @@ def process_file(
         result = validate_csv(data, contract, received_at=now)
     elif contract.format_type == "excel":
         result = validate_excel(data, contract, received_at=now)
+    elif contract.format_type == "pdf":
+        from dip.pdffeed import validate_pdf  # pdfplumber is only in the OCR task image
+
+        result = validate_pdf(data, contract, received_at=now)
     else:
         raise NotImplementedError(f"format {contract.format_type!r} arrives in a later stage")
 
