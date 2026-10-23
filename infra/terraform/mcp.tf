@@ -17,10 +17,14 @@ locals {
     Version = "2012-10-17"
     Statement = [
       { Effect = "Allow", Action = ["s3:GetObject"], Resource = ["arn:aws:s3:::raw/*", "arn:aws:s3:::quarantine/*"] },
+      # Listing is not used by any tool; it makes a missing key NoSuchKey, not AccessDenied.
       { Effect = "Allow", Action = ["s3:ListBucket"], Resource = ["arn:aws:s3:::raw", "arn:aws:s3:::quarantine"] },
     ]
   })
-  mcp_minio_suffix = substr(sha256(local.mcp_minio_policy), 0, 8)
+  # The policy and the password: a new password re-runs the user Job. (mc takes the
+  # secret as an argument, as in intake_api.tf; the Job's spec is readable to anyone who
+  # can read Jobs in dip-data: a follow-up to pass it from a secret.)
+  mcp_minio_suffix = substr(sha256("${local.mcp_minio_policy}${local.pw["minio_mcp"]}"), 0, 8)
   mcp_minio_user   = "mcp-read-${local.mcp_minio_suffix}"
   mcp_airflow_user = "mcp-viewer"
 }
@@ -241,7 +245,8 @@ resource "kubernetes_deployment_v1" "mcp" {
           # The Host header a port-forward or an in-cluster client sends (DNS-rebinding
           # protection refuses any other).
           args = ["python", "-m", "dip", "mcp-serve", "--host", "0.0.0.0", "--port", "8765",
-            "--allowed-host", "127.0.0.1:*", "--allowed-host", "localhost:*",
+            "--allowed-host", "127.0.0.1:*", "--allowed-host", "localhost:*", "--allowed-host", "[::1]:*",
+            "--allowed-host", "mcp:*", "--allowed-host", "mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc:*",
           "--allowed-host", "mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local:*"]
           port {
             name           = "mcp"

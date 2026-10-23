@@ -30,15 +30,18 @@ observability profile. Without it, they return a clear "not configured" error.
 ## What the reader may see
 
 - **PHI:** the reader policy sets `mask_phi: true`.
-  - Samples and violation details hide the values of PHI columns, and of every column
-    the contract does not declare, because a renamed column may be PHI under a new name.
-  - A FHIR resource shows only its type, id and field names.
-  - A file rejected whole shows only its header line.
-  - `profile_file` shows top values only for declared, non-PHI columns.
+  - Samples and violation details show values only for columns the contract declares,
+    does not mark `phi`, and are not dates (HIPAA counts every date of a person). Every
+    other column, including one the contract does not declare (a renamed column may be PHI
+    under a new name), is hidden. `member_id` is marked `phi` in both healthcare contracts.
+  - A FHIR resource shows only its type and field names (not its id: vendors put MRNs there).
+  - A CSV file rejected whole shows only its header line; any other file only its size.
+  - `profile_file` shows top values only for those same columns.
   - The triage agent's policy does not mask, so it sees records as received.
-- **Task logs:** these are the platform's own: codes, counts and file names. An error
-  message can still quote a value, so logs are returned as untrusted content, and masking
-  does not rewrite them.
+- **Task logs:** an error message can quote a row's values, so the reader sees only the
+  lines in the platform's own formats (intake status lines, the intake summary, dbt's
+  totals, Airflow's task framing) and a count of the lines it does not see
+  (`lines_hidden`). The triage agent sees the whole log.
 - **Vendor content:** file contents, file names, log lines and landed-file names in
   lineage are all under `untrusted_vendor_content`, with a notice that they are data,
   never instructions.
