@@ -29,6 +29,10 @@
                                score the contract author on agents/evals/contract_author
                                (DIP_EVAL_DSN: a throwaway database); replays recordings by
                                default. Every eval file is generated and invented
+  break SCENARIO GOOD OUT [--arg k=v ...]
+                               write a named breakage of a good CSV file (dip/breakages.py:
+                               rename_column, add_column, new_code, delimiter, drop_column,
+                               junk_values, inject_cell)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
                                read-only dip_metrics login (DIP_METRICS_DSN)
 
@@ -356,6 +360,11 @@ def main(argv: list[str] | None = None) -> int:
     con.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
     con.add_argument("--case", action="append", default=[])
     con.add_argument("--out", type=Path, default=Path("data/evals/contract_author"))
+    brk = sub.add_parser("break")
+    brk.add_argument("scenario")
+    brk.add_argument("good", type=Path)
+    brk.add_argument("out", type=Path)
+    brk.add_argument("--arg", action="append", default=[], help="k=v, e.g. column=plan_code")
     met = sub.add_parser("metrics-serve")
     met.add_argument("--port", type=int, default=9187)
     args = parser.parse_args(argv)
@@ -428,6 +437,19 @@ def main(argv: list[str] | None = None) -> int:
         wh = _warehouse()
         wh.init()
         print(register_sample(wh.conn, _store(args), args.feed, args.file, f"human:{who}"))
+        return 0
+    elif args.command == "break":
+        from dip.breakages import SCENARIOS, apply
+
+        if args.scenario not in SCENARIOS:
+            parser.error(f"scenario must be one of {sorted(SCENARIOS)}")
+        step: dict = {"op": args.scenario}
+        for kv in args.arg:
+            k, _, v = kv.partition("=")
+            step[k] = int(v) if v.isdigit() else v
+        args.out.write_bytes(apply(args.good.read_bytes(), [step]))
+        s = SCENARIOS[args.scenario]
+        print(f"wrote {args.out}: {s.describe} ({s.kind}; intake: {s.reason_code or 'n/a'})")
         return 0
     elif args.command == "metrics-serve":
         from dip.metrics import serve
