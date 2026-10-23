@@ -93,8 +93,10 @@ describes data that is already committed, so an unreachable Marquez is printed i
 log and counted, but never fails a run (`tests/unit/test_lineage.py`).
 
 `tests/e2e/lineage.py` walks Marquez's graph upstream from two gold tables
-(`gold.member_eligibility`, `gold.invoice_match`) and requires the landed fixture among
-their ancestors. It also requires the gold table to carry its dbt test results (the
+(`gold.member_eligibility`, `gold.invoice_match`). It requires the feed's intake job
+among their ancestors, and a run of that job that read the landed fixture. Marquez draws
+the graph from each job's latest version, so after several runs the graph shows only the
+last run's files; which file each run read is in the job's run history. It also requires the gold table to carry its dbt test results (the
 `dataQualityAssertions` facet). The same walk passed against a local Marquez 0.51.1 on
 Postgres 17. Marquez's bundled Flyway warns that Postgres 17 is untested, but its
 migrations run.
