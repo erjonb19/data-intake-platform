@@ -187,7 +187,8 @@ def _free_port() -> int:
 class LocalServer:
     """The MCP server over real HTTP on localhost, in a background thread."""
 
-    def __init__(self, conn: Any, store: LocalStore):
+    def __init__(self, conn: Any, store: LocalStore, agent: str = "triage",
+                 contracts: dict[str, Contract] | None = None):  # fmt: skip
         import uvicorn
 
         from dip.agents.mcp_server import build_server, http_app
@@ -197,9 +198,9 @@ class LocalServer:
         self.key = secrets.token_urlsafe(32)
         port = _free_port()
         self.url = f"http://127.0.0.1:{port}/mcp"
-        registry = build_registry(conn, store, eval_contracts())
-        server = build_server(registry, {"triage": Policy.load("triage")})
-        app = http_app(server, {"triage": hashlib.sha256(self.key.encode()).hexdigest()},
+        registry = build_registry(conn, store, contracts or eval_contracts())
+        server = build_server(registry, {agent: Policy.load(agent)})
+        app = http_app(server, {agent: hashlib.sha256(self.key.encode()).hexdigest()},
                        f"http://127.0.0.1:{port}")  # fmt: skip
         self.uv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port,
                                                 log_level="warning"))  # fmt: skip

@@ -25,6 +25,10 @@
   cohort verify-audit          check the hash chain of the cohort audit log
   contracts sample FEED FILE   register a new vendor's sample file for the contract author
                                (Stage 5): its raw copy and its sha256, for diff_schema
+  contracts eval [--record|--live]
+                               score the contract author on agents/evals/contract_author
+                               (DIP_EVAL_DSN: a throwaway database); replays recordings by
+                               default. Every eval file is generated and invented
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
                                read-only dip_metrics login (DIP_METRICS_DSN)
 
@@ -181,6 +185,35 @@ def _triage(args: argparse.Namespace) -> int:
     return 0 if rep["summary"]["policy_violations"] == 0 else 1
 
 
+def _contracts_eval(args: argparse.Namespace) -> int:
+    from dip.agents import author_evals
+    from dip.agents.llm import AnthropicLLM, Recorder, Recording
+
+    _load_dotenv()
+    dsn = os.environ["DIP_EVAL_DSN"]
+    cases = [c for c in author_evals.load_cases() if not args.case or c["name"] in args.case]
+    work = Path("data/tmp/contract-author-eval")
+    results = []
+    for case in cases * max(1, args.repeat if args.live else 1):
+        path = author_evals.RECORDINGS / f"{case['name']}.json"
+        if args.record:
+            llm = Recorder(AnthropicLLM())
+        else:
+            llm = AnthropicLLM() if args.live else Recording(path)
+        r = author_evals.run_case(case, dsn, llm, work)
+        if args.record:
+            llm.save(path)
+        results.append(r)
+        print(f"{'PASS' if r.passed else 'FAIL'} {case['name']}: {r.turns} turns,"
+              f" proposed {r.proposed}, loosening errors {len(r.loosening_errors)},"
+              f" violations {r.violations or 'none'}", file=sys.stderr)  # fmt: skip
+    rep = author_evals.report(results)
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
+    print(json.dumps(rep["summary"], indent=1))
+    return 0 if rep["summary"]["policy_violations"] == 0 else 1
+
+
 def _approvals(args: argparse.Namespace) -> int:
     import getpass
 
@@ -315,9 +348,14 @@ def main(argv: list[str] | None = None) -> int:
     coh.add_argument("--audit", type=Path, default=Path("data/cohort_audit.jsonl"))
     coh.add_argument("--requester", default=os.environ.get("USER") or os.environ.get("USERNAME"))
     con = sub.add_parser("contracts")
-    con.add_argument("action", choices=["sample"])
-    con.add_argument("feed")
-    con.add_argument("file", type=Path)
+    con.add_argument("action", choices=["sample", "eval"])
+    con.add_argument("feed", nargs="?")
+    con.add_argument("file", type=Path, nargs="?")
+    con.add_argument("--record", action="store_true", help="call the model, save its turns")
+    con.add_argument("--live", action="store_true", help="call the model, save nothing")
+    con.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
+    con.add_argument("--case", action="append", default=[])
+    con.add_argument("--out", type=Path, default=Path("data/evals/contract_author"))
     met = sub.add_parser("metrics-serve")
     met.add_argument("--port", type=int, default=9187)
     args = parser.parse_args(argv)
@@ -379,9 +417,13 @@ def main(argv: list[str] | None = None) -> int:
         return _triage(args)
     elif args.command == "approvals":
         return _approvals(args)
+    elif args.command == "contracts" and args.action == "eval":
+        return _contracts_eval(args)
     elif args.command == "contracts":
         from dip.agents.author_tools import register_sample
 
+        if not (args.feed and args.file):
+            parser.error("contracts sample needs FEED and FILE")
         who = os.environ.get("USER") or os.environ.get("USERNAME") or "unknown"
         wh = _warehouse()
         wh.init()

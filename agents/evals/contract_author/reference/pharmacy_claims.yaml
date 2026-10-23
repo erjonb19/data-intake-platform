@@ -1,0 +1,24 @@
+# Reference contract for the onboarding eval: a new PBM's pharmacy claims (invented).
+feed: healthcare.pharmacy_claims
+version: 1
+owner: vendor-ops@example.com
+description: >
+  Pharmacy claims from a new PBM, one row per fill, as an Excel workbook. All data is
+  invented.
+classification: restricted
+source:
+  channels: [minio]
+  filename_pattern: "pharmacy_claims_*.xlsx"
+format: { type: excel, sheet: Claims, header_row: 1 }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.05
+min_rows: 1
+columns:
+  - { name: rx_claim_id, type: string, required: true, unique: true, pattern: "^RX[0-9]{6}$" }
+  - { name: member_id, type: string, required: true, pattern: "^M[0-9]{9}$", phi: true }
+  - { name: fill_date, type: date, required: true }
+  - { name: ndc, type: string, required: true, pattern: "^[0-9]{11}$" }
+  - { name: days_supply, type: integer, required: true, allowed: [30, 60, 90] }
+  - { name: quantity, type: decimal, required: true }
+  - { name: paid_amount, type: decimal, required: true }
+  - { name: pharmacy_npi, type: string, required: true, pattern: "^[0-9]{10}$" }
