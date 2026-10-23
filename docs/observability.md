@@ -1,8 +1,8 @@
 # Observability: metrics, alerts, dashboards and lineage (Stage 3, S3.2 and S3.3)
 
 An opt-in profile, `profiles = ["core", "observability"]`. CI's E2E always deploys it. On
-the laptop, turn it on only when working on monitoring, because it needs about 0.6 GB more
-(PLAN.md section 5):
+the laptop, turn it on only when working on monitoring, because it needs about 0.8 GB more
+(requests; up to 1.6 GB at the limits, Marquez's JVM the largest; PLAN.md section 5):
 
 ```bash
 TF_VAR_profiles='["core", "observability"]' bash scripts/up.sh

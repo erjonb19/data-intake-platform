@@ -20,6 +20,7 @@ platform (it needs a Rust toolchain on Windows).
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import urllib.request
@@ -114,7 +115,7 @@ class Emitter:
             # printed into the task log, where the triage agent and a person can see it.
             try:
                 urllib.request.urlopen(req, timeout=10).close()
-            except OSError as exc:  # URLError, HTTPError, timeouts
+            except (OSError, http.client.HTTPException) as exc:  # refused, timeouts, cut off
                 self.failures += 1
                 print(f"lineage: {self.url} refused an event ({type(exc).__name__}: {exc})")
 

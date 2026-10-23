@@ -14,16 +14,21 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
 MARQUEZ = os.environ["MARQUEZ_URL"].rstrip("/")
 DB = os.environ.get("WAREHOUSE_DB", "warehouse")  # the dataset names' first part
-# (gold table, a fixture the E2E landed into that feed)
+# (gold table, a fixture the E2E landed into that feed, the feed's own intake job). The job
+# is checked too: every file feed shares the bronze.csv_record node, so the landed file
+# alone could be reached through another feed's models.
 PATHS = [
-    ("gold.member_eligibility", "healthcare.eligibility/elig_good.csv"),
-    ("gold.invoice_match", "finance.vendor_invoice_pdf/invoice_scan.pdf"),
-]
+    ("gold.member_eligibility", "healthcare.eligibility/elig_good.csv",
+     "intake.healthcare.eligibility"),
+    ("gold.invoice_match", "finance.vendor_invoice_pdf/invoice_scan.pdf",
+     "intake.finance.vendor_invoice_pdf"),
+]  # fmt: skip
 
 
 def get(path: str) -> dict:
@@ -31,13 +36,20 @@ def get(path: str) -> dict:
         return json.loads(r.read())
 
 
-def warehouse_namespace() -> str | None:
+def warehouse_namespaces() -> list[str]:
+    """Every postgres:// namespace: the intake and dbt events name the warehouse by the DSN
+    each was given, so there may be more than one; a table is looked up in each."""
     names = [n["name"] for n in get("/api/v1/namespaces?limit=100")["namespaces"]]
-    return next((n for n in names if n.startswith("postgres://")), None)
+    return [n for n in names if n.startswith("postgres://")]
 
 
 def ancestors(node_id: str) -> set[str]:
-    graph = get("/api/v1/lineage?" + urllib.parse.urlencode({"nodeId": node_id, "depth": 20}))
+    try:
+        graph = get("/api/v1/lineage?" + urllib.parse.urlencode({"nodeId": node_id, "depth": 20}))
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:  # not a dataset in this namespace
+            return set()
+        raise
     nodes = {n["id"]: n for n in graph["graph"]}
     seen, todo = set(), [node_id]
     while todo:
@@ -50,26 +62,35 @@ def ancestors(node_id: str) -> set[str]:
 
 def main() -> int:
     deadline = time.monotonic() + 120
-    ns = None
-    while time.monotonic() < deadline and not (ns := warehouse_namespace()):
+    spaces: list[str] = []
+    while time.monotonic() < deadline and not (spaces := warehouse_namespaces()):
         time.sleep(5)
-    if not ns:
+    if not spaces:
         print("FAIL: no warehouse (postgres://) namespace in Marquez", file=sys.stderr)
         return 1
     failures = []
-    for table, landed in PATHS:
-        node = f"dataset:{ns}:{DB}.{table}"
-        up = ancestors(node)
-        want = f"dataset:s3://landing:{landed}"
-        if want not in up:
-            failures.append(f"{table}: {landed} is not upstream ({len(up)} ancestors)")
+    for table, landed, intake_job in PATHS:
+        up: set[str] = set()
+        for ns in spaces:
+            up |= ancestors(f"dataset:{ns}:{DB}.{table}")
+        missing = [w for w in (f"dataset:s3://landing:{landed}", f"job:dip:{intake_job}")
+                   if w not in up]  # fmt: skip
+        if missing:
+            failures.append(f"{table}: not upstream: {missing} ({len(up)} ancestors)")
             continue
         jobs = sorted(a.split(":", 2)[2] for a in up if a.startswith("job:"))
-        print(f"==> {landed} -> ... -> {table}: ok ({len(jobs)} jobs: {', '.join(jobs[:4])}...)")
+        print(f"==> {landed} -> {intake_job} -> ... -> {table}: ok ({len(jobs)} jobs)")
     # The dbt job's output carries the model's test results (an output dataset facet).
-    ds = get(f"/api/v1/namespaces/{urllib.parse.quote(ns, '')}/datasets/"
-             + urllib.parse.quote(f"{DB}.gold.member_eligibility", ""))  # fmt: skip
-    if "dataQualityAssertions" not in ds.get("facets", {}):
+    facets = {}
+    for ns in spaces:
+        try:
+            facets |= get(f"/api/v1/namespaces/{urllib.parse.quote(ns, '')}/datasets/"
+                          + urllib.parse.quote(f"{DB}.gold.member_eligibility", "")
+                          ).get("facets", {})  # fmt: skip
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404:
+                raise
+    if "dataQualityAssertions" not in facets:
         failures.append("gold.member_eligibility: no dbt test results (dataQualityAssertions)")
     for f in failures:
         print(f"FAIL: {f}", file=sys.stderr)
