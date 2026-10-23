@@ -106,9 +106,9 @@ def test_an_approved_contract_becomes_a_local_branch_and_nothing_else(elig, tmp_
                "rationale": "The vendor added plan GOLD.",
                "validation": {}, "loosening": []}  # fmt: skip
     head = _git(repo, "rev-parse", "HEAD")
-    for k, v in (("GIT_AUTHOR_NAME", "t"), ("GIT_AUTHOR_EMAIL", "t@example.com"),
-                 ("GIT_COMMITTER_NAME", "t"), ("GIT_COMMITTER_EMAIL", "t@example.com")):  # fmt: skip
-        monkeypatch.setenv(k, v)
+    for who in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{who}_NAME", "t")
+        monkeypatch.setenv(f"GIT_{who}_EMAIL", "t@example.com")
     got = write_branch(payload, 7, "human:tester", root=repo)
     assert got["branch"] == "contract/healthcare.eligibility-approval-7"
     assert "GOLD" in _git(repo, "show", f"{got['branch']}:{payload['path']}")
