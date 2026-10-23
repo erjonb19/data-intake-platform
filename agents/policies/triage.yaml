@@ -1,0 +1,23 @@
+# Policy for the failure-triage agent (PLAN.md section 7). Enforced by the tool registry
+# behind the MCP server (dip/agents/registry.py), never by the model: a call outside this
+# policy is refused and written to ops.audit_log like any other call.
+agent: triage
+description: >
+  Groups open quarantine by root cause and proposes one action per group for a person to
+  approve. Reads quarantine, contracts and feed history; proposes; never acts.
+max_tier: propose
+tools:
+  - list_quarantine_groups
+  - get_quarantine_sample
+  - get_contract
+  - get_feed_history
+  - propose_operation
+limits:
+  # Calls per run, all tools together: a runaway loop stops here. The run id comes from
+  # the client, so the hourly limits (per agent, whatever the run) are the hard cap.
+  max_calls_per_run: 60
+  max_calls_per_hour: 600
+  propose_operation:
+    actions: [request_resend, discard, replay, propose_contract_change]
+    max_per_run: 20
+    max_per_hour: 100

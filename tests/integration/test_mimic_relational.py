@@ -68,6 +68,13 @@ def test_omop_from_relational_tables(omop):
     ]
 
 
+def test_cdm_source_says_mimic(omop):
+    """R7: the relational MIMIC build labels itself too (its sources are mimic.* tables)."""
+    assert rows(omop, "select cdm_source_abbreviation from omop_shareable.cdm_source") == [
+        ("DIP-MIMIC",)
+    ]
+
+
 def _with_header(root: Path, table: str, transform) -> None:
     spec = make_relational.CONTRACT["tables"][table]
     path = root / spec["file"]

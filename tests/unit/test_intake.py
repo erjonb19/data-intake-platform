@@ -61,13 +61,13 @@ def test_good_and_bad_files(store):
     }
 
     assert out["good.json"].status == "loaded"
-    assert out["good.json"].accepted == 9
+    assert out["good.json"].accepted == 10
     assert out["bad.json"].status == "quarantined"
     assert out["bad.json"].reason_codes == (
         "FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate",
     )
     # Bad file: nothing in bronze, the file and a reason document are in quarantine.
-    assert len(wh.bronze) == 9
+    assert len(wh.bronze) == 10
     sha = out["bad.json"].file_sha256
     assert store.list(BUCKET_QUARANTINE) == sorted(
         [f"{FEED}/2026-10-21/{sha}.json", f"{FEED}/2026-10-21/{sha}.reason.json"]
@@ -89,7 +89,7 @@ def test_rerun_of_same_file_is_a_duplicate(store):
     land(store, "a-again.json", good_bundle())
     [renamed] = process_landing(store, wh, contracts, NOW)
     assert renamed.status == "redelivered"
-    assert len(wh.bronze) == 9
+    assert len(wh.bronze) == 10
     assert len(wh.intake) == 1
 
 
