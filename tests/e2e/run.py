@@ -15,7 +15,8 @@ recorded with channel sftp.
 Safe to rerun: processed files are recognized by sha256.
 Env: as smoke.py, plus MINIO_USER, MINIO_PASSWORD and WAREHOUSE_DSN; for SFTP cases also
 SFTP_PORT (a port-forward to the server), SFTP_HOST_KEY and SFTP_KEY_DIR (one
-<account>.key per vendor account), which scripts/e2e.sh sets up.
+<account>.key per vendor account), and for API cases INTAKE_API_URL and INTAKE_API_KEYS
+(JSON, account -> key); scripts/e2e.sh sets all of them up.
 """
 
 from __future__ import annotations
@@ -147,6 +148,38 @@ def sftp_upload(feed: str, name: str, data: bytes) -> None:
         ssh.close()
 
 
+def api_upload(feed: str, name: str, data: bytes, failures: list[str]) -> None:
+    """POST as the feed's vendor would, with its own key. Also checks the refusals a
+    vendor can run into: no key (401) and another pack's key (403)."""
+    import json
+    import urllib.error
+    import urllib.parse
+    import urllib.request
+
+    keys = json.loads(os.environ["INTAKE_API_KEYS"])
+    url = f"{os.environ['INTAKE_API_URL']}/v1/feeds/{feed}/files?" + urllib.parse.urlencode(
+        {"filename": name}
+    )
+
+    def post(key: str | None) -> int:
+        req = urllib.request.Request(url, data=data, method="POST")
+        req.add_header("Content-Type", "application/octet-stream")
+        if key:
+            req.add_header("Authorization", f"Bearer {key}")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                return resp.status
+        except urllib.error.HTTPError as exc:
+            return exc.code
+
+    account = feed.split(".")[0]
+    other = next(k for a, k in sorted(keys.items()) if a != account)
+    for key, want in ((None, 401), (other, 403), (keys[account], 202)):
+        got = post(key)
+        if got != want:
+            failures.append(f"intake API {name}: HTTP {got}, expected {want}")
+
+
 def trigger_and_wait(token: str, dag_id: str, failures: list[str]) -> None:
     from smoke import AIRFLOW_URL, request, step, wait_for
 
@@ -184,6 +217,13 @@ def run_feed(s3, token: str, feed: str, spec: dict, failures: list[str]) -> None
         # The sync moves them to landing and triggers the feed's DAG itself; that run and
         # the one below never overlap (max_active_runs=1), and either one takes them.
         trigger_and_wait(token, "sftp_sync", failures)
+    by_api = [c for c in spec["cases"] if c.get("channel", "minio") == "api"]
+    if by_api:
+        step(f"{feed}: posting {len(by_api)} fixture(s) to the intake API")
+    for case in by_api:
+        data = (FIXTURES / case["fixture"]).read_bytes()
+        sha[case["fixture"]] = hashlib.sha256(data).hexdigest()
+        api_upload(feed, Path(case["fixture"]).name, data, failures)
     by_minio = [c for c in spec["cases"] if c.get("channel", "minio") == "minio"]
     step(f"{feed}: uploading {len(by_minio)} fixture(s) to MinIO")
     for case in by_minio:

@@ -19,7 +19,15 @@ docker tag dip-airflow:build "dip-airflow:$tag"
 
 log "loading dip-airflow:$tag into kind"
 kind load docker-image "dip-airflow:$tag" --name "$CLUSTER_NAME"
-printf '{ "airflow_image_tag": "%s" }\n' "$tag" > "$TF_DIR/image.auto.tfvars.json"
+
+log "building the intake API image"
+docker build -t dip-intake-api:build -f "$REPO_ROOT/images/intake-api/Dockerfile" "$REPO_ROOT"
+api_tag="$(docker image inspect -f '{{.Id}}' dip-intake-api:build | sed 's/^sha256://' | cut -c1-12)"
+docker tag dip-intake-api:build "dip-intake-api:$api_tag"
+kind load docker-image "dip-intake-api:$api_tag" --name "$CLUSTER_NAME"
+
+printf '{ "airflow_image_tag": "%s", "intake_api_image_tag": "%s" }\n' "$tag" "$api_tag" \
+  > "$TF_DIR/image.auto.tfvars.json"
 
 # The chart's migration and create-user Jobs are plain Jobs (no Helm hooks, so Terraform's
 # wait works), and a Job's pod template is immutable: a Helm upgrade that changes them (a

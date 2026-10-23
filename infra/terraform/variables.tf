@@ -55,6 +55,18 @@ variable "airflow_image_tag" {
   default     = "dev"
 }
 
+variable "intake_api_image_repository" {
+  description = "Intake API image (built from images/intake-api and loaded into kind)."
+  type        = string
+  default     = "dip-intake-api"
+}
+
+variable "intake_api_image_tag" {
+  description = "Content-addressed tag written by scripts/up.sh into image.auto.tfvars.json."
+  type        = string
+  default     = "dev"
+}
+
 variable "sftp_image" {
   description = "SFTP server for the vendor channel (atmoz/sftp, OpenSSH on Debian), pinned by digest."
   type        = string

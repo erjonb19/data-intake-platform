@@ -52,5 +52,5 @@ def test_case_matches_what_the_contract_does(feed, spec, case):
 @pytest.mark.parametrize(("feed", "spec", "case"), CASES, ids=[c["fixture"] for _, _, c in CASES])
 def test_case_channel_is_one_its_contract_allows(feed, spec, case):
     channel = case.get("channel", "minio")
-    assert channel in ("minio", "sftp")
+    assert channel in ("minio", "sftp", "api")
     assert channel in load_contracts()[feed].spec["source"]["channels"]
