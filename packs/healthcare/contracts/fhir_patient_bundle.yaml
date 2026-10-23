@@ -2,11 +2,11 @@
 # All data on this feed is synthetic (Synthea). It is shaped like EHR data, so it is
 # classified as restricted and handled as if it were PHI.
 feed: healthcare.fhir_patient_bundle
-version: 1
+version: 2
 owner: research-data@example.com
 description: >
   Longitudinal EHR-style patient records (demographics, encounters, conditions,
-  observations, medication orders) exported by Synthea as FHIR R4 Bundles.
+  observations, medication orders, procedures) exported by Synthea as FHIR R4 Bundles.
 classification: restricted
 source:
   channels: [minio]
@@ -23,7 +23,8 @@ fhir:
   patient_resource: Patient
   # Only these resource types are loaded to bronze. Claims, EOBs, care plans, etc. are
   # counted and skipped (data minimization: research models do not need them yet).
-  load: [Patient, Encounter, Condition, Observation, MedicationRequest, Medication]
+  # Procedure from v2 (R7: the cohort service's procedure criteria).
+  load: [Patient, Encounter, Condition, Observation, MedicationRequest, Medication, Procedure]
   resources:
     Patient:
       required: [id, birthDate, gender]
@@ -51,6 +52,13 @@ fhir:
     Medication:
       required: [id, code.coding]
       code_systems: [http://www.nlm.nih.gov/research/umls/rxnorm]
+    Procedure:
+      required: [id, subject.reference, status, code.coding]
+      # Synthea records performedPeriod; FHIR also allows performedDateTime.
+      required_one_of: [performedPeriod.start, performedDateTime]
+      # Synthea v4 codes dental procedures in CDT (ADA).
+      code_systems: [http://snomed.info/sct, http://www.ada.org/cdt]
+      dates: [performedPeriod.start, performedPeriod.end, performedDateTime]
   # Reference fields that must point at an accepted resource in the same bundle.
   references:
     subject: Patient

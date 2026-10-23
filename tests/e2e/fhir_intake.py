@@ -4,7 +4,12 @@ Asserts that the good fixture lands in bronze and reaches OMOP (dbt ran in the c
 that each bad fixture is quarantined with its expected reason code, and that none of the
 bad files' rows reach bronze. Safe to rerun: processed files are recognized by sha256.
 
-Env: as smoke.py, plus MINIO_USER, MINIO_PASSWORD and WAREHOUSE_DSN.
+R7: when COHORT_READER_DSN is set, also logs in as the cohort service's read-only role
+(its password comes from Terraform through the postgres-roles Job), and checks that it
+sees a DIP-SYNTHEA tier, can read it, and cannot write.
+
+Env: as smoke.py, plus MINIO_USER, MINIO_PASSWORD and WAREHOUSE_DSN (COHORT_READER_DSN
+optional).
 """
 
 from __future__ import annotations
@@ -28,6 +33,31 @@ EXPECTED_QUARANTINE = {
     ),
     "bad/not_a_bundle.json": "FHIR.NOT_A_BUNDLE",
 }
+
+
+def cohort_reader_failures(dsn: str) -> list[str]:
+    try:
+        return _cohort_reader_checks(dsn)
+    except psycopg.Error as exc:  # no login, no grant, no table: a failure, not a crash
+        return [f"cohort reader: {type(exc).__name__}: {exc}".strip()]
+
+
+def _cohort_reader_checks(dsn: str) -> list[str]:
+    failures = []
+    with psycopg.connect(dsn, autocommit=True) as conn, conn.cursor() as cur:
+        cur.execute("select cdm_source_abbreviation from cdm_source")
+        if (got := cur.fetchall()) != [("DIP-SYNTHEA",)]:
+            failures.append(f"cohort reader: cdm_source is {got}, expected DIP-SYNTHEA")
+        cur.execute("select count(*) from person")
+        if not cur.fetchone()[0]:
+            failures.append("cohort reader: omop_shareable.person is empty")
+        for statement in ("delete from person", "select 1 from omop.person limit 1"):
+            try:
+                cur.execute(statement)
+                failures.append(f"cohort reader was allowed: {statement}")
+            except (psycopg.errors.ReadOnlySqlTransaction, psycopg.errors.InsufficientPrivilege):
+                pass
+    return failures
 
 
 def main() -> int:
@@ -84,10 +114,15 @@ def main() -> int:
         n = cur.fetchone()[0]
         if n != 3:
             failures.append(f"expected 3 de-identified HbA1c rows for the good patient, found {n}")
-        cur.execute("select count(*) from bronze.fhir_resource where patient_id = %s", (PATIENT,))
+        # This file's rows only: after an upgrade, an older copy of the fixture (another
+        # sha256) can still be in bronze next to it.
+        cur.execute(
+            "select count(*) from bronze.fhir_resource where patient_id = %s and file_sha256 = %s",
+            (PATIENT, sha["good/patient_t2d.json"]),
+        )
         n = cur.fetchone()[0]
-        if n != 9:
-            failures.append(f"expected 9 bronze resources for the good patient, found {n}")
+        if n != 10:
+            failures.append(f"expected 10 bronze resources for the good patient, found {n}")
         for name, code in EXPECTED_QUARANTINE.items():
             cur.execute(
                 "select reason_code from ops.quarantine where file_sha256 = %s and level = 'file'",
@@ -108,6 +143,10 @@ def main() -> int:
         ]
         if not any(sha[name] in k for k in keys):
             failures.append(f"{name}: no object in the quarantine bucket")
+
+    if reader_dsn := os.environ.get("COHORT_READER_DSN"):
+        step("logging in as the cohort reader")
+        failures += cohort_reader_failures(reader_dsn)
 
     for f in failures:
         print(f"FAIL: {f}", file=sys.stderr)
