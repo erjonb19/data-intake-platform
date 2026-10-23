@@ -326,10 +326,14 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "intake":
         from dip import lineage
 
-        outcomes = process_landing(_store(args), _warehouse(), load_contracts())
+        contracts = load_contracts()
+        outcomes = process_landing(_store(args), _warehouse(), contracts)
         emitter = lineage.Emitter()
         for o in outcomes:
-            lineage.intake_event(emitter, os.environ["DIP_WAREHOUSE_DSN"], feed_of(o.source_key), o)
+            feed = feed_of(o.source_key)
+            kind = contracts[feed].format_type if feed in contracts else "fhir"
+            lineage.intake_event(emitter, os.environ["DIP_WAREHOUSE_DSN"], feed, o,
+                                 bronze=lineage.bronze_table(kind))  # fmt: skip
             print(json.dumps(asdict(o)))
         statuses = [o.status for o in outcomes]
         print(

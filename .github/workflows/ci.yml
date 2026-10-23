@@ -36,8 +36,12 @@ jobs:
       # dashboards are what their generator writes.
       - name: Prometheus rules and Grafana dashboards
         run: |
-          docker run --rm -v "$PWD/observability/prometheus:/r:ro" -w /r             --entrypoint promtool quay.io/prometheus/prometheus:v3.15.0 check rules rules.yml
-          docker run --rm -v "$PWD/observability/prometheus:/r:ro" -w /r             --entrypoint promtool quay.io/prometheus/prometheus:v3.15.0 test rules rules_test.yml
+          promtool() {
+            docker run --rm -v "$PWD/observability/prometheus:/r:ro" -w /r \
+              --entrypoint promtool quay.io/prometheus/prometheus:v3.15.0 "$@"
+          }
+          promtool check rules rules.yml
+          promtool test rules rules_test.yml
           python observability/grafana/make_dashboards.py
           git diff --exit-code observability/grafana
 

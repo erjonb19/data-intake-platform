@@ -127,6 +127,12 @@ class Emitter:
         return run_id
 
 
+def bronze_table(format_type: str) -> str:
+    """Where a format's accepted records go: FHIR bundles to bronze.fhir_resource, the CSV,
+    Excel and PDF feeds to bronze.csv_record (the tables their dbt sources read)."""
+    return "fhir_resource" if format_type == "fhir" else "csv_record"
+
+
 def intake_event(
     emitter: Emitter, dsn: str, feed: str, outcome: Any, bronze: str = "fhir_resource"
 ) -> None:

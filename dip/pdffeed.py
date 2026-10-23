@@ -28,7 +28,8 @@ turns a typed invoice into a "scan".
 
 File-level codes: PDF.INVALID (anything the parser cannot read, wherever it fails),
 PDF.EMPTY, PDF.TOO_MANY_PAGES (over 20), FILE.TOO_LARGE (over 20 MB), PDF.PAGE_TOO_LARGE
-(a page that would render over 40 Mpx), OCR.TIMEOUT (60 s per page), OCR.UNAVAILABLE (the
+(a page that would render over 40 Mpx), OCR.TIMEOUT (60 s per page), OCR.FAILED (Tesseract
+could not read a page), OCR.UNAVAILABLE (the
 task is not in the OCR image), OCR.LOW_CONFIDENCE, PDF.MISSING_FIELD:<column>. The limits
 bound what one file can cost; a stream that inflates to gigabytes (a decompression bomb)
 is not detected before pdfminer inflates it, and is bounded only by the pod's memory limit
@@ -93,8 +94,9 @@ def _ocr(page: Any, cap: int) -> tuple[str, list[float]]:
         data = pytesseract.image_to_data(
             image, output_type=pytesseract.Output.DICT, timeout=OCR_TIMEOUT_S
         )
-    except RuntimeError as exc:  # pytesseract's timeout
-        raise _Refused("OCR.TIMEOUT", f"page {page.page_number}: {exc}") from exc
+    except RuntimeError as exc:  # pytesseract's timeout, or a TesseractError (a subclass)
+        code = "OCR.TIMEOUT" if "timeout" in str(exc).lower() else "OCR.FAILED"
+        raise _Refused(code, f"page {page.page_number}: {str(exc)[:300]}") from exc
     except OSError as exc:  # the tesseract binary is missing
         raise _Refused("OCR.UNAVAILABLE", f"a scanned page and no OCR in this task: {exc}") from exc
     lines: dict[tuple[int, int, int], list[str]] = {}
@@ -129,7 +131,12 @@ def _read(data: bytes, fmt: dict[str, Any]) -> tuple[str, float | None]:
         if count > MAX_PAGES:
             raise _Refused("PDF.TOO_MANY_PAGES", f"{count} pages (limit {MAX_PAGES})")
         texts, confidences, ocr_used = [], [], False
-        for page in pdf.pages:
+        # /Count above is a cheap early exit; the page tree itself (the Kids) can hold more
+        # pages than a forged /Count says, so the pages actually read are counted too.
+        for n, page in enumerate(pdf.pages, start=1):
+            if n > MAX_PAGES:
+                detail = f"more than {MAX_PAGES} pages (the page tree says {count})"
+                raise _Refused("PDF.TOO_MANY_PAGES", detail)
             text = page.extract_text() or ""
             if text.strip():
                 texts.append(text)

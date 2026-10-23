@@ -198,3 +198,12 @@ def test_a_poor_scan_is_quarantined_not_guessed(contract):
     result = read(contract, "bad/invoice_scan_poor.pdf")
     assert [v.reason_code for v in result.file_violations] == ["OCR.LOW_CONFIDENCE"]
     assert not result.accepted
+
+
+def test_a_forged_page_count_does_not_get_past_the_page_limit(contract):
+    # A 25-page PDF whose page tree claims 1 page: the pages actually read are counted.
+    data = _pdf(pages=25)
+    assert b"/Count 25" in data
+    forged = data.replace(b"/Count 25", b"/Count 1 ")  # same length, so offsets hold
+    result = read(contract, "", forged)
+    assert [v.reason_code for v in result.file_violations] == ["PDF.TOO_MANY_PAGES"]
