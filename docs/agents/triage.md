@@ -92,10 +92,14 @@ refused: approval 4 is executed, not approved
 and `ops.audit_log` holds the agent's 11 calls (all `allowed`), the person's approval and
 both executions, the second as an error.
 
-A `request_resend` leaves the entries open until the vendor's corrected file arrives. When
-a file of the same feed then loads whole, it closes the open entries an **executed**
-`request_resend` covered, as `superseded` (`ops.quarantine.superseded_by` is the new file's
-sha256). Entries no executed resend request covers stay open (Stage 4, S4.5).
+A `request_resend` leaves the entries open until the vendor's corrected file arrives. The
+resend (a file of the same feed that loads whole, with the **same business date** as the
+file it replaces: the date in its name, else the day received) closes the open entries an
+**executed** `request_resend` covered, as `superseded` (`ops.quarantine.superseded_by` is
+the resend's sha256). The next routine delivery of another day never closes them, which
+matters for incremental feeds such as claims. Entries no executed resend request covers stay
+open, as do those of files quarantined for their name, and a resend whose bytes are
+identical to a file already loaded is a duplicate and closes nothing (Stage 4, S4.5).
 
 ## The break-and-fix loop (Stage 4)
 

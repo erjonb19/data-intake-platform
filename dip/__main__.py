@@ -219,8 +219,9 @@ def _break_loop(args: argparse.Namespace, dsn: str) -> int:
         for line in r.steps + [f"PROBLEM {p}" for p in r.problems]:
             print(f"    {line}", file=sys.stderr)
     rep = break_loop.report(results)
-    args.out.mkdir(parents=True, exist_ok=True)
-    (args.out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
+    out = args.out if args.out != Path("data/evals/triage") else Path("data/evals/break_loop")
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
     print(json.dumps(rep["summary"], indent=1))
     return 0 if rep["summary"]["passed"] == rep["summary"]["scenarios"] else 1
 

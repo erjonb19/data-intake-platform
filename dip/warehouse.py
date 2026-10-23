@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any
 
@@ -205,16 +205,25 @@ def _insert_quarantine(cur: Any, quarantine: list[QuarantineRecord]) -> None:
 
 
 def _close_resent(cur: Any, intake: IntakeRecord) -> int:
-    """A file of the feed that loaded whole closes the open quarantine that a person's
-    executed request_resend covered (status `superseded`, pointing at this file): the
-    vendor was asked for a corrected file and it has arrived. Entries no executed resend
-    request covers stay open. Returns how many were closed."""
+    """The vendor's resend closes the open quarantine a person's executed request_resend
+    covered (status `superseded`, pointing at the resend). A resend is a file of the same
+    feed, loaded whole, with the same business date as the file it replaces (the date in
+    its name, else the UTC day it was received): the next routine delivery of an
+    incremental feed (another day's claims) never closes yesterday's quarantine. Entries no
+    executed resend request covers stay open, and so do entries of files quarantined for
+    their name (they have no delivery, so no business date). Returns how many closed."""
+    day = intake.file_date or intake.received_at.astimezone(UTC).date()
     cur.execute(
-        "update ops.quarantine set status = 'superseded', superseded_by = %s"
-        " where status = 'open' and feed = %s and file_sha256 <> %s and quarantine_id in ("
-        "   select (jsonb_array_elements_text(payload -> 'quarantine_ids'))::bigint"
-        "   from ops.approvals where action = 'request_resend' and status = 'executed')",
-        (intake.file_sha256, intake.feed, intake.file_sha256),
+        "update ops.quarantine q set status = 'superseded', superseded_by = %s"
+        " from ops.intake_delivery d"
+        " where q.status = 'open' and q.feed = %s and q.file_sha256 <> %s"
+        "   and d.feed = q.feed and d.file_sha256 = q.file_sha256"
+        "   and coalesce(d.file_date, (d.received_at at time zone 'UTC')::date) = %s"
+        "   and q.quarantine_id in ("
+        "     select (jsonb_array_elements_text(payload -> 'quarantine_ids'))::bigint"
+        "     from ops.approvals where action = 'request_resend' and status = 'executed'"
+        "       and payload ->> 'feed' = %s)",
+        (intake.file_sha256, intake.feed, intake.file_sha256, day, intake.feed),
     )
     return cur.rowcount
 

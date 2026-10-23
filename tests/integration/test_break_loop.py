@@ -54,12 +54,12 @@ def test_a_resend_closes_only_what_an_executed_resend_request_covered(warehouse,
     assert len(ids) == 4  # two files, each missing member_id and with memberid
     # A person asked the vendor to resend the first file only.
     first = [i for i in ids if i <= 2]
-    payload = {"group_id": "x", "quarantine_ids": first, "message": "resend"}
+    payload = {"group_id": "x", "feed": feed, "quarantine_ids": first, "message": "resend"}
     aid = approvals.create(warehouse.conn, "triage", None, "request_resend", payload)
     approvals.decide(warehouse.conn, aid, True, "human:test")
     approvals.execute(warehouse.conn, store, aid, "human:test")
 
-    [o] = land("elig_20261021_resend.csv", good, 1)
+    [o] = land("elig_20261020_resend.csv", good, 1)  # the resend keeps its date
     assert (o.status, o.superseded) == ("loaded", 2)
     assert rows(
         warehouse,
@@ -70,3 +70,23 @@ def test_a_resend_closes_only_what_an_executed_resend_request_covered(warehouse,
         (3, "open", False),
         (4, "open", False),
     ]
+
+
+def test_the_next_days_routine_file_does_not_close_a_resend_request(warehouse, tmp_path):
+    # An incremental feed: yesterday's file was quarantined and a resend requested; today's
+    # ordinary file (another business date) loads, but yesterday's data has not arrived.
+    store = LocalStore(tmp_path)
+    contracts = load_contracts((break_loop.CONTRACTS,))
+    good = (break_loop.BASE / "elig_base.csv").read_bytes()
+    feed = "healthcare.eligibility"
+    store.put(BUCKET_LANDING, f"{feed}/elig_20261020.csv", good.replace(b"member_id,", b"m,", 1))
+    process_landing(store, warehouse, contracts, break_loop.AT)
+    ids = [r[0] for r in rows(warehouse, "select quarantine_id from ops.quarantine")]
+    payload = {"group_id": "x", "feed": feed, "quarantine_ids": ids, "message": "resend"}
+    aid = approvals.create(warehouse.conn, "triage", None, "request_resend", payload)
+    approvals.decide(warehouse.conn, aid, True, "human:test")
+    approvals.execute(warehouse.conn, store, aid, "human:test")
+    store.put(BUCKET_LANDING, f"{feed}/elig_20261021.csv", good)
+    [o] = process_landing(store, warehouse, contracts, break_loop.AT)
+    assert (o.status, o.superseded) == ("loaded", 0)
+    assert {r[0] for r in rows(warehouse, "select status from ops.quarantine")} == {"open"}

@@ -80,7 +80,7 @@ def main() -> int:
             "the group was closed by a resend on an earlier run (upgrade job)",
         )
         return report(failures)
-    check(not err, f"detect: the triage agent sees {GROUP} ({len(group['ids'])} entries)")
+    check(not err, f"detect: the triage agent sees {GROUP} ({group['entries']} entries)")
 
     err, proposal = s.call(
         "propose_operation",

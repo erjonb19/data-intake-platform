@@ -171,7 +171,11 @@ def _review(
             out.steps.append(f"rejected approval {aid}: already resolved")
             continue
         approvals.decide(conn, aid, True, PERSON.agent, "break loop")
-        result = registry.call(PERSON, None, "execute_approved_operation", {"approval_id": aid})
+        try:
+            result = registry.call(PERSON, None, "execute_approved_operation", {"approval_id": aid})
+        except approvals.ApprovalError as exc:
+            out.problems.append(f"approval {aid} ({p['action']}) failed to run: {exc}")
+            continue
         executed.append(p["action"])
         out.steps.append(f"approved and executed {aid} {p['action']}: {json.dumps(result)[:120]}")
     return executed
