@@ -463,7 +463,7 @@ def main(argv: list[str] | None = None) -> int:
         step: dict = {"op": args.scenario}
         for kv in args.arg:
             k, _, v = kv.partition("=")
-            step[k] = int(v) if v.isdigit() else v
+            step[k] = int(v) if k in ("every", "row") else v  # values stay text
         args.out.write_bytes(apply(args.good.read_bytes(), [step]))
         s = SCENARIOS[args.scenario]
         print(f"wrote {args.out}: {s.describe} ({s.kind}; intake: {s.reason_code or 'n/a'})")

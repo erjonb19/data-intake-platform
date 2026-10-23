@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
+import re
 import secrets
 import socket
 import threading
@@ -65,7 +66,7 @@ def load_cases(path: Path = CASES) -> list[dict[str, Any]]:
 
 def _reset(conn: Any) -> None:
     db = conn.info.dbname
-    if not any(w in db for w in ("eval", "test")):
+    if not re.search(r"(^|_)(eval|test)(_|$)", db):  # a whole word: not "latest_dw"
         raise RuntimeError(f"refusing to wipe database {db!r}: evals need a throwaway one "
                            "whose name contains 'eval' or 'test'")  # fmt: skip
     with conn.cursor() as cur:

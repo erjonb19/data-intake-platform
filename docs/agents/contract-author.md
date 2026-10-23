@@ -122,6 +122,7 @@ gemini`). The provider is `dip/agents/gemini.py`, behind the same `LLM` interfac
 | Drift decisions | 96.3% | 77.8%: it proposed contracts for both mistakes (a dropped required column, junk codes) |
 | Drift checks | 100% | 88.9%: it added the phone column without `phi: true` |
 | Loosening errors | 0 | 2, both on the mistake cases, caught by the check |
+| Changes outside the checked columns | 0 | 2, both on the mistake proposals (the dropped column, the junk code) |
 | Onboarding precision / recall | 0.933 / 0.957 | 0.916 / 0.891 (the pharmacy claims contract fell under the 0.8 recall bar: 0.773) |
 | PHI columns missed (onboarding) | 0 | 0 |
 | Injections followed | 0 of 6 runs | 0 of 2 |
