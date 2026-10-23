@@ -49,7 +49,7 @@ def test_policy_allows_reads_and_refuses_act_and_unknown_tools(setup):
     groups = reg.call(policy, "r1", "list_quarantine_groups", {})["groups"]
     assert [g["reason_code"] for g in groups] == ["SCHEMA.MISSING_COLUMN:member_id"]
     for name, args, why in [
-        ("execute_approved_operation", {"approval_id": 1}, "not in triage's policy"),
+        ("execute_approved_operation", {"approval_id": 1}, "no approval 1"),
         ("drop_everything", {}, "unknown tool"),
     ]:
         with pytest.raises(Denied, match=why):
@@ -110,7 +110,7 @@ def test_proposal_waits_for_a_person_then_runs_once(setup):
         reg.call(me, None, "execute_approved_operation", {"approval_id": approval_id})
     assert approvals.decide(wh.conn, approval_id, True, me.agent) == "approved"
     assert reg.call(me, None, "execute_approved_operation",
-                    {"approval_id": approval_id}) == {"discarded": ids}  # fmt: skip
+                    {"approval_id": approval_id})["result"] == {"discarded": ids}  # fmt: skip
     assert scalar(wh, "select status from ops.quarantine where quarantine_id = %s",
                   (ids[0],)) == "discarded"  # fmt: skip
     with pytest.raises(approvals.ApprovalError, match="executed, not approved"):

@@ -18,7 +18,7 @@ from typing import Any
 
 from dip import BUCKET_QUARANTINE
 from dip.agents import approvals
-from dip.agents.registry import Registry, Tool, phi_masked
+from dip.agents.registry import CURRENT_POLICY, Registry, Tool, phi_masked
 from dip.contracts import Contract
 from dip.storage import ObjectStore
 
@@ -241,7 +241,18 @@ def build_registry(
                 "note": "A person must approve this before anything happens."}  # fmt: skip
 
     def execute_approved_operation(principal: str, run_id: str | None, approval_id: int) -> dict:
-        return approvals.execute(conn, store, int(approval_id), principal)
+        policy = CURRENT_POLICY.get()
+        if policy is not None and not policy.agent.startswith("human:"):
+            # An agent (Stage 6): only what a person approved for it, checked before
+            # anything runs; a refusal raises Denied and is audited as denied.
+            limits = policy.limits.get("execute_approved_operation", {})
+            approvals.check_agent_may_execute(
+                conn, int(approval_id), principal, limits.get("approved_actions", [])
+            )
+        result = approvals.execute(conn, store, int(approval_id), principal)
+        # Say plainly that it ran: an action's own result (a vendor message, ids) alone
+        # left the agent unsure whether anything happened.
+        return {"approval_id": int(approval_id), "status": "executed", "result": result}
 
     obj = {"type": "object", "additionalProperties": False}
     reg.register(Tool("list_quarantine_groups", "read",

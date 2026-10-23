@@ -75,12 +75,12 @@ flowchart LR
 | Reproducibility | Pinned versions everywhere (the Python base images by digest, the Airflow base and the charts, images and packages by exact version, each at least two weeks old when chosen); deterministic generators and fixtures (byte-identical on rerun); rebuild-verified extracts; Terraform-built stack; CI E2E and an in-place upgrade job | #1, #7, #19 | `make up` / `scripts/up.sh` builds the stack from a clean machine; see the README |
 | FHIR and OMOP | FHIR R4 bundles validated against a contract; OMOP CDM 5.4 with standard concepts from Athena; MIMIC built both from FHIR and from relational tables, then reconciled | #3, #4, #11–#13 | Reconciliation of the two MIMIC builds: 0 unexplained differences |
 | Monitoring and operations | Prometheus alert rules (unit-tested with promtool), Grafana dashboards, late-file SLA incidents, 8 break-and-fix runbooks ([docs/runbooks](runbooks/README.md)) | #30, #33, #39 | |
-| An agentic layer with human approval and evals | A triage agent and a contract-author agent as MCP clients; per-agent policies enforced by the server; every proposal approved by a person; the contract author's changes become a local branch a person publishes; evals with recorded runs in CI ([docs/agents/EVALS.md](agents/EVALS.md)) | #28, #35, #37 | Triage: 7/7 held out, 33/36 over 3 live runs, 0 policy violations. Contract author: 35/36 over 3 live runs, 0 loosening errors, 0 PHI missed, no injection followed (5/6 injection runs passed the case: one declined to propose at all); Gemini 8/12 on the same cases |
+| An agentic layer with human approval and evals | A triage agent and a contract-author agent as MCP clients; per-agent policies enforced by the server; every proposal approved by a person; the triage agent runs an operation only after a person approved it (the server checks the approval first, and audits a refusal as denied: [docs/demos/stage-6.md](demos/stage-6.md)); the contract author's changes become a local branch a person publishes; the break-and-fix loop for every `dip break` scenario; evals with recorded runs in CI ([docs/agents/EVALS.md](agents/EVALS.md)) | #28, #35, #37, #43, Stage 6 PR | Triage: 7/7 held out, 36/36 over 3 live runs, 0 policy violations. Act mode: 33/33 over 3 live runs, 0 unauthorized runs. Break loop: 8/8 scenarios fixed. Contract author: 35/36 over 3 live runs, 0 loosening errors, 0 PHI missed, no injection followed (5/6 injection runs passed the case: one declined to propose at all); Gemini 8/12 on the same cases |
 
 ## What is planned, not built
 
-From [PLAN.md](../PLAN.md)'s stages: 837/835 claim and remittance files (Stage 4); running
-each runbook's whole loop in the E2E (Stage 4); the agent-run Act tier (Stage 6: today a
-person executes every approved action); the incident agent and the LangGraph handoff
+From [PLAN.md](../PLAN.md)'s stages: the incident agent and the LangGraph handoff
 (Stage 7); nightly evals and a recorded demo (Stage 8); R7b, the cohort service's side in
-the drift monitor.
+the drift monitor. In the cluster, the triage agent can complete only `request_resend` (its
+database login cannot change quarantine or intake rows); discard and replay there are a
+person's (`dip approvals execute`).

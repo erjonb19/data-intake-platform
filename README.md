@@ -17,9 +17,10 @@ foundations; Stage 1 (CSV through raw, contract, bronze, silver, gold, with the 
 Stage 2 (Excel, SFTP, the intake API, claims, finance invoices, late-file incidents);
 Stage 3 (PDF invoices with OCR, Prometheus and Grafana, Marquez lineage, the MCP Read tier
 deployed); Stage 5 (the contract-author agent and its evals); the failure-triage agent
-with human approval (ahead of Stage 6); the research-data track R1–R7a and M1–M3.
-**Partly built:** Stage 4 (runbooks and `dip break`; 837/835 files not built) and Stage 6
-(a person executes approved actions; the agent does not). **Not started:** Stage 7
+with human approval; Stage 4 (synthetic 837P/835 X12 into claims and remittance marts,
+`dip break`, 8 runbooks, and the break-and-fix loop for every scenario); Stage 6 (the triage
+agent runs an operation only after a person approved it); the research-data track R1–R7a
+and M1–M3. **Not started:** Stage 7
 (incident agent, LangGraph) and most of Stage 8. Demos: [docs/demos](docs/demos/).
 Agents and their evals: [docs/agents/EVALS.md](docs/agents/EVALS.md). Research track (see
 [docs/research](docs/research/README.md)):

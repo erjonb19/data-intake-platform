@@ -10,8 +10,10 @@ a recording. What it proves is the deployed wiring:
      (SCHEMA.MISSING_COLUMN:member_id), seen through the in-cluster MCP server with the
      triage agent's own key;
   2. propose: `propose_operation` (request_resend) writes a pending approval;
-  3. the triage agent's call to `execute_approved_operation` is refused by its policy;
-  4. approve and execute: a person, with `dip approvals approve` and `execute`;
+  3. Act before approval (Stage 6): the triage agent's `execute_approved_operation` is
+     refused while the approval is pending, and audited as denied;
+  4. approve: a person, with `dip approvals approve`; then the same call by the agent runs
+     it (allowed, audited): "denied, then allowed";
   5. fix: the vendor's corrected file goes through MinIO and the intake DAG;
   6. check: it loaded, and the group's entries are closed as `superseded`.
 
@@ -95,12 +97,12 @@ def main() -> int:
     check(not err and proposal.get("status") == "pending", "propose: a pending approval")
     aid = proposal.get("approval_id") if isinstance(proposal, dict) else None
     err, denied = s.call("execute_approved_operation", approval_id=aid or 0)
-    check(err and "denied by policy" in str(denied), "the triage agent cannot execute it (policy)")
+    check(err and "pending" in str(denied), f"act before approval is denied: {denied}")
 
     r = dip("approvals", "approve", str(aid), "--note", "E2E break loop")
     check(r.returncode == 0 and "approved" in r.stdout, f"approve: {r.stdout.strip()}")
-    r = dip("approvals", "execute", str(aid))
-    check(r.returncode == 0 and "vendor_request" in r.stdout, "execute: the resend request")
+    err, ran = s.call("execute_approved_operation", approval_id=aid or 0)
+    check(not err and "vendor_request" in str(ran), "act after approval runs: the resend request")
 
     s3 = boto3.client(
         "s3",
@@ -131,10 +133,16 @@ def main() -> int:
             f"check: the group's entries are superseded ({json.dumps(after)})",
         )
         cur.execute(
-            "select decision, count(*) from ops.audit_log where principal = 'triage'"
-            " and tool = 'execute_approved_operation' group by 1"
+            "select decision, result_status from ops.audit_log where principal = 'triage'"
+            " and tool = 'execute_approved_operation' order by audit_id desc limit 2"
         )
-        check(dict(cur.fetchall()).get("denied", 0) >= 1, "the refused call is in the audit log")
+        trail = cur.fetchall()[::-1]
+        check(
+            trail == [("denied", None), ("allowed", "ok")],
+            f"the audit log shows denied, then allowed: {trail}",
+        )
+        cur.execute("select status, executed_by from ops.approvals where approval_id = %s", (aid,))
+        check(cur.fetchone() == ("executed", "triage"), "the approval was executed by the agent")
     return report(failures)
 
 

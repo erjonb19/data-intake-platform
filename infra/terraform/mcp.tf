@@ -1,8 +1,10 @@
 # The MCP server (Stage 3, S3.4; PLAN.md section 7), in the cluster: Streamable HTTP at
 # /mcp, ClusterIP only (a port-forward for local use). Two agents are configured here:
 # `reader` (agents/policies/reader.yaml: read tools only) and, from Stage 4 (S4.5),
-# `triage` (agents/policies/triage.yaml: its read tools and propose_operation, which writes
-# a pending ops.approvals row and changes no data). Every call is audited.
+# `triage` (agents/policies/triage.yaml: its read tools, propose_operation, which writes a
+# pending ops.approvals row, and from Stage 6 execute_approved_operation for an approval a
+# person approved; its database login can complete only request_resend, which changes no
+# data). Every call is audited.
 #
 # Least privilege for each thing the server touches:
 #   warehouse  the dip_mcp login: reads the ops tables its tools name, inserts into

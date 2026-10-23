@@ -258,11 +258,15 @@ BEGIN
         GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_mcp;
     END IF;
     -- The triage agent's proposals (Stage 4, S4.5): a pending row for a person to
-    -- approve. Inserting it changes no data; approving and executing stay a person's. It
-    -- may read back only the new row's id (INSERT ... RETURNING), not the proposals.
+    -- approve. And its Act tier (Stage 6): reading an approval to check it, and recording
+    -- that it ran. Approving (decided_by, approved_sha256) stays a person's: those columns
+    -- cannot be updated by this login. The only action it can complete here is
+    -- request_resend, which changes no data: discard and replay need writes to the
+    -- quarantine and intake tables (and landing) that this login does not have, so in the
+    -- cluster a person runs them (`dip approvals execute`).
     IF to_regclass('ops.approvals') IS NOT NULL THEN
-        GRANT INSERT ON ops.approvals TO dip_mcp;
-        GRANT SELECT (approval_id) ON ops.approvals TO dip_mcp;
+        GRANT SELECT, INSERT ON ops.approvals TO dip_mcp;
+        GRANT UPDATE (status, executed_by, executed_at, result) ON ops.approvals TO dip_mcp;
         GRANT USAGE ON SEQUENCE ops.approvals_approval_id_seq TO dip_mcp;
     END IF;
 END $$;

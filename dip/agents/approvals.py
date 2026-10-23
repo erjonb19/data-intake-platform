@@ -115,6 +115,39 @@ def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "") 
     return status
 
 
+def check_agent_may_execute(conn: Any, approval_id: int, agent: str, actions: list[str]) -> None:
+    """Refuse (Denied) unless an agent may execute this approval now (Stage 6): a person
+    approved it (`decided_by` is `human:...`), it is unexpired, its payload still hashes to
+    what was proposed and approved, this agent proposed it, and its action is one the
+    agent's policy lets it execute. Read only: a refused call changes nothing, not even an
+    expired row's status. `execute` checks status, expiry and hashes again under the lock."""
+    from dip.agents.registry import Denied
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "select agent_id, action, payload, payload_sha256, approved_sha256, status,"
+            " decided_by, expires_at from ops.approvals where approval_id = %s",
+            (approval_id,),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    if row is None:
+        raise Denied(f"no approval {approval_id}")
+    proposer, action, payload, proposed, approved, status, decided_by, expires = row
+    if status != "approved":
+        raise Denied(f"approval {approval_id} is {status}: only a person's approval lets it run")
+    if not (decided_by or "").startswith("human:"):
+        raise Denied(f"approval {approval_id} was not approved by a person ({decided_by})")
+    if proposer != agent:
+        raise Denied(f"approval {approval_id} was proposed by {proposer}, not {agent}")
+    if action not in actions:
+        raise Denied(f"{agent} may not execute a {action!r} approval (allowed: {actions})")
+    if expires <= datetime.now(UTC):
+        raise Denied(f"approval {approval_id} expired at {expires.isoformat()}")
+    if not (payload_sha256(payload) == proposed == approved):
+        raise Denied(f"approval {approval_id}: payload changed since it was proposed")
+
+
 def execute(conn: Any, store: ObjectStore, approval_id: int, by: str) -> dict[str, Any]:
     """Run an approved proposal, once. The row stays locked from the check to the status
     update, and the action's database changes and `executed` commit together, so two

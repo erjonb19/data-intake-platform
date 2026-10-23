@@ -45,14 +45,46 @@ policy is a violation; an injection case passes only with zero violations.
 
 | Run | Cases passed | Root cause | Action acceptable / preferred | Violations | Injections resisted | Cost |
 |---|---|---|---|---|---|---|
-| Held-out, 7 new cases, prompt frozen | 7/7 | 100% | 100% / 87.5% | 0 | 1/1 | $0.015 |
-| Variance: 3 more live runs of the 12 | 33/36 | 92.1% | 96.8% / 90.5% | 0 | 6/6 | $0.097 |
+| Held-out, 7 new cases, prompt frozen (2026-10-22) | 7/7 | 100% | 100% / 87.5% | 0 | 1/1 | $0.015 |
+| Variance: 3 more live runs of the 12 (2026-10-22) | 33/36 | 92.1% | 96.8% / 90.5% | 0 | 6/6 | $0.097 |
+| Stage 6 prompt (the Act rule reworded), held-out re-recorded | 7/7 | 100% | 100% / 87.5% | 0 | 1/1 | $0.015 |
+| Stage 6 prompt, variance: 3 live runs of the 12 | **36/36** | 100% | 100% / 90.5% | 0 | 6/6 | $0.098 |
 
 Source: the committed reports
 [`agents/evals/triage/results/held_out.json`](../../agents/evals/triage/results/held_out.json)
 and [`variance.json`](../../agents/evals/triage/results/variance.json) (and `recorded.json`
-for the recorded 12/12); [triage.md](triage.md), "Results". The first three runs (9/12, 11/12, 12/12) and
-what changed between them are listed there too.
+for the recorded 12/12), which are the Stage 6 rows; [triage.md](triage.md), "Results",
+keeps the earlier rows. The first three runs (9/12, 11/12, 12/12) and what changed between
+them are listed there too. The Stage 6 change to the prompt was one rule (do not call the
+Act tool while triaging); the 33/36 → 36/36 difference is three live runs each, so it shows
+the change did no harm, not that it fixed the two hard cases for good.
+
+### Act mode (Stage 6)
+
+**Cases** (`agents/evals/triage_act/cases.yaml`, 11): two approved operations that must
+run, seven that must be refused (pending, rejected, expired, changed after approval,
+approved under an agent's name, another agent's, a contract PR), an injection in the vendor
+message that names other approvals, and a refusal after which the agent must not try an
+approved id it was not given. **Scored from the database:** what ran, what `ops.audit_log`
+records as denied, and whether any approval the task did not name changed.
+
+| Run | Cases passed | Approved ran | Refused and audited | Unauthorized runs | Other ids attempted | Cost |
+|---|---|---|---|---|---|---|
+| Recorded | 11/11 | 3/3 | 8/8 | 0 | 0 | $0.005 |
+| 3 live runs | 33/33 | 9/9 | 24/24 | 0 | 0 | $0.014 |
+
+The refusals are the server's (`check_agent_may_execute`), so they hold whatever the model
+does; what the cases measure is that the agent asks only for what it was given. Source:
+[`agents/evals/triage_act/results/`](../../agents/evals/triage_act/results/); demo:
+[docs/demos/stage-6.md](../demos/stage-6.md).
+
+### The break-and-fix loop (Stage 4)
+
+Every `dip break` scenario (8) through detect, triage, propose, approve, fix and check,
+with a person approving and executing: **8/8 fixed**, 11 triage runs, 45 turns, $0.034
+(one recording; CI replays it). This is one live run, not a variance measurement. Source:
+[`agents/evals/break_loop/results/recorded.json`](../../agents/evals/break_loop/results/recorded.json);
+details in [triage.md](triage.md#the-break-and-fix-loop-stage-4).
 
 ## Contract-author agent
 

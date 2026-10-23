@@ -26,10 +26,11 @@ exact proposal runs. It is built to the agent design in PLAN.md section 7.
 |---|---|
 | Reads | open quarantine grouped by feed and reason code (with the files each group touches), samples of the rejected records or the start of a file, the feed's contract, the feed's recent history |
 | Proposes | `request_resend` (with the message to the vendor), `discard`, `replay` (reprocess a file quarantined whole, once the contract was fixed) or `propose_contract_change` (hand over to the contract author, Stage 5), one per group, with a root cause from a fixed list, a rationale citing what it saw, and a confidence |
-| Never | changes data, approves, or executes. `execute_approved_operation` is listed to it (so an attempt is visible and measurable) but its policy refuses it, and the refusal is audited |
+| Acts (Stage 6) | `execute_approved_operation`, in a separate run a person starts (`dip triage act --approval ID`), and only for an approval a person approved, that this agent proposed, unexpired and unchanged, with the action `request_resend`, `discard` or `replay`. The server checks all of it before anything runs; any other call is refused and audited as denied ([docs/demos/stage-6.md](../demos/stage-6.md)) |
+| Never | approves anything, changes data outside an approved operation, or runs a `contract_pr` (a person publishes contract changes). While triaging it is told not to call the Act tool at all; the evals count any attempt as a violation |
 
 **Enforcement is on the server.** The policy file lists the agent's tools, its highest tier
-(`propose`), the actions it may propose, and call limits: per run (60 calls, 20 proposals)
+(`act` since Stage 6; `propose` before), the actions it may propose and execute, and call limits: per run (60 calls, 20 proposals)
 and per hour (600 calls, 100 proposals). The run id comes from the client, so the per-run
 limits stop a runaway loop but trust the client; the hourly limits are per agent, whatever
 run id it sends.
@@ -85,6 +86,8 @@ $ python -m dip approvals approve 4 && python -m dip approvals execute 4
 approval 4: approved
 {"vendor_request": "Your file was rejected because the required column member_id is missing from
  the header. ... Please include member_id as the first column and resend the file.", ...}
+(printed before Stage 6; the Act tool now wraps it: {"approval_id": 4, "status": "executed",
+ "result": {"vendor_request": ...}})
 $ python -m dip approvals execute 4
 refused: approval 4 is executed, not approved
 ```
@@ -114,7 +117,9 @@ model turns in `tests/integration/test_break_loop.py`; the kind E2E runs one loo
 the deployed stack with a scripted client (`tests/e2e/break_loop.py`).
 
 Recorded live on 2026-10-23 (`claude-haiku-5-5`; `agents/evals/break_loop/results/recorded.json`):
-**8 of 8 scenarios fixed** in 11 triage runs, 44 model turns, $0.033, no refused call.
+**8 of 8 scenarios fixed** in 11 triage runs, 45 model turns, $0.034, no refused call
+(re-recorded with the Stage 6 prompt; the first recording, with the Stage 4 prompt, also
+fixed 8 of 8, in 44 turns).
 
 | Scenario | What breaks | Triage proposed | Fix |
 |---|---|---|---|
@@ -182,9 +187,12 @@ group is refused on both and scored as two violations.
 | **held-out**, 7 new cases, prompt frozen | **7/7** | 100% | 100% / 87.5% | 0 | 1/1 | $0.015 |
 | **variance**: 3 more live runs of the 12 | **33/36** | 92.1% | 96.8% / 90.5% | 0 | 6/6 | $0.097 |
 | re-recorded with fingerprints (12 + 7) | 12/12, 7/7 | 100% | 100% / 90.5%, 87.5% | 0 | 3/3 | $0.047 |
+| **2026-10-23, Stage 6 prompt** (the Act rule reworded), re-recorded, 12 + 7 | 12/12, 7/7 | 100% | 100% / 90.5%, 87.5% | 0 | 3/3 | $0.048 |
+| **2026-10-23, Stage 6 prompt, variance**: 3 live runs of the 12 | **36/36** | 100% | 100% / 90.5% | 0 | 6/6 | $0.098 |
 
 Every run took 4 model turns per case. Most input tokens were prompt-cache reads (161k of
-205k in the last run of the 12).
+207k in the last recorded run of the 12). The Stage 6 rows are the current recordings
+(`agents/evals/triage/results/`); the earlier rows are the history that led to them.
 
 **What changed between the runs, and why:**
 - The agent gave a file rejected for its bad rows (`FILE.BAD_ROW_RATIO`) a different root
