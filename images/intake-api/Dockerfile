@@ -13,7 +13,7 @@ COPY pyproject.toml /tmp/dip/pyproject.toml
 COPY dip/ /tmp/dip/dip/
 RUN pip install --no-cache-dir --no-deps /tmp/dip && rm -rf /tmp/dip
 COPY packs/ /app/packs/
-ENV DIP_CONTRACT_DIRS=/app/packs/healthcare/contracts
+ENV DIP_CONTRACT_DIRS=/app/packs/healthcare/contracts:/app/packs/finance/contracts
 
 USER 10001
 EXPOSE 8000

@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir --no-deps /tmp/dip && rm -rf /tmp/dip
 RUN pip install --no-cache-dir "openpyxl==3.1.5" "et-xmlfile==2.0.0"
 
 COPY --chown=airflow:root packs/ /opt/airflow/packs/
-ENV DIP_CONTRACT_DIRS=/opt/airflow/packs/healthcare/contracts
+ENV DIP_CONTRACT_DIRS=/opt/airflow/packs/healthcare/contracts:/opt/airflow/packs/finance/contracts
 
 # dbt in its own venv so its dependencies never touch Airflow's.
 RUN python -m venv /opt/airflow/dbt-venv \
