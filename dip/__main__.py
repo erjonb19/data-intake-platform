@@ -30,9 +30,9 @@
                                (DIP_EVAL_DSN: a throwaway database); replays recordings by
                                default. Every eval file is generated and invented
   break SCENARIO GOOD OUT [--arg k=v ...]
-                               write a named breakage of a good CSV file (dip/breakages.py:
+                               write a named breakage of a good file (dip/breakages.py:
                                rename_column, add_column, new_code, delimiter, drop_column,
-                               junk_values, inject_cell)
+                               junk_values, inject_cell, x12_segment_lost)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
                                read-only dip_metrics login (DIP_METRICS_DSN)
 

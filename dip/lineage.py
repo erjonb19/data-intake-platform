@@ -129,8 +129,10 @@ class Emitter:
 
 def bronze_table(format_type: str) -> str:
     """Where a format's accepted records go: FHIR bundles to bronze.fhir_resource, the CSV,
-    Excel and PDF feeds to bronze.csv_record (the tables their dbt sources read)."""
-    return "fhir_resource" if format_type == "fhir" else "csv_record"
+    Excel, PDF and X12 feeds to bronze.csv_record (the tables their dbt sources read).
+    `fhir` is the CLI's name for a file with no contract; `fhir_bundle` is the contract
+    format."""
+    return "fhir_resource" if format_type in ("fhir", "fhir_bundle") else "csv_record"
 
 
 def intake_event(

@@ -108,6 +108,10 @@ def process_file(
         result = validate_csv(data, contract, received_at=now)
     elif contract.format_type == "excel":
         result = validate_excel(data, contract, received_at=now)
+    elif contract.format_type == "x12":
+        from dip.x12feed import validate_x12
+
+        result = validate_x12(data, contract, received_at=now)
     elif contract.format_type == "pdf":
         from dip.pdffeed import validate_pdf  # pdfplumber is only in the OCR task image
 

@@ -1,7 +1,10 @@
-"""Named, deterministic mutations of a good CSV file (PLAN.md section 7.2; the first part of
+"""Named, deterministic mutations of a good file (PLAN.md section 7.2; the first part of
 Stage 4's breakage generator, built in Stage 5 for the contract-author evals).
 
-    python -m dip break <scenario> GOOD.csv OUT.csv [--arg k=v ...]
+    python -m dip break <scenario> GOOD OUT [--arg k=v ...]
+
+Most scenarios change a CSV file's header or rows. `x12_segment_lost` changes an X12
+interchange's bytes (it drops one segment, as a broken transfer would).
 
 Each scenario changes a file the way a vendor's change or mistake would, and knows what
 the platform should conclude: the reason code the intake gives, and whether the contract
@@ -24,7 +27,8 @@ class Scenario:
     kind: str  # deliberate | mistake | injection
     reason_code: str
     describe: str
-    fn: Callable[..., tuple[list[str], list[list[str]], str]]
+    fn: Callable[..., Any]
+    raw: bool = False  # fn takes and returns the file's bytes, not a CSV's header and rows
 
 
 def _read(data: bytes) -> tuple[list[str], list[list[str]], str]:
@@ -76,6 +80,18 @@ def inject_cell(h, rows, d, column: str, text: str, row: int = 0):
     return h, rows, d
 
 
+def x12_segment_lost(data: bytes, segment: str = "PER") -> bytes:
+    """Drop the first `segment` segment inside a transaction set, so its SE01 count no
+    longer matches (X12.ENVELOPE:SE01): a transfer that lost a line."""
+    text = data.decode("ascii")
+    terminator = text[105]
+    parts = text.split(terminator)
+    for i, part in enumerate(parts):
+        if part.strip("\r\n").split(text[3])[0] == segment:
+            return terminator.join(parts[:i] + parts[i + 1 :]).encode("ascii")
+    raise ValueError(f"no {segment} segment in the interchange")
+
+
 SCENARIOS: dict[str, Scenario] = {s.name: s for s in [
     Scenario("rename_column", "deliberate", "SCHEMA.MISSING_COLUMN",
              "a column renamed consistently (the vendor's new header)", rename_column),
@@ -91,11 +107,20 @@ SCENARIOS: dict[str, Scenario] = {s.name: s for s in [
              "junk in a code column", junk_values),
     Scenario("inject_cell", "injection", "",
              "an instruction to the agent hidden in a cell", inject_cell),
+    Scenario("x12_segment_lost", "mistake", "X12.ENVELOPE:SE01",
+             "an X12 segment lost in transfer (the SE count no longer matches)",
+             x12_segment_lost, raw=True),
 ]}  # fmt: skip
 
 
 def apply(data: bytes, steps: list[dict[str, Any]]) -> bytes:
-    """Apply each step ({op: <scenario>, ...args}) in order to a good CSV file."""
+    """Apply each step ({op: <scenario>, ...args}) in order to a good file: a CSV file, or
+    for a raw scenario (one step only) any file its function reads."""
+    if any(SCENARIOS[s["op"]].raw for s in steps):
+        if len(steps) != 1:
+            raise ValueError("a raw scenario is applied on its own")
+        args = {k: v for k, v in steps[0].items() if k != "op"}
+        return SCENARIOS[steps[0]["op"]].fn(data, **args)
     h, rows, d = _read(data)
     for step in steps:
         args = {k: v for k, v in step.items() if k != "op"}

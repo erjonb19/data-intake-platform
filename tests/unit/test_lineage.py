@@ -139,3 +139,11 @@ def test_a_file_feed_points_at_the_table_its_dbt_sources_read(tmp_path):
     lineage.intake_event(e, DSN, "finance.vendor_invoice", o, bronze="csv_record")
     done = [ev for ev in read(out) if ev["eventType"] == "COMPLETE"][0]
     assert "warehouse.bronze.csv_record" in [d["name"] for d in done["outputs"]]
+
+
+def test_each_format_names_the_bronze_table_its_rows_go_to():
+    # The FHIR contract format and the CLI's name for a file without a contract both mean
+    # bronze.fhir_resource; every tabular format (X12 included) goes to bronze.csv_record.
+    assert lineage.bronze_table("fhir_bundle") == lineage.bronze_table("fhir") == "fhir_resource"
+    for fmt in ("csv", "excel", "pdf", "x12"):
+        assert lineage.bronze_table(fmt) == "csv_record"
