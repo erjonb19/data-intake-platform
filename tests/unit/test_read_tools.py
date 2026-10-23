@@ -161,3 +161,18 @@ def test_the_reader_policy_masks_phi_and_triage_does_not():
     from dip.agents.registry import Policy
 
     assert Policy.load("reader").mask_phi and not Policy.load("triage").mask_phi
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        {"content": [{"event": "loaded x accepted=3"}, {"event": "done"}]},
+        {"content": "loaded x accepted=3\ndone"},
+        '{"event": "loaded x accepted=3"}\n{"event": "done"}',
+        [["host", "loaded x accepted=3\ndone"]],
+    ],
+)
+def test_task_logs_are_read_in_every_shape_airflow_returns(answer):
+    fake = Fake({"http://af/auth/token": {"access_token": "t"}, "/logs/1": answer})
+    got = tools(fake, airflow_url="http://af")["get_task_log"]("reader", None, "d", "r", "intake")
+    assert "loaded x accepted=3" in got["untrusted_vendor_content"]

@@ -133,6 +133,8 @@ def main() -> int:
             task_id="intake",
         )
         text = "\n".join(map(str, log.get("untrusted_vendor_content", []))) if not err else ""
+        if "accepted=" not in text:  # what came back, for the diagnosis
+            print(f"    get_task_log: error={err} {str(log)[:600]}", file=sys.stderr)
         check("accepted=" in text, "the intake task's log shows the files it processed")
     if OBS:
         _, m = s.call("query_metrics", metric="open_quarantine", feed=feed)
