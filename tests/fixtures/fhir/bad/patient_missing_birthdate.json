@@ -357,6 +357,37 @@
       }
     },
     {
+      "fullUrl": "urn:uuid:proc-0001",
+      "resource": {
+        "resourceType": "Procedure",
+        "id": "proc-0001",
+        "status": "completed",
+        "code": {
+          "coding": [
+            {
+              "system": "http://snomed.info/sct",
+              "code": "73761001",
+              "display": "Colonoscopy (procedure)"
+            }
+          ]
+        },
+        "subject": {
+          "reference": "urn:uuid:8f3e6b1a-0000-4000-8000-000000000001"
+        },
+        "encounter": {
+          "reference": "urn:uuid:enc-0002"
+        },
+        "performedPeriod": {
+          "start": "2025-02-10T10:05:00-05:00",
+          "end": "2025-02-10T10:15:00-05:00"
+        }
+      },
+      "request": {
+        "method": "POST",
+        "url": "Procedure"
+      }
+    },
+    {
       "fullUrl": "urn:uuid:claim-0001",
       "resource": {
         "resourceType": "Claim",
