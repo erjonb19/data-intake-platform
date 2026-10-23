@@ -1,8 +1,8 @@
 """File-feed intake: one DAG per CSV, Excel, PDF or X12 data contract, from the contracts.
 
 For each contract with `format: csv`, `excel`, `pdf` or `x12` in DIP_CONTRACT_DIRS this
-defines a DAG `intake__<pack>__<feed>`, for example `intake__healthcare__eligibility`. It takes every
-file in `landing/<feed>/`, keeps an immutable raw copy, validates it against the
+defines a DAG `intake__<pack>__<feed>`, for example `intake__healthcare__eligibility`. It
+takes every file in `landing/<feed>/`, keeps an immutable raw copy, validates it against the
 contract, and loads accepted rows into `bronze.csv_record` or quarantines the file or
 row with reason codes in `ops.quarantine`. Then dbt builds and tests only the models
 tagged with the feed name (bronze -> silver -> gold).

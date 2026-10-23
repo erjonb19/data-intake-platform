@@ -125,3 +125,27 @@ def test_a_broken_envelope_quarantines_the_file_and_a_bad_line_only_itself(wareh
     assert set(o.reason_codes) == {"FILE.BAD_ROW_RATIO", "VALUE.PATTERN:member_id"}
     build("healthcare.claims_837")
     assert scalar(warehouse, "select count(*) from gold.professional_claim_line") == 0
+
+
+def test_a_replacement_claim_replaces_the_whole_claim_and_a_void_removes_it(warehouse, tmp_path):
+    claims = x12.read_claims(FIXTURES / "claims/good/claims_good.csv")
+    store = LocalStore(tmp_path)
+    land(store, warehouse, "healthcare.claims_837", "claims837_20261019.x12",
+         x12.x12_837(claims, "20261019"))  # fmt: skip
+    # The next day's file replaces claim ...0001 without its second line (frequency 7)
+    # and voids claim ...0002 (frequency 8).
+    two_line = [r for r in claims if r["claim_id"].endswith("0001")]
+    voided = [r for r in claims if r["claim_id"].endswith("0002")]
+    text = x12.x12_837([two_line[0], *voided], "20261020").decode()
+    text = text.replace("*200.00***11:B:1*", "*200.00***11:B:7*")
+    text = text.replace("*1800.00***21:B:1*", "*1800.00***21:B:8*")
+    [o] = land(store, warehouse, "healthcare.claims_837", "claims837_20261020.x12", text.encode())
+    assert o.status == "loaded"
+    build("healthcare.claims_837")
+    assert rows(
+        warehouse,
+        "select right(claim_line_id, 6), claim_frequency from gold.professional_claim_line"
+        " order by 1",
+    ) == [("0001-1", "7"), ("0003-1", "1"), ("0004-1", "1")]
+    assert scalar(warehouse, "select count(*) from ops.dq_results where status <> 'pass'"
+                             " and test_name like 'x12_%'") == 0  # fmt: skip

@@ -84,7 +84,8 @@ The reader (`dip/x12feed.py`, plain Python, so it runs in the main Airflow image
 two steps:
 
 1. **Envelope.** The fixed-width ISA header names the separators (element, component,
-   segment terminator), so any separators work. Then every count and control number must
+   segment terminator), so any separators work that are three different characters and
+   not letters, digits or spaces. Then every count and control number must
    agree (ISA13 = IEA02, IEA01 = the GS groups, GS06 = GE02, GE01 = the ST transactions,
    ST02 = SE02, SE01 = the segments from ST to SE), and every transaction must be the
    contract's, with its implementation guide. A failure quarantines the whole file: a broken
@@ -93,9 +94,17 @@ two steps:
    in a fixed column order, and goes through the CSV engine's checks: a bad value gets the
    usual `VALUE.*` code, and `quarantine_row` and `max_bad_row_ratio` work as for any
    file. Dates (CCYYMMDD) become ISO dates; amounts stay as received. A line of an 835 has
-   its adjustments (CAS) summed into `contractual_adjustment` (CO-45),
+   its adjustments (CAS) summed exactly into `contractual_adjustment` (CO-45),
    `deductible_amount` (PR-1), `coinsurance_amount` (PR-2) and `other_adjustment` (every
-   other group and reason).
+   other group and reason); an amount that is not a plain decimal with at most two places
+   is passed through as received, so the line fails the contract instead. Context never
+   carries across loops: a subscriber loop without its member (NM1*IL) gives lines with no
+   member, and an other payer's NM1*PR after the claim (loop 2330B) is not the claim's payer.
+
+What the reader does not read, and refuses rather than lose: an 835 with a claim-level
+adjustment (CAS before the claim's first SVC: `X12.UNSUPPORTED:CAS`) or a provider-level one
+(PLB: `X12.UNSUPPORTED:PLB`). Reversals (CLP02 = 22) are not accepted: a reversal and its
+correction share the line id, and this feed keeps one payment per line.
 
 An x12 contract's columns must be exactly the parser's (`dip/x12feed.py` `COLUMNS_837`,
 `COLUMNS_835`), checked when the contract loads, so a contract cannot drift from what the
@@ -106,7 +115,7 @@ File codes: `X12.INVALID` (no ISA header of the right shape), `X12.ENVELOPE:<ele
 (a count or control number disagrees: `SE01`, `SE02`, `GE01`, `GE02`, `IEA01`, `IEA02`; or a
 segment is missing or out of place: `GS`, `ST`, `SE`, `GE`, `IEA`), `X12.TRANSACTION:<id>`
 (another transaction set, such as an 835 sent to the 837 feed, or another implementation
-guide), `FILE.ENCODING` and `FILE.TOO_LARGE` (over 50 MB or 2 million segments).
+guide in ST03, or in GS08 when ST03 is empty), `X12.UNSUPPORTED:<segment>`, `FILE.ENCODING` and `FILE.TOO_LARGE` (over 50 MB or 2 million segments).
 `python -m dip break x12_segment_lost GOOD.x12 OUT.x12` drops one segment, as a broken
 transfer would (`X12.ENVELOPE:SE01`).
 
@@ -229,6 +238,9 @@ line balances (charge − CO-45 − PR-1 − PR-2 = paid). A claim allowed nothi
 invented, members appear by member id only (no names), and ISA15 is `T` (test data).
 Synthea's procedure codes (SNOMED, CDT, LOINC, CVX) are written under the mutually defined
 qualifier `ZZ`: a real 837P carries CPT/HCPCS (`HC`), so a clearinghouse would reject these.
+The 837P is also a subset: it has no diagnosis (HI) segment, which 5010 requires, and no
+rendering provider or patient demographics. It exercises the envelope, the claim and line
+loops, and the line control numbers the 835 matches on, not a clearinghouse's edits.
 On the 28 bundles in `data/synthea`, the 1,976 claim lines give an 837P of 8,594 segments
 and an 835 of 8,888; all 1,976 lines of each pass their contract, and every 835 line
 balances.
@@ -240,14 +252,15 @@ with both feeds, so either feed's DAG rebuilds the mart):
 | Model | What |
 |---|---|
 | `silver.x12_claim_line`, `silver.x12_remit_line` | every accepted line, typed |
-| `gold.professional_claim_line` | one row per 837P line, from the newest file (a resubmission replaces it) |
+| `gold.professional_claim_line` | the current version of each claim, one row per line: a claim is taken whole from the newest file that has it, so a replacement (frequency 7) that drops a line drops it here, and a void (frequency 8) removes the claim |
 | `gold.remittance_line` | one row per remitted line, from the newest 835 |
 | `gold.claim_payment` | each billed line with what was paid and why, and a `payment_status`: `not_remitted`, `denied`, `paid_in_full` or `paid_adjusted`, plus `days_to_payment` |
 
-DQ tests, recorded in `ops.dq_results`: `x12_remit_balances` and
-`x12_claim_total_matches_lines` (errors: the money would be wrong), and
-`x12_remit_line_was_billed` and `x12_remit_charge_matches_billed` (warnings: an 835 may
-arrive before its 837P, or a payer may split a line). Fixtures:
+DQ tests, recorded in `ops.dq_results`: `x12_remit_balances` (an error: the money would
+be wrong), and three warnings: `x12_claim_total_matches_lines` (a claim with a quarantined
+line loads without it, so its total differs for a good reason), `x12_remit_line_was_billed`
+(an 835 may arrive before its 837P) and `x12_remit_charge_matches_billed` (a payer may
+split a line). Fixtures:
 `tests/fixtures/x12/make_fixtures.py`.
 
 ## Finance invoices (generated, Stage 2)

@@ -171,3 +171,74 @@ def test_an_x12_contract_must_declare_the_parsers_columns(tmp_path):
     text = C837.path.read_text("utf-8").replace('transaction: "837", ', "")
     with pytest.raises(ContractError, match="transaction"):
         parse_contract(text, tmp_path / "claims_837.yaml")
+
+
+REMIT = gen.x12_835(CLAIMS, "20261021")
+
+
+@pytest.mark.parametrize("amount", ["sNaN", "NaN", "Infinity", "1E200000000", "20.004", "5O.00"])
+def test_an_adjustment_that_is_not_a_plain_decimal_fails_its_line_never_the_task(amount):
+    data = _edit(REMIT, "CAS*CO*45*50.00~", f"CAS*CO*45*{amount}~")
+    result = validate_x12(data, C835, AT)
+    # Not a number at all fails the type check; a number with three decimals, the pattern.
+    [(_, v)] = result.rejected
+    assert v.reason_code in ("VALUE.TYPE:contractual_adjustment",
+                             "VALUE.PATTERN:contractual_adjustment")  # fmt: skip
+
+
+def test_adjustments_are_summed_exactly():
+    data = _edit(REMIT, "CAS*CO*45*50.00~", "CAS*CO*45*49.99*1*45*0.01~")
+    lines = [dict(zip(COLUMNS_835, r, strict=True)) for r in rows(data, "835")[1:]]
+    [line] = [r for r in lines if r["claim_line_id"].endswith("0001-1")]
+    assert line["contractual_adjustment"] == "50.00"
+
+
+@pytest.mark.parametrize(
+    ("old", "new", "code"),
+    [
+        ("CLP*00000000-0000-4000-8000-000000000001*1*245.50*152.00*38.00*15*PCN4193723377*11*1~\n"
+         "NM1*QC*1*SUBSCRIBER*SYNTHETIC****MI*M000000001~\n",
+         "CLP*00000000-0000-4000-8000-000000000001*1*245.50*152.00*38.00*15*PCN4193723377*11*1~\n"
+         "NM1*QC*1*SUBSCRIBER*SYNTHETIC****MI*M000000001~\nCAS*OA*23*1.00~\n",
+         "X12.UNSUPPORTED:CAS"),
+        ("SE*29*0002~", "PLB*1999999984*20261231*WO:X*10.00~\nSE*30*0002~", "X12.UNSUPPORTED:PLB"),
+    ],
+)  # fmt: skip
+def test_adjustments_this_reader_does_not_read_refuse_the_file(old, new, code):
+    data = _edit(REMIT, old, new)
+    if code.endswith("CAS"):  # one segment more in the transaction
+        data = _edit(data, "SE*29*0002~", "SE*30*0002~")
+    result = validate_x12(data, C835, AT)
+    assert [v.reason_code for v in result.file_violations] == [code]
+
+
+def test_a_subscriber_loop_without_its_member_does_not_borrow_the_previous_one():
+    data = _edit(GOOD, "NM1*IL*1*SUBSCRIBER*SYNTHETIC****MI*M000000999~\n", "")
+    data = _edit(data, "SE*29*0001~", "SE*28*0001~")
+    result = validate_x12(data, C837, AT)
+    assert [(r.record["claim_line_id"][-6:], v.reason_code) for r, v in result.rejected] == [
+        ("0004-1", "VALUE.REQUIRED:member_id")
+    ]
+
+
+def test_an_other_payer_after_the_claim_does_not_replace_the_claims_payer():
+    other = "REF*6R*00000000-0000-4000-8000-000000000003-1~\n"
+    data = _edit(GOOD, other, other + "NM1*PR*2*OTHER PAYER*****PI*P99999~\n")
+    data = _edit(data, "SE*29*0001~", "SE*30*0001~")
+    table = rows(data, "837")
+    assert {r[4] for r in table[1:]} == {"P45575", "P70055"}
+
+
+def test_the_guide_version_is_read_from_gs08_when_st03_is_empty():
+    data = _edit(GOOD, "ST*837*0001*005010X222A1~", "ST*837*0001~")
+    assert validate_x12(data, C837, AT).file_violations == []
+    data = _edit(data, "*X*005010X222A1~", "*X*004010X098A1~")
+    assert [v.reason_code for v in validate_x12(data, C837, AT).file_violations] == [
+        "X12.TRANSACTION:837"
+    ]
+
+
+def test_a_component_separator_that_is_a_letter_is_refused():
+    text = GOOD.decode()
+    bad = (text[:104] + "A" + text[105:]).encode()
+    assert [v.reason_code for v in validate_x12(bad, C837, AT).file_violations] == ["X12.INVALID"]

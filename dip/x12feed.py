@@ -5,7 +5,8 @@ The interchange is read in two steps:
 
 1. **Envelope.** The ISA header is fixed width (106 characters) and names the separators:
    the element separator is its 4th character, the component separator its 105th, the
-   segment terminator its 106th. Then every envelope count and control number must agree:
+   segment terminator its 106th (three different characters, none a letter, digit or
+   space). Then every envelope count and control number must agree:
    ISA13 = IEA02, IEA01 = the number of GS groups, GS06 = GE02, GE01 = the number of ST
    transactions in the group, ST02 = SE02, and SE01 = the number of segments from ST to SE.
    Every transaction must be the contract's (`format.transaction`: 837 or 835) with its
@@ -28,7 +29,11 @@ Reason codes added by this format (all file level):
                           GE01, GE02, SE01, SE02), or a segment is missing or out of place
                           (ISA, GS, ST, SE, GE, IEA)
   X12.TRANSACTION:<id>    a transaction set other than the contract's (an 835 sent to the
-                          837 feed), or another implementation guide version
+                          837 feed), or another implementation guide version (ST03, or
+                          GS08 when ST03 is empty)
+  X12.UNSUPPORTED:<seg>   an 835 with a claim-level adjustment (CAS before the claim's
+                          first SVC) or a provider-level one (PLB): this reader reads line
+                          adjustments only, and refuses rather than lose money
   FILE.ENCODING           not ASCII/UTF-8 text
   FILE.TOO_LARGE          over MAX_BYTES, or more than MAX_SEGMENTS segments
 
@@ -41,7 +46,7 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
 
 from dip.csvfeed import CsvResult, check_rows
@@ -113,11 +118,18 @@ def parse(data: bytes, transaction: str | None = None, version: str | None = Non
     if len(text) < ISA_LENGTH or not text.startswith("ISA"):
         raise _Refused("X12.INVALID", "no ISA interchange header at the start of the file")
     element, component, terminator = text[3], text[104], text[105]
-    if len({element, component, terminator}) < 3 or any(c.isalnum() for c in (element, terminator)):
-        raise _Refused("X12.INVALID", "the ISA header does not define three distinct separators")
+    separators = (element, component, terminator)
+    if len(set(separators)) < 3 or any(c.isalnum() or c == " " for c in separators):
+        raise _Refused(
+            "X12.INVALID",
+            "the ISA header does not define three distinct separators that are"
+            " not letters, digits or spaces",
+        )
     isa = text[: ISA_LENGTH - 1].split(element)
     if len(isa) != 17:
         raise _Refused("X12.INVALID", f"the ISA header has {len(isa) - 1} elements, not 16")
+    if isa[11] in separators:
+        raise _Refused("X12.INVALID", "ISA11 (the repetition separator) repeats another separator")
     raw = [s.strip("\r\n") for s in text.split(terminator)]
     raw = [s for s in raw if s]
     if len(raw) > MAX_SEGMENTS:
@@ -177,10 +189,11 @@ def _check_envelope(ic: Interchange, transaction: str | None, version: str | Non
                     f"X12.TRANSACTION:{_el(st, 1)}",
                     f"transaction set {_el(st, 1)}; this feed takes {transaction}",
                 )
-            if version and _el(st, 3) not in (version, ""):
+            if version and (_el(st, 3) or _el(gs, 8)) != version:
                 raise _Refused(
                     f"X12.TRANSACTION:{_el(st, 1)}",
-                    f"implementation guide {_el(st, 3)!r}; this feed takes {version!r}",
+                    f"implementation guide {_el(st, 3) or _el(gs, 8)!r} (ST03, GS08); this feed"
+                    f" takes {version!r}",
                 )
             ic.transactions.append(segs[start : i + 1])
             sets += 1
@@ -226,19 +239,26 @@ def _rows_837(ic: Interchange) -> list[list[str]]:
                 out.append([line.get(c, "") for c in COLUMNS_837])
             line = None
 
+        in_claim = False
         for seg in tx:
             sid = seg[0]
             if sid in ("HL", "CLM", "LX", "SE"):
                 flush()
-            if sid == "NM1":
+            if sid == "HL":
+                # A new hierarchical loop: nothing carries over from the previous one but
+                # the billing provider (a subscriber loop without NM1*IL has no member).
+                ctx = {"billing_npi": ctx.get("billing_npi", "")} if _el(seg, 3) != "20" else {}
+                in_claim = False
+            elif sid == "NM1":
                 qualifier, ident = _el(seg, 1), _el(seg, 9)
                 if qualifier == "85":
                     ctx["billing_npi"] = ident
-                elif qualifier == "IL":
+                elif qualifier == "IL" and not in_claim:
                     ctx["member_id"] = ident
-                elif qualifier == "PR":
+                elif qualifier == "PR" and not in_claim:  # 2010BB, not an other payer (2330B)
                     ctx["payer_id"] = ident
             elif sid == "CLM":
+                in_claim = True
                 facility = _el(seg, 5).split(ic.component)
                 ctx.update(
                     claim_id=_el(seg, 1),
@@ -294,6 +314,18 @@ def _rows_835(ic: Interchange) -> list[list[str]]:
             sid = seg[0]
             if sid in ("CLP", "SVC", "LX", "SE", "PLB"):
                 flush()
+            if sid == "PLB":
+                raise _Refused(
+                    "X12.UNSUPPORTED:PLB",
+                    "provider-level adjustments (PLB) are not supported:"
+                    " the payment would not add up to its lines",
+                )
+            if sid == "CAS" and line is None:
+                raise _Refused(
+                    "X12.UNSUPPORTED:CAS",
+                    f"a claim-level adjustment (CAS before any SVC, claim"
+                    f" {ctx.get('claim_id', '')!r}) is not supported: only line-level CAS is read",
+                )
             if sid == "BPR":
                 ctx["payment_date"] = _iso(_el(seg, 16))
             elif sid == "TRN":
@@ -304,6 +336,7 @@ def _rows_835(ic: Interchange) -> list[list[str]]:
                 ctx.update(
                     claim_id=_el(seg, 1), claim_status=_el(seg, 2), payer_claim_control=_el(seg, 7)
                 )
+                line = None  # a CAS after CLP and before the first SVC is claim level
             elif sid == "SVC":
                 proc = _el(seg, 1).split(ic.component)
                 line = {
@@ -327,22 +360,20 @@ def _rows_835(ic: Interchange) -> list[list[str]]:
     return out
 
 
+AMOUNT = re.compile(r"-?[0-9]{1,12}(\.[0-9]{1,2})?")
+
+
 def _sum(amounts: list[str]) -> str:
-    """The adjustments' total as text; one that is not a number stays as received, so the
-    contract's decimal check rejects the line."""
-    try:
-        total = sum((Decimal(a) for a in amounts), Decimal("0"))
-    except InvalidOperation:
-        return next(a for a in amounts if not _is_decimal(a))
-    return f"{total:.2f}"
-
-
-def _is_decimal(text: str) -> bool:
-    try:
-        Decimal(text)
-    except InvalidOperation:
-        return False
-    return True
+    """The adjustments' total as text, exact (no rounding: every amount has at most two
+    decimals). An amount that is not a plain X12 decimal (`1E9`, `NaN`, `20.004`) is returned
+    as received, so the contract's pattern rejects the line instead of a guess loading."""
+    for a in amounts:
+        if not AMOUNT.fullmatch(a):
+            return a
+    if not amounts:
+        return "0.00"
+    total = sum((Decimal(a) for a in amounts), Decimal("0"))
+    return str(total.quantize(Decimal("0.01")))
 
 
 def rows(data: bytes, transaction: str, version: str | None = None) -> list[list[str]]:

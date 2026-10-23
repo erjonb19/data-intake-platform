@@ -21,7 +21,9 @@ models:
       - unique_combination:
           arguments: {columns: [file_sha256, row_number]}
   - name: professional_claim_line
-    description: gold.professional_claim_line, one row per 837P line (the newest file wins).
+    description: >
+      gold.professional_claim_line: the current version of each 837P claim (taken whole
+      from the newest file that has it; voids removed), one row per line.
     columns:
       - name: claim_line_id
         data_tests: [unique, not_null]

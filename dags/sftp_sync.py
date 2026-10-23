@@ -76,7 +76,7 @@ def sftp_sync():
             feeds.update(r.feeds)
         # Only feeds with a generated intake DAG (CSV and Excel); FHIR has its own DAG.
         dag_ids = [dag_id_for(f) for f in sorted(feeds)
-                   if contracts[f].format_type in ("csv", "excel", "pdf")]  # fmt: skip
+                   if contracts[f].format_type in ("csv", "excel", "pdf", "x12")]  # fmt: skip
         return {"dag_ids": dag_ids, "failed": failed}
 
     @task
