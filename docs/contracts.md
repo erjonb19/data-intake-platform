@@ -68,10 +68,11 @@ File codes: `PDF.INVALID` (anything the parser cannot read, wherever it fails),
 `PDF.EMPTY`, `PDF.MISSING_FIELD:<column>` (a label not found: nothing is guessed),
 `OCR.LOW_CONFIDENCE`, and `OCR.UNAVAILABLE` (the task is not running in the OCR image:
 `DIP_OCR_IMAGE` is unset). PDFs are untrusted input, so some files are refused before they
-are read: `FILE.TOO_LARGE` (over 20 MB), `PDF.TOO_MANY_PAGES` (over 20, counted from the
-page tree), `PDF.PAGE_TOO_LARGE` (a scanned page that would render over 40 Mpx), and
-`OCR.TIMEOUT` (60 s per page). A stream that inflates to gigabytes is bounded only by the
-task pod's memory limit (a follow-up in PLAN.md section 8.7). The poor-scan fixture scores
+are read: `FILE.TOO_LARGE` (over 20 MB), `PDF.TOO_MANY_PAGES` (over 20: the page tree's
+`/Count`, and the pages actually read, since a forged `/Count` can understate them),
+`PDF.PAGE_TOO_LARGE` (a scanned page that would render over 40 Mpx), and `OCR.TIMEOUT`
+(60 s per page). A Tesseract error on a page is `OCR.FAILED`. A stream that inflates to
+gigabytes is bounded only by the task pod's memory limit (a follow-up in PLAN.md section 8.7). The poor-scan fixture scores
 6.7 against the threshold of 75, a wide margin across Tesseract builds (CI's Ubuntu
 build, the image's Debian build).
 
