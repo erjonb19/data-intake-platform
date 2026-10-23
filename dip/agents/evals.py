@@ -189,19 +189,27 @@ class LocalServer:
     """The MCP server over real HTTP on localhost, in a background thread."""
 
     def __init__(self, conn: Any, store: LocalStore, agent: str = "triage",
-                 contracts: dict[str, Contract] | None = None):  # fmt: skip
+                 contracts: dict[str, Contract] | None = None,
+                 agents: tuple[str, ...] | None = None, services: Any = None):  # fmt: skip
+        """One agent (`agent`, its key is `.key`) or several (`agents`, keys in `.keys`).
+        `services`: the Read tools' Airflow, Marquez and Prometheus (default: none set)."""
         import uvicorn
 
         from dip.agents.mcp_server import build_server, http_app
+        from dip.agents.read_tools import ReadServices
         from dip.agents.registry import Policy
         from dip.agents.tools import build_registry
 
-        self.key = secrets.token_urlsafe(32)
+        names = agents or (agent,)
+        self.keys = {a: secrets.token_urlsafe(32) for a in names}
+        self.key = self.keys[names[0]]
         port = _free_port()
         self.url = f"http://127.0.0.1:{port}/mcp"
-        registry = build_registry(conn, store, contracts or eval_contracts())
-        server = build_server(registry, {agent: Policy.load(agent)})
-        app = http_app(server, {agent: hashlib.sha256(self.key.encode()).hexdigest()},
+        registry = build_registry(conn, store, contracts or eval_contracts(),
+                                  services or ReadServices())  # fmt: skip
+        server = build_server(registry, {a: Policy.load(a) for a in names})
+        app = http_app(server, {a: hashlib.sha256(k.encode()).hexdigest()
+                                for a, k in self.keys.items()},
                        f"http://127.0.0.1:{port}")  # fmt: skip
         self.uv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port,
                                                 log_level="warning"))  # fmt: skip

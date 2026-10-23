@@ -305,6 +305,10 @@ def build_registry(
     from dip.agents.author_tools import register_author_tools
 
     register_author_tools(reg, Tool, conn, store, contracts)
+    # The incident agent's tools (Stage 7).
+    from dip.agents.incident_tools import register_incident_tools
+
+    register_incident_tools(reg, Tool, conn, contracts)
     return reg
 
 

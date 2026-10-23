@@ -34,6 +34,7 @@ from pathlib import PurePosixPath
 from typing import Any
 
 from dip import BUCKET_LANDING, BUCKET_RAW
+from dip.incidents import close_quarantine_incidents
 from dip.storage import ObjectStore
 
 # The operations propose_operation offers (the triage agent's); contract_pr is created only
@@ -246,6 +247,7 @@ def _run(conn: Any, store: ObjectStore, action: str, payload: dict, landed: list
                 "update ops.quarantine set status = 'discarded' where quarantine_id = any(%s)",
                 (open_ids,),
             )
+            close_quarantine_incidents(cur, payload["group_id"].partition("|")[0])
             return {"discarded": open_ids}
         if action == "replay":
             cur.execute(
@@ -278,6 +280,7 @@ def _run(conn: Any, store: ObjectStore, action: str, payload: dict, landed: list
                     " and file_sha256 = %s and status = 'open'",
                     (feed, sha),
                 )
+                close_quarantine_incidents(cur, feed)
             for _, _, raw_key, key in files:
                 store.put(BUCKET_LANDING, key, store.get(BUCKET_RAW, raw_key))
                 landed.append(key)

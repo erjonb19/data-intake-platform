@@ -14,6 +14,7 @@ from importlib.resources import files
 from typing import TYPE_CHECKING, Any
 
 from dip.fhir import Resource
+from dip.incidents import close_quarantine_incidents, open_incident
 
 if TYPE_CHECKING:
     from dip.csvfeed import Row
@@ -139,6 +140,11 @@ class Warehouse:
                 )
                 _insert_delivery(cur, intake)
                 superseded = _close_resent(cur, intake) if intake.status == "loaded" else 0
+                if intake.status == "quarantined":
+                    codes = sorted({q.reason_code for q in quarantine})
+                    open_incident(cur, intake.feed, "FILE.QUARANTINED",
+                                  f"{intake.source_key}: {', '.join(codes)}")  # fmt: skip
+                close_quarantine_incidents(cur, intake.feed)
             self.conn.commit()
         except Exception:
             self.conn.rollback()
@@ -157,9 +163,15 @@ class Warehouse:
         return inserted
 
     def record_quarantine(self, quarantine: list[QuarantineRecord]) -> None:
+        """A file quarantined before it was read (its name or channel): the whole file."""
         try:
             with self.conn.cursor() as cur:
                 _insert_quarantine(cur, quarantine)
+                for feed in sorted({q.feed for q in quarantine}):
+                    codes = sorted({q.reason_code for q in quarantine if q.feed == feed})
+                    keys = sorted({q.quarantine_key for q in quarantine if q.feed == feed})
+                    open_incident(cur, feed, "FILE.QUARANTINED",
+                                  f"{', '.join(keys)}: {', '.join(codes)}")  # fmt: skip
             self.conn.commit()
         except Exception:
             self.conn.rollback()

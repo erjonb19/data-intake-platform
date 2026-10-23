@@ -122,6 +122,10 @@ _PLATFORM_LOG = re.compile(
     r"^(loaded|loaded_with_rejections|quarantined|duplicate)\s+\S+ accepted=\d+ rejected=\d+"
     r"|^intake summary: |^::(end)?group::|Done\. PASS=\d+|^Finished running |"
     r"Task instance (is in|finished)|Marking task as "
+    # dbt's failure lines and Airflow's exit line (Stage 7, the incident agent): a test or
+    # model name and counts, never a row's values.
+    r"|^Failure in (test|model) [A-Za-z0-9_.]+ \(|^Got \d+ results?, configured to "
+    r"|^Completed with \d+ errors?|^Task exited with return code "
 )
 
 

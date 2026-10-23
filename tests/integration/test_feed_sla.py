@@ -22,8 +22,9 @@ def at(*a):
 
 
 def incidents(wh):
+    # Late files only: a quarantined file also opens a FILE.QUARANTINED incident (Stage 7).
     return rows(wh, "select feed, window_start, closed_at is not null from ops.incident"
-                    " order by incident_id")  # fmt: skip
+                    " where kind = 'FEED.LATE' order by incident_id")  # fmt: skip
 
 
 def test_late_once_then_closed_when_the_file_arrives(warehouse, tmp_path):

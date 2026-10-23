@@ -37,6 +37,13 @@ dev = [
   # Each pin was at least two weeks old when chosen. CI never calls the model.
   "anthropic==1.12.0",
   "mcp==2.3.0",
+  # Stage 7: the incident -> triage chain is a LangGraph state graph (MIT). Its own
+  # dependencies are pinned too, each at least two weeks old when chosen (2026-10-23).
+  "langgraph==1.2.14",
+  "langchain-core==1.6.9",
+  "langgraph-checkpoint==4.2.0",
+  "langgraph-prebuilt==1.1.0",
+  "langgraph-sdk==0.4.6",
 ]
 
 [build-system]
