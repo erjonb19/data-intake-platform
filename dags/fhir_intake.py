@@ -44,7 +44,7 @@ def fhir_intake():
         store = S3Store(S3Hook(aws_conn_id="minio").get_conn())
         hook = PostgresHook(postgres_conn_id="warehouse")
         warehouse = Warehouse(hook.get_conn())
-        emitter = lineage.Emitter()  # OPENLINEAGE_URL arrives with Marquez in Stage 3
+        emitter = lineage.Emitter()  # OPENLINEAGE_URL: Marquez, observability profile
         warehouse.init()
         contract = load_contracts()[FEED]
         statuses = []

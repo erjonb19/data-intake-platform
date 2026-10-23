@@ -83,4 +83,11 @@ if tf output -json profiles | grep -q '"observability"'; then
   PROMETHEUS_URL="http://127.0.0.1:$PROM_PORT" GRAFANA_URL="http://127.0.0.1:$GRAFANA_PORT" \
     GRAFANA_PASSWORD="$(tf output -raw grafana_admin_password)" \
     "$py" "$REPO_ROOT/tests/e2e/observability.py"
+  # S3.3: lineage from a landed file to gold, in Marquez.
+  MARQUEZ_PORT="${MARQUEZ_PORT:-5000}"
+  kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-obs \
+    port-forward svc/marquez "$MARQUEZ_PORT:5000" >/dev/null 2>&1 &
+  pids+=("$!")
+  wait_port "$MARQUEZ_PORT"
+  MARQUEZ_URL="http://127.0.0.1:$MARQUEZ_PORT" "$py" "$REPO_ROOT/tests/e2e/lineage.py"
 fi

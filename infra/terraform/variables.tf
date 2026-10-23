@@ -116,3 +116,15 @@ variable "grafana_chart_version" {
   type        = string
   default     = "13.3.1"
 }
+
+variable "marquez_image" {
+  description = "Marquez API (OpenLineage), observability profile."
+  type        = string
+  default     = "marquezproject/marquez:0.51.1"
+}
+
+variable "marquez_web_image" {
+  description = "Marquez web UI, observability profile."
+  type        = string
+  default     = "marquezproject/marquez-web:0.51.1"
+}

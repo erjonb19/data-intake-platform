@@ -71,6 +71,8 @@ output "observability" {
   value = local.observability ? {
     prometheus = "kubectl -n ${local.obs_ns} port-forward svc/prometheus-server 9090:80"
     grafana    = "kubectl -n ${local.obs_ns} port-forward svc/grafana 3000:80 (user admin)"
+    marquez    = "kubectl -n ${local.obs_ns} port-forward svc/marquez 5000:5000 (API)"
+    lineage_ui = "kubectl -n ${local.obs_ns} port-forward svc/marquez-web 3001:3000"
   } : null
 }
 

@@ -59,6 +59,10 @@ resource "helm_release" "airflow" {
     # The PDF feed's intake task runs in the OCR image (dags/feed_intake.py).
     { name = "env[0].name", value = "DIP_OCR_IMAGE", type = "string" },
     { name = "env[0].value", value = var.ocr_image_tag == "" ? "" : "dip-ocr:${var.ocr_image_tag}", type = "string" },
+    # Lineage to Marquez (S3.3) with the observability profile; without it, the emitter is
+    # a no-op (dip/lineage.py).
+    { name = "env[1].name", value = "OPENLINEAGE_URL", type = "string" },
+    { name = "env[1].value", value = local.observability ? local.marquez_url : "", type = "string" },
     # Airflow's StatsD metrics (and the chart's statsd-exporter) only with Prometheus.
     { name = "statsd.enabled", value = tostring(local.observability), type = "auto" },
   ]

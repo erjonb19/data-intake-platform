@@ -8,9 +8,10 @@ pieces join into one graph in Marquez:
            model's columns, description and test results (dataQualityAssertions)
   extract  postgres omop_shareable.* -> file extracts/<version>/data/<table>.csv
 
-Transport comes from the environment: OPENLINEAGE_URL (HTTP, for example Marquez in
-Stage 3) and/or DIP_LINEAGE_FILE (append NDJSON, used by tests). With neither set,
-emitting is a no-op. No dependencies: events are plain JSON per the OpenLineage spec.
+Transport comes from the environment: OPENLINEAGE_URL (HTTP: Marquez, in the
+observability profile; best effort, so an unreachable server never fails a run) and/or
+DIP_LINEAGE_FILE (append NDJSON, used by tests). With neither set, emitting is a no-op.
+No dependencies: events are plain JSON per the OpenLineage spec.
 
 dbt events are built from dbt's own artifacts (manifest.json, run_results.json) rather
 than with openlineage-dbt, whose openlineage-sql dependency has no wheel for every
@@ -19,6 +20,7 @@ platform (it needs a Rust toolchain on Windows).
 
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import urllib.request
@@ -89,6 +91,7 @@ class Emitter:
         self.url = url if url is not None else os.environ.get("OPENLINEAGE_URL")
         file = file if file is not None else os.environ.get("DIP_LINEAGE_FILE")
         self.file = Path(file) if file else None
+        self.failures = 0
 
     @property
     def enabled(self) -> bool:
@@ -107,7 +110,14 @@ class Emitter:
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            urllib.request.urlopen(req, timeout=10).close()
+            # Best effort: lineage is observability, and the data it describes is already
+            # committed, so an unreachable Marquez must not fail the run. Counted, and
+            # printed into the task log, where the triage agent and a person can see it.
+            try:
+                urllib.request.urlopen(req, timeout=10).close()
+            except (OSError, http.client.HTTPException) as exc:  # refused, timeouts, cut off
+                self.failures += 1
+                print(f"lineage: {self.url} refused an event ({type(exc).__name__}: {exc})")
 
     def job(self, job: str, inputs, outputs, run_facets=None, job_facets=None) -> str:
         """START then COMPLETE for a job that has already finished; returns the run id."""
@@ -117,13 +127,23 @@ class Emitter:
         return run_id
 
 
-def intake_event(emitter: Emitter, dsn: str, feed: str, outcome: Any) -> None:
-    """Lineage for one processed file (an intake Outcome)."""
+def bronze_table(format_type: str) -> str:
+    """Where a format's accepted records go: FHIR bundles to bronze.fhir_resource, the CSV,
+    Excel and PDF feeds to bronze.csv_record (the tables their dbt sources read)."""
+    return "fhir_resource" if format_type == "fhir" else "csv_record"
+
+
+def intake_event(
+    emitter: Emitter, dsn: str, feed: str, outcome: Any, bronze: str = "fhir_resource"
+) -> None:
+    """Lineage for one processed file (an intake Outcome). `bronze` is the table its
+    accepted records went to: fhir_resource for FHIR bundles, csv_record for the CSV,
+    Excel and PDF feeds (the table their dbt sources read, so the path joins up)."""
     if not emitter.enabled or outcome.status == "duplicate":
         return
     outputs = [s3_dataset("raw", outcome.raw_key)]
     if outcome.accepted:
-        outputs.append(pg_dataset(dsn, "bronze", "fhir_resource"))
+        outputs.append(pg_dataset(dsn, "bronze", bronze))
     outputs += [s3_dataset("quarantine", k) for k in outcome.quarantine_keys]
     emitter.job(
         f"intake.{feed}",

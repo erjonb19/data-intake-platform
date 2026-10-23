@@ -63,7 +63,7 @@ def build(feed: str, format_type: str):
             store = S3Store(S3Hook(aws_conn_id="minio").get_conn())
             hook = PostgresHook(postgres_conn_id="warehouse")
             dsn = connection_dsn(hook.get_connection("warehouse"))
-            emitter = lineage.Emitter()  # OPENLINEAGE_URL arrives with Marquez in Stage 3
+            emitter = lineage.Emitter()  # OPENLINEAGE_URL: Marquez, observability profile
             contract = load_contracts()[feed]
             statuses = []
             conn = hook.get_conn()
@@ -72,7 +72,9 @@ def build(feed: str, format_type: str):
                 warehouse.init()
                 for key in store.list(BUCKET_LANDING, f"{feed}/"):
                     o = process_file(store, warehouse, contract, key)
-                    lineage.intake_event(emitter, dsn, feed, o)
+                    lineage.intake_event(
+                        emitter, dsn, feed, o, bronze=lineage.bronze_table(contract.format_type)
+                    )
                     print(
                         f"{o.status:<24} {key} accepted={o.accepted} rejected={o.rejected}"
                         f" {list(o.reason_codes)}"

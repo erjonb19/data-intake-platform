@@ -122,3 +122,20 @@ def test_dbt_events_from_artifacts(tmp_path):
     ]
     assert facets["documentation"]["description"] == "One row per patient."
     assert facets["schema"]["fields"] == [{"name": "person_id", "description": "Key."}]
+
+
+def test_an_unreachable_lineage_server_never_fails_the_run(capsys):
+    # Port 9 (discard) on localhost: nothing listens, the connection is refused at once.
+    e = lineage.Emitter(url="http://127.0.0.1:9", file="")
+    e.job("dip.test", [], [])
+    assert e.failures == 2  # START and COMPLETE
+    assert "refused an event" in capsys.readouterr().out
+
+
+def test_a_file_feed_points_at_the_table_its_dbt_sources_read(tmp_path):
+    out = tmp_path / "events.ndjson"
+    e = lineage.Emitter(url="", file=out)
+    o = Outcome("finance.vendor_invoice/a.xlsx", "abc", "loaded", accepted=3)
+    lineage.intake_event(e, DSN, "finance.vendor_invoice", o, bronze="csv_record")
+    done = [ev for ev in read(out) if ev["eventType"] == "COMPLETE"][0]
+    assert "warehouse.bronze.csv_record" in [d["name"] for d in done["outputs"]]
