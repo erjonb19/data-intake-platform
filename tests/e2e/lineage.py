@@ -1,9 +1,10 @@
 """Stage 3 (S3.3) end-to-end check of lineage in Marquez, after the file-feed cases.
 
 For each path below, walks Marquez's lineage graph upstream from the gold table (the
-graph's inEdges) and requires the landed file among its ancestors: the intake job read the
-file and wrote bronze, and the dbt jobs carried it to gold. Also requires the gold table to
-carry its dbt test results (the dataQualityAssertions facet).
+graph's inEdges) and requires the feed's intake job among its ancestors, then requires a
+run of that job that read the landed file. Marquez draws the graph from each job's latest
+version, so after several runs the graph itself shows only the last run's files. Also
+requires the gold table to carry its dbt test results (the dataQualityAssertions facet).
 
 Env: MARQUEZ_URL (a port-forward to the API, scripts/e2e.sh); WAREHOUSE_DB (default warehouse).
 """
@@ -73,10 +74,15 @@ def main() -> int:
         up: set[str] = set()
         for ns in spaces:
             up |= ancestors(f"dataset:{ns}:{DB}.{table}")
-        missing = [w for w in (f"dataset:s3://landing:{landed}", f"job:dip:{intake_job}")
-                   if w not in up]  # fmt: skip
-        if missing:
-            failures.append(f"{table}: not upstream: {missing} ({len(up)} ancestors)")
+        if f"job:dip:{intake_job}" not in up:
+            failures.append(f"{table}: {intake_job} is not upstream ({len(up)} ancestors)")
+            continue
+        # Marquez draws the graph from each job's latest version, whose inputs are the last
+        # run's files; which file a run read is in the job's runs.
+        runs = get(f"/api/v1/namespaces/dip/jobs/{urllib.parse.quote(intake_job, '')}"
+                   "/runs?limit=100")  # fmt: skip
+        if f'"{landed}"' not in json.dumps(runs) or "s3://landing" not in json.dumps(runs):
+            failures.append(f"{table}: no run of {intake_job} read {landed}")
             continue
         jobs = sorted(a.split(":", 2)[2] for a in up if a.startswith("job:"))
         print(f"==> {landed} -> {intake_job} -> ... -> {table}: ok ({len(jobs)} jobs)")
