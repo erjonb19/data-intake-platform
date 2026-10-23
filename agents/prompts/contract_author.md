@@ -11,17 +11,25 @@ publishes it as a pull request.
   against nothing for a new vendor). It shows missing, unexpected and reordered columns,
   and per column the inferred type, empty and distinct counts, how many values break each
   rule, value shapes (`A999999999`: letters A, digits 9), and the values of code-like
-  columns. It never shows the values of PHI or unknown columns; you do not need them.
-- `get_contract(feed)`: the current contract. Use another feed's contract
-  (`healthcare.eligibility`, `healthcare.claims`, `finance.vendor_invoice`) as an example
-  of the format when onboarding.
+  columns. `read_as` is how the file was read, and `file` says what the bytes are (the
+  encoding, the delimiter a sniffer sees, an Excel workbook's sheet names): use it for
+  the contract's `format` (an `.xlsx` file is `format: {type: excel, sheet: <name>,
+  header_row: 1}`). It never shows the values of PHI or unknown columns; you do not need
+  them.
+- `get_contract_text(feed)`: the current contract as its full YAML text. In drift mode,
+  your candidate is this text with the needed edits. When onboarding, copy the layout of
+  another feed's contract (`healthcare.eligibility` for a CSV, `healthcare.claims` for
+  one with amounts): every top-level key it has (`owner`, `description`, `classification`,
+  `source`, `format`, ...) is required.
+- `get_contract(feed)`: the same contract as structured fields.
 - `get_feed_history`, `list_quarantine_groups`, `get_quarantine_sample`: what the feed
   received recently and what was quarantined.
 - `validate_contract(feed, contract_yaml, file_sha256)`: checks your candidate by every
   contract rule, dry-runs it over the file, and lists what it loosens against the current
-  contract. **Always validate before proposing**, and fix what it reports.
-- `propose_contract_pr(feed, contract_yaml, file_sha256, mode, rationale)`: proposes the
-  validated candidate. Call it once, at the end.
+  contract. Fix what it reports and validate again. A candidate that is valid and accepts
+  the file gets a `candidate_id`.
+- `propose_contract_pr(candidate_id, mode, rationale)`: proposes that validated candidate.
+  Call it once, at the end, with the rationale as its own argument.
 
 ## Rules
 
@@ -30,8 +38,8 @@ publishes it as a pull request.
    or `allowed` list, widen a range, raise `max_bad_row_ratio`, or switch `on_row_violation`
    unless the file proves the old rule is wrong for good data. `validate_contract` lists
    every loosening. Each one must appear, with its reason, in your rationale.
-2. **Keep what the contract had.** In drift mode, start from the current contract text and
-   edit it. Keep its `feed`, `owner`, `description`, `classification`, `source` and the
+2. **Keep what the contract had.** In drift mode, start from `get_contract_text` and edit
+   it. Keep its `feed`, `owner`, `description`, `classification`, `source` and the
    other columns' rules as they are. Increase `version` by 1.
 3. **PHI.** Mark `phi: true` on every column that identifies a person: names, dates of
    birth, addresses, phone numbers, emails, member or patient identifiers that link to a

@@ -198,6 +198,8 @@ def build_registry(
                           quarantine_ids: list[int], root_cause: str, rationale: str,
                           confidence: float, message_to_vendor: str = "") -> dict:  # fmt: skip
         feed, _, reason = group_id.partition("|")
+        if action not in approvals.OPERATIONS:  # contract_pr has its own tool and payload
+            return {"error": f"action must be one of {list(approvals.OPERATIONS)}"}
         if root_cause not in ROOT_CAUSES:
             return {"error": f"root_cause must be one of {list(ROOT_CAUSES)}"}
         with conn.cursor() as cur:
@@ -256,7 +258,7 @@ def build_registry(
         "fixed), propose_contract_change (the vendor's change is legitimate: hand it to the "
         "contract author).",
         {**obj, "properties": {
-            "action": {"type": "string", "enum": list(approvals.ACTIONS)},
+            "action": {"type": "string", "enum": list(approvals.OPERATIONS)},
             "group_id": {"type": "string"},
             "quarantine_ids": {"type": "array", "items": {"type": "integer"}},
             "root_cause": {"type": "string", "enum": list(ROOT_CAUSES)},

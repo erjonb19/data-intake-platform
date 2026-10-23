@@ -36,7 +36,10 @@ from typing import Any
 from dip import BUCKET_LANDING, BUCKET_RAW
 from dip.storage import ObjectStore
 
-ACTIONS = ("request_resend", "discard", "replay", "propose_contract_change", "contract_pr")
+# The operations propose_operation offers (the triage agent's); contract_pr is created only
+# by propose_contract_pr, with its own payload.
+OPERATIONS = ("request_resend", "discard", "replay", "propose_contract_change")
+ACTIONS = (*OPERATIONS, "contract_pr")
 TTL = timedelta(days=7)
 
 

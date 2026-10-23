@@ -43,9 +43,9 @@ class Scripted:
                                             "file_sha256": sha})]  # fmt: skip
         elif self.turn == 3:
             assert results and results[0]["valid"], results
-            calls = [("propose_contract_pr", {"feed": feed, "contract_yaml": self.yaml,
-                                              "file_sha256": sha, "mode": "drift",
-                                              "rationale": "GOLD is new."})]  # fmt: skip
+            cid = results[0]["candidate_id"]
+            calls = [("propose_contract_pr",
+                      {"candidate_id": cid, "mode": "drift", "rationale": "GOLD."})]  # fmt: skip
         else:
             return Message([{"type": "text", "text": "Proposed."}], "end_turn")
         return Message([{"type": "tool_use", "id": f"t{self.turn}-{i}", "name": n, "input": a}

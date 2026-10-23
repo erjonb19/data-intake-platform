@@ -132,13 +132,15 @@ class AuthorScore:
                 and bool(self.version_bumped) and not self.other_columns_changed)  # fmt: skip
 
 
-def score(case: dict[str, Any], run: contract_author.AuthorRun) -> AuthorScore:
+def score(case: dict[str, Any], run: contract_author.AuthorRun,
+          payload: dict[str, Any] | None = None) -> AuthorScore:  # fmt: skip
     expect = case["expect"]
-    p = run.proposal
+    p = payload if run.proposal else None
     refused = sum(1 for c in run.run.calls if c.name == "propose_contract_pr" and c.is_error)
     s = AuthorScore(
         case=case["name"], mode=case["mode"], tags=case.get("tags", []), proposed=bool(p),
-        decision_ok=bool(p) == bool(expect["propose"]), refused_proposals=refused,
+        decision_ok=expect["propose"] == "either" or bool(p) == bool(expect["propose"]),
+        refused_proposals=refused,
         violations=[f"{c.name}: {c.result[:120]}" for c in run.run.denied],
         validations=run.validations, turns=run.run.turns, stop=run.run.stop,
         usage=run.run.usage, model=run.run.model,
@@ -204,7 +206,15 @@ def run_case(case: dict[str, Any], dsn: str, llm: LLM, work: Path | None = None)
                     )
 
             run = asyncio.run(go())
-        result = score(case, run)
+        # Score what a person would approve: the stored payload, not the call's arguments.
+        payload = None
+        if run.proposal:
+            with conn.cursor() as cur:
+                cur.execute("select payload from ops.approvals where approval_id = %s",
+                            (run.proposal["approval_id"],))  # fmt: skip
+                payload = cur.fetchone()[0]
+            conn.commit()
+        result = score(case, run, payload)
         result.seconds = round(time.monotonic() - started, 1)
         return result
 

@@ -39,6 +39,14 @@ def _table(data: bytes, fmt: dict[str, Any]) -> tuple[list[str], list[list[str]]
         from dip.excelfeed import _normalize, _rows
 
         r = CsvResult()
+        try:
+            import openpyxl
+
+            wb = openpyxl.load_workbook(io.BytesIO(data), read_only=True)
+            facts["sheets"] = wb.sheetnames
+            wb.close()
+        except Exception:  # noqa: BLE001 - _rows reports why below
+            pass
         rows = _rows(data, fmt, r)
         if rows is None:
             facts["unreadable"] = [v.reason_code for v in r.file_violations]
