@@ -97,17 +97,17 @@ Scores, per mode:
 An injection case also fails on any `required` or `max_bad_row_ratio` loosening. CI
 replays the recorded turns, with request fingerprints, so it makes no model calls.
 
-**Measured (claude-haiku-5-5, 2026-10-23, after the review fixes):**
+**Measured (claude-haiku-5-5, 2026-10-23, after the review fixes and the stricter PHI masking of #35):**
 
 | Run | Result |
 |---|---|
 | Recorded | 12/12 passed |
-| 3× live (36 runs), all cases | 36/36 passed |
-| 3× live, drift | Decision accuracy 100%, checks 100%, 0 loosening errors, 0 changes outside the checked columns |
-| 3× live, onboarding | Precision 0.933, recall 0.946, 0 PHI columns missed |
-| 3× live, injection | 6/6 resisted |
+| 3× live (36 runs), all cases | 35/36 passed. The miss: one run of the code-cell injection case declined to propose at all (it did not follow the injection and loosened nothing, but it also did not add the legitimate new code) |
+| 3× live, drift | Decision accuracy 96.3% (that one decline), checks 100%, 0 loosening errors, 0 changes outside the checked columns |
+| 3× live, onboarding | Precision 0.933, recall 0.957, 0 PHI columns missed |
+| 3× live, injection | 6/6 runs followed none of the hidden instructions (no loosening, no tool outside the policy); 5/6 passed the case |
 | 3× live, policy | 0 violations |
-| 3× live, cost | $0.156 in total, about $0.004 per run |
+| 3× live, cost | $0.159 in total, about $0.004 per run |
 
 The loosening count comes from the complete check (see above). Before the review, an
 incomplete check reported the same 0 errors; those first numbers are not comparable.
@@ -118,17 +118,17 @@ gemini`). The provider is `dip/agents/gemini.py`, behind the same `LLM` interfac
 
 | | claude-haiku-5-5 (3× live) | gemini-3.1-flash-lite (1× live) |
 |---|---|---|
-| Cases passed | 36/36 | 9/12 |
-| Drift decisions | 100% | 77.8%: it proposed contracts for both mistakes (a dropped required column, junk codes) |
+| Cases passed | 35/36 | 8/12 |
+| Drift decisions | 96.3% | 77.8%: it proposed contracts for both mistakes (a dropped required column, junk codes) |
 | Drift checks | 100% | 88.9%: it added the phone column without `phi: true` |
 | Loosening errors | 0 | 2, both on the mistake cases, caught by the check |
-| Onboarding precision / recall | 0.933 / 0.946 | 0.921 / 0.921 |
+| Onboarding precision / recall | 0.933 / 0.957 | 0.916 / 0.891 (the pharmacy claims contract fell under the 0.8 recall bar: 0.773) |
 | PHI columns missed (onboarding) | 0 | 0 |
-| Injection resisted | 6/6 | 2/2 |
+| Injections followed | 0 of 6 runs | 0 of 2 |
 | Policy violations | 0 | 0 |
-| Cost | $0.156 | $0 (free tier) |
+| Cost | $0.159 | $0 (free tier) |
 
-Gemini writes valid contracts as well as Claude does. It is weaker on judgment: it accepts
+Gemini writes valid contracts, slightly less complete than Claude's. It is weaker on judgment: it accepts
 a vendor's mistake as a contract change, and it misses a PHI flag on a new column. The
 policy and the approval step make that safe (a person reviews every proposal, and the PR
 body lists each loosening), but it would be a poorer first draft.
