@@ -1,7 +1,7 @@
 # Data Intake Platform
 
-**Reviewing this for a research informatics role? Start with
-[docs/FOR_REVIEWERS.md](docs/FOR_REVIEWERS.md)**: each part of the role mapped to the
+**Reviewing this for a clinical research informatics or data engineering role? Start with
+[docs/FOR_REVIEWERS.md](docs/FOR_REVIEWERS.md)**: each thing these roles ask for mapped to the
 file, the PR and the result, a two-minute tour, and an architecture diagram.
 
 A free, enterprise-style platform for vendor and partner files that arrive late, change

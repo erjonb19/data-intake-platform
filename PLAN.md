@@ -262,7 +262,7 @@ Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run
 
 **Why.** The healthcare pack so far looks like a payer feed. A research-informatics team needs something else: EHR-style clinical data in FHIR, a standard research model (OMOP CDM), documented quality checks, a de-identified tier that is safe to share, and extracts that can be rebuilt exactly. This track adds that on top of the same intake core. It is still all synthetic data (Synthea patients and the public OHDSI Eunomia vocabulary shard). No real patient data is used anywhere.
 
-| # | Item | Effort (part-time days) | Depends on | JD line it covers |
+| # | Item | Effort (part-time days) | Depends on | Role need it covers |
 |---|---|---|---|---|
 | **R1** | Synthea patients exported as FHIR R4 bundles go through the intake flow: land an immutable raw copy, validate against a `fhir_bundle` data contract, load resources into `bronze.fhir_resource`, and quarantine bad files (and bad resources) with reason codes such as `FHIR.NOT_A_BUNDLE` or `FHIR.MISSING_FIELD:Patient.birthDate` | 3 (includes the contract engine and quarantine core that Stage 1 needed anyway) | Stage 0 | Pipelines integrating EHR data; FHIR; quality checks |
 | **R2** | dbt silver layer flattens FHIR; gold is the **OMOP CDM 5.4** tables `person`, `observation_period`, `visit_occurrence`, `condition_occurrence`, `measurement` and `drug_exposure`, mapped through the Eunomia vocabulary shard (`concept`, `concept_relationship` "Maps to"). Codes the shard does not cover get `concept_id = 0` and keep their source value, as OMOP requires | 3 | R1 | Research-ready datasets; longitudinal patient tracking; OMOP |
@@ -306,7 +306,7 @@ Each stage ends with a demo script (`docs/demos/stage-N.md`) and a green E2E run
 
 The FHIR demo is derived from the relational demo (plus the MIMIC-IV-ED demo), so the same patients should appear in both. That makes a reconciliation possible.
 
-| # | Item | Effort (part-time days) | Depends on | JD line it covers |
+| # | Item | Effort (part-time days) | Depends on | Role need it covers |
 |---|---|---|---|---|
 | **M0** | `packs/mimic/fetch.sh` downloads both demos from PhysioNet into `data/mimic/` (gitignored), checked against **pinned SHA256SUMS committed to the repo** (checksums only, never data). Citations go in the README and docs | 0.5 | — | External data, reproducibility |
 | **M1** | Run the FHIR demo through the **existing** intake first and record exactly what breaks against Synthea (expected: bulk NDJSON instead of bundles, gzip, dates shifted into the 2100s that hit the future-date rule, MIMIC-local code systems). Then add a `fhir_ndjson` contract format (FHIR Bulk Data: references resolve across files, a date window instead of "not in the future"), a `mimic.fhir_demo` contract, and silver/OMOP mappings for MIMIC's code systems. Load it into a separate warehouse schema set so it never mixes with Synthea | 2.5 | M0 | FHIR, EHR integration, quality checks |
@@ -325,7 +325,7 @@ The FHIR demo is derived from the relational demo (plus the MIMIC-IV-ED demo), s
 
 **Why.** With the Eunomia shard, half of Synthea v4's condition rows and every MIMIC diagnosis, lab and drug map to concept 0. Cohorts and feasibility counts need standard concepts.
 
-| # | Item | Effort (part-time days) | Depends on | JD line it covers |
+| # | Item | Effort (part-time days) | Depends on | Role need it covers |
 |---|---|---|---|---|
 | **V1** | Load a **full OHDSI Athena download** from local folders (`dip vocab-load --athena DIR...` or `DIP_ATHENA_DIRS`): `CONCEPT` plus the "Maps to" rows of `CONCEPT_RELATIONSHIP`, de-duplicated across overlapping downloads, with the release recorded in `vocab.load_info` and carried into extract provenance. Report unmapped rates per OMOP table for Synthea and both MIMIC builds, before (Eunomia) and after (Athena) | 1 | R2, M1, M2 | OMOP; documented definitions; quality checks |
 | **V2** | MIMIC lab itemids → LOINC through MIT-LCP's published map (`mimic-code` v2.4.0, `d_labitems_to_loinc.csv`, MIT license), fetched pinned by commit and sha256 and loaded into OMOP's `SOURCE_TO_CONCEPT_MAP`. Both MIMIC paths tag lab codes `MIMIC_LAB` so the map applies to each | 0.5 | V1 | OMOP; integrating external data |
@@ -364,7 +364,7 @@ The original plan follows.
 
 These limits are documented in `docs/research/vocabulary.md` and `docs/research/README.md`, and are not fixed yet. Each would make OMOP output closer to how OHDSI's own ETLs behave. None blocks Stage 2 or 3.
 
-| # | Follow-up | Size today (full Athena bundle, local) | Effort (part-time days) | JD line it covers |
+| # | Follow-up | Size today (full Athena bundle, local) | Effort (part-time days) | Role need it covers |
 |---|---|---|---|---|
 | **F1** | **One row per "Maps to" target.** A source code that maps to several standard concepts keeps only the lowest concept id (a deterministic tiebreak since fix 7). OMOP writes one row per target, for example a combination diagnosis that maps to two conditions. Do that, with ids that stay unique (the source row's id plus the target) | 6.4% of MIMIC diagnoses (273 FHIR, 242 relational), 13 of them with targets in two or more domains; 27/25 observation rows; 84 drug rows per build. Synthea: none | 1.5 | OMOP; documented definitions |
 | **F2** | **Domain routing everywhere.** Diagnoses whose standard concept is in the Measurement domain stay in `condition_occurrence` with concept 0. Procedures whose concept is in Measurement, Observation or Device stay in `procedure_occurrence` with concept 0. Route them to the table of their domain, as observations already are, and extend `no_source_rows_dropped` to prove nothing is lost | Diagnoses: 53/4,237 MIMIC FHIR (1.3%) and 45/3,774 relational (1.2%); Synthea none. Procedures: 27% of Synthea's with the Eunomia shard (to be measured on Athena) | 1 | OMOP; quality checks |
