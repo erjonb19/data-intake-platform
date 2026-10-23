@@ -85,7 +85,10 @@ class ReadServices:
         with urllib.request.urlopen(req, timeout=15) as r:
             raw = r.read()
             if "json" in r.headers.get("Content-Type", ""):
-                return json.loads(raw)
+                try:
+                    return json.loads(raw)
+                except ValueError:  # NDJSON: one document per line
+                    return raw.decode("utf-8", "replace")
             return raw.decode("utf-8", "replace")
 
     def airflow(self, path: str, accept_text: bool = False, retried: bool = False) -> Any:
@@ -112,6 +115,32 @@ class ReadServices:
         return self._call("GET", base.rstrip("/") + path, None, {"Accept": "application/json"})
 
 
+def _log_lines(got: Any) -> list[str]:
+    """Airflow 3 answers with {"content": [{"event": ..., "timestamp": ...}, ...]}; older
+    servers and some readers with {"content": "<text>"}, a list, or NDJSON text."""
+    if isinstance(got, dict):
+        got = got.get("content", got)
+    if isinstance(got, str):
+        items: list[Any] = []
+        for line in got.splitlines():
+            try:
+                items.append(json.loads(line))
+            except ValueError:
+                items.append(line)
+        got = items
+    if not isinstance(got, list):
+        return [str(got)]
+    out = []
+    for item in got:
+        if isinstance(item, dict):
+            out.append(str(item.get("event", item.get("message", json.dumps(item)))))
+        elif isinstance(item, list) and item:  # [host, text] pairs from some readers
+            out.extend(str(item[-1]).splitlines())
+        else:
+            out.append(str(item))
+    return out
+
+
 def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
                         contracts: dict[str, Contract], svc: ReadServices) -> None:  # fmt: skip
     obj = {"type": "object", "additionalProperties": False}
@@ -119,7 +148,7 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
     def _ident(value: str, what: str) -> str:
         if not IDENT.match(value or "") or value in (".", "..") or ".." in value:
             raise ValueError(f"{what} must match {IDENT.pattern}, without '..'")
-        return urllib.parse.quote(value, safe="")
+        return urllib.parse.quote(value, safe=":+")  # as Airflow writes run ids
 
     def get_dq_results(principal: str, run_id: str | None, model: str = "",
                        status: str = "", limit: int = 50) -> dict:  # fmt: skip
@@ -146,8 +175,8 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         runs = svc.airflow(f"/dags/{dag}/dagRuns?order_by=-run_after&limit={n}")
         out = []
         for r in runs.get("dag_runs", []):
-            tis = svc.airflow(f"/dags/{dag}/dagRuns/{urllib.parse.quote(r['dag_run_id'], '')}"
-                              "/taskInstances")  # fmt: skip
+            run = urllib.parse.quote(r["dag_run_id"], safe=":+")
+            tis = svc.airflow(f"/dags/{dag}/dagRuns/{run}/taskInstances")
             out.append({
                 "dag_run_id": r["dag_run_id"], "state": r.get("state"),
                 "start": r.get("start_date"), "end": r.get("end_date"),
@@ -162,12 +191,8 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         dag, run, task = (_ident(v, w) for v, w in ((dag_id, "dag_id"),
                           (dag_run_id, "dag_run_id"), (task_id, "task_id")))  # fmt: skip
         got = svc.airflow(f"/dags/{dag}/dagRuns/{run}/taskInstances/{task}/logs/"
-                          f"{max(1, int(try_number))}?full_content=true")  # fmt: skip
-        if isinstance(got, dict):  # Airflow 3: {"content": [{"event": ...}, ...]}
-            content = got.get("content", [])
-            lines = [c.get("event", "") if isinstance(c, dict) else str(c) for c in content]
-        else:
-            lines = str(got).splitlines()
+                          f"{max(1, int(try_number))}")  # fmt: skip
+        lines = _log_lines(got)
         n = max(10, min(int(tail_lines), 1000))
         return {"dag_id": dag_id, "dag_run_id": dag_run_id, "task_id": task_id,
                 "lines_total": len(lines), "untrusted_vendor_content": lines[-n:],
