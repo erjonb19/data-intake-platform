@@ -22,7 +22,10 @@ with human approval; Stage 4 (synthetic 837P/835 X12 into claims and remittance 
 agent runs an operation only after a person approved it); Stage 7 (incidents from
 breakages, the incident agent, and a LangGraph chain that hands quarantined records to
 triage through a typed edge decided in code); the research-data track R1–R7a and M1–M3.
-**Not started:** most of Stage 8. Demos: [docs/demos](docs/demos/).
+Stage 8 in part: nightly evals that replay every agent's recordings, and a recorded
+demo of the whole chain (`bash scripts/demo.sh`: no API key, a throwaway Postgres in
+Docker; [docs/demos/stage-8.md](docs/demos/stage-8.md)). **Planned:** README screenshots of
+the running stack (they need a local stack run). Demos: [docs/demos](docs/demos/).
 Agents and their evals: [docs/agents/EVALS.md](docs/agents/EVALS.md). Research track (see
 [docs/research](docs/research/README.md)):
 

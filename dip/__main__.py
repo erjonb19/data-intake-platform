@@ -26,6 +26,8 @@
                                incident agent diagnoses, code decides the handoff, triage
                                proposes (DIP_MCP_URL, DIP_INCIDENT_KEY, DIP_TRIAGE_KEY)
   incident eval [--record]     score the chain on agents/evals/incident/cases.yaml
+  demo [--record]              the recorded demo: one breakage through incident, handoff,
+                               triage, approval, Act and resend (DIP_EVAL_DSN; scripts/demo.sh)
   approvals list|show|approve|reject|execute [ID]
                                the human side of agent proposals (audited as human:<you>)
   cohort list                  the cohort library (packs/healthcare/cohorts), latest versions
@@ -501,6 +503,8 @@ def main(argv: list[str] | None = None) -> int:
     tri.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
     tri.add_argument("--case", action="append", default=[])
     tri.add_argument("--out", type=Path, default=Path("data/evals/triage"))
+    demo = sub.add_parser("demo")
+    demo.add_argument("--record", action="store_true", help="call the model, save its turns")
     inc = sub.add_parser("incident")
     inc.add_argument("action", choices=["run", "eval"])
     inc.add_argument("--incident", type=int, help="run: the incident to diagnose")
@@ -606,6 +610,17 @@ def main(argv: list[str] | None = None) -> int:
         return _approvals(args)
     elif args.command == "incident":
         return _incident(args)
+    elif args.command == "demo":
+        from dip import demo as demo_mod
+
+        _load_dotenv()
+        if not os.environ.get("DIP_EVAL_DSN"):
+            raise SystemExit("dip demo needs DIP_EVAL_DSN (a throwaway database), or run"
+                             " scripts/demo.sh, which starts one")  # fmt: skip
+        from dip.contracts import REPO_ROOT
+
+        work = REPO_ROOT / "data" / "tmp" / "demo"
+        return demo_mod.run(os.environ["DIP_EVAL_DSN"], work, args.record)
     elif args.command == "contracts" and args.action == "eval":
         return _contracts_eval(args)
     elif args.command == "contracts":

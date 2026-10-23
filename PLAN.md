@@ -397,7 +397,7 @@ What is left is below. Stage 2's date stays **2026-11-20**.
 
 **Order:** S2.1 first, because S2.5 needs it. The channels (S2.2, S2.3) come next, because they change Terraform, and each gets its own PR, so the upgrade job checks it alone.
 
-**Memory:** the SFTP server is about 30 MB and the intake API about 80 MB, against the 2.6 GiB measured for the core profile (§11). No profile change.
+**Memory:** the SFTP server is about 30 MB and the intake API about 80 MB, against the 2.6 GiB measured for the core profile (§12). No profile change.
 
 **LLM calls:** none. **Data:** Synthea and generated invoices only. MIMIC is not involved.
 
@@ -419,7 +419,7 @@ The SFTP and Excel items stay, because Stage 3's OCR matching needs Excel invoic
 ### 8.7 Stage 3 plan: OCR, monitoring, lineage and the read-only MCP tools (added 2026-10-22; built, #32–#35)
 
 **Where things stand.** Parts of Stage 3 are already done:
-- the MCP server, its API keys, the append-only audit log, and Read tools over quarantine, contracts and feed history all came with the triage agent (§11, 2026-10-22);
+- the MCP server, its API keys, the append-only audit log, and Read tools over quarantine, contracts and feed history all came with the triage agent (§12, 2026-10-22);
 - lineage events (R6, `dip/lineage.py`) are emitted, but nothing receives them yet.
 
 What is left is below. The date stays **2026-11-30**.
@@ -498,7 +498,7 @@ item. **Built** means merged and covered by CI; **partly** says what is missing.
 | 5R. Cohort service (R7) | **R7a built** | #20, #21, #27, #38 | R7b, in the drift monitor |
 | 6. Act tier + triage agent | **Built** | The triage agent and its evals (#28); the agent runs `execute_approved_operation` only after a person approved it, checked by the server first, refusals audited as denied; the "denied, then allowed" demo (`docs/demos/stage-6.md`, and in the kind E2E); Act evals (Stage 6 PR) | In the cluster the agent completes only `request_resend` (its login cannot change quarantine or intake rows); release without replay and DAG reruns are not built (decisions log, 2026-10-23) |
 | 7. Incident agent + LangGraph | **Built** | Incidents from breakages (FILE.QUARANTINED, DAG.FAILED, with FEED.LATE); the incident agent (own key and policy, `get_incident`, `report_diagnosis`); the LangGraph graph with a typed `HandoffToTriage` built and checked in code, audited, one chain id across the audit log; evals 6/6 recorded, 18/18 over 3 live runs (`docs/agents/incident.md`, `docs/demos/stage-7.md`) | The incident key on the in-cluster MCP server; running the chain automatically on a new incident; the DAG callbacks are not exercised by the E2E |
-| 8. Hardening and write-up | **Partly** | README, architecture and reviewer docs (docs/FOR_REVIEWERS.md) | Nightly evals, a recorded demo, the OAuth backlog item |
+| 8. Hardening and write-up | **Partly** | README, architecture and reviewer docs (docs/FOR_REVIEWERS.md); nightly evals replaying every agent's recordings (`.github/workflows/evals.yml`, no key); the recorded demo (`scripts/demo.sh`, `docs/demos/stage-8.md`); the OAuth backlog item (§11) | The README screenshots and the fresh-clone quickstart check, from the next local stack run |
 
 ### 8.10 Stages 4, 6, 7 and 8: what is left and how it is built (added 2026-10-23)
 
@@ -573,7 +573,20 @@ docs/             runbooks/ demos/ adr/
 | The schedule is tight: Stage 3 (OCR, monitoring and read-only MCP) by Nov 30, and Stage 5 runs over the holidays | Stage 3's MCP tools are thin wrappers over APIs that already exist (Postgres, Airflow REST, Marquez, Prometheus). If something slips, Grafana dashboards are cut before MCP, because Prometheus alerts already cover monitoring |
 | Airflow 3 / chart version changes | Pin the chart and image versions, and upgrade on purpose |
 
-## 11. Decisions log
+## 11. Backlog (not in this roadmap)
+
+- **OAuth 2.1 for the MCP server** (§4.3): an `Authenticator` implementation against the MCP
+  authorization spec (Keycloak or Dex), replacing static per-agent API keys. Tools and the
+  policy engine do not change.
+- **Separate database logins per agent** (Stage 6 review): today the reader, triage and
+  incident agents share the MCP server's `dip_mcp` login, so it can read every approval's
+  payload; tools are the boundary between them.
+- **The incident agent in the cluster** (Stage 7): its key on the in-cluster MCP server, and
+  the chain started automatically on a new incident.
+- **Contract PRs by a GitHub App** (§7): today a person publishes the contract author's
+  local branch with `gh pr create` (decisions log, 2026-10-23).
+
+## 12. Decisions log
 
 - 2026-10-18: Plan approved. Model `claude-haiku-5-5`, kept in config. Repo is public. Read-only MCP tools in Stage 3. Contract-author agent due 2026-12-31.
 - 2026-10-18: Official MinIO images are no longer published on Docker Hub or quay.io. We use Chainguard's MinIO build from upstream source (`cgr.dev/chainguard/minio`, AGPLv3), pinned by digest. If Chainguard ever drops it, the fallback is to build MinIO from source in `images/minio/`.

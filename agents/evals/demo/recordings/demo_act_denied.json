@@ -1,0 +1,68 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01CnFayARkZ68BVTqZvxyX2L",
+    "input": {
+     "approval_id": 1
+    },
+    "name": "execute_approved_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "c759813e720862f2e92a81e27f7efd6e3e9eae793a0657aa109aab1d7ad8c838",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 1702
+   },
+   "cache_creation_input_tokens": 1702,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 55,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSlAUKEAgTGAI4AUIIdGhpbmtpbmcSDDUrq/ucUIQKN0h3thoM2ae2z9G/E562d1X8IjBFTKBx/LMBQXM7ssLeKmPGLE1SQ7L+IN2Ck7LEfyJMcIEeLVWgnnMWF+FD5wV2exkqsQSN3FhCbNPsn4eZaVkPkF2c3qT77aJwRaghqg+CmlN/6KvPVlRfOJ1MdrAUC5+BTn01U3FsJbchztoAowdSiNU2JFUYl0Z4slpgBWDkSIx7TAteRBktaZdUesx5dWn2X675Ae1tNQwaEBOy8Crg+zHYaCX/2i1KNNWMHLJfYAO62/MLEAAkvktmbt5prO3U7PUz3Dwgi/Li/kBhtL39WDs72UE1w0Hm5T14LRdI+VynCySsejYf2W3whOTR0p2rU9hcEESL8W47He7z1h6/W/MEnm+OnCGh/uVmTEHbxTfw1MV5rsO5oRx/75oLd+P0+yGTILuGn5Q75vhDmSpjd7T3xd69+1yOMzN6/327gI5hP8QamNtlBdNhgOwuw7oehRoWBcy04DxXKsfersblkDjlQD9EqECVV77oJUAW49vZmAEexkzpqEZTsjMGM+TDOyS0pM18sBISZEp/dwfe6aw3qqTpX8IOHC/U1AlKwM9hqCCIF7TFiK9enEIMukKkVEY9YRRFI0RkHYvGfrCShAjQPL/4Uo5mvTslyIqF0EIEZSnTK0J7Iw0zCWOb+dpGGV0JEHSqZxrc+tNzyh+ShUwlqv0AHY8ZdfeYDC6mS0Qo/Y+KsSOHD+8ttHDNkHVkIpblINyBT0yryKx4btsS5PBcUHZ9sm7CKOY7qA4iW9O3EyVfjPMqK4b4zeti7V0bqO3o63xmkBtuZ3caMCZ4S34hivEsEbAH9F9nKw6tTCkiS0IYAQ==",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "The server refused to run approval 1. It reports that the approval is still pending and that only a person's approval lets it run. I did not retry or try another id. Someone needs to confirm the approval was recorded before this can run.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "2951c7f7a698cbbcbdec80879143a9aa5c4cc8e19a4035c363b729aedf2118b7",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 93
+   },
+   "cache_creation_input_tokens": 93,
+   "cache_read_input_tokens": 1702,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 85,
+   "output_tokens_details": {
+    "thinking_tokens": 17
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]
