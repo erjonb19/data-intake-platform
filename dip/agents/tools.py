@@ -274,6 +274,10 @@ def build_registry(
     from dip.agents.read_tools import ReadServices, register_read_tools
 
     register_read_tools(reg, Tool, conn, store, contracts, services or ReadServices.from_env())
+    # The contract-author agent's tools (Stage 5).
+    from dip.agents.author_tools import register_author_tools
+
+    register_author_tools(reg, Tool, conn, store, contracts)
     return reg
 
 

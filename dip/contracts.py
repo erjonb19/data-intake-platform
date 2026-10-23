@@ -98,9 +98,36 @@ def _schema() -> dict[str, Any]:
     return json.loads((Path(__file__).parent / "contract.schema.json").read_text("utf-8"))
 
 
+class _NoAliasLoader(yaml.SafeLoader):
+    """safe_load without anchors and aliases: a candidate contract comes from a model
+    (Stage 5), and aliases are how a small YAML text expands into a huge document."""
+
+    def compose_node(self, parent, index):  # type: ignore[no-untyped-def]
+        if self.check_event(yaml.events.AliasEvent):
+            raise ContractError("YAML aliases are not allowed in a contract")
+        return super().compose_node(parent, index)
+
+
+MAX_CONTRACT_TEXT = 64 * 1024
+
+
 def load_contract(path: str | Path) -> Contract:
     path = Path(path)
-    spec = yaml.safe_load(path.read_text("utf-8"))
+    return parse_contract(path.read_text("utf-8"), path)
+
+
+def parse_contract(text: str, path: Path) -> Contract:
+    """A contract from its YAML text, by every rule load_contract applies (the schema, the
+    filename date, the arrival window, the format's own checks). `path` names it in errors
+    and is where it would live."""
+    if len(text) > MAX_CONTRACT_TEXT:
+        raise ContractError(f"{path.name}: over {MAX_CONTRACT_TEXT} characters")
+    try:
+        spec = yaml.load(text, Loader=_NoAliasLoader)  # noqa: S506 - a SafeLoader subclass
+    except yaml.YAMLError as exc:
+        raise ContractError(f"{path.name}: not valid YAML: {exc}") from exc
+    if not isinstance(spec, dict):
+        raise ContractError(f"{path.name}: a contract is a YAML mapping")
     try:
         jsonschema.validate(spec, _schema())
     except jsonschema.ValidationError as exc:

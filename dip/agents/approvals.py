@@ -20,6 +20,9 @@ Actions:
                            contract fix). Their quarantine entries close as released
   propose_contract_change  hand the group to the contract-author agent (Stage 5); no data
                            changes here
+  contract_pr              the contract-author agent's candidate contract (Stage 5): written
+                           as a commit on a new local branch, with the `git push` and
+                           `gh pr create` for the person to run (dip/agents/contract_pr.py)
 """
 
 from __future__ import annotations
@@ -33,7 +36,7 @@ from typing import Any
 from dip import BUCKET_LANDING, BUCKET_RAW
 from dip.storage import ObjectStore
 
-ACTIONS = ("request_resend", "discard", "replay", "propose_contract_change")
+ACTIONS = ("request_resend", "discard", "replay", "propose_contract_change", "contract_pr")
 TTL = timedelta(days=7)
 
 
@@ -130,7 +133,7 @@ def execute(conn: Any, store: ObjectStore, approval_id: int, by: str) -> dict[st
         raise ApprovalError(f"approval {approval_id}: payload changed since it was proposed")
     landed: list[str] = []
     try:
-        result = _run(conn, store, a["action"], a["payload"], landed)
+        result = _run(conn, store, a["action"], a["payload"], landed, approval_id, by)
         with conn.cursor() as cur:
             cur.execute(
                 "update ops.approvals set status = 'executed', executed_by = %s,"
@@ -165,9 +168,14 @@ def _open_ids(cur: Any, ids: list[int]) -> list[int]:
     return [r[0] for r in cur.fetchall()]
 
 
-def _run(conn: Any, store: ObjectStore, action: str, payload: dict, landed: list[str]) -> dict:
+def _run(conn: Any, store: ObjectStore, action: str, payload: dict, landed: list[str],
+         approval_id: int = 0, by: str = "") -> dict:  # fmt: skip
     """The action's database changes, uncommitted (execute commits them with the status).
     Replay's files go into landing here; `landed` lists them so a failure can undo them."""
+    if action == "contract_pr":  # no database change: a local branch for a person to publish
+        from dip.agents.contract_pr import write_branch
+
+        return write_branch(payload, approval_id, by)
     ids = [int(i) for i in payload["quarantine_ids"]]
     with conn.cursor() as cur:
         open_ids = _open_ids(cur, ids)

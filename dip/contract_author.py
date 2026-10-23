@@ -1,0 +1,230 @@
+"""What the contract-author agent (Stage 5) works from: a file observed against a contract,
+a candidate contract dry-run over that file, and what a candidate loosens.
+
+Plain code, no model: the agent's tools (dip/agents/author_tools.py) call these, and the
+evals score with the same functions, so "valid" and "loosened" mean one thing everywhere.
+
+PHI: an observation shows values only for columns the contract declares and does not mark
+`phi`. A column the contract does not know may be PHI under a new name ("DOB"), so it gets
+counts, an inferred type and value shapes ("A999999999"); its values are shown only when
+they are a short set of code-like tokens (upper case or digits, at most 8 characters, at
+most 12 of them), which a name or a date never is.
+"""
+
+from __future__ import annotations
+
+import csv
+import io
+import re
+from collections import Counter
+from datetime import UTC, date, datetime
+from typing import Any
+
+from dip.contracts import Contract
+
+MAX_EXAMPLES = 3
+MAX_CODES = 12
+CODE = re.compile(r"^[A-Z0-9_-]{1,8}$")  # plan codes, POS codes, currency, units
+DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+INTEGER = re.compile(r"^-?\d+$")
+DECIMAL = re.compile(r"^-?\d+(\.\d+)?$")
+
+
+def _table(data: bytes, fmt: dict[str, Any]) -> tuple[list[str], list[list[str]], dict]:
+    """Header and rows, read as the intake reads the format, plus what the bytes say about
+    themselves (encoding, the delimiter a sniffer sees)."""
+    facts: dict[str, Any] = {}
+    if fmt["type"] == "excel":
+        from dip.csvfeed import CsvResult
+        from dip.excelfeed import _normalize, _rows
+
+        r = CsvResult()
+        rows = _rows(data, fmt, r)
+        if rows is None:
+            facts["unreadable"] = [v.reason_code for v in r.file_violations]
+            return [], [], facts
+        rows = _normalize(rows, r)
+    else:
+        encoding = fmt.get("encoding", "utf-8")
+        try:
+            text = data.decode(encoding)
+            facts["encoding"] = encoding
+        except UnicodeDecodeError:
+            text = data.decode("latin-1")
+            facts["encoding"] = f"not {encoding} (read as latin-1)"
+        sample = text[:4096]
+        try:
+            facts["sniffed_delimiter"] = csv.Sniffer().sniff(sample, ",;|\t").delimiter
+        except csv.Error:
+            facts["sniffed_delimiter"] = None
+        rows = list(csv.reader(io.StringIO(text), delimiter=fmt.get("delimiter", ",")))
+    if not rows:
+        return [], [], facts
+    return [h.strip() for h in rows[0]], rows[1:], facts
+
+
+def shape(value: str) -> str:
+    """A value's shape: letters A (a for lower case), digits 9, the rest kept, max 32."""
+    out = re.sub(r"[A-Z]", "A", re.sub(r"[a-z]", "a", re.sub(r"[0-9]", "9", value)))
+    return out[:32]
+
+
+def _infer(values: list[str]) -> str:
+    seen = [v for v in values if v != ""]
+    if not seen:
+        return "empty"
+    for name, rx in (("integer", INTEGER), ("decimal", DECIMAL), ("date", DATE)):
+        if all(rx.match(v) for v in seen):
+            return name
+    return "string"
+
+
+def observe(contract: Contract | None, data: bytes, fmt: dict[str, Any] | None = None) -> dict:
+    """The file against the contract (None: a new vendor, nothing declared yet)."""
+    fmt = fmt or (contract.spec["format"] if contract else {"type": "csv"})
+    header, rows, facts = _table(data, fmt)
+    declared = {c["name"]: c for c in (contract.spec.get("columns", []) if contract else [])}
+    columns = []
+    for i, name in enumerate(header):
+        values = [r[i].strip() if i < len(r) else "" for r in rows]
+        spec = declared.get(name)
+        safe = spec is not None and not spec.get("phi")
+        item: dict[str, Any] = {
+            "column": name, "declared": spec is not None,
+            "phi": bool(spec and spec.get("phi")), "inferred_type": _infer(values),
+            "empty": sum(1 for v in values if v == ""), "distinct": len(set(values) - {""}),
+        }  # fmt: skip
+        if spec:
+            item["declared_type"] = spec.get("type", "string")
+            item["rule_failures"] = _rule_failures(spec, values, safe)
+        if safe:
+            common = Counter(v for v in values if v).most_common(5)
+            item["top_values"] = [[v[:60], n] for v, n in common]
+        elif not item["phi"]:
+            # Undeclared: the value shapes (letters as A, digits as 9), and the values
+            # themselves only when they look like codes (a short, upper-case or numeric
+            # set): enough to write a pattern or an allowed list, never a name or a date.
+            item["shapes"] = [[sh, n] for sh, n in Counter(
+                shape(v) for v in values if v).most_common(5)]  # fmt: skip
+            codes = sorted(set(values) - {""})
+            if codes and len(codes) <= MAX_CODES and len(rows) >= 2 * len(codes) and all(
+                    CODE.match(v) for v in codes):  # fmt: skip
+                item["codes"] = codes
+        columns.append(item)
+    return {
+        "rows": len(rows),
+        "file": facts,
+        "columns": columns,
+        "missing_declared": [n for n in declared if n not in header],
+        "unexpected": [n for n in header if n not in declared],
+        "order_differs": [n for n in header if n in declared] != [n for n in declared
+                                                                    if n in header],
+    }  # fmt: skip
+
+
+def _rule_failures(spec: dict, values: list[str], show: bool) -> dict[str, Any]:
+    """How many values break each of the column's rules, with examples when not PHI."""
+    out: dict[str, Any] = {}
+
+    def note(rule: str, value: str) -> None:
+        entry = out.setdefault(rule, {"count": 0, "examples": []})
+        entry["count"] += 1
+        if show and len(entry["examples"]) < MAX_EXAMPLES and value not in entry["examples"]:
+            entry["examples"].append(value[:60])
+
+    t = spec.get("type", "string")
+    for v in values:
+        if v == "":
+            if spec.get("required"):
+                note("required", v)
+            continue
+        if t == "integer" and not INTEGER.match(v) or t == "decimal" and not DECIMAL.match(v):
+            note("type", v)
+        if t == "date" and not DATE.match(v):
+            note("type", v)
+        if "allowed" in spec and v not in [str(a) for a in spec["allowed"]]:
+            note("allowed", v)
+        if "pattern" in spec and not re.match(spec["pattern"], v):
+            note("pattern", v)
+    return out
+
+
+def dry_run(contract: Contract, data: bytes, at: datetime | None = None) -> dict[str, Any]:
+    """The candidate contract over the file, as the intake would run it."""
+    from dip.csvfeed import validate_csv
+    from dip.excelfeed import validate_excel
+
+    if contract.format_type not in ("csv", "excel"):
+        return {"error": f"dry runs cover CSV and Excel, not {contract.format_type}"}
+    run = validate_excel if contract.format_type == "excel" else validate_csv
+    r = run(data, contract, at or datetime.now(UTC))
+    codes = Counter(v.reason_code for v in r.file_violations)
+    codes.update(v.reason_code for _, v in r.rejected)
+    # validate_* apply the file-level rules too (reject_file, max_bad_row_ratio, min_rows):
+    # a file rejected whole has file violations and nothing accepted.
+    return {
+        "file_rejected": bool(r.file_violations),
+        "accepted": len(r.accepted),
+        "rejected": len(r.rejected),
+        "reason_codes": dict(sorted(codes.items())),
+    }
+
+
+# What makes a contract accept more. Each entry is one rule the candidate drops or widens.
+def loosening(old: dict[str, Any] | None, new: dict[str, Any]) -> list[dict[str, Any]]:
+    if not old:
+        return []
+    out: list[dict[str, Any]] = []
+
+    def add(where: str, rule: str, before: Any, after: Any) -> None:
+        out.append({"where": where, "rule": rule, "from": before, "to": after})
+
+    if new.get("max_bad_row_ratio", 0) > old.get("max_bad_row_ratio", 0):
+        add("contract", "max_bad_row_ratio", old.get("max_bad_row_ratio", 0),
+            new.get("max_bad_row_ratio"))  # fmt: skip
+    if old.get("on_row_violation") == "reject_file" != new.get("on_row_violation"):
+        add("contract", "on_row_violation", "reject_file", new.get("on_row_violation"))
+    if old.get("min_rows", 0) > new.get("min_rows", 0):
+        add("contract", "min_rows", old.get("min_rows"), new.get("min_rows", 0))
+    new_cols = {c["name"]: c for c in new.get("columns", [])}
+    for c in old.get("columns", []):
+        n = new_cols.get(c["name"])
+        if n is None:
+            continue  # a dropped column: a rename or removal, reported by the diff, not here
+        if c.get("required") and not n.get("required"):
+            add(c["name"], "required", True, n.get("required", False))
+        if c.get("unique") and not n.get("unique"):
+            add(c["name"], "unique", True, False)
+        if c.get("phi") and not n.get("phi"):
+            add(c["name"], "phi", True, False)
+        if "pattern" in c and n.get("pattern") != c["pattern"]:
+            add(c["name"], "pattern", c["pattern"], n.get("pattern"))
+        if "allowed" in c:
+            extra = sorted(
+                set(map(str, n.get("allowed") or ["<any>"])) - set(map(str, c["allowed"]))
+            )
+            if extra or "allowed" not in n:
+                add(c["name"], "allowed", c["allowed"], n.get("allowed", "<any value>"))
+        for bound, wider in (("min", lambda a, b: b is None or _lt(b, a)),
+                             ("max", lambda a, b: b is None or _lt(a, b))):  # fmt: skip
+            if bound in c and wider(c[bound], n.get(bound)):
+                add(c["name"], bound, c[bound], n.get(bound))
+        if c.get("type", "string") != "string" and n.get("type", "string") == "string":
+            add(c["name"], "type", c.get("type"), "string")
+    return out
+
+
+def _lt(a: Any, b: Any) -> bool:
+    """a < b for numbers, dates, or the symbolic 'today' (a moving upper bound)."""
+
+    def norm(x: Any) -> Any:
+        if x == "today":
+            return date.max
+        if isinstance(x, str) and DATE.match(x):
+            return date.fromisoformat(x)
+        return x
+
+    try:
+        return norm(a) < norm(b)
+    except TypeError:
+        return str(a) < str(b)

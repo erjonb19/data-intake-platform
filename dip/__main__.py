@@ -23,6 +23,8 @@
   cohort run NAME...           run library cohorts as the read-only cohort reader
                                (DIP_COHORT_DSN; Synthea tier only), suppressed counts as JSON
   cohort verify-audit          check the hash chain of the cohort audit log
+  contracts sample FEED FILE   register a new vendor's sample file for the contract author
+                               (Stage 5): its raw copy and its sha256, for diff_schema
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
                                read-only dip_metrics login (DIP_METRICS_DSN)
 
@@ -312,6 +314,10 @@ def main(argv: list[str] | None = None) -> int:
     coh.add_argument("names", nargs="*")
     coh.add_argument("--audit", type=Path, default=Path("data/cohort_audit.jsonl"))
     coh.add_argument("--requester", default=os.environ.get("USER") or os.environ.get("USERNAME"))
+    con = sub.add_parser("contracts")
+    con.add_argument("action", choices=["sample"])
+    con.add_argument("feed")
+    con.add_argument("file", type=Path)
     met = sub.add_parser("metrics-serve")
     met.add_argument("--port", type=int, default=9187)
     args = parser.parse_args(argv)
@@ -373,6 +379,14 @@ def main(argv: list[str] | None = None) -> int:
         return _triage(args)
     elif args.command == "approvals":
         return _approvals(args)
+    elif args.command == "contracts":
+        from dip.agents.author_tools import register_sample
+
+        who = os.environ.get("USER") or os.environ.get("USERNAME") or "unknown"
+        wh = _warehouse()
+        wh.init()
+        print(register_sample(wh.conn, _store(args), args.feed, args.file, f"human:{who}"))
+        return 0
     elif args.command == "metrics-serve":
         from dip.metrics import serve
 

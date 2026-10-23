@@ -174,6 +174,18 @@ DROP TRIGGER IF EXISTS audit_log_no_truncate ON ops.audit_log;
 CREATE TRIGGER audit_log_no_truncate BEFORE TRUNCATE ON ops.audit_log
     FOR EACH STATEMENT EXECUTE FUNCTION ops.audit_log_append_only();
 
+-- Sample files for the contract-author agent (Stage 5): a new vendor's file, registered by
+-- a person (`dip contracts sample`) before any contract exists. Its raw copy is in raw/.
+CREATE TABLE IF NOT EXISTS ops.sample_file (
+    feed           text        NOT NULL,
+    file_sha256    text        NOT NULL,
+    raw_key        text        NOT NULL,
+    name           text        NOT NULL,
+    registered_by  text        NOT NULL,
+    registered_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (feed, file_sha256)
+);
+
 -- The metrics exporter's read access (S3.2, dip/metrics.py): only the ops columns its
 -- queries name, on whichever of its tables exist yet. Called here, and again where
 -- ops.incident (dip/sla.py) and ops.dq_results (dbt macro store_dq_results) are created.

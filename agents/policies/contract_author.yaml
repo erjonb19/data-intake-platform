@@ -1,0 +1,24 @@
+# Policy for the contract-author agent (Stage 5; PLAN.md sections 4.2 and 8.8). Enforced by
+# the tool registry behind the MCP server, never by the model; every call is audited.
+agent: contract_author
+description: >
+  Reads a feed's contract, history and a file's observed schema; checks candidate
+  contracts; proposes one for a person to approve. Never acts: an approved proposal becomes
+  a local branch that the person publishes.
+max_tier: propose
+# The agent writes rules, not records: it never needs a PHI value.
+mask_phi: true
+tools:
+  - get_contract
+  - get_feed_history
+  - list_quarantine_groups
+  - get_quarantine_sample
+  - diff_schema
+  - validate_contract
+  - propose_contract_pr
+limits:
+  max_calls_per_run: 40
+  max_calls_per_hour: 400
+  propose_contract_pr:
+    max_per_run: 2
+    max_per_hour: 20
