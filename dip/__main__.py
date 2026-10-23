@@ -19,6 +19,9 @@
                                model turns by default; --record calls the model and saves them
   triage loop [--record]       every dip break scenario through detect, triage, propose,
                                approve, fix and check (agents/evals/break_loop; DIP_EVAL_DSN)
+  triage act --approval ID     the triage agent runs one approval a person approved (Act
+                               tier, Stage 6); the server refuses anything else
+  triage act-eval [--record]   score Act mode on agents/evals/triage_act/cases.yaml
   approvals list|show|approve|reject|execute [ID]
                                the human side of agent proposals (audited as human:<you>)
   cohort list                  the cohort library (packs/healthcare/cohorts), latest versions
@@ -152,14 +155,23 @@ def _triage(args: argparse.Namespace) -> int:
     from dip.agents.llm import AnthropicLLM, Recorder, Recording, cost_usd
 
     _load_dotenv()
-    if args.action == "run":
+    if args.action in ("run", "act"):
+        if args.action == "act" and args.approval is None:
+            raise SystemExit("triage act needs --approval ID")
 
         async def go():
             async with triage.mcp_client(os.environ["DIP_MCP_URL"],
                                          os.environ["DIP_TRIAGE_KEY"]) as client:  # fmt: skip
+                if args.action == "act":
+                    return await triage.act(client, AnthropicLLM(), args.approval)
                 return await triage.run(client, AnthropicLLM())
 
         r = asyncio.run(go())
+        if args.action == "act":
+            print(r.summary)
+            print(f"{r.turns} turns, {len(r.denied)} denied calls,"
+                  f" ${cost_usd(r.usage, r.model):.4f}", file=sys.stderr)  # fmt: skip
+            return 0 if not r.denied else 1
         for p in r.proposals:
             print(f"approval {p['approval_id']}: {p['action']:<24} {p['group_id']}"
                   f" ({p['root_cause']}, {p['confidence']})")  # fmt: skip
@@ -170,6 +182,8 @@ def _triage(args: argparse.Namespace) -> int:
     dsn = os.environ["DIP_EVAL_DSN"]
     if args.action == "loop":
         return _break_loop(args, dsn)
+    if args.action == "act-eval":
+        return _act_eval(args, dsn)
     source = args.cases_file or evals.CASES
     cases = [c for c in evals.load_cases(source) if not args.case or c["name"] in args.case]
     work = Path("data/tmp/triage-eval")
@@ -191,6 +205,34 @@ def _triage(args: argparse.Namespace) -> int:
     (args.out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
     print(json.dumps(rep["summary"], indent=1))
     return 0 if rep["summary"]["policy_violations"] == 0 else 1
+
+
+def _act_eval(args: argparse.Namespace, dsn: str) -> int:
+    from dip.agents import act_evals
+    from dip.agents.llm import AnthropicLLM, Recorder, Recording
+
+    doc = act_evals.load()
+    results = []
+    for case in doc["cases"] * max(1, args.repeat if args.live else 1):
+        if args.case and case["name"] not in args.case:
+            continue
+        path = act_evals.RECORDINGS / f"{case['name']}.json"
+        if args.record:
+            llm = Recorder(AnthropicLLM())
+        else:
+            llm = AnthropicLLM() if args.live else Recording(path)
+        r = act_evals.run_case(doc, case, dsn, llm, Path("data/tmp/triage-act-eval"))
+        if args.record:
+            llm.save(path)
+        results.append(r)
+        print(f"{'PASS' if r.passed else 'FAIL'} {case['name']}: ran={r.ran},"
+              f" denied={r.denied_in_audit}, other ids {r.other_ids_attempted}",
+              file=sys.stderr)  # fmt: skip
+    rep = act_evals.report(results)
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "report.json").write_text(act_evals.dumps(rep), "utf-8")
+    print(json.dumps(rep["summary"], indent=1))
+    return 0 if rep["summary"]["cases_passed"] == rep["summary"]["cases"] else 1
 
 
 def _break_loop(args: argparse.Namespace, dsn: str) -> int:
@@ -378,7 +420,8 @@ def main(argv: list[str] | None = None) -> int:
         help="Host header to accept (DNS-rebinding protection); default localhost",
     )
     tri = sub.add_parser("triage")
-    tri.add_argument("action", choices=["run", "eval", "loop"])
+    tri.add_argument("action", choices=["run", "eval", "loop", "act", "act-eval"])
+    tri.add_argument("--approval", type=int, help="act: the approval a person approved")
     tri.add_argument("--record", action="store_true", help="call the model, save its turns")
     tri.add_argument("--live", action="store_true", help="call the model, save nothing")
     tri.add_argument("--cases-file", type=Path, default=None)

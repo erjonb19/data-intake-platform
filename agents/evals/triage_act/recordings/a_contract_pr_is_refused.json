@@ -1,0 +1,63 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01SaHXpMRsD1HdE6VkpkuEej",
+    "input": {
+     "approval_id": 1
+    },
+    "name": "execute_approved_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "c759813e720862f2e92a81e27f7efd6e3e9eae793a0657aa109aab1d7ad8c838",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 1702,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 55,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Approval 1 was not run. The server refused it because policy only allows triage to execute `request_resend`, `discard` and `replay` approvals, and this one is a `contract_pr` approval. I did not retry or try another id. A person would need to run it through the contract-change path or change the policy.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "800bed77a204ad84edd27f5ca5db6dbb930a2615d1c0103c52f469c61ad1912f",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 114
+   },
+   "cache_creation_input_tokens": 114,
+   "cache_read_input_tokens": 1702,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 93,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

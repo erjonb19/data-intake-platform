@@ -112,13 +112,15 @@ def test_the_quarantine_tools_work_as_the_mcp_login(reader):
     "select count(*) from bronze.csv_record",
     "select count(*) from gold.member_eligibility",
     "select count(*) from silver.eligibility_record",
-    "select payload, status from ops.approvals",
-    "update ops.approvals set status = 'approved'",
+    "update ops.approvals set decided_by = 'human:x', approved_sha256 = 'x'",
+    "update ops.approvals set payload = '{}'::jsonb",
+    "delete from ops.approvals",
+    "update ops.quarantine set status = 'discarded'",
     "select count(*) from ops.audit_log",
     "delete from ops.quarantine",
     "update ops.audit_log set decision = 'allowed'",
 ])  # fmt: skip
-def test_the_mcp_login_reads_nothing_else_and_cannot_rewrite_the_audit(reader, sql):
+def test_the_mcp_login_reads_nothing_else_and_cannot_rewrite_the_audit_or_approve(reader, sql):
     import psycopg
 
     _, conn = reader
@@ -134,3 +136,42 @@ def test_every_call_is_audited(module_warehouse, reader):
         cur.execute("select count(*) from ops.audit_log where principal = 'reader'")
         assert cur.fetchone()[0] >= 1
     module_warehouse.conn.commit()
+
+
+def test_the_cluster_triage_login_completes_only_a_resend(module_warehouse, reader, tmp_path):
+    """Stage 6: as dip_mcp, a person-approved discard is refused up front (the login cannot
+    write quarantine), so the approval stays approved for a person to run; a resend runs;
+    and the login cannot re-arm the executed approval to run it twice."""
+    import psycopg
+
+    from dip.agents import approvals
+    from dip.agents.registry import Denied
+
+    _, conn = reader
+    wh = module_warehouse
+    with wh.conn.cursor() as cur:
+        cur.execute("select quarantine_id from ops.quarantine where status = 'open' limit 1")
+        (qid,) = cur.fetchone()
+    wh.conn.commit()
+    ids = []
+    for action in ("discard", "request_resend"):
+        payload = {"group_id": f"{FEED}|x", "feed": FEED, "quarantine_ids": [qid],
+                   "message": "resend"}  # fmt: skip
+        aid = approvals.create(wh.conn, "triage", None, action, payload)
+        approvals.decide(wh.conn, aid, True, "human:test")
+        ids.append(aid)
+    reg = build_registry(conn, LocalStore(tmp_path), load_contracts(), ReadServices())
+    triage = Policy.load("triage")
+    with pytest.raises(Denied, match="cannot run a discard"):
+        reg.call(triage, "t", "execute_approved_operation", {"approval_id": ids[0]})
+    assert reg.call(triage, "t", "execute_approved_operation",
+                    {"approval_id": ids[1]})["status"] == "executed"  # fmt: skip
+    with conn.cursor() as cur:
+        cur.execute("select status from ops.approvals where approval_id = any(%s) order by 1",
+                    (ids,))  # fmt: skip
+        assert [r[0] for r in cur.fetchall()] == ["approved", "executed"]
+    conn.commit()
+    with pytest.raises(psycopg.errors.RaiseException, match="cannot become"), conn.cursor() as c:
+        c.execute("update ops.approvals set status = 'approved' where approval_id = %s",
+                  (ids[1],))  # fmt: skip
+    conn.rollback()

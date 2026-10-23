@@ -1,0 +1,63 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_016Nsn1csD2ZLRcMhHgEbZWn",
+    "input": {
+     "approval_id": 1
+    },
+    "name": "execute_approved_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "c759813e720862f2e92a81e27f7efd6e3e9eae793a0657aa109aab1d7ad8c838",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 1702,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 55,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Approval 1 ran and discarded quarantine entry 1. The server reported no errors.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "a727b24c3e64e52cee4e0aceb64f82b3d1d49a8b25e541dc857e2a73a3568e3a",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 93
+   },
+   "cache_creation_input_tokens": 93,
+   "cache_read_input_tokens": 1702,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 31,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

@@ -157,6 +157,29 @@ BEGIN
             AND NEW.approved_sha256 IS DISTINCT FROM OLD.approved_sha256) THEN
         RAISE EXCEPTION 'ops.approvals: a proposal cannot be changed after it is made';
     END IF;
+    -- The status moves one way (Stage 6): pending -> approved | rejected | expired, and
+    -- approved -> executed | failed | expired. A decision and an execution, once recorded,
+    -- stay as recorded. So no login can re-arm an approval that ran or failed, approve one
+    -- without recording who and what, or mark a pending one executed.
+    IF NEW.status IS DISTINCT FROM OLD.status AND NOT (
+        (OLD.status = 'pending' AND NEW.status IN ('approved', 'rejected', 'expired'))
+        OR (OLD.status = 'approved' AND NEW.status IN ('executed', 'failed', 'expired'))
+    ) THEN
+        RAISE EXCEPTION 'ops.approvals: status % cannot become %', OLD.status, NEW.status;
+    END IF;
+    IF NEW.status = 'approved' AND OLD.status = 'pending'
+        AND (NEW.decided_by IS NULL OR NEW.approved_sha256 IS NULL) THEN
+        RAISE EXCEPTION 'ops.approvals: an approval records who decided and what they approved';
+    END IF;
+    IF NEW.status IN ('executed', 'failed') AND OLD.status = 'approved'
+        AND NEW.executed_by IS NULL THEN
+        RAISE EXCEPTION 'ops.approvals: an execution records who ran it';
+    END IF;
+    IF (OLD.decided_by IS NOT NULL AND NEW.decided_by IS DISTINCT FROM OLD.decided_by)
+        OR (OLD.executed_by IS NOT NULL AND NEW.executed_by IS DISTINCT FROM OLD.executed_by)
+        OR (OLD.result IS NOT NULL AND NEW.result IS DISTINCT FROM OLD.result) THEN
+        RAISE EXCEPTION 'ops.approvals: a decision or an execution cannot be rewritten';
+    END IF;
     RETURN NEW;
 END $$;
 DROP TRIGGER IF EXISTS approvals_payload_fixed ON ops.approvals;
@@ -258,11 +281,21 @@ BEGIN
         GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_mcp;
     END IF;
     -- The triage agent's proposals (Stage 4, S4.5): a pending row for a person to
-    -- approve. Inserting it changes no data; approving and executing stay a person's. It
-    -- may read back only the new row's id (INSERT ... RETURNING), not the proposals.
+    -- approve. And its Act tier (Stage 6): reading an approval to check it (this login can
+    -- therefore read every proposal's payload: rationales and vendor messages the triage
+    -- agent wrote, from records it saw unmasked; the reader's tools never return them),
+    -- and recording that it ran. Approving (decided_by, approved_sha256) stays a person's:
+    -- those columns cannot be updated by this login, and the trigger above holds every
+    -- login to the one-way status machine. The only action this login can complete is
+    -- request_resend, which changes no data: discard and replay need writes to the
+    -- quarantine and intake tables (and landing) that it does not have, so the Act check
+    -- refuses them up front and a person runs them (`dip approvals execute`). Residual
+    -- risk: whoever holds this login could record an approved row as executed (by any
+    -- name) without running it; it could not run anything a person did not approve.
+    -- Separate database logins per agent are a follow-up.
     IF to_regclass('ops.approvals') IS NOT NULL THEN
-        GRANT INSERT ON ops.approvals TO dip_mcp;
-        GRANT SELECT (approval_id) ON ops.approvals TO dip_mcp;
+        GRANT SELECT, INSERT ON ops.approvals TO dip_mcp;
+        GRANT UPDATE (status, executed_by, executed_at, result) ON ops.approvals TO dip_mcp;
         GRANT USAGE ON SEQUENCE ops.approvals_approval_id_seq TO dip_mcp;
     END IF;
 END $$;

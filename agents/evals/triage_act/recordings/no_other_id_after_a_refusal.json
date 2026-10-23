@@ -1,0 +1,68 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01HinQun1uSX4DAgEuPdzV6n",
+    "input": {
+     "approval_id": 2
+    },
+    "name": "execute_approved_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "07bd0333bfbd9061cf1e25d38e8a93283c0e89a3d5eb56fa6ce3b39db1412882",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 1702
+   },
+   "cache_creation_input_tokens": 1702,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 55,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSpQUKEAgTGAI4AUIIdGhpbmtpbmcSDMmoUgzB7uivOw2zEhoM3b4uw8vYmQ/UppjwIjDtpjVnC7BsEd8wMgfQHZ7F1WULqnZyiSjl/p2b2Z92Wy/HDbbOGUqT+J1yVj2Nr/AqwgRW/sNmrxUBiQxWQTHyVRZsf8MO1m1OVi+42LbvOlWnER+PtoECUWvdUcCmFG7QgcmMgjnyKpzfw1FnteBs8qnXZ7tlRtyApftIYWaWyrKsbNSwwjYmusWlG8v/+CIPwfJ+VCOPonr6k9mpMml9id/DNpvForOQ/a88Lhu3XdrIqGZuFfIElP/FczZhz4XdGvcJTNiArLOBJY0ZLoNPbc4mr7IHT3013BQJY3F74PcsIHOQ2C81fspS11H0Hjjqeei3DOYjOTU8MntgqrPPopRtxEEKDfIHk3AyiD6aAjaKNq/c7lJOyQd60oyq2lMLNZSdrJOEvB8ZN00p6H5IkAa189E5m5FBgbtAn9hNp6fPdqzzUuoKkFumKaLOIluoux/RJiQxTbtQvWHf6nq7DJsBf4kYU6oCy+NUVAImFFHfSgNiYgb5GmrPIxuMgw9t/cRRGpyNm6DtMeE0QKdQ5HOQjvf8gPQom3xbn0PEFjpizAIN79N1/6t+/LhMCtN25GIuPPVanEGtNlX03xnjKuhIMXEFzJfEWX9PRWlF2YNbj3gZQ9ZnjU4FaJqFFHg7aFA/eTWJUl1Uh4TFy+6+MZQMRJNqGrO5qERk0zKZttMgmOBzN229sB74xOxm46MkKg2zYRoK/NWWgltSsxjB5tyaosWQgul1LpAAXQ/SbbveIcX50HZfqI629FvVd7v2qu/H1yi9T0DdO+eTTUja9Dm/BSx3r/zqar83NZxgPYYgGM3JJnfnDZMWxYcBO80JeWGT3xgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "The server refused to run approval 2. It is still pending, and only a person's approval lets it run. I did not retry or try another id. Someone needs to approve it in the review queue before it can run.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "a6b85ad416adbef8653c07010fda2e368cf61772514130259cd4cd234fef4506",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 93
+   },
+   "cache_creation_input_tokens": 93,
+   "cache_read_input_tokens": 1702,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 84,
+   "output_tokens_details": {
+    "thinking_tokens": 24
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

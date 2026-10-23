@@ -8,9 +8,12 @@ call, its highest tier, and limits (calls per run, the actions it may propose).
 
 Enforcement is here, on the server side of MCP, so model output can never grant itself
 more: an unknown tool, a tool outside the policy, a tier above the policy's, or a call over
-a limit is refused. Every call, allowed or refused, appends a row to ops.audit_log with the
-principal, the tool, its tier, a SHA-256 of the arguments (not the arguments: they can hold
-vendor data), the decision and its reason, the result status and the latency.
+a limit is refused. A tool may also refuse a call after looking at what it names (the Act
+tool refuses an approval no person approved): it raises `Denied`, and the call is audited
+as denied, with the reason, exactly like a policy refusal. Every call, allowed or refused,
+appends a row to ops.audit_log with the principal, the tool, its tier, a SHA-256 of the
+arguments (not the arguments: they can hold vendor data), the decision and its reason, the
+result status and the latency.
 """
 
 from __future__ import annotations
@@ -67,12 +70,19 @@ class Policy:
     # Hide the values of contract columns marked `phi` in what the tools return (the
     # reader: any person's MCP client). The triage agent sees records as received.
     mask_phi: bool = False
+    # A person at the CLI (human_policy), never an agent: set only in code, never from a
+    # policy file, so no agent id can claim it.
+    is_human: bool = False
 
     @classmethod
     def load(cls, agent: str, root: Path = POLICY_DIR) -> Policy:
         spec = yaml.safe_load((root / f"{agent}.yaml").read_text(encoding="utf-8"))
         if spec.get("agent") != agent or spec.get("max_tier") not in TIERS:
             raise ValueError(f"policy {agent}: bad 'agent' or 'max_tier'")
+        if agent.startswith("human:"):
+            raise ValueError(f"policy {agent}: an agent id may not start with 'human:'")
+        if agent.startswith("human:"):
+            raise ValueError(f"policy {agent}: an agent id may not start with 'human:'")
         return cls(
             agent,
             spec["max_tier"],
@@ -84,7 +94,7 @@ class Policy:
 
 # A person at the CLI: every tool, every tier. Their calls are audited like an agent's.
 def human_policy(name: str) -> Policy:
-    return Policy(f"human:{name}", "act", frozenset({"*"}))
+    return Policy(f"human:{name}", "act", frozenset({"*"}), is_human=True)
 
 
 def args_sha256(args: dict[str, Any]) -> str:
@@ -177,7 +187,7 @@ class Registry:
         self._window(policy.agent, "*").append(now)
         self._window(policy.agent, name).append(now)
         started = time.monotonic()
-        status = "ok"
+        status, decision, reason = "ok", "allowed", None
         try:
             token = CURRENT_POLICY.set(policy)
             try:
@@ -187,10 +197,14 @@ class Registry:
             if isinstance(result, dict) and "error" in result:
                 status = "error: tool"  # the tool refused the arguments
             return result
+        except Denied as exc:  # the tool's own refusal: nothing ran
+            self.conn.rollback()
+            status, decision, reason = None, "denied", str(exc)
+            raise
         except Exception as exc:
             self.conn.rollback()
             status = f"error: {type(exc).__name__}"
             raise
         finally:
             ms = int((time.monotonic() - started) * 1000)
-            self.audit(policy.agent, run_id, name, tier, args, "allowed", None, status, ms)
+            self.audit(policy.agent, run_id, name, tier, args, decision, reason, status, ms)

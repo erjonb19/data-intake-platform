@@ -1,5 +1,5 @@
 """The failure-triage agent (Stage 4): open quarantine in, one proposal per group out, for a
-person to approve.
+person to approve. In Act mode (Stage 6, `act`) it runs one approval a person approved.
 
 The agent is an MCP client: it connects to the platform's MCP server over Streamable HTTP
 with its own API key, lists the tools, and lets the model call them through
@@ -73,6 +73,24 @@ async def mcp_client(url: str, api_key: str):
 async def run(client: Any, llm: LLM, max_turns: int = 30, run_id: str | None = None) -> TriageRun:
     """Run the agent against a connected MCP client (from `mcp_client`, or in-process)."""
     return await run_agent(client, llm, PROMPT, TASK, max_turns, run_id)
+
+
+ACT_PROMPT = (REPO_ROOT / "agents" / "prompts" / "triage_act.md").read_text(encoding="utf-8")
+
+
+def act_task(approval_id: int) -> str:
+    return (
+        f"A person approved approval {approval_id}. Run it with execute_approved_operation"
+        " and report the result."
+    )
+
+
+async def act(client: Any, llm: LLM, approval_id: int, max_turns: int = 6,
+              run_id: str | None = None) -> TriageRun:  # fmt: skip
+    """Act mode (Stage 6): run one approval a person approved. The server decides: it runs
+    only an approval this agent proposed, a person approved, unexpired and unchanged, with
+    an action the policy lets the agent execute; any other call is refused and audited."""
+    return await run_agent(client, llm, ACT_PROMPT, act_task(approval_id), max_turns, run_id)
 
 
 async def run_agent(client: Any, llm: LLM, system: str, task: str, max_turns: int = 30,
