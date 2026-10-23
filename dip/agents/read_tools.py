@@ -118,14 +118,17 @@ class ReadServices:
 
 # The platform's own log lines (dags/feed_intake.py, dags/fhir_intake.py, dbt's summary,
 # Airflow's task framing): codes, counts and file names, never a row's values.
+# dbt starts every console line with a color reset and a time ("\x1b[0m18:18:34  ").
+_DBT = r"(\x1b\[[0-9;]*m)*([0-9]{2}:[0-9]{2}:[0-9]{2}\s+)?"
 _PLATFORM_LOG = re.compile(
     r"^(loaded|loaded_with_rejections|quarantined|duplicate)\s+\S+ accepted=\d+ rejected=\d+"
-    r"|^intake summary: |^::(end)?group::|Done\. PASS=\d+|^Finished running |"
+    r"|^intake summary: |^::(end)?group::|Done\. PASS=\d+|^" + _DBT + r"Finished running |"
     r"Task instance (is in|finished)|Marking task as "
     # dbt's failure lines and Airflow's exit line (Stage 7, the incident agent): a test or
     # model name and counts, never a row's values.
-    r"|^Failure in (test|model) [A-Za-z0-9_.]+ \(|^Got \d+ results?, configured to "
-    r"|^Completed with \d+ errors?|^Task exited with return code "
+    r"|^" + _DBT + r"Failure in (test|model) [A-Za-z0-9_.]+ \("
+    r"|^" + _DBT + r"Got \d+ results?, configured to "
+    r"|^" + _DBT + r"Completed with \d+ errors?|^Task exited with return code "
 )
 
 

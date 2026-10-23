@@ -143,7 +143,8 @@ class Warehouse:
                 if intake.status == "quarantined":
                     codes = sorted({q.reason_code for q in quarantine})
                     open_incident(cur, intake.feed, "FILE.QUARANTINED",
-                                  f"{intake.source_key}: {', '.join(codes)}")  # fmt: skip
+                                  f"{intake.source_key}: {', '.join(codes)}",
+                                  intake.file_sha256)  # fmt: skip
                 close_quarantine_incidents(cur, intake.feed)
             self.conn.commit()
         except Exception:
@@ -167,11 +168,12 @@ class Warehouse:
         try:
             with self.conn.cursor() as cur:
                 _insert_quarantine(cur, quarantine)
-                for feed in sorted({q.feed for q in quarantine}):
-                    codes = sorted({q.reason_code for q in quarantine if q.feed == feed})
-                    keys = sorted({q.quarantine_key for q in quarantine if q.feed == feed})
+                for feed, sha in sorted({(q.feed, q.file_sha256) for q in quarantine}):
+                    mine = [q for q in quarantine if (q.feed, q.file_sha256) == (feed, sha)]
+                    codes = sorted({q.reason_code for q in mine})
+                    keys = sorted({q.quarantine_key for q in mine})
                     open_incident(cur, feed, "FILE.QUARANTINED",
-                                  f"{', '.join(keys)}: {', '.join(codes)}")  # fmt: skip
+                                  f"{', '.join(keys)}: {', '.join(codes)}", sha)  # fmt: skip
             self.conn.commit()
         except Exception:
             self.conn.rollback()

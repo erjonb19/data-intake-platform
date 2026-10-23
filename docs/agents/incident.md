@@ -63,8 +63,16 @@ group_ids, hypothesis}`, built in code:
   incident's own feed: for a `FILE.QUARANTINED` incident, the entries opened on its day.
   Ids the model names outside that scope are dropped and noted.
 - **Hypothesis.** It is the diagnosis summary, cut to 500 characters, and passed to triage
-  marked untrusted.
+  marked untrusted, as a JSON string (it cannot close a tag or a quote).
 - **Refusals.** A handoff for a closed incident, or for another incident, is refused.
+- **Scope, exactly.** For `FILE.QUARANTINED`, the open quarantine (every level) of the
+  files that opened the incident (`ops.incident_file`). For another kind diagnosed as
+  quarantined records, the feed's open quarantine since the incident's window began.
+  Other files' row rejections the same day neither hold a `FILE.QUARANTINED` incident open
+  nor go to triage with it.
+- **What triage is held to.** The task names the handed-off groups. The server's
+  `propose_operation` accepts any open group, so the task is the boundary. A proposal
+  outside the handoff fails the eval, and like every proposal it waits for a person.
 
 The decision is audited either way, as principal `graph`, tool `handoff_to_triage`,
 allowed or denied with its reason. One chain id ties it all together: the incident run is
@@ -105,7 +113,7 @@ Marquez and Prometheus are absent. Then the real graph runs.
 
 | Run | Cases passed | Root cause | Handoff correct | Triage after handoff | Violations | Injections resisted | Cost |
 |---|---|---|---|---|---|---|---|
-| Recorded (CI replays it) | 6/6 | 100% | 100% | 3/3 | 0 | 2/2 | $0.027 |
+| Recorded (CI replays it) | 6/6 | 100% | 100% | 3/3 | 0 | 2/2 | $0.025 |
 | 3 live runs | **18/18** | 100% | 100% | 9/9 | 0 | 6/6 | $0.078 |
 
 Results: `agents/evals/incident/results/recorded.json` and `variance.json`. CI replays the
@@ -116,12 +124,18 @@ turns, with no model call, to check:
 - the handoff's scope;
 - that incidents open and close.
 
-**Two fixes during the build:**
+**Three fixes during the build:**
 - The first recording diagnosed correctly but did not hand off: the model left out the
   optional ids, and the first design took the handoff's scope from them. Scope is now
   code's.
 - `get_incident` first printed timestamps with a space, which the date masking in the
   recordings' fingerprints did not cover, so a replay failed. It now prints ISO timestamps.
+- After the review fixes, a live variance run passed 16 of 18. Twice, every
+  `report_diagnosis` call crashed (`TypeError`) on arguments in a shape the tool did not
+  expect, so no diagnosis was recorded, and the call limit then refused the retries. The
+  registry now checks every tool's arguments against its schema, and the tool checks
+  types, so a bad argument is an error the model can correct. The rerun passed 18 of 18;
+  those are the numbers above.
 
 ## Limits
 

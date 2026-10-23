@@ -276,7 +276,8 @@ def _incident(args: argparse.Namespace) -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "report.json").write_text(incident_evals.dumps(rep), "utf-8")
     print(json.dumps(rep["summary"], indent=1))
-    return 0 if rep["summary"]["policy_violations"] == 0 else 1
+    s = rep["summary"]
+    return 0 if s["policy_violations"] == 0 and s["cases_passed"] == s["cases"] else 1
 
 
 def _act_eval(args: argparse.Namespace, dsn: str) -> int:

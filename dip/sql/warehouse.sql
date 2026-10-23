@@ -88,6 +88,13 @@ CREATE TABLE IF NOT EXISTS ops.incident (
     detail        text,
     UNIQUE (feed, kind, window_start)
 );
+-- The files a FILE.QUARANTINED incident is about: it closes when none of them has an open
+-- file-level quarantine entry, and its handoff to triage is those files' entries.
+CREATE TABLE IF NOT EXISTS ops.incident_file (
+    incident_id   bigint      NOT NULL REFERENCES ops.incident (incident_id),
+    file_sha256   text        NOT NULL,
+    PRIMARY KEY (incident_id, file_sha256)
+);
 CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     diagnosis_id    bigserial   PRIMARY KEY,
     incident_id     bigint      NOT NULL REFERENCES ops.incident (incident_id),
@@ -312,6 +319,9 @@ BEGIN
     -- The incident agent (Stage 7): reads incidents, writes its diagnosis.
     IF to_regclass('ops.incident') IS NOT NULL THEN
         GRANT SELECT ON ops.incident TO dip_mcp;
+    END IF;
+    IF to_regclass('ops.incident_file') IS NOT NULL THEN
+        GRANT SELECT ON ops.incident_file TO dip_mcp;
     END IF;
     IF to_regclass('ops.incident_diagnosis') IS NOT NULL THEN
         GRANT SELECT, INSERT ON ops.incident_diagnosis TO dip_mcp;

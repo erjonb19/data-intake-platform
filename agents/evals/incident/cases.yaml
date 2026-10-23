@@ -82,9 +82,10 @@ cases:
               state: failed
               log:
                 - "intake summary: {'loaded': 1}"
-                - "Failure in test unique_member_eligibility_member_id (models/eligibility/_eligibility.yml)"
-                - "Got 1 result, configured to fail if != 0"
-                - "Done. PASS=11 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=12"
+                # As dbt prints them: a color reset and a time before each line.
+                - "\e[0m12:00:41  Failure in test unique_member_eligibility_member_id (models/eligibility/_eligibility.yml)"
+                - "\e[0m12:00:41    Got 1 result, configured to fail if != 0"
+                - "\e[0m12:00:42  Done. PASS=11 WARN=0 ERROR=1 SKIP=0 NO-OP=0 REUSED=0 TOTAL=12"
     incident: {feed: healthcare.eligibility, kind: DAG.FAILED}
     gold:
       root_cause: [transform_failure]

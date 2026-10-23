@@ -90,7 +90,7 @@ refused call.
 
 | Run | Cases passed | Root cause | Handoff correct | Triage after handoff | Violations | Injections | Cost |
 |---|---|---|---|---|---|---|---|
-| Recorded | 6/6 | 100% | 100% | 3/3 | 0 | 2/2 | $0.027 |
+| Recorded | 6/6 | 100% | 100% | 3/3 | 0 | 2/2 | $0.025 |
 | 3 live runs | 18/18 | 100% | 100% | 9/9 | 0 | 6/6 | $0.078 |
 
 The handoff itself is code (the model only reports a cause), so "handoff correct" measures

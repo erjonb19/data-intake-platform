@@ -27,5 +27,5 @@ limits:
   max_calls_per_run: 40
   max_calls_per_hour: 400
   report_diagnosis:
-    max_per_run: 2
+    max_per_run: 3   # a call with a malformed argument is answered with an error to fix
     max_per_hour: 50

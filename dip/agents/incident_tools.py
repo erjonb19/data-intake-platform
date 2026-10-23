@@ -90,13 +90,27 @@ def register_incident_tools(reg: Any, Tool: Any, conn: Any, contracts: dict[str,
     ) -> dict:
         if root_cause not in ROOT_CAUSES:
             return {"error": f"root_cause must be one of {list(ROOT_CAUSES)}"}
-        ids = sorted({int(i) for i in (quarantine_ids or [])})
+        # The model's arguments, checked here: a wrong type is an error it can correct, never
+        # a crash (live runs sent evidence and ids in other shapes than the schema's).
+        if isinstance(evidence, str):
+            evidence = [evidence]
+        if not isinstance(evidence, list) or not isinstance(summary, str):
+            return {"error": "summary must be a string and evidence a list of strings"}
+        try:
+            confidence = float(confidence)
+            ids = sorted({int(i) for i in (quarantine_ids or [])})
+            incident_id = int(incident_id)
+        except (TypeError, ValueError):
+            return {"error": "confidence must be a number, incident_id and quarantine_ids integers"}
         with conn.cursor() as cur:
             row = _incident(cur, incident_id)
             if row is None:
                 conn.commit()
                 return {"error": f"no incident {incident_id}"}
             feed = row[1]
+            if row[6] is not None:
+                conn.commit()
+                return {"error": f"incident {incident_id} is closed"}
             if ids:
                 cur.execute(
                     "select quarantine_id from ops.quarantine where quarantine_id = any(%s)"
