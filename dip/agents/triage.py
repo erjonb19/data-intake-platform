@@ -72,15 +72,23 @@ async def mcp_client(url: str, api_key: str):
 
 async def run(client: Any, llm: LLM, max_turns: int = 30, run_id: str | None = None) -> TriageRun:
     """Run the agent against a connected MCP client (from `mcp_client`, or in-process)."""
+    return await run_agent(client, llm, PROMPT, TASK, max_turns, run_id)
+
+
+async def run_agent(client: Any, llm: LLM, system: str, task: str, max_turns: int = 30,
+                    run_id: str | None = None) -> TriageRun:  # fmt: skip
+    """The tool loop every agent here shares: list the server's tools (the caller's policy
+    decides which), then move messages between the model and the server until the model
+    stops or `max_turns` is reached."""
     listed = await client.list_tools()
     tools = [
         {"name": t.name, "description": t.description or "", "input_schema": t.input_schema}
         for t in listed.tools
     ]
     out = TriageRun(run_id or uuid.uuid4().hex[:12])
-    messages: list[dict[str, Any]] = [{"role": "user", "content": TASK}]
+    messages: list[dict[str, Any]] = [{"role": "user", "content": task}]
     while out.turns < max_turns:
-        m: Message = llm.create(system=PROMPT, tools=tools, messages=messages)
+        m: Message = llm.create(system=system, tools=tools, messages=messages)
         out.turns += 1
         out.usage.append(m.usage)
         out.model = m.model or out.model

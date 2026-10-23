@@ -1,0 +1,157 @@
+[
+ {
+  "content": [
+   {
+    "signature": "CAQSwwUKEAgTGAI4AUIIdGhpbmtpbmcSDJisoSOXBNVklUS9GhoMVTEar5azkcP67FlbIjD6oEk0IE0MH5FCaDVyKG3HjQKkCTPB/wbNcGt6D9u258w7U7r+2Zed3cEwW2xvdakq4ATjezZiGKzE2tpCxHctz09xGoYsfUlRUFCmuSBoH+4hzhK4+G+PMi0K1kmPiP77Zdk6LuBL15LBMnIZ1PVJWlBtOk5K4ax5nOWT6XpaxjEqSyuM69BxgL5khWfYco/fKsvig2Zp6f5Z+fw3jbH0r8YrG41QTuD8K8DRvoGnzIGELum6XyaA0Roc6lpHKIe2PKu4qkHey1iDBmPbpwCAX6jiyIXBrws7F51BjzZUrgr9Ndq5gsD1KNE0Uf7rGvb181CyFdAjF1tvLWxvbNtmUExeRxABYNdEO+Gfl4p/+m1yuR3TePbdrV6SBbjhHlYLqZSWn+lPTaxHyZJcJS8NH5+KCZAkpZta9XWvQz8/ln1Oe4vZsJyp7yPrr6qHG56LlcrAPA5UJC4xVClBOjLtfLoAQw2X0vMKKZXTDJQAPvYJBcOs/tRjKsxZEgOgDXa4VSq+bF4mf+rQBWoCPvFGI6lPaOkic5+Dp6R1R+tBf8VY3UQgWhlzsvylye4aj52uQsYM9EN/WHAZCmfTwWXFgqXtXHJMEg8LF5fnf/AmuZJhbX0HU6o64LGuMphw2T1zafjwwWGl6sSm7ADKGTkGi3uDhEaBqv5kFH693iq10EqZMA8NgVVMbR2wlA1YUDKu4Ko6AZSTxwQ8eewvM1DosjYl0IABr1g9ToGmPv56jWctfHwqyNizrYg8ka/70iaeQ2Ez/m5JnHlQwDJQwhZtyyYC99BcLMWjwzbUm1Rlw6oWdExhjhjWqdIVTKvMG9197/wyO6qsYleY92mqRugIQ75TwS3a8HDq+9gMQbnshMD8NRgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01T4nFvhYCu5tUkkQVS7DoGD",
+    "input": {
+     "feed": "healthcare.lab_results",
+     "file_sha256": "d36cef5e9d8730e19da4913fcfc510bcfbcb316b417b83994e147fe6b15017b3"
+    },
+    "name": "diff_schema",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01GNPrtEj1ipvsmGXEAvQT1w",
+    "input": {
+     "feed": "healthcare.claims"
+    },
+    "name": "get_contract_text",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "27e5c04a284eb79d62d6ec38cccdb8463bddac832b19f3d28b55400327b0a371",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3342
+   },
+   "cache_creation_input_tokens": 3342,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 211,
+   "output_tokens_details": {
+    "thinking_tokens": 32
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01GnaJki6mMKSL4gNEUY5Jqo",
+    "input": {
+     "contract_yaml": "# Laboratory results from a vendor lab: one row per resulted test, one file per day.\nfeed: healthcare.lab_results\nversion: 1\nowner: vendor-ops@example.com\ndescription: >\n  Daily file of resulted laboratory tests: the result identifier, the patient reference,\n  the collection date, the LOINC test code, the value with its unit, the abnormal flag and\n  the ordering provider.\nclassification: restricted\nsource:\n  channels: [minio, sftp, api]\n  filename_pattern: \"lab_results_*.csv\"\n  filename_date:\n    regex: \"^lab_results_([0-9]+)\"\n    format: \"%Y%m%d\"\n    max_days_before_received: 7\n    max_days_after_received: 0\nformat: { type: csv, delimiter: \",\", encoding: utf-8, header: true }\nexpected_arrival: { cron: \"0 7 * * *\", grace: 2h }\non_row_violation: quarantine_row\nmax_bad_row_ratio: 0.05\nmin_rows: 1\ncolumns:\n  - { name: result_id, type: string, required: true, unique: true, pattern: \"^[A-Z]{2}[0-9]{6}$\" }\n  - { name: patient_ref, type: string, required: true, phi: true, pattern: \"^[a-z]{2}-[0-9]{4}$\" }\n  - { name: collected_date, type: date, required: true, min: \"2020-01-01\", max: today }\n  - { name: loinc_code, type: string, required: true, pattern: \"^[0-9]{3,4}-[0-9]$\" }\n  - { name: result_value, type: decimal, required: true, pattern: \"^[0-9]+(\\\\.[0-9]{1,2})?$\" }\n  - { name: unit, type: string, required: true, pattern: \"^(%|[a-z]{1,2}/[A-Za-z]{1,3})$\" }\n  - { name: abnormal_flag, type: string, required: true, allowed: [H, L, N] }\n  - { name: ordering_provider, type: string, phi: true }\n",
+     "feed": "healthcare.lab_results",
+     "file_sha256": "d36cef5e9d8730e19da4913fcfc510bcfbcb316b417b83994e147fe6b15017b3"
+    },
+    "name": "validate_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "01b66fd73a25850d6f15e7c6881ffaf7564befecdcd8b2a0c17f4e9a677bffdb",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2610
+   },
+   "cache_creation_input_tokens": 2610,
+   "cache_read_input_tokens": 3342,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 2771,
+   "output_tokens_details": {
+    "thinking_tokens": 1942
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01GTmfLgBhfdUxLSRAxngbNy",
+    "input": {
+     "candidate_id": "88a9105d05b89922",
+     "mode": "onboard",
+     "rationale": "Onboarding healthcare.lab_results, version 1, from sample lab_results_20261019.csv (30 rows, UTF-8, comma-delimited, 8 columns, no empty values). Layout copied from healthcare.claims. Rules come from the diff: result_id pattern from shape AA999999 and unique key; patient_ref pattern from shape aa-9999; loinc_code pattern from shapes 9999-9 and 999-9; result_value decimal with one decimal place (shapes 99.9, 9.9, 999.9); unit pattern for shapes aa/aA, a/aA and %; abnormal_flag allowed H, L, N. PHI: patient_ref (links to a person) and ordering_provider (a clinician's name) are marked phi: true. Loosening: none (new contract). Dry run: 30 accepted, 0 rejected. Items for a person to confirm: owner, source channels, expected_arrival and classification are placeholders copied from claims, not vendor-specific facts. The unit pattern is inferred from three shapes only, since no code list was given. Nothing in the file asked for any contract change."
+    },
+    "name": "propose_contract_pr",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "8fd92cfcd6450ae0385ce77024c3e2a1cc872c43455b4ff80f81ff52ada72818",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3743
+   },
+   "cache_creation_input_tokens": 3743,
+   "cache_read_input_tokens": 5952,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 479,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "The version 1 contract for `healthcare.lab_results` is proposed as approval 1, pending a person's review.\n\n- **Vendor file:** `lab_results_20261019.csv`, 30 rows, UTF-8, comma-delimited, 8 columns, no empty values. Nothing in the file asked for a contract change.\n- **Contract:** the 8 columns each have a type, with patterns from the observed shapes, `allowed: [H, L, N]` on `abnormal_flag`, and `unique` on `result_id`. `patient_ref` and `ordering_provider` are marked PHI. The rules are `quarantine_row` with `max_bad_row_ratio: 0.05`.\n- **Loosening:** none, since this is a new contract. The dry run accepted 30 rows and rejected 0.\n- **To confirm before publishing:** `owner`, `source.channels`, `expected_arrival` and `classification` are copied from `healthcare.claims`, not vendor facts. The `unit` pattern is inferred from three shapes only, because no code list was given.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "f06059f7bcfb9c24526daf060a193d495ad8794fd9cb28cee90768e0a389db12",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 579
+   },
+   "cache_creation_input_tokens": 579,
+   "cache_read_input_tokens": 9695,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 351,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

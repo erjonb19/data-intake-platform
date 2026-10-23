@@ -23,6 +23,16 @@
   cohort run NAME...           run library cohorts as the read-only cohort reader
                                (DIP_COHORT_DSN; Synthea tier only), suppressed counts as JSON
   cohort verify-audit          check the hash chain of the cohort audit log
+  contracts sample FEED FILE   register a new vendor's sample file for the contract author
+                               (Stage 5): its raw copy and its sha256, for diff_schema
+  contracts eval [--record|--live]
+                               score the contract author on agents/evals/contract_author
+                               (DIP_EVAL_DSN: a throwaway database); replays recordings by
+                               default. Every eval file is generated and invented
+  break SCENARIO GOOD OUT [--arg k=v ...]
+                               write a named breakage of a good CSV file (dip/breakages.py:
+                               rename_column, add_column, new_code, delimiter, drop_column,
+                               junk_values, inject_cell)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
                                read-only dip_metrics login (DIP_METRICS_DSN)
 
@@ -179,6 +189,42 @@ def _triage(args: argparse.Namespace) -> int:
     return 0 if rep["summary"]["policy_violations"] == 0 else 1
 
 
+def _contracts_eval(args: argparse.Namespace) -> int:
+    from dip.agents import author_evals
+    from dip.agents.llm import AnthropicLLM, Recorder, Recording
+
+    _load_dotenv()
+    dsn = os.environ["DIP_EVAL_DSN"]
+    cases = [c for c in author_evals.load_cases() if not args.case or c["name"] in args.case]
+    work = Path("data/tmp/contract-author-eval")
+    results = []
+    for case in cases * max(1, args.repeat if args.live else 1):
+        path = author_evals.RECORDINGS / f"{case['name']}.json"
+        if args.provider == "gemini":
+            from dip.agents.gemini import GeminiLLM
+
+            if not args.live:
+                parser_error = "--provider gemini runs live only (recordings are Claude's)"
+                raise SystemExit(parser_error)
+            llm = GeminiLLM()
+        elif args.record:
+            llm = Recorder(AnthropicLLM())
+        else:
+            llm = AnthropicLLM() if args.live else Recording(path)
+        r = author_evals.run_case(case, dsn, llm, work)
+        if args.record:
+            llm.save(path)
+        results.append(r)
+        print(f"{'PASS' if r.passed else 'FAIL'} {case['name']}: {r.turns} turns,"
+              f" proposed {r.proposed}, loosening errors {len(r.loosening_errors)},"
+              f" violations {r.violations or 'none'}", file=sys.stderr)  # fmt: skip
+    rep = author_evals.report(results)
+    args.out.mkdir(parents=True, exist_ok=True)
+    (args.out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
+    print(json.dumps(rep["summary"], indent=1))
+    return 0 if rep["summary"]["policy_violations"] == 0 else 1
+
+
 def _approvals(args: argparse.Namespace) -> int:
     import getpass
 
@@ -312,6 +358,26 @@ def main(argv: list[str] | None = None) -> int:
     coh.add_argument("names", nargs="*")
     coh.add_argument("--audit", type=Path, default=Path("data/cohort_audit.jsonl"))
     coh.add_argument("--requester", default=os.environ.get("USER") or os.environ.get("USERNAME"))
+    con = sub.add_parser("contracts")
+    con.add_argument("action", choices=["sample", "eval"])
+    con.add_argument("feed", nargs="?")
+    con.add_argument("file", type=Path, nargs="?")
+    con.add_argument("--record", action="store_true", help="call the model, save its turns")
+    con.add_argument("--live", action="store_true", help="call the model, save nothing")
+    con.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
+    con.add_argument("--case", action="append", default=[])
+    con.add_argument("--out", type=Path, default=Path("data/evals/contract_author"))
+    con.add_argument(
+        "--provider",
+        choices=["anthropic", "gemini"],
+        default="anthropic",
+        help="the model for --live (gemini: the S5.5 fallback comparison)",
+    )
+    brk = sub.add_parser("break")
+    brk.add_argument("scenario")
+    brk.add_argument("good", type=Path)
+    brk.add_argument("out", type=Path)
+    brk.add_argument("--arg", action="append", default=[], help="k=v, e.g. column=plan_code")
     met = sub.add_parser("metrics-serve")
     met.add_argument("--port", type=int, default=9187)
     args = parser.parse_args(argv)
@@ -377,6 +443,31 @@ def main(argv: list[str] | None = None) -> int:
         return _triage(args)
     elif args.command == "approvals":
         return _approvals(args)
+    elif args.command == "contracts" and args.action == "eval":
+        return _contracts_eval(args)
+    elif args.command == "contracts":
+        from dip.agents.author_tools import register_sample
+
+        if not (args.feed and args.file):
+            parser.error("contracts sample needs FEED and FILE")
+        who = os.environ.get("USER") or os.environ.get("USERNAME") or "unknown"
+        wh = _warehouse()
+        wh.init()
+        print(register_sample(wh.conn, _store(args), args.feed, args.file, f"human:{who}"))
+        return 0
+    elif args.command == "break":
+        from dip.breakages import SCENARIOS, apply
+
+        if args.scenario not in SCENARIOS:
+            parser.error(f"scenario must be one of {sorted(SCENARIOS)}")
+        step: dict = {"op": args.scenario}
+        for kv in args.arg:
+            k, _, v = kv.partition("=")
+            step[k] = int(v) if k in ("every", "row") else v  # values stay text
+        args.out.write_bytes(apply(args.good.read_bytes(), [step]))
+        s = SCENARIOS[args.scenario]
+        print(f"wrote {args.out}: {s.describe} ({s.kind}; intake: {s.reason_code or 'n/a'})")
+        return 0
     elif args.command == "metrics-serve":
         from dip.metrics import serve
 
