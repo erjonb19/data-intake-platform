@@ -87,7 +87,7 @@ def dag_runs():
               ["sum by (dag_id) (increase(airflow_dagrun_failed_count[1h]))"], 0, 0,
               legend=["{{dag_id}}"], desc="Alert DagRunFailing fires above 0."),
         panel(2, "Successful run duration (p50)", "timeseries",
-              ['airflow_dagrun_duration{quantile="0.5"}'], 12, 0, unit="ms",
+              ['airflow_dagrun_duration{quantile="0.5"}'], 12, 0, unit="s",
               legend=["{{dag_id}}"]),
         panel(3, "Task successes and failures (1 h)", "timeseries",
               ["sum(increase(airflow_ti_successes[1h]))",
