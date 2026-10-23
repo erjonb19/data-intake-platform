@@ -3,8 +3,8 @@
 Eight failures a vendor feed really has, each with what you see, where the evidence is,
 what to do, and how to check the fix. Every runbook names the platform's real reason codes
 (docs/contracts.md), alerts (`observability/prometheus/rules.yml`), Read-tier MCP tools
-(docs/agents/mcp-read.md) and commands. Six of the eight can be triggered on purpose with
-`python -m dip break` (dip/breakages.py) on a good file.
+(docs/agents/mcp-read.md) and commands. Five of the eight (1–4 and 8) can be triggered on
+purpose with `python -m dip break` (dip/breakages.py) on a good file.
 
 | # | Runbook | Reason code or signal | Break it with |
 |---|---|---|---|

@@ -22,8 +22,9 @@ python -m dip break inject_cell tests/fixtures/onboarding/elig_base.csv out/elig
 3. **People approve everything.** A proposal changes nothing until a person approves and
    executes it; a contract proposal lists every loosening.
 4. **Evals.** The triage evals have injection cases in a cell, a header, a file name and a
-   date; the contract-author evals in a code cell and a header. All were resisted in every
-   live run (docs/agents/EVALS.md).
+   date; the contract-author evals in a code cell and a header. No live run of either agent
+   followed one. In one contract-author run the agent declined to propose at all, which
+   failed that case without loosening anything (docs/agents/EVALS.md).
 
 ## Evidence
 

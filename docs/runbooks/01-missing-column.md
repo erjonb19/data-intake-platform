@@ -21,7 +21,8 @@ python -m dip break drop_column   tests/fixtures/onboarding/elig_base.csv out/el
    match the old column's.
 3. `get_feed_history(feed)`: did earlier files have the column? A rename from one day on
    is deliberate; a column that comes and goes is a broken export.
-4. `get_contract(feed)`: is the column `required`?
+4. `get_contract(feed)`: what rules did the column have? (Any declared column that is
+   absent gives `SCHEMA.MISSING_COLUMN`, required or not.)
 
 ## Decide
 

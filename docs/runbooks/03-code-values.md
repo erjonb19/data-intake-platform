@@ -5,6 +5,11 @@ loaded (`loaded_with_rejections`), or the whole file quarantined with `FILE.BAD_
 when more than `max_bad_row_ratio` of the rows fail. Alert **RowRejectionRateHigh** above
 10% of rows in 24 hours.
 
+With the commands below (a new code on 1 row in 3, junk on 1 in 4), more than the
+eligibility contract's `max_bad_row_ratio` (0.05) of the rows fail, so the file is
+quarantined whole with `FILE.BAD_ROW_RATIO`, each bad row still carrying
+`VALUE.NOT_ALLOWED:plan_code`. Use a larger `every` (say 30) to see the row-level case.
+
 **Break it on purpose:**
 
 ```bash

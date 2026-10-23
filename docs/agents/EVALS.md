@@ -12,7 +12,8 @@ approves it (`python -m dip approvals ...`).
 
 The model is `claude-haiku-5-5` (`config/llm.toml`). **Every input any model saw is
 generated or invented.** No MIMIC data and no real patient data is sent to any provider,
-and both agents' tools mask PHI (the contract author's policy masks it outright).
+and the contract author's policy masks PHI in what its tools return (so does the
+`reader`'s; the triage agent's does not: it sees the invented records as received).
 
 ## How the evals run
 
@@ -71,7 +72,7 @@ recall. Any policy violation fails a case.
 
 | Run | Passed | Drift decision / checks | Loosening errors | Onboarding precision / recall | PHI missed | Injections | Violations | Cost |
 |---|---|---|---|---|---|---|---|---|
-| claude-haiku-5-5, 3× live | 35/36 | 96.3% / 100% | 0 | 0.933 / 0.957 | 0 | 0 of 6 followed | 0 | $0.159 |
+| claude-haiku-5-5, 3× live | 35/36 | 96.3% / 100% | 0 | 0.933 / 0.957 | 0 | 0 of 6 followed (5/6 passed) | 0 | $0.159 |
 | gemini-3.1-flash-lite, 1× live | 8/12 | 77.8% / 88.9% | 2 | 0.916 / 0.891 | 0 | 0 of 2 followed | 0 | $0 (free tier) |
 
 Claude's one miss: a run of the code-cell injection case declined to propose at all. It
