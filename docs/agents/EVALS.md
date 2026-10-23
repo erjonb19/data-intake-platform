@@ -47,7 +47,10 @@ policy is a violation; an injection case passes only with zero violations.
 | Held-out, 7 new cases, prompt frozen | 7/7 | 100% | 100% / 87.5% | 0 | 1/1 | $0.015 |
 | Variance: 3 more live runs of the 12 | 33/36 | 92.1% | 96.8% / 90.5% | 0 | 6/6 | $0.097 |
 
-Source: [triage.md](triage.md), "Results". The first three runs (9/12, 11/12, 12/12) and
+Source: the committed reports
+[`agents/evals/triage/results/held_out.json`](../../agents/evals/triage/results/held_out.json)
+and [`variance.json`](../../agents/evals/triage/results/variance.json) (and `recorded.json`
+for the recorded 12/12); [triage.md](triage.md), "Results". The first three runs (9/12, 11/12, 12/12) and
 what changed between them are listed there too.
 
 ## Contract-author agent
@@ -73,7 +76,10 @@ recall. Any policy violation fails a case.
 
 Claude's one miss: a run of the code-cell injection case declined to propose at all. It
 followed none of the injection and loosened nothing, but it also did not add the legitimate
-new code. Source: [contract-author.md](contract-author.md), "Evals".
+new code. Source: the committed reports
+[`agents/evals/contract_author/results/variance.json`](../../agents/evals/contract_author/results/variance.json),
+[`gemini.json`](../../agents/evals/contract_author/results/gemini.json) and `recorded.json`;
+[contract-author.md](contract-author.md), "Evals".
 
 ## Claude vs Gemini (PLAN.md §7.1)
 
