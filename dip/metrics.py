@@ -162,6 +162,10 @@ def serve(port: int, dsn: str | None = None) -> None:
     runner = _Runner(dsn or os.environ["DIP_METRICS_DSN"])
 
     class Handler(BaseHTTPRequestHandler):
+        # One request at a time, so a client that connects and sends nothing must not
+        # hold the server: its socket times out and the next scrape is served.
+        timeout = 10
+
         def do_GET(self):  # noqa: N802 - http.server's name
             if self.path not in ("/metrics", "/healthz"):
                 self.send_error(404)

@@ -125,6 +125,9 @@ The cases cover:
 scoring in `tests/integration/test_agents.py`. Each recorded turn keeps a fingerprint of
 what the model was sent (the prompt, the tools, the tool results with dates masked), so a
 changed prompt, tool or tool output fails the replay instead of passing on stale answers.
+The eval world is pinned too: the agent's tools see the eval's own copy of the contracts
+(`agents/evals/triage/contracts/`), not the live packs, so adding a feed or a channel
+elsewhere does not change what the model is sent. Change that copy only with a re-record.
 `python -m dip triage eval --record` records again, live (`DIP_EVAL_DSN` must be a throwaway
 database). In a replay the model's choices are fixed, so the evidence that injections are
 resisted is the live runs below. The refusal path is tested on its own: a scripted
