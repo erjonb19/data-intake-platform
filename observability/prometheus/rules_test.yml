@@ -19,8 +19,17 @@ tests:
         values: "1x10"
       - series: 'dip_dq_test_status{test_name="not_null_person_id",dq_category="completeness",status="error"}'
         values: "1x10"
+      # As the statsd-exporter emits it: no series until the first failure, then 1.
       - series: 'airflow_dagrun_failed_count{dag_id="intake__healthcare__claims"}'
-        values: "0 0 1 1 1 1"
+        values: "_ _ 1 1 1 1"
+      - series: 'dip_rows_24h{feed="finance.vendor_invoice",outcome="accepted"}'
+        values: "8x10"
+      - series: 'dip_rows_24h{feed="finance.vendor_invoice",outcome="rejected"}'
+        values: "2x10"
+      - series: 'dip_metrics_query_ok{query="dip_incidents_open"}'
+        values: "0x30"
+      - series: 'up{job="dip-metrics"}'
+        values: "0x30"
     alert_rule_test:
       - eval_time: 1m
         alertname: FeedLate
@@ -54,3 +63,27 @@ tests:
             exp_annotations:
               summary: "DAG intake__healthcare__claims failed in the last hour"
               description: A run of intake__healthcare__claims ended failed (Airflow statsd, dagrun.duration.failed).
+      # 2 of 10 rows rejected: 20%, over 10%.
+      - eval_time: 1m
+        alertname: RowRejectionRateHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, feed: finance.vendor_invoice}
+            exp_annotations:
+              summary: "finance.vendor_invoice: 20% of rows rejected"
+              description: More than 10% of the feed's rows in the last 24 hours were rejected.
+      - eval_time: 12m
+        alertname: MetricsQueryFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, query: dip_incidents_open}
+            exp_annotations:
+              summary: "metrics query dip_incidents_open fails"
+              description: >-
+                The warehouse exporter cannot run this query (a table not created yet, or a
+                missing grant to dip_metrics).
+      - eval_time: 6m
+        alertname: TargetDown
+        exp_alerts:
+          - exp_labels: {severity: warning, job: dip-metrics}
+            exp_annotations:
+              summary: "dip-metrics is down"
+              description: Prometheus cannot scrape dip-metrics.

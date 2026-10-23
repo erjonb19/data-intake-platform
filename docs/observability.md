@@ -28,6 +28,8 @@ terraform -chdir=infra/terraform output -raw grafana_admin_password
 nothing else:
 
 - `ops.intake_file`: feed, status, row counts, received_at
+- `ops.intake_delivery`: feed, received_at (freshness counts every delivery, as the
+  late-file check does, so a resend of the same content is an arrival)
 - `ops.quarantine`: feed, reason_code, status
 - `ops.dq_results`: test name, category, status, failures, time
 - `ops.incident`: feed, kind, closed_at
