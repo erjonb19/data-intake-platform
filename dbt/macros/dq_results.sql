@@ -33,6 +33,9 @@
         IF to_regprocedure('ops.grant_metrics_reader()') IS NOT NULL THEN
             PERFORM ops.grant_metrics_reader();
         END IF;
+        IF to_regprocedure('ops.grant_mcp_reader()') IS NOT NULL THEN
+            PERFORM ops.grant_mcp_reader();
+        END IF;
     END $$;
     {% if rows %}
     insert into ops.dq_results values {{ rows | join(',\n') }};

@@ -13,6 +13,7 @@ resource "kubernetes_secret_v1" "postgres" {
     MARQUEZ_DB_PASSWORD    = local.pw["pg_marquez"]
     COHORT_READER_PASSWORD = local.pw["pg_cohort_reader"]
     METRICS_PASSWORD       = local.pw["pg_metrics"]
+    MCP_PASSWORD           = local.pw["pg_mcp"]
   }
 }
 
@@ -194,6 +195,15 @@ resource "kubernetes_job_v1" "postgres_roles" {
               secret_key_ref {
                 name = kubernetes_secret_v1.postgres.metadata[0].name
                 key  = "METRICS_PASSWORD"
+              }
+            }
+          }
+          env {
+            name = "MCP_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.postgres.metadata[0].name
+                key  = "MCP_PASSWORD"
               }
             }
           }

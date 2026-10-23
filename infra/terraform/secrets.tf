@@ -11,11 +11,14 @@ locals {
     "airflow_admin",
     "airflow_api_secret",
     "airflow_jwt_secret",
-    "dip_deid_key",     # HMAC key for the de-identified research tier (R4)
-    "minio_intake_api", # the intake API's MinIO user: put into landing only (S2.3)
-    "pg_cohort_reader", # read-only login for the drift monitor's cohort service (R7)
-    "pg_metrics",       # read-only login for the warehouse metrics exporter (S3.2)
-    "grafana_admin",    # Grafana's admin login (observability profile, S3.2)
+    "dip_deid_key",       # HMAC key for the de-identified research tier (R4)
+    "minio_intake_api",   # the intake API's MinIO user: put into landing only (S2.3)
+    "pg_cohort_reader",   # read-only login for the drift monitor's cohort service (R7)
+    "pg_metrics",         # read-only login for the warehouse metrics exporter (S3.2)
+    "grafana_admin",      # Grafana's admin login (observability profile, S3.2)
+    "pg_mcp",             # the MCP server's warehouse login (S3.4)
+    "minio_mcp",          # the MCP server's MinIO user: read raw and quarantine (S3.4)
+    "airflow_mcp_viewer", # the MCP server's Airflow Viewer login (S3.4)
   ])
 }
 

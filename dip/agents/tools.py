@@ -18,7 +18,7 @@ from typing import Any
 
 from dip import BUCKET_QUARANTINE
 from dip.agents import approvals
-from dip.agents.registry import Registry, Tool
+from dip.agents.registry import Registry, Tool, phi_masked
 from dip.contracts import Contract
 from dip.storage import ObjectStore
 
@@ -39,11 +39,59 @@ ROOT_CAUSES = (
 MAX_TEXT = 1500
 
 
+MASK = "(PHI: not shown)"
+
+
+def _phi_columns(contract: Contract | None) -> set[str]:
+    return {c["name"] for c in (contract.spec.get("columns", []) if contract else [])
+            if c.get("phi")}  # fmt: skip
+
+
+def shown_columns(contract: Contract | None) -> set[str]:
+    """The columns whose values a masking policy may see: declared, not `phi`, and not a
+    date (HIPAA counts every date of an individual). Everything else, including a column
+    the contract does not declare (it may be PHI under a new name), is hidden."""
+    cols = contract.spec.get("columns", []) if contract else []
+    return {c["name"] for c in cols if not c.get("phi") and c.get("type", "string") != "date"}
+
+
+def _masked_record(record: Any, contract: Contract | None) -> Any:
+    """A rejected record with its PHI values hidden. A CSV or Excel record keeps only the
+    values of `shown_columns`; a FHIR resource shows only its type and field names (not its
+    id: vendors put MRNs there); a raw row of a file rejected whole shows its header and how
+    many fields it has."""
+    if record is None:
+        return None
+    shown = shown_columns(contract)
+    if isinstance(record, dict) and "resourceType" in record:
+        return {"resourceType": record.get("resourceType"), "fields": sorted(record),
+                "values": MASK}  # fmt: skip
+    if isinstance(record, dict) and set(record) == {"header", "row"}:
+        return {"header": record["header"], "row": f"({record['row'].count(',') + 1} fields; "
+                "values not shown: PHI)"}  # fmt: skip
+    if isinstance(record, dict):
+        return {k: (v if k.strip() in shown else MASK) for k, v in record.items()}
+    return MASK
+
+
+def _masked_detail(detail: str | None, reason_code: str, contract: Contract | None) -> str | None:
+    """A violation's detail quotes the value; hide it when the column is PHI or unknown."""
+    column = reason_code.split(":", 1)[1] if ":" in reason_code else ""
+    # Only value checks quote a value (VALUE.*, KEY.*); schema and file details name
+    # columns and counts.
+    quotes_value = reason_code.startswith(("VALUE.", "KEY."))
+    if column and quotes_value and column not in shown_columns(contract):
+        return MASK
+    return detail
+
+
 def _group_key(feed: str, reason_code: str) -> str:
     return f"{feed}|{reason_code}"
 
 
-def build_registry(conn: Any, store: ObjectStore, contracts: dict[str, Contract]) -> Registry:
+def build_registry(
+    conn: Any, store: ObjectStore, contracts: dict[str, Contract], services: Any = None
+) -> Registry:
     reg = Registry(conn)
 
     def list_quarantine_groups(principal: str, run_id: str | None, feed: str = "") -> dict:
@@ -83,7 +131,11 @@ def build_registry(conn: Any, store: ObjectStore, contracts: dict[str, Contract]
                     "open_since": since,
                     "quarantine_ids": ids[:200],
                     "first_detail": {
-                        "untrusted_vendor_content": (detail or "")[:300],
+                        "untrusted_vendor_content": (
+                            _masked_detail(detail, code, contracts.get(f))
+                            if phi_masked()
+                            else detail or ""
+                        )[:300],
                         "notice": UNTRUSTED,
                     },  # fmt: skip
                 }
@@ -105,13 +157,25 @@ def build_registry(conn: Any, store: ObjectStore, contracts: dict[str, Contract]
             rows = cur.fetchall()
         conn.commit()
         samples = []
+        masked, contract = phi_masked(), contracts.get(feed)
         for qid, level, ref, qkey, detail in rows:
-            item: dict[str, Any] = {"quarantine_id": qid, "level": level, "detail": detail}
+            item: dict[str, Any] = {
+                "quarantine_id": qid, "level": level,
+                "detail": _masked_detail(detail, reason, contract) if masked else detail,
+            }  # fmt: skip
             if level == "record":
-                item["record"] = _record(store, qkey, ref)
+                rec = _record(store, qkey, ref)
+                item["record"] = _masked_record(rec, contract) if masked else rec
             else:
                 item["file_name"] = PurePosixPath(qkey).name
-                item["file_start"] = _file_start(store, qkey)
+                start = _file_start(store, qkey)
+                if masked and start:
+                    # A CSV's header line is where a schema problem shows. Any other file's
+                    # first line can be a whole record (minified or NDJSON FHIR): not shown.
+                    tabular = contract is not None and contract.format_type == "csv"
+                    start = (start.splitlines()[0][:MAX_TEXT] if tabular
+                             else f"({len(start)} characters; values not shown: PHI)")  # fmt: skip
+                item["file_start"] = start
             samples.append(item)
         return {"group_id": group_id, "untrusted_vendor_content": samples, "notice": UNTRUSTED}
 
@@ -219,6 +283,10 @@ def build_registry(conn: Any, store: ObjectStore, contracts: dict[str, Contract]
         "approval with an unchanged payload runs.",
         {**obj, "properties": {"approval_id": {"type": "integer"}}, "required": ["approval_id"]},
         execute_approved_operation))  # fmt: skip
+    # The rest of the Read tier (S3.4): Airflow, lineage, metrics, DQ results, profiles.
+    from dip.agents.read_tools import ReadServices, register_read_tools
+
+    register_read_tools(reg, Tool, conn, store, contracts, services or ReadServices.from_env())
     return reg
 
 

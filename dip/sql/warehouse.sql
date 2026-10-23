@@ -208,3 +208,28 @@ BEGIN
     END IF;
 END $$;
 SELECT ops.grant_metrics_reader();
+
+-- The MCP server's access (S3.4, the Read tier): what its read tools name, plus appending
+-- to the audit log. Called here and where ops.dq_results is created (the dbt hook).
+CREATE OR REPLACE FUNCTION ops.grant_mcp_reader() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_mcp') THEN
+        RETURN;
+    END IF;
+    GRANT USAGE ON SCHEMA ops TO dip_mcp;
+    IF to_regclass('ops.quarantine') IS NOT NULL THEN
+        GRANT SELECT ON ops.quarantine TO dip_mcp;
+    END IF;
+    IF to_regclass('ops.intake_file') IS NOT NULL THEN
+        GRANT SELECT ON ops.intake_file TO dip_mcp;
+    END IF;
+    IF to_regclass('ops.dq_results') IS NOT NULL THEN
+        GRANT SELECT ON ops.dq_results TO dip_mcp;
+    END IF;
+    IF to_regclass('ops.audit_log') IS NOT NULL THEN
+        GRANT INSERT ON ops.audit_log TO dip_mcp;
+        GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_mcp;
+    END IF;
+END $$;
+SELECT ops.grant_mcp_reader();

@@ -24,7 +24,7 @@ on_row_violation: quarantine_row
 max_bad_row_ratio: 0.05          # above this, the whole file is rejected
 min_rows: 1
 columns:
-  - { name: member_id, type: string, required: true, unique: true, pattern: "^M[0-9]{9}$" }
+  - { name: member_id, type: string, required: true, unique: true, pattern: "^M[0-9]{9}$", phi: true }
   - { name: first_name, type: string, required: true, phi: true }
   - { name: last_name, type: string, required: true, phi: true }
   - { name: dob, type: date, required: true, min: "1900-01-01", max: today, phi: true }

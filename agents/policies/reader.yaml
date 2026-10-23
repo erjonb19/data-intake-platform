@@ -1,0 +1,26 @@
+# Policy for the read-only agent (Stage 3, the MCP Read tier; PLAN.md section 7). Any MCP
+# client a person points at the platform ("why did yesterday's eligibility feed quarantine
+# 40 rows?") connects as this agent: it can read quarantine, contracts, feed history, DQ
+# results, Airflow runs and logs, lineage, metrics and file profiles, and nothing else.
+# Enforced by the tool registry behind the MCP server, and every call is audited.
+agent: reader
+description: >
+  Read-only access to the platform's operational state for a person's MCP client. No
+  proposals, no actions.
+max_tier: read
+# Values of PHI columns are hidden in samples and details (dip/agents/tools.py).
+mask_phi: true
+tools:
+  - list_quarantine_groups
+  - get_quarantine_sample
+  - get_contract
+  - get_feed_history
+  - get_dq_results
+  - get_dag_run
+  - get_task_log
+  - get_lineage
+  - query_metrics
+  - profile_file
+limits:
+  max_calls_per_run: 100
+  max_calls_per_hour: 1000
