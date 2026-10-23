@@ -31,6 +31,9 @@ and the contract author's policy masks PHI in what its tools return (so does the
   what the model is sent.
 - Variance is measured with repeated live runs (`--live --repeat 3`); those numbers, not
   the recorded ones, are the ones reported below as the agents' performance.
+- **Nightly** (`.github/workflows/evals.yml`, Stage 8): every recorded eval below replays
+  against a Postgres service with no model key. The run fails on any failed case and
+  uploads the reports.
 
 ## Triage agent
 

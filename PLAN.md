@@ -498,7 +498,7 @@ item. **Built** means merged and covered by CI; **partly** says what is missing.
 | 5R. Cohort service (R7) | **R7a built** | #20, #21, #27, #38 | R7b, in the drift monitor |
 | 6. Act tier + triage agent | **Built** | The triage agent and its evals (#28); the agent runs `execute_approved_operation` only after a person approved it, checked by the server first, refusals audited as denied; the "denied, then allowed" demo (`docs/demos/stage-6.md`, and in the kind E2E); Act evals (Stage 6 PR) | In the cluster the agent completes only `request_resend` (its login cannot change quarantine or intake rows); release without replay and DAG reruns are not built (decisions log, 2026-10-23) |
 | 7. Incident agent + LangGraph | **Built** | Incidents from breakages (FILE.QUARANTINED, DAG.FAILED, with FEED.LATE); the incident agent (own key and policy, `get_incident`, `report_diagnosis`); the LangGraph graph with a typed `HandoffToTriage` built and checked in code, audited, one chain id across the audit log; evals 6/6 recorded, 18/18 over 3 live runs (`docs/agents/incident.md`, `docs/demos/stage-7.md`) | The incident key on the in-cluster MCP server; running the chain automatically on a new incident; the DAG callbacks are not exercised by the E2E |
-| 8. Hardening and write-up | **Partly** | README, architecture and reviewer docs (docs/FOR_REVIEWERS.md) | Nightly evals, a recorded demo, the OAuth backlog item |
+| 8. Hardening and write-up | **Partly** | README, architecture and reviewer docs (docs/FOR_REVIEWERS.md); nightly evals replaying every agent's recordings (`.github/workflows/evals.yml`, no key); the recorded demo (`scripts/demo.sh`, `docs/demos/stage-8.md`); the OAuth backlog item (§12) | The README screenshots and the fresh-clone quickstart check, from the next local stack run |
 
 ### 8.10 Stages 4, 6, 7 and 8: what is left and how it is built (added 2026-10-23)
 
@@ -599,3 +599,16 @@ docs/             runbooks/ demos/ adr/
 - 2026-10-23: Reviews tightened what a masked reader (any person's MCP client, and the contract author) may see: no value of a PHI, undeclared or date column, no FHIR id, no first line of a non-CSV file, only the platform's own log lines; `member_id` is now `phi` in both healthcare CSV contracts (eligibility, claims). The contract-author evals were re-recorded under it (§8.8).
 - 2026-10-23: Stage 4's runbooks (8) and `dip break` (7 scenarios) were written ahead of the stage; its 837/835 files and the per-scenario E2E loop are not built. §8.9 records each stage's status against this plan.
 - 2026-10-23: The remaining stages run full-time and continuously from today, Stages 4 and 6 first. New dates: Stage 4 2026-10-24, Stage 6 2026-10-25, Stage 7 2026-10-27, Stage 8 2026-10-28 (were 2026-12-13, 2027-01-31, 2027-02-21 and 2027-03-07). Stage 5R (R7b) stays with the drift monitor. §8.10 is the build plan. Two changes from earlier sections: nightly evals replay recordings with no API key (§6 planned live runs), and the kind E2E runs the break loop with a scripted MCP client, while the model-driven loop runs on recordings in CI's test job.
+
+## 12. Backlog (not in this roadmap)
+
+- **OAuth 2.1 for the MCP server** (§4.3): an `Authenticator` implementation against the MCP
+  authorization spec (Keycloak or Dex), replacing static per-agent API keys. Tools and the
+  policy engine do not change.
+- **Separate database logins per agent** (Stage 6 review): today the reader, triage and
+  incident agents share the MCP server's `dip_mcp` login, so it can read every approval's
+  payload; tools are the boundary between them.
+- **The incident agent in the cluster** (Stage 7): its key on the in-cluster MCP server, and
+  the chain started automatically on a new incident.
+- **Contract PRs by a GitHub App** (§7): today a person publishes the contract author's
+  local branch with `gh pr create` (decisions log, 2026-10-23).

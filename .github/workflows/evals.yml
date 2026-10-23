@@ -1,0 +1,116 @@
+# Nightly agent evals (Stage 8, S8.1; PLAN.md section 8.10). Every agent's recorded evals
+# replay through the real agent loop, MCP server, policies, tools and scoring against a
+# Postgres service; only the model's turns come from the recordings. No API key, no live
+# model call: a recording whose inputs no longer match what the agent sends (a changed
+# prompt, tool or tool output) fails the replay instead of passing on stale answers. The
+# reports are uploaded, and the run fails if any eval case fails.
+#
+# Live runs (new recordings, variance) stay a person's, on a laptop with a key:
+# python -m dip triage eval --record, ... (docs/agents/EVALS.md).
+name: evals
+
+on:
+  schedule:
+    - cron: "17 4 * * *"   # nightly, 04:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dip
+          POSTGRES_PASSWORD: dip
+          POSTGRES_DB: dip_eval
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_eval
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: No model key in this job
+        run: |
+          if [ -n "${ANTHROPIC_API_KEY:-}${GEMINI_API_KEY:-}" ]; then
+            echo "a model key is set: this job must replay recordings only" >&2
+            exit 1
+          fi
+
+      - name: Replay every agent's recorded evals
+        run: |
+          set -o pipefail
+          mkdir -p reports
+          status=0
+          run() {  # name, then the dip command
+            local name="$1"; shift
+            echo "::group::$name"
+            if python -m dip "$@" --out "reports/$name"; then
+              echo "$name ok"
+            else
+              echo "::error::$name failed"; status=1
+            fi
+            echo "::endgroup::"
+          }
+          run triage triage eval
+          run triage-held-out triage eval --cases-file agents/evals/triage/holdout.yaml
+          run triage-act triage act-eval
+          run break-loop triage loop
+          run incident incident eval
+          run contract-author contracts eval
+          exit $status
+
+      - name: Summary
+        if: always()
+        run: |
+          python - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json, pathlib
+          print("| Eval | Cases passed | Notes |\n|---|---|---|")
+          for report in sorted(pathlib.Path("reports").glob("*/report.json")):
+              s = json.loads(report.read_text())["summary"]
+              passed = s.get("cases_passed", s.get("passed"))
+              total = s.get("cases", s.get("scenarios"))
+              notes = ", ".join(f"{k} {s[k]}" for k in ("policy_violations", "unauthorized_runs",
+                                "loosening_errors") if k in s)
+              print(f"| {report.parent.name} | {passed}/{total} | {notes} |")
+          EOF
+
+      # Some commands exit 0 when only a case's score fails (they gate on policy
+      # violations): the nightly run fails on any failed case.
+      - name: Every case passed
+        run: |
+          python - <<'EOF'
+          import json, pathlib, sys
+          reports = sorted(pathlib.Path("reports").glob("*/report.json"))
+          bad = []
+          for report in reports:
+              s = json.loads(report.read_text())["summary"]
+              passed = s.get("cases_passed", s.get("passed"))
+              total = s.get("cases", s.get("scenarios"))
+              if passed != total:
+                  bad.append(f"{report.parent.name}: {passed}/{total}")
+          if len(reports) != 6 or bad:
+              sys.exit(f"{len(reports)} reports (expected 6); failed: {bad}")
+          print(f"all {len(reports)} evals passed every case")
+          EOF
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: eval-reports
+          path: reports/

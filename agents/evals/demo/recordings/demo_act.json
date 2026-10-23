@@ -1,0 +1,68 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_016H2Uw9NbTNTckjz3MNqxPt",
+    "input": {
+     "approval_id": 1
+    },
+    "name": "execute_approved_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "c759813e720862f2e92a81e27f7efd6e3e9eae793a0657aa109aab1d7ad8c838",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 1702,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 55,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSnQYKEAgTGAI4AUIIdGhpbmtpbmcSDCk9NbpigoxXyUXGxBoMUNx0VIYp+kqozgJrIjCGwwInWdqHN3KxSxObEyiybONYuiZCs2W1Nik5AXq+6h8wBIoEhAfleW4VYYqi8YkqugUSOBxs+q3H6nvd1ggFwxAI82ilg+5f4mD6Ym/UpZgxU2a/A6ScM7wcFTrm02ps6rXsAnPAd59d+xuldCGkdywfmvtmhnp+TB7PYTcv9OzJRP9iZuZgfxzfislk7BUnPhkmnO0y/V0WSwttfTR1KyscbJUaF67Dl26DAoemCZtciVW3VVZETv0vBzt8hnPSHn/eosS8AtbTZ2jPeaLgWvgqlgf3aDs9vet0TXiO1ccpvpT1gsso2tpq/IZ+DJlXirb6YU3jk+9/D6tyTgdFWzugHraUg/76MbszhllvhPkbgbG4fQCWHQRS2nPclZ967Rc2VZqtgkVlOxasFFX6SsJEcpjNz0nLziKLR8x/XpwqMQIiMWPxmIJWciE5pfB1sb8SMx0j9sFGWKCZV18hY2nmfVSBXwqdJgRrBlzBi1amPpjlVKXt1x4rW9bvlZQQUAm8q+sTBVldRSIBNMJBgsoE0MM4KX/Rt3oGSitGICHZkvmt/lMhFZkdS5Tu+yAuogJHd2Pa0jERHkJlUQl8ifFnvi4XuuUJaLIDW32mqV9e8Sri7XLUbMPmViV4FDsQKSGcMcoanaTOY35u3i068Bt/p2P10FKPLpbpGZ//52OfzYwyW/LMSTfX1on/JYyI/Ro73KDqYMiRsnzZ5rWPkwYS6JI7utj87IZJKYfoDjOGkiG6WvRWFRsnimZID0hNKrfgOkeqgsGqrc/Xa7NfozqXCptTFHsEZHRieIL4ESdHStEJVWma2PXA8orwYuWZvnRtLRttMR1QW72bm4SsOZtyjKZsy+aT/52OE54HELCteQqVar5j3bpUUfVD3ienQv0wrNQiJb7s1GxAruT/JRa1cv2dPobZgjJ5hgGiA+rhquIA3W0JPJM6vxZSp/BVO6hJtALHKT18A/LmjB0QnaaVT4s+CiVr93JImRgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "Approval 1 ran and returned status \"executed.\" It sent a request to the vendor asking for a resend of `elig_20261021.csv`, which was rejected for lacking a `member_id` column. The vendor was also asked to confirm that `patient_ref` is populated with the Synthea patient id.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "d9576687ab3a45e1d76df4881d14bc55562135337384747f67c288db15739556",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 234
+   },
+   "cache_creation_input_tokens": 234,
+   "cache_read_input_tokens": 1702,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 151,
+   "output_tokens_details": {
+    "thinking_tokens": 54
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]
