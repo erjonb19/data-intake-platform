@@ -145,3 +145,10 @@ def test_observation_without_category_is_not_dropped(omop):
         assert (
             run_dbt(DSN, "run", "--select", "fhir_resource_current+", check=False).returncode == 0
         )
+
+
+def test_cdm_source_says_mimic(omop):
+    """R7: a MIMIC build labels itself, so the cohort reader is never granted it."""
+    assert rows(omop, "select cdm_source_abbreviation from omop_shareable.cdm_source") == [
+        ("DIP-MIMIC",)
+    ]
