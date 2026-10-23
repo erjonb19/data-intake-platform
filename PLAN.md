@@ -373,7 +373,7 @@ These limits are documented in `docs/research/vocabulary.md` and `docs/research/
 
 **When:** after Stage 2, in Stage 4's window (2026-12-13), or earlier if Stage 2 finishes with time to spare. F2 before F1, because F1's multi-domain codes need F2's routing. F4 can go any time; it is independent. Local MIMIC only for the measurements. CI checks each with hand-written MIMIC-shaped fixtures, as M1 and M2 do.
 
-### 8.6 Stage 2 plan: all channels and formats, both packs (added 2026-10-22; not started)
+### 8.6 Stage 2 plan: all channels and formats, both packs (added 2026-10-22; built, #23–#26 and #29–#31)
 
 **Where things stand.** Stage 1 (due 2026-11-08) is done: the eligibility CSV slice runs end to end in CI (`docs/demos/stage-1.md`). Three items on the Stage 2 row are also done already:
 - R4, the de-identified tier;
@@ -416,7 +416,7 @@ The SFTP and Excel items stay, because Stage 3's OCR matching needs Excel invoic
 - The contract-author agent moves from 2027-01-25 to **2026-12-31**. It needs only Read and Propose, so it no longer waits for the Act tier.
 - The last stage now finishes on 2027-02-28 instead of 2027-03-01.
 
-### 8.7 Stage 3 plan: OCR, monitoring, lineage and the read-only MCP tools (added 2026-10-22)
+### 8.7 Stage 3 plan: OCR, monitoring, lineage and the read-only MCP tools (added 2026-10-22; built, #32–#35)
 
 **Where things stand.** Parts of Stage 3 are already done:
 - the MCP server, its API keys, the append-only audit log, and Read tools over quarantine, contracts and feed history all came with the triage agent (§11, 2026-10-22);
@@ -454,7 +454,7 @@ emitted only when `dip extract build` runs with `OPENLINEAGE_URL` set.
 
 **LLM calls:** none in Stage 3. **Data:** generated invoices and Synthea only.
 
-### 8.8 Stage 5 plan: the contract-author agent and its eval harness (added 2026-10-23; not started)
+### 8.8 Stage 5 plan: the contract-author agent and its eval harness (added 2026-10-23; built, #37)
 
 **Goal (§8, unchanged): 2026-12-31.** The agent gets a sample file from a new vendor and returns a draft contract. It gets a drifted file and returns the contract diff that accepts the vendor's legitimate change. It may only Read and Propose (§4.2: one agent, two modes, scored per mode).
 
@@ -481,6 +481,24 @@ emitted only when `dip extract build` runs with `OPENLINEAGE_URL` set.
 3. the local-branch step: proposals stay as approvals
 
 **Data sent to any model provider (decided 2026-10-23):** generated and invented only. No MIMIC data and no real patient data ever goes to Anthropic, Gemini or any other provider. The eval cases, samples and fixtures are all synthetic, and the agent's tools mask PHI and undeclared columns (§8.7, S3.4) in any case.
+
+### 8.9 Status against this plan (checked 2026-10-23)
+
+Each stage's "what you can demo" (§8), checked against what is merged on `main`, item by
+item. **Built** means merged and covered by CI; **partly** says what is missing.
+
+| Stage | Status | Evidence | Not built yet |
+|---|---|---|---|
+| 0. Foundations | **Built** | #1; `make up` on kind with Terraform; CI lint and E2E | — |
+| 1. Thin slice + E2E | **Built** | #16, #17; eligibility CSV raw → contract → bronze → silver → gold; quarantine with reason codes; E2E on every push | — |
+| 2. All channels and formats, both packs | **Built** | #23–#26, #29–#31 (Excel, SFTP, intake API, claims, finance invoices, late files, E2E and demo); R4 #6, R5 #7 | 837/835 moved to Stage 4 (by plan) |
+| 3. OCR + monitoring + read-only MCP | **Built** | #32–#35: PDF native and scanned with OCR, matched in gold; low-confidence quarantine; DQ surfaced; Marquez lineage file → gold; Prometheus alerts and Grafana; the MCP Read tier deployed with per-agent keys and audit; the E2E's authenticated read and refused unauthenticated call | The extract step's lineage into Marquez is emitted (R6) but the E2E checks only file → gold |
+| 4. Breakage generator + runbooks + Propose tier | **Partly** | Propose tier and `dip approvals` (#28); `dip break` with 7 scenarios (#37) and 8 runbooks (#39) | 837/835 files and marts; the E2E running each scenario's whole loop |
+| 5. Contract-author agent + eval harness | **Built** | #37: onboard and drift, Read and Propose only, evals per mode with injection cases, the Gemini comparison (Groq and OpenRouter not run, by decision) | PRs are published by a person (decision 2026-10-23), not by a GitHub App |
+| 5R. Cohort service (R7) | **R7a built** | #20, #21, #27, #38 | R7b, in the drift monitor |
+| 6. Act tier + triage agent | **Partly** | The triage agent and its evals (#28); `execute_approved_operation` exists with the payload-hash and expiry checks, but only a person runs it (`dip approvals execute`) | The agent calling Act after approval, and the "denied, then allowed" demo |
+| 7. Incident agent + LangGraph | **Not started** | | All of it |
+| 8. Hardening and write-up | **Partly** | README, architecture and reviewer docs (docs/FOR_REVIEWERS.md) | Nightly evals, a recorded demo, the OAuth backlog item |
 
 ## 9. Repo layout (proposed)
 
@@ -536,3 +554,6 @@ docs/             runbooks/ demos/ adr/
   - **No GitHub App token.** The contract-author agent proposes; a person's `dip approvals execute` writes the contract to a local branch and prints `gh pr create` for the person to run. This is the human-approval step, in place of §7's GitHub App PRs.
   - **Gemini is the only fallback** compared (`GEMINI_API_KEY`). Groq and OpenRouter are not run.
   - **Synthetic data only** to any model provider: never MIMIC, never real patient data.
+- 2026-10-23: The upgrade job found a real R7 bug on main: with the finance pack loaded, a FHIR rebuild classified the warehouse DIP-UNKNOWN and took the cohort reader's grants away. Fixed in #38 (`finance.*`, invented and never feeding OMOP, counts as synthetic; any other pack is still DIP-UNKNOWN, MIMIC still blocks).
+- 2026-10-23: Reviews tightened what a masked reader (any person's MCP client, and the contract author) may see: no value of a PHI, undeclared or date column, no FHIR id, no first line of a non-CSV file, only the platform's own log lines; `member_id` is now `phi` in both healthcare CSV contracts (eligibility, claims). The contract-author evals were re-recorded under it (§8.8).
+- 2026-10-23: Stage 4's runbooks (8) and `dip break` (7 scenarios) were written ahead of the stage; its 837/835 files and the per-scenario E2E loop are not built. §8.9 records each stage's status against this plan.

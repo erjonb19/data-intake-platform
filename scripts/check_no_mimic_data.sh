@@ -4,7 +4,8 @@
 #   2. A data file (.csv, .parquet, .duckdb, .json) outside the reviewed paths: test
 #      fixtures, dbt seeds, the contract schema, and the agent evals' recorded model turns
 #      (agents/evals/<agent>/recordings/<case>.json, which hold only model output about
-#      invented eval data), and the Grafana dashboards (observability/grafana/<name>.json,
+#      invented eval data), the evals' scored results (agents/evals/<agent>/results/<run>.json,
+#      scores of runs on invented data), and the Grafana dashboards (observability/grafana/<name>.json,
 #      panel definitions only).
 #   3. Content that only real MIMIC data or a local-only extract would contain: a MIMIC FHIR
 #      identifier with a value, a MIMIC FHIR profile URL, or a package marked local-only.
@@ -23,7 +24,7 @@ fi
 
 bulk="$(files | grep -E '(^|/)mimic-iv-[^/]*/|\.ndjson(\.gz)?$|\.csv\.gz$' || true)"
 data="$(files | grep -E '\.(csv|parquet|duckdb|json)$' \
-  | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$|^agents/evals/[a-z_]+/recordings/[a-z0-9_]+\.json$|^observability/grafana/[a-z0-9-]+\.json$' || true)"
+  | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$|^agents/evals/[a-z_]+/(recordings|results)/[a-z0-9_]+\.json$|^observability/grafana/[a-z0-9-]+\.json$' || true)"
 athena="$(files | grep -E '(^|/)(CONCEPT[^/]*|DOMAIN|RELATIONSHIP|VOCABULARY|DRUG_STRENGTH)\.csv$|d_labitems_to_loinc\.csv$' || true)"
 
 # This script and the code that writes the local-only marker are the only allowed hits.

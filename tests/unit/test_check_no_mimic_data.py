@@ -59,6 +59,7 @@ def test_clean_repo_passes(repo):
     _add(repo, "dip/contract.schema.json", "{}")
     _add(repo, "agents/evals/triage/recordings/missing_column.json", "[]")
     _add(repo, "observability/grafana/feeds.json", "{}")
+    _add(repo, "agents/evals/triage/results/variance.json", "{}")
     assert _check(repo).returncode == 0
     assert _check(repo, "--staged").returncode == 0
 
@@ -73,6 +74,7 @@ def test_clean_repo_passes(repo):
         "dbt/seeds/nested/map.csv",
         "agents/evals/triage/recordings/nested/case.json",
         "agents/evals/triage/results.json",
+        "agents/evals/triage/results/nested/run.json",
         "observability/grafana/exports/feeds.json",
         "observability/feeds.json",
         "mimic-iv-demo/hosp/patients.txt",
