@@ -1,3 +1,7 @@
+-- One init at a time (parallel intake tasks): concurrent CREATE OR REPLACE FUNCTION and
+-- GRANT on one object fail with "tuple concurrently updated". Released at commit.
+SELECT pg_advisory_xact_lock(724163001);
+
 -- Warehouse tables owned by the intake core. Idempotent: safe to run on every deploy.
 -- Schemas bronze, silver, gold and ops are created by infra/terraform/files/postgres-init.sh;
 -- they are created here too so CI and laptops can start from an empty database.
@@ -173,3 +177,34 @@ CREATE TRIGGER audit_log_append_only BEFORE UPDATE OR DELETE ON ops.audit_log
 DROP TRIGGER IF EXISTS audit_log_no_truncate ON ops.audit_log;
 CREATE TRIGGER audit_log_no_truncate BEFORE TRUNCATE ON ops.audit_log
     FOR EACH STATEMENT EXECUTE FUNCTION ops.audit_log_append_only();
+
+-- The metrics exporter's read access (S3.2, dip/metrics.py): only the ops columns its
+-- queries name, on whichever of its tables exist yet. Called here, and again where
+-- ops.incident (dip/sla.py) and ops.dq_results (dbt macro store_dq_results) are created.
+-- Does nothing until the dip_metrics role exists (postgres-roles.sql).
+CREATE OR REPLACE FUNCTION ops.grant_metrics_reader() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_metrics') THEN
+        RETURN;
+    END IF;
+    GRANT USAGE ON SCHEMA ops TO dip_metrics;
+    IF to_regclass('ops.intake_file') IS NOT NULL THEN
+        GRANT SELECT (feed, status, accepted_count, rejected_count, received_at)
+            ON ops.intake_file TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.quarantine') IS NOT NULL THEN
+        GRANT SELECT (feed, reason_code, status) ON ops.quarantine TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.intake_delivery') IS NOT NULL THEN
+        GRANT SELECT (feed, received_at) ON ops.intake_delivery TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.dq_results') IS NOT NULL THEN
+        GRANT SELECT (test_name, dq_category, status, failures, recorded_at)
+            ON ops.dq_results TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.incident') IS NOT NULL THEN
+        GRANT SELECT (feed, kind, closed_at) ON ops.incident TO dip_metrics;
+    END IF;
+END $$;
+SELECT ops.grant_metrics_reader();

@@ -16,6 +16,8 @@ concurrency:
 
 env:
   KIND_VERSION: v0.33.0
+  # Stage 3: CI deploys the observability profile too (the laptop runs it only on demand).
+  TF_VAR_profiles: '["core", "observability"]'
 
 jobs:
   e2e:

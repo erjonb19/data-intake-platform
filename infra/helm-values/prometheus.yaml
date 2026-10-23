@@ -1,0 +1,48 @@
+# Values for the plain prometheus-community/prometheus chart (version pinned in Terraform),
+# the observability profile (Stage 3, S3.2). Not kube-prometheus-stack (PLAN.md section 3):
+# one Prometheus server, no Alertmanager, node-exporter, kube-state-metrics or pushgateway.
+# The alert rules come from observability/prometheus/rules.yml (Terraform adds them).
+
+alertmanager:
+  enabled: false
+kube-state-metrics:
+  enabled: false
+prometheus-node-exporter:
+  enabled: false
+prometheus-pushgateway:
+  enabled: false
+# No cluster-wide read access: nothing here discovers pods or nodes.
+rbac:
+  create: false
+
+server:
+  retention: "1d"
+  persistentVolume:
+    enabled: false
+  global:
+    scrape_interval: 30s
+    evaluation_interval: 30s
+  resources:
+    requests: { cpu: 50m, memory: 192Mi }
+    limits: { memory: 384Mi }
+
+# Only what the platform exposes; the chart's Kubernetes discovery jobs are off (they would
+# scrape every pod in the cluster, and need cluster-wide read access).
+scrapeConfigs:
+  kubernetes-api-servers: { enabled: false }
+  kubernetes-nodes: { enabled: false }
+  kubernetes-nodes-cadvisor: { enabled: false }
+  kubernetes-service-endpoints: { enabled: false }
+  kubernetes-service-endpoints-slow: { enabled: false }
+  prometheus-pushgateway: { enabled: false }
+  kubernetes-services: { enabled: false }
+  kubernetes-pods: { enabled: false }
+  kubernetes-pods-slow: { enabled: false }
+  # Airflow's StatsD metrics, from the Airflow chart's statsd-exporter.
+  airflow-statsd:
+    static_configs:
+      - targets: ["airflow-statsd.dip-airflow.svc.cluster.local:9102"]
+  # The warehouse exporter (dip/metrics.py).
+  dip-metrics:
+    static_configs:
+      - targets: ["dip-metrics.dip-data.svc.cluster.local:9187"]

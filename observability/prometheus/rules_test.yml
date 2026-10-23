@@ -1,0 +1,89 @@
+# promtool unit tests for rules.yml (CI: promtool test rules). Series are what dip-metrics
+# and the Airflow statsd-exporter expose.
+rule_files: [rules.yml]
+evaluation_interval: 30s
+tests:
+  - interval: 30s
+    input_series:
+      - series: 'dip_incidents_open{feed="healthcare.claims",kind="FEED.LATE"}'
+        values: "1x10"
+      - series: 'dip_files_24h{feed="finance.vendor_invoice",status="loaded"}'
+        values: "3x10"
+      - series: 'dip_files_24h{feed="finance.vendor_invoice",status="quarantined"}'
+        values: "1x10"
+      - series: 'dip_files_24h{feed="healthcare.eligibility",status="loaded"}'
+        values: "9x10"
+      - series: 'dip_files_24h{feed="healthcare.eligibility",status="quarantined"}'
+        values: "1x10"
+      - series: 'dip_dq_test_status{test_name="invoice_totals_add_up",dq_category="plausibility",status="warn"}'
+        values: "1x10"
+      - series: 'dip_dq_test_status{test_name="not_null_person_id",dq_category="completeness",status="error"}'
+        values: "1x10"
+      # As the statsd-exporter emits it: no series until the first failure, then 1.
+      - series: 'airflow_dagrun_failed_count{dag_id="intake__healthcare__claims"}'
+        values: "_ _ 1 1 1 1"
+      - series: 'dip_rows_24h{feed="finance.vendor_invoice",outcome="accepted"}'
+        values: "8x10"
+      - series: 'dip_rows_24h{feed="finance.vendor_invoice",outcome="rejected"}'
+        values: "2x10"
+      - series: 'dip_metrics_query_ok{query="dip_incidents_open"}'
+        values: "0x30"
+      - series: 'up{job="dip-metrics"}'
+        values: "0x30"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: FeedLate
+        exp_alerts:
+          - exp_labels: {severity: warning, feed: healthcare.claims}
+            exp_annotations:
+              summary: "healthcare.claims is late"
+              description: >-
+                An expected file for healthcare.claims has not arrived within its contract's
+                grace window (ops.incident, opened by the feed_sla DAG).
+      # 1 of 4 files (25%) is over 20%; 1 of 10 (10%) is not.
+      - eval_time: 1m
+        alertname: QuarantineRateHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, feed: finance.vendor_invoice}
+            exp_annotations:
+              summary: "finance.vendor_invoice: 25% of files quarantined"
+              description: More than 20% of the feed's files in the last 24 hours were quarantined whole.
+      # A warning is a finding, not an alert; an error is.
+      - eval_time: 1m
+        alertname: DataQualityError
+        exp_alerts:
+          - exp_labels: {severity: critical, test_name: not_null_person_id}
+            exp_annotations:
+              summary: "dbt test not_null_person_id failed"
+              description: The test's latest result in ops.dq_results is an error, not a warning.
+      - eval_time: 2m
+        alertname: DagRunFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, dag_id: intake__healthcare__claims}
+            exp_annotations:
+              summary: "DAG intake__healthcare__claims failed in the last hour"
+              description: A run of intake__healthcare__claims ended failed (Airflow statsd, dagrun.duration.failed).
+      # 2 of 10 rows rejected: 20%, over 10%.
+      - eval_time: 1m
+        alertname: RowRejectionRateHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, feed: finance.vendor_invoice}
+            exp_annotations:
+              summary: "finance.vendor_invoice: 20% of rows rejected"
+              description: More than 10% of the feed's rows in the last 24 hours were rejected.
+      - eval_time: 12m
+        alertname: MetricsQueryFailing
+        exp_alerts:
+          - exp_labels: {severity: warning, query: dip_incidents_open}
+            exp_annotations:
+              summary: "metrics query dip_incidents_open fails"
+              description: >-
+                The warehouse exporter cannot run this query (a table not created yet, or a
+                missing grant to dip_metrics).
+      - eval_time: 6m
+        alertname: TargetDown
+        exp_alerts:
+          - exp_labels: {severity: warning, job: dip-metrics}
+            exp_annotations:
+              summary: "dip-metrics is down"
+              description: Prometheus cannot scrape dip-metrics.

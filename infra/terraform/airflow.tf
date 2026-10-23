@@ -59,6 +59,8 @@ resource "helm_release" "airflow" {
     # The PDF feed's intake task runs in the OCR image (dags/feed_intake.py).
     { name = "env[0].name", value = "DIP_OCR_IMAGE", type = "string" },
     { name = "env[0].value", value = var.ocr_image_tag == "" ? "" : "dip-ocr:${var.ocr_image_tag}", type = "string" },
+    # Airflow's StatsD metrics (and the chart's statsd-exporter) only with Prometheus.
+    { name = "statsd.enabled", value = tostring(local.observability), type = "auto" },
   ]
 
   set_sensitive = [

@@ -114,9 +114,12 @@ workers:
 # Cut to save memory (PLAN.md section 5): no deferrable operators yet.
 triggerer:
   enabled: false
-# Enabled in Stage 3 with Prometheus.
+# Enabled by Terraform with the observability profile (Prometheus scrapes it).
 statsd:
   enabled: false
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { memory: 96Mi }
 
 # DAGs are baked into the platform image; no git-sync, no DAG PVC.
 dags:
