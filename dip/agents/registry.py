@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import threading
 import time
 from collections import Counter, deque
@@ -29,7 +30,8 @@ import yaml
 
 from dip.contracts import REPO_ROOT
 
-POLICY_DIR = REPO_ROOT / "agents" / "policies"
+# DIP_POLICY_DIR: where an installed package (the MCP image) finds them.
+POLICY_DIR = Path(os.environ.get("DIP_POLICY_DIR", REPO_ROOT / "agents" / "policies"))
 TIERS = ("read", "propose", "act")
 
 

@@ -124,7 +124,10 @@ def _mcp_serve(args: argparse.Namespace) -> int:
     keys = json.loads(os.environ["DIP_AGENT_KEYS"])
     registry = build_registry(_warehouse().conn, _store(args), load_contracts())
     server = build_server(registry, {agent: Policy.load(agent) for agent in keys})
-    url = f"http://{args.host}:{args.port}"
+    # The URL clients use (auth metadata): a server bound to all interfaces is reached
+    # through a port-forward or its Service; DIP_MCP_PUBLIC_URL overrides.
+    shown = "127.0.0.1" if args.host in ("0.0.0.0", "::") else args.host
+    url = os.environ.get("DIP_MCP_PUBLIC_URL") or f"http://{shown}:{args.port}"
     app = http_app(server, keys, url, args.allowed_host)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0

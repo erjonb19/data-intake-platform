@@ -128,3 +128,15 @@ variable "marquez_web_image" {
   type        = string
   default     = "marquezproject/marquez-web:0.51.1"
 }
+
+variable "mcp_image_repository" {
+  description = "MCP server image (images/mcp), loaded into kind by scripts/up.sh."
+  type        = string
+  default     = "dip-mcp"
+}
+
+variable "mcp_image_tag" {
+  description = "MCP server image tag, written by scripts/up.sh."
+  type        = string
+  default     = "build"
+}

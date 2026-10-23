@@ -47,3 +47,20 @@ ALTER ROLE dip_metrics WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICAT
 ALTER ROLE dip_metrics SET default_transaction_read_only = on;
 ALTER ROLE dip_metrics SET statement_timeout = '10s';
 ALTER ROLE dip_metrics SET search_path = ops;
+
+-- The MCP server's login (S3.4, the Read tier, infra/terraform/mcp.tf). It reads the ops
+-- tables its read tools name and appends to ops.audit_log (every call is audited), by the
+-- grants in ops.grant_mcp_reader() (dip/sql/warehouse.sql). Not read-only by default: the
+-- audit insert is a write. Nothing in bronze, silver, gold or the research tiers.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_mcp') THEN
+        CREATE ROLE dip_mcp LOGIN;
+    END IF;
+END
+$$;
+ALTER ROLE dip_mcp WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+    NOBYPASSRLS NOINHERIT CONNECTION LIMIT 5;
+ALTER ROLE dip_mcp SET statement_timeout = '15s';
+ALTER ROLE dip_mcp SET idle_in_transaction_session_timeout = '60s';
+ALTER ROLE dip_mcp SET search_path = ops;

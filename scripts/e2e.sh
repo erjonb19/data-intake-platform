@@ -91,3 +91,15 @@ if tf output -json profiles | grep -q '"observability"'; then
   wait_port "$MARQUEZ_PORT"
   MARQUEZ_URL="http://127.0.0.1:$MARQUEZ_PORT" "$py" "$REPO_ROOT/tests/e2e/lineage.py"
 fi
+
+# Stage 3 (S3.4): the deployed MCP Read tier, after everything above has run (its tools
+# read the quarantine, runs, metrics and lineage those left behind).
+MCP_PORT="${MCP_PORT:-8765}"
+kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-data \
+  port-forward svc/mcp "$MCP_PORT:8765" >/dev/null 2>&1 &
+pids+=("$!")
+wait_port "$MCP_PORT"
+OBSERVABILITY=0
+tf output -json profiles | grep -q '"observability"' && OBSERVABILITY=1
+MCP_URL="http://127.0.0.1:$MCP_PORT" MCP_READER_KEY="$(tf output -raw mcp_reader_key)" \
+  OBSERVABILITY="$OBSERVABILITY" "$py" "$REPO_ROOT/tests/e2e/mcp_read.py"

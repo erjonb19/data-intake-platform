@@ -81,3 +81,9 @@ output "grafana_admin_password" {
   value       = local.pw["grafana_admin"]
   sensitive   = true
 }
+
+output "mcp_reader_key" {
+  description = "The MCP Read tier's API key (agent `reader`): Authorization: Bearer <key>."
+  value       = random_password.mcp_reader_key.result
+  sensitive   = true
+}

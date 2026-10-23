@@ -43,7 +43,9 @@ def _group_key(feed: str, reason_code: str) -> str:
     return f"{feed}|{reason_code}"
 
 
-def build_registry(conn: Any, store: ObjectStore, contracts: dict[str, Contract]) -> Registry:
+def build_registry(
+    conn: Any, store: ObjectStore, contracts: dict[str, Contract], services: Any = None
+) -> Registry:
     reg = Registry(conn)
 
     def list_quarantine_groups(principal: str, run_id: str | None, feed: str = "") -> dict:
@@ -219,6 +221,10 @@ def build_registry(conn: Any, store: ObjectStore, contracts: dict[str, Contract]
         "approval with an unchanged payload runs.",
         {**obj, "properties": {"approval_id": {"type": "integer"}}, "required": ["approval_id"]},
         execute_approved_operation))  # fmt: skip
+    # The rest of the Read tier (S3.4): Airflow, lineage, metrics, DQ results, profiles.
+    from dip.agents.read_tools import ReadServices, register_read_tools
+
+    register_read_tools(reg, Tool, conn, store, contracts, services or ReadServices.from_env())
     return reg
 
 
