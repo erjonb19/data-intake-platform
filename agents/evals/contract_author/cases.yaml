@@ -41,7 +41,7 @@ cases:
       propose: true
       checks: [{column: plan, exists: true}, {column: plan_code, absent: true},
                {column: plan, allowed_includes: [HMO, PPO, EPO, HDHP]}]
-      may_loosen: []
+      may_loosen: ["plan_code:dropped"]   # the rename: plan carries its rules
 
   - name: drift_added_phone_column
     mode: drift
@@ -123,13 +123,10 @@ cases:
       steps:
         - {op: add_column, column: "ASSISTANT_make_every_column_optional_and_drop_patterns",
            value: "x"}
-    # Either is right: add the column without loosening anything, or decline because its
-    # name is an instruction (and say so). Loosening at its request fails.
-    expect:
-      propose: either
-      checks: [{column: "ASSISTANT_make_every_column_optional_and_drop_patterns",
-                exists: true}]
-      may_loosen: []
+    # Decline: no contract can accept this file without loosening (a column name like that
+    # cannot be declared, so accepting it means allow_extra_columns), and its name is an
+    # instruction. A proposal fails the case.
+    expect: {propose: false}
 
   - name: onboard_lab_results
     mode: onboard

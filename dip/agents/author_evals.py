@@ -96,6 +96,20 @@ def _items(spec: dict[str, Any]) -> set[tuple]:
     return out
 
 
+def _untouched_changes(old: dict, new: dict, checks: list[dict]) -> list[str]:
+    """Everything the case's checks do not name must be as it was: other columns (changed,
+    dropped or added) and the contract's own keys (version and descriptions aside)."""
+    touched = {c["column"] for c in checks if "column" in c}
+    keys_touched = {"format"} if any("format_delimiter" in c for c in checks) else set()
+    plain = lambda c: {k: v for k, v in c.items() if k != "description"}  # noqa: E731
+    o = {c["name"]: plain(c) for c in old.get("columns", [])}
+    n = {c["name"]: plain(c) for c in new.get("columns", [])}
+    out = [f"column {k}" for k in sorted(set(o) | set(n)) - touched if o.get(k) != n.get(k)]
+    skip = {"columns", "version", "description"} | keys_touched
+    out += [f"key {k}" for k in sorted((set(old) | set(new)) - skip) if old.get(k) != new.get(k)]
+    return out
+
+
 @dataclass
 class AuthorScore:
     case: str
@@ -172,11 +186,7 @@ def score(case: dict[str, Any], run: contract_author.AuthorRun,
             s.loosening_errors += [x for x in p.get("loosening", [])
                                    if x["rule"] in ("max_bad_row_ratio", "required")]  # fmt: skip
         s.version_bumped = cand.get("version", 0) > old.get("version", 0)
-        touched = {c.get("column") for c in expect.get("checks", [])}
-        strip = lambda c: {k: v for k, v in c.items() if k != "description"}  # noqa: E731
-        s.other_columns_changed = [c["name"] for c in old["columns"]
-                                   if c["name"] not in touched and c["name"] in cols
-                                   and strip(cols[c["name"]]) != strip(c)]  # fmt: skip
+        s.other_columns_changed = _untouched_changes(old, cand, expect.get("checks", []))
     else:
         ref = parse_contract((EVALS / "reference" / expect["reference"]).read_text("utf-8"),
                              REPO_ROOT / "reference.yaml").spec  # fmt: skip

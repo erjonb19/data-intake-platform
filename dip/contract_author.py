@@ -7,8 +7,9 @@ evals score with the same functions, so "valid" and "loosened" mean one thing ev
 PHI: an observation shows values only for columns the contract declares and does not mark
 `phi`. A column the contract does not know may be PHI under a new name ("DOB"), so it gets
 counts, an inferred type and value shapes ("A999999999"); its values are shown only when
-they are a short set of code-like tokens (upper case or digits, at most 8 characters, at
-most 12 of them), which a name or a date never is.
+they are a short set of code-like tokens (at most 12 of them, each up to 8 upper-case
+letters and digits with at least one letter, or at most 3 digits), which a name, a date,
+a ZIP code or an identifier never is.
 """
 
 from __future__ import annotations
@@ -24,7 +25,10 @@ from dip.contracts import Contract
 
 MAX_EXAMPLES = 3
 MAX_CODES = 12
-CODE = re.compile(r"^[A-Z0-9_-]{1,8}$")  # plan codes, POS codes, currency, units
+# Code-like: up to 8 upper-case letters, digits, _ or -, with at least one letter (plan,
+# currency, unit codes), or at most 3 digits (place of service, days supply). Never a
+# YYYYMMDD date, a ZIP code or an identifier, which are longer runs of digits.
+CODE = re.compile(r"^(?=[A-Z0-9_-]*[A-Z])[A-Z0-9_-]{1,8}$|^[0-9]{1,3}$")
 DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 INTEGER = re.compile(r"^-?\d+$")
 DECIMAL = re.compile(r"^-?\d+(\.\d+)?$")
@@ -65,7 +69,9 @@ def _table(data: bytes, fmt: dict[str, Any]) -> tuple[list[str], list[list[str]]
             facts["sniffed_delimiter"] = csv.Sniffer().sniff(sample, ",;|\t").delimiter
         except csv.Error:
             facts["sniffed_delimiter"] = None
-        rows = list(csv.reader(io.StringIO(text), delimiter=fmt.get("delimiter", ",")))
+        text = text.removeprefix("\ufeff")  # as the intake reads it (csvfeed)
+        rows = list(csv.reader(io.StringIO(text, newline=""), delimiter=fmt.get("delimiter", ","),
+                               quotechar=fmt.get("quotechar", '"')))  # fmt: skip
     if not rows:
         return [], [], facts
     return [h.strip() for h in rows[0]], rows[1:], facts
@@ -157,15 +163,25 @@ def _rule_failures(spec: dict, values: list[str], show: bool) -> dict[str, Any]:
     return out
 
 
-def dry_run(contract: Contract, data: bytes, at: datetime | None = None) -> dict[str, Any]:
-    """The candidate contract over the file, as the intake would run it."""
+def dry_run(contract: Contract, data: bytes, at: datetime | None = None,
+            filename: str | None = None) -> dict[str, Any]:  # fmt: skip
+    """The candidate contract over the file, as the intake would run it: the file name's
+    pattern and date (when the name is known, against the time it was received), then the
+    format's checks."""
     from dip.csvfeed import validate_csv
     from dip.excelfeed import validate_excel
+    from dip.intake import _check_name
 
     if contract.format_type not in ("csv", "excel"):
         return {"error": f"dry runs cover CSV and Excel, not {contract.format_type}"}
+    at = at or datetime.now(UTC)
+    if filename is not None:
+        _, name_violations = _check_name(filename, contract, at)
+        if name_violations:
+            return {"file_rejected": True, "accepted": 0, "rejected": 0,
+                    "reason_codes": {v.reason_code: 1 for v in name_violations}}  # fmt: skip
     run = validate_excel if contract.format_type == "excel" else validate_csv
-    r = run(data, contract, at or datetime.now(UTC))
+    r = run(data, contract, at)
     codes = Counter(v.reason_code for v in r.file_violations)
     codes.update(v.reason_code for _, v in r.rejected)
     # validate_* apply the file-level rules too (reject_file, max_bad_row_ratio, min_rows):
@@ -178,7 +194,13 @@ def dry_run(contract: Contract, data: bytes, at: datetime | None = None) -> dict
     }
 
 
-# What makes a contract accept more. Each entry is one rule the candidate drops or widens.
+# What makes a contract accept more. Each entry is one rule the candidate drops or widens;
+# defaults are the intake's (min_rows 1, allow_extra_columns false, max_bad_row_ratio 0).
+CLASSIFICATION = ("public", "internal", "restricted")
+WIDER_TYPE = {("integer", "decimal"), ("integer", "string"), ("decimal", "string"),
+              ("date", "string")}  # fmt: skip
+
+
 def loosening(old: dict[str, Any] | None, new: dict[str, Any]) -> list[dict[str, Any]]:
     if not old:
         return []
@@ -192,13 +214,33 @@ def loosening(old: dict[str, Any] | None, new: dict[str, Any]) -> list[dict[str,
             new.get("max_bad_row_ratio"))  # fmt: skip
     if old.get("on_row_violation") == "reject_file" != new.get("on_row_violation"):
         add("contract", "on_row_violation", "reject_file", new.get("on_row_violation"))
-    if old.get("min_rows", 0) > new.get("min_rows", 0):
-        add("contract", "min_rows", old.get("min_rows"), new.get("min_rows", 0))
+    if new.get("min_rows", 1) < old.get("min_rows", 1):
+        add("contract", "min_rows", old.get("min_rows", 1), new.get("min_rows", 1))
+    if new.get("allow_extra_columns", False) and not old.get("allow_extra_columns", False):
+        add("contract", "allow_extra_columns", False, True)
+    oc, nc = old.get("classification"), new.get("classification")
+    rank = {c: i for i, c in enumerate(CLASSIFICATION)}
+    if oc in rank and rank.get(nc, -1) < rank[oc]:
+        add("contract", "classification", oc, nc)
+    os_, ns = old.get("source", {}), new.get("source", {})
+    if set(ns.get("channels", [])) - set(os_.get("channels", [])):
+        add("source", "channels", os_.get("channels"), ns.get("channels"))
+    if ns.get("filename_pattern") != os_.get("filename_pattern"):
+        add("source", "filename_pattern", os_.get("filename_pattern"), ns.get("filename_pattern"))
+    od, nd = os_.get("filename_date"), ns.get("filename_date")
+    if od and (not nd or nd.get("regex") != od.get("regex") or any(
+            nd.get(k, d) > od.get(k, d) for k, d in (("max_days_before_received", 7),
+                                                     ("max_days_after_received", 0)))):  # fmt: skip
+        add("source", "filename_date", od, nd)
     new_cols = {c["name"]: c for c in new.get("columns", [])}
     for c in old.get("columns", []):
         n = new_cols.get(c["name"])
         if n is None:
-            continue  # a dropped column: a rename or removal, reported by the diff, not here
+            # A dropped column: a file without it now passes. For a rename the new column
+            # carries the rules; the dropped one is still listed, for the person to see.
+            if c.get("required"):
+                add(c["name"], "dropped", "required column", None)
+            continue
         if c.get("required") and not n.get("required"):
             add(c["name"], "required", True, n.get("required", False))
         if c.get("unique") and not n.get("unique"):
@@ -208,26 +250,25 @@ def loosening(old: dict[str, Any] | None, new: dict[str, Any]) -> list[dict[str,
         if "pattern" in c and n.get("pattern") != c["pattern"]:
             add(c["name"], "pattern", c["pattern"], n.get("pattern"))
         if "allowed" in c:
-            extra = sorted(
-                set(map(str, n.get("allowed") or ["<any>"])) - set(map(str, c["allowed"]))
-            )
-            if extra or "allowed" not in n:
+            wider = set(map(str, n.get("allowed") or [])) - set(map(str, c["allowed"]))
+            if wider or "allowed" not in n:
                 add(c["name"], "allowed", c["allowed"], n.get("allowed", "<any value>"))
-        for bound, wider in (("min", lambda a, b: b is None or _lt(b, a)),
-                             ("max", lambda a, b: b is None or _lt(a, b))):  # fmt: skip
-            if bound in c and wider(c[bound], n.get(bound)):
-                add(c["name"], bound, c[bound], n.get(bound))
-        if c.get("type", "string") != "string" and n.get("type", "string") == "string":
-            add(c["name"], "type", c.get("type"), "string")
+        if "min" in c and (n.get("min") is None or _lt(n["min"], c["min"])):
+            add(c["name"], "min", c["min"], n.get("min"))
+        if "max" in c and (n.get("max") is None or _lt(c["max"], n["max"])):
+            add(c["name"], "max", c["max"], n.get("max"))
+        if (c.get("type", "string"), n.get("type", "string")) in WIDER_TYPE:
+            add(c["name"], "type", c.get("type"), n.get("type", "string"))
     return out
 
 
 def _lt(a: Any, b: Any) -> bool:
-    """a < b for numbers, dates, or the symbolic 'today' (a moving upper bound)."""
+    """a < b for numbers and dates; 'today' is the day it is checked (a moving bound, so a
+    fixed future date is later than it, and a past date earlier)."""
 
     def norm(x: Any) -> Any:
         if x == "today":
-            return date.max
+            return date.today()
         if isinstance(x, str) and DATE.match(x):
             return date.fromisoformat(x)
         return x

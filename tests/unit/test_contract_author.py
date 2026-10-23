@@ -105,6 +105,11 @@ def test_an_approved_contract_becomes_a_local_branch_and_nothing_else(elig, tmp_
                "base_sha256": text_sha256(original), "contract_yaml": candidate,
                "rationale": "The vendor added plan GOLD.",
                "validation": {}, "loosening": []}  # fmt: skip
+    _git(repo, "checkout", "-q", "-b", "my-feature")
+    (repo / "notes.txt").write_text("unrelated work\n", "utf-8")
+    _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.com", "add", "-A")
+    _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "wip")
+    main = _git(repo, "rev-parse", "main")
     head = _git(repo, "rev-parse", "HEAD")
     for who in ("AUTHOR", "COMMITTER"):
         monkeypatch.setenv(f"GIT_{who}_NAME", "t")
@@ -112,8 +117,15 @@ def test_an_approved_contract_becomes_a_local_branch_and_nothing_else(elig, tmp_
     got = write_branch(payload, 7, "human:tester", root=repo)
     assert got["branch"] == "contract/healthcare.eligibility-approval-7"
     assert "GOLD" in _git(repo, "show", f"{got['branch']}:{payload['path']}")
+    # Cut from main, not from the person's feature branch; committed with LF only.
+    assert _git(repo, "rev-parse", f"{got['branch']}^") == main
+    assert "notes.txt" not in _git(repo, "ls-tree", "--name-only", "-r", got["branch"])
+    blob = subprocess.run(["git", "-C", str(repo), "cat-file", "blob",
+                           f"{got['branch']}:{payload['path']}"], capture_output=True,
+                          check=True).stdout  # fmt: skip
+    assert b"\r\n" not in blob
     # The person's checkout is untouched: same branch, same HEAD, clean tree.
-    assert _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "main"
+    assert _git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "my-feature"
     assert _git(repo, "rev-parse", "HEAD") == head and _git(repo, "status", "--porcelain") == ""
     assert got["next"][0].startswith("git push -u origin contract/")
     assert got["next"][1].startswith("gh pr create --base main --head contract/")
@@ -125,3 +137,54 @@ def test_an_approved_contract_becomes_a_local_branch_and_nothing_else(elig, tmp_
         write_branch({**payload, "contract_yaml": "feed: x\n"}, 9, "human:tester", root=repo)
     with pytest.raises(ContractError, match="under packs"):
         write_branch({**payload, "path": "../evil.yaml"}, 10, "human:tester", root=repo)
+
+
+def test_loosening_catches_what_the_review_found(elig):
+    old = elig.spec
+    new = copy.deepcopy(old)
+    new["allow_extra_columns"] = True
+    new["min_rows"] = 0
+    new["classification"] = "internal"
+    new["source"]["channels"].append("sftp") if "sftp" not in new["source"]["channels"] else None
+    new["source"]["filename_pattern"] = "*.csv"
+    new["columns"] = [c for c in new["columns"] if c["name"] != "coverage_start"]
+    cols = {c["name"]: c for c in new["columns"]}
+    cols["dob"]["max"] = "2099-01-01"  # was today: later, so wider
+    rules = {(x["where"], x["rule"]) for x in loosening(old, new)}
+    assert rules >= {("contract", "allow_extra_columns"), ("contract", "min_rows"),
+                     ("contract", "classification"), ("source", "filename_pattern"),
+                     ("coverage_start", "dropped"), ("dob", "max")}  # fmt: skip
+
+
+def test_a_wider_type_is_a_loosening():
+    old = {"columns": [{"name": "n", "type": "integer"}, {"name": "d", "type": "date"}]}
+    new = {"columns": [{"name": "n", "type": "decimal"}, {"name": "d", "type": "string"}]}
+    assert {(x["where"], x["rule"]) for x in loosening(old, new)} == {("n", "type"), ("d", "type")}
+    assert loosening(new, old) == []  # narrowing is not
+
+
+def test_digit_codes_are_short_and_dates_or_zips_never_codes():
+    from dip.contract_author import CODE
+
+    assert CODE.match("GOLD") and CODE.match("11") and CODE.match("90") and CODE.match("USD")
+    assert not CODE.match("19800101") and not CODE.match("10001") and not CODE.match("1234")
+    lines = ["id,birth_dt,zip", *[f"{i},1980010{i % 3 + 1},1000{i % 2 + 1}" for i in range(24)]]
+    seen = observe(None, ("\n".join(lines) + "\n").encode())
+    cols = {c["column"]: c for c in seen["columns"]}
+    assert "codes" not in cols["birth_dt"] and "codes" not in cols["zip"]
+
+
+def test_a_bom_is_read_as_the_intake_reads_it(elig):
+    data = "﻿".encode() + (FIX / "good/elig_good.csv").read_bytes()
+    seen = observe(elig, data)
+    assert seen["unexpected"] == [] and seen["missing_declared"] == []
+
+
+def test_the_dry_run_checks_the_file_name_like_the_intake(elig):
+    from datetime import UTC, datetime
+
+    data = (FIX / "good/elig_good.csv").read_bytes()
+    at = datetime(2026, 10, 21, 12, tzinfo=UTC)
+    assert not dry_run(elig, data, at, "elig_20261021.csv")["file_rejected"]
+    got = dry_run(elig, data, at, "members_20261021.csv")
+    assert got["file_rejected"] and "FILE.NAME_PATTERN" in got["reason_codes"]

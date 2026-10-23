@@ -39,17 +39,18 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
     from dip.agents.contract_pr import contract_path, text_sha256
 
     obj = {"type": "object", "additionalProperties": False}
-    # candidate_id -> (feed, contract_yaml, file_sha256) of each candidate that validated.
-    validated: dict[str, tuple[str, str, str]] = {}
+    # (principal, run, candidate_id) -> (feed, contract_yaml, file_sha256) of each candidate
+    # that validated: an id is proposable only in the run that validated it.
+    validated: dict[tuple[str, str, str], tuple[str, str, str]] = {}
 
-    def _file(feed: str, sha: str) -> tuple[str, bytes, str]:
+    def _file(feed: str, sha: str) -> tuple[str, bytes, str, Any]:
         if not re.match(r"^[0-9a-f]{8,64}$", sha or ""):
             raise ValueError("file_sha256 must be 8 to 64 hex characters")
         with conn.cursor() as cur:
             cur.execute(
-                "select file_sha256, raw_key, source_key from ops.intake_file"
+                "select file_sha256, raw_key, source_key, received_at from ops.intake_file"
                 " where feed = %s and file_sha256 like %s"
-                " union all select file_sha256, raw_key, name from ops.sample_file"
+                " union all select file_sha256, raw_key, name, registered_at from ops.sample_file"
                 " where feed = %s and file_sha256 like %s limit 3",
                 (feed, sha + "%", feed, sha + "%"),
             )
@@ -58,8 +59,8 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         if len(rows) != 1:
             raise LookupError("no such file for this feed" if not rows
                               else "the prefix matches several files")  # fmt: skip
-        full, raw_key, name = next(iter(rows.values()))
-        return full, store.get(BUCKET_RAW, raw_key), PurePosixPath(name).name
+        full, raw_key, name, received = next(iter(rows.values()))
+        return full, store.get(BUCKET_RAW, raw_key), PurePosixPath(name).name, received
 
     def _fmt(feed: str, name: str) -> dict[str, Any]:
         if feed in contracts:
@@ -78,18 +79,20 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             return {**out, "valid": False, "errors": [str(exc)]}
         if c.feed != feed:
             return {**out, "valid": False, "errors": [f"feed is {c.feed!r}, not {feed!r}"]}
-        full, data, _ = _file(feed, sha)
+        full, data, name, received = _file(feed, sha)
         old_text = current.path.read_text("utf-8") if current else ""
         diff = "".join(difflib.unified_diff(
             old_text.splitlines(True), contract_yaml.splitlines(True),
             "current", "candidate", n=1))  # fmt: skip
         base = text_sha256(old_text) if current else None
-        return {**out, "valid": True, "file_sha256": full, "dry_run": dry_run(c, data),
+        # As the intake would see the file: its name and the time it was received.
+        run = dry_run(c, data, received, name)
+        return {**out, "valid": True, "file_sha256": full, "dry_run": run,
                 "loosening": loosening(current.spec if current else None, c.spec),
                 "diff": diff[:12000], "base_sha256": base}  # fmt: skip
 
     def diff_schema(principal: str, run_id: str | None, feed: str, file_sha256: str) -> dict:
-        full, data, name = _file(feed, file_sha256)
+        full, data, name, _ = _file(feed, file_sha256)
         fmt = _fmt(feed, name)
         seen = observe(contracts.get(feed), data, fmt)
         return {"feed": feed, "file_sha256": full, "has_contract": feed in contracts,
@@ -112,7 +115,7 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         out.pop("base_sha256", None)
         if out["valid"] and not out["dry_run"].get("file_rejected"):
             cid = text_sha256("|".join((feed, out["file_sha256"], contract_yaml)))[:16]
-            validated[cid] = (feed, contract_yaml, out["file_sha256"])
+            validated[(principal, run_id or "", cid)] = (feed, contract_yaml, out["file_sha256"])
             if len(validated) > 50:
                 validated.pop(next(iter(validated)))
             out["candidate_id"] = cid
@@ -122,10 +125,11 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
                             rationale: str) -> dict:  # fmt: skip
         if mode not in MODES:
             return {"error": f"mode must be one of {list(MODES)}"}
-        if candidate_id not in validated:
+        key = (principal, run_id or "", candidate_id)
+        if key not in validated:
             return {"error": "unknown candidate_id: validate the candidate first, and propose "
                              "the candidate_id validate_contract returned"}  # fmt: skip
-        feed, contract_yaml, file_sha256 = validated[candidate_id]
+        feed, contract_yaml, file_sha256 = validated[key]
         checked = _check(feed, contract_yaml, file_sha256)
         if not checked["valid"]:
             return {"error": "the candidate is not a valid contract", **checked}
@@ -137,6 +141,7 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             "base_sha256": checked["base_sha256"], "contract_yaml": contract_yaml,
             "file_sha256": checked["file_sha256"], "rationale": rationale[:4000],
             "validation": checked["dry_run"], "loosening": checked["loosening"],
+            "diff": checked["diff"],
         }  # fmt: skip
         approval_id = approvals.create(conn, principal, run_id, "contract_pr", payload)
         return {"approval_id": approval_id, "status": "pending",
@@ -178,6 +183,10 @@ def register_sample(conn: Any, store: Any, feed: str, path: Path, by: str) -> st
     """A person registers a new vendor's sample file for onboarding; returns its sha256."""
     import hashlib
 
+    from dip.agents.contract_pr import FEED
+
+    if not FEED.match(feed):
+        raise ValueError(f"{feed!r} must be <pack>.<name> (lower case)")
     data = Path(path).read_bytes()
     sha = hashlib.sha256(data).hexdigest()
     key = f"samples/{feed}/{sha[:16]}/{Path(path).name}"
