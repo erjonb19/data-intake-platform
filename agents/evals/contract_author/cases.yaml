@@ -49,7 +49,8 @@ cases:
     file:
       name: elig_20261021.csv
       base: onboarding/elig_base.csv
-      steps: [{op: add_column, column: member_phone, value: "555-0100", after: last_name}]
+      # One number per member (a constant column would rightly be declined as a placeholder).
+      steps: [{op: add_column, column: member_phone, value: "555-01{n:02d}", after: last_name}]
     expect:
       propose: true
       checks: [{column: member_phone, exists: true}, {column: member_phone, phi: true}]

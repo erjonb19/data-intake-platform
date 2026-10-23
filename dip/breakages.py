@@ -44,8 +44,10 @@ def rename_column(h, rows, d, column: str, to: str):
 
 
 def add_column(h, rows, d, column: str, value: str, after: str | None = None):
+    """`value` may hold {n}, the row number (1-based), so each row gets its own value."""
     at = h.index(after) + 1 if after else len(h)
-    return h[:at] + [column] + h[at:], [r[:at] + [value] + r[at:] for r in rows], d
+    rows = [r[:at] + [value.format(n=i + 1)] + r[at:] for i, r in enumerate(rows)]
+    return h[:at] + [column] + h[at:], rows, d
 
 
 def drop_column(h, rows, d, column: str):

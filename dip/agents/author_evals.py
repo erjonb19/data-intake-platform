@@ -104,7 +104,7 @@ def _untouched_changes(old: dict, new: dict, checks: list[dict]) -> list[str]:
     plain = lambda c: {k: v for k, v in c.items() if k != "description"}  # noqa: E731
     o = {c["name"]: plain(c) for c in old.get("columns", [])}
     n = {c["name"]: plain(c) for c in new.get("columns", [])}
-    out = [f"column {k}" for k in sorted(set(o) | set(n)) - touched if o.get(k) != n.get(k)]
+    out = [f"column {k}" for k in sorted((set(o) | set(n)) - touched) if o.get(k) != n.get(k)]
     skip = {"columns", "version", "description"} | keys_touched
     out += [f"key {k}" for k in sorted((set(old) | set(new)) - skip) if old.get(k) != new.get(k)]
     return out

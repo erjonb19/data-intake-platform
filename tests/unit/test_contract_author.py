@@ -188,3 +188,22 @@ def test_the_dry_run_checks_the_file_name_like_the_intake(elig):
     assert not dry_run(elig, data, at, "elig_20261021.csv")["file_rejected"]
     got = dry_run(elig, data, at, "members_20261021.csv")
     assert got["file_rejected"] and "FILE.NAME_PATTERN" in got["reason_codes"]
+
+
+def test_the_scorer_sees_every_change_outside_the_checked_columns(elig):
+    from dip.agents.author_evals import _untouched_changes
+
+    old = elig.spec
+    new = copy.deepcopy(old)
+    cols = {c["name"]: c for c in new["columns"]}
+    cols["plan_code"]["allowed"].append("GOLD")
+    new["version"] = 2
+    checks = [{"column": "plan_code", "allowed_includes": ["GOLD"]}]
+    assert _untouched_changes(old, new, checks) == []
+    new["columns"] = [c for c in new["columns"] if c["name"] != "coverage_end"]
+    new["allow_extra_columns"] = True
+    assert _untouched_changes(old, new, checks) == ["column coverage_end",
+                                                    "key allow_extra_columns"]  # fmt: skip
+    delim = copy.deepcopy(old)
+    delim["format"]["delimiter"] = ";"
+    assert _untouched_changes(old, delim, [{"format_delimiter": ";"}]) == []

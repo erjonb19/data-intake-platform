@@ -1,0 +1,185 @@
+[
+ {
+  "content": [
+   {
+    "signature": "CAQSnwUKEAgTGAI4AUIIdGhpbmtpbmcSDCf2FLk9FlPYf9/jTxoMA/DLMhN1JhjuYPDxIjD0MsaxYhstJQQfwNIW8vVLvIF/xQ2b9yFaZROItiIxRjZko33eSmbAi8OctAUJvlUqvARAmtv49IrUT90BI+M+yAvqoI3vYOT2Gub+JOrAHi+zT0nOIdp4DJSAGYyw/SI9n2kfzq03rARczSp2QWq4z/AT528GenrO7aiNif4jlhq5X570NRFj+ymHT3b5hSFAZRsi4Yw2pz0HVzjAsdSpJPGAGgdm4CG1Q/dA7KxkSviIQoBJoiDEs9+WHcD9Jeviu2CkzQa2xsuJcm1432ZpGH1VF9nJ1woxDA4chXRYp0rNMLQC4KpOalRpd9aMJvWv+l5dGSepbzY3LuruCAG8hjssdrF/Uh6jk/UHG5V0hwmmK0bLHY6F06BTIR8yJx5OwL9WwdKxbbkjxuXhRUjl3r4VNV9Pr2LxatDbMOsB4Jv5/GJr0MguHjPA1CnfSqtOQQEBgMjdnudSmJ1y1zsPg8PMu2iusYLCf1Ji4qV0QHqco0aDtTDcO7B2iy2GWKNdPXd/ka4FOftvuYC3mugJUjW+QxYVGQ9GzdVdoSYnu3aHvOdrezbRy8GNoby+MVjPtBkvnJNis1Zn/gF7kZ2WovgBN+OYroRyat0MJZWdVKgH9r9vjCCuJjoNBT+/qm+Yok1DCqpoK4t0wJtD1cVz7lru/ItAhXgqe0VjDB0CS2uGb2cvhTruXyHt5tUpjGhtamRJnHuBOmcH+Ew0QN8sHfPCBQrH7MwEsMblKOR/RAlPEBAn6UDuqo2TNEX8WNO7ppyQfLD2OOfRgwiZU+YvYfCEhTKyMvBnWT8wf3zMSIKe6BldCieCsPIxGG4bIBgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "I'll start by checking the sample file's structure and the layout of a reference contract.",
+    "type": "text"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01U152AXmYq9CAChsjdLrxAq",
+    "input": {
+     "feed": "healthcare.provider_roster",
+     "file_sha256": "e0b0812592a6166b22743e996fe3de07ef165f50f6572754cc91cffe9b82f51b"
+    },
+    "name": "diff_schema",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_013PfzBdJtenXJRjR93QB5jQ",
+    "input": {
+     "feed": "healthcare.claims"
+    },
+    "name": "get_contract_text",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01TK3vtWnppJFCsFL9NjaMb4",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract_text",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "15969e466be38382e776854ab4f5777fddc6dd3e65db88381623566017c7dd92",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3341
+   },
+   "cache_creation_input_tokens": 3341,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 280,
+   "output_tokens_details": {
+    "thinking_tokens": 21
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "The sample has 24 rows and 7 columns, with no declared contract to compare against. The NPI column reads as an integer, but it is an identifier, so I'll type it as a 10-digit string to keep it exact. I'll validate the candidate now.",
+    "type": "text"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01ExWGxGXQ5Tb1Qguu1ZvVyh",
+    "input": {
+     "contract_yaml": "# Provider directory from a payer vendor: one row per provider practice location, one file per day.\nfeed: healthcare.provider_roster\nversion: 1\nowner: vendor-ops@example.com\ndescription: >\n  Daily roster of providers: national provider identifier, name, taxonomy (specialty) code,\n  practice state, and whether the provider is accepting new patients.\nclassification: restricted\nsource:\n  channels: [minio, sftp, api]\n  filename_pattern: \"provider_roster_*.csv\"\n  # The business date in the name (provider_roster_YYYYMMDD.csv): a real date, not after the day it\n  # was received and at most 7 days before; otherwise FILE.NAME_DATE.\n  filename_date:\n    regex: \"^provider_roster_([0-9]+)\"\n    format: \"%Y%m%d\"\n    max_days_before_received: 7\n    max_days_after_received: 0\nformat: { type: csv, delimiter: \",\", encoding: utf-8, header: true }\nexpected_arrival: { cron: \"0 6 * * *\", grace: 2h }\non_row_violation: quarantine_row\nmax_bad_row_ratio: 0.05\nmin_rows: 1\ncolumns:\n  - { name: npi, type: string, required: true, unique: true, pattern: \"^[0-9]{10}$\", phi: true, description: \"National Provider Identifier (10 digits)\" }\n  - { name: provider_first_name, type: string, required: true, phi: true }\n  - { name: provider_last_name, type: string, required: true, phi: true }\n  - { name: taxonomy_code, type: string, required: true, pattern: \"^[0-9]{3}[A-Z][0-9]{5}[A-Z]$\" }\n  - { name: practice_state, type: string, required: true, allowed: [CT, NJ, NY] }\n  - { name: accepting_new_patients, type: string, required: true, allowed: [N, Y] }\n  - { name: effective_date, type: date, required: true }\n",
+     "feed": "healthcare.provider_roster",
+     "file_sha256": "e0b0812592a6166b22743e996fe3de07ef165f50f6572754cc91cffe9b82f51b"
+    },
+    "name": "validate_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "f06c735760bea038b2a8e3cbd3edafe0d5f009ba4d2349c46b535e3778717f5f",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3501
+   },
+   "cache_creation_input_tokens": 3501,
+   "cache_read_input_tokens": 3341,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 2053,
+   "output_tokens_details": {
+    "thinking_tokens": 1169
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQS8gcKEAgTGAI4AUIIdGhpbmtpbmcSDGxlctnODw87Q9vpwRoMTc3ARJJ542O1fFuaIjBd9Qaaj7pT1wAk8df1Con1II83jEIfi/6QeBKm3yFf0CYv9LyIigWUDG1OQPxZqkQqjwcjNO6PvoPaUII5lH0VJHGzu9+DJFU8anp1W4Ns7ry4oRiISBNCpNqNDADyTFnp6jRxh8IfNyfHXkJlYYjAcmBXYzJhGJCOJVQGGwbFGnKc26wamZn0eZ3V8++1GvasQN5C6WAxlgPhAQF2p8hX+MiVkN9VPri0PacaHc8vKipa5GZBfsnajrAq9SkChbOwwrtHWeY7xxTy5pqv1HqV8wdClC3zul05zD8KLXqhHcvp5ZJjyJeuI/u3+J0r5oaaEc3nT1jPJgGKNdvQwI9VGTX0m9iEctQWm0oZAZfX5tOgAavP0gELyPdOGQB07mYxVTPIcSJdfZPjcCXdZdhW2GTDH8xKrmrwjign4tk2mVbQLt1ON1iuFkuNDmeNMh5Etfttd/TeWWHX3v4pGYlNnJxjowzuf2dOxGUgYVQ13XBCZ6qIsD30ZP81chJatplkvUtbn51GDFc7b2lWhUyFjxnloJH4xHuFMtZ7b9Wil3gVGSxXu+HoSv5t5vtceOKY+wYpqTqIeOmWLp0oeYpDMWnybAU9HArAJ9h+cjEusv0ftWyh+ZYN6jf2ziFDAqHySOw5p+HchQUzHEs3ROsvbjLOzpJSLDC4PSmxJR8hKUvlGFEsOSIxuN9ZDk7AHzq/PKibdYTD9IbYNJWvk//AQR8rFLI6YNX4FJlu8PSOJG3NQ2MS85bG0n5cizadNlJrJbKRry07x1SY6udoXBjQS0Xz0sW/xQYqR6Soo0XtzaQElhD1LMW2eyOp/mb8xeLqmD+ED4a+MdQWhg6hBv2IB08w7Ia0UHPS+mIjvO+ruVbPInSoHbh2W+YGSMPskzuQtCRjV4XXWYZDrsiwJsc904a35b7Iur7DKQXJVnBWnWQdYfHGCfDDCH4oCl7KuqwOGmjIAt6vGs0/8/NFRAIcKzb7oDj2RAb5KWA3LzQg8hfqznhYZWg7hn2jh4hZkdNJZkP1BeIroZabRxuLXH7MSQ+Q96EfdoG3KFpvazXI6LK9Jf8ZTy35mDdlDqaG4viPbqAjx8y2Eiyk9zX/8LdWp9+B3O22Phv0umhHBroAv+XPHWXBOPEacADj0VNuur9tB1j44/1vlCOTOQ6PEjc2QE+dOwGNhhE5aH8kYBFAqOsxKVF+ANVnZzlSII3SMgRVI3PqJMm6T3abgaXAs3K7aPir1/0EmftO8LOtvN/LUSak4rREECXsDOl9D5jyYLHslBgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "The candidate validated and accepts all 24 rows. I'll propose it for review.",
+    "type": "text"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Hk9tivGjqwbzgnUdnxY3Qu",
+    "input": {
+     "candidate_id": "b4b42d7c522ea55e",
+     "mode": "onboard",
+     "rationale": "Onboarding healthcare.provider_roster (version 1) from sample provider_roster_20261019.csv (sha e0b08125...). The file is CSV, comma-delimited, UTF-8, with a header, and has 24 rows and 7 columns: npi, provider_first_name, provider_last_name, taxonomy_code, practice_state, accepting_new_patients, effective_date. No columns are missing or empty.\nRules, each taken from the diff_schema output:\n- npi: 10-digit identifier, unique and required. Typed as string rather than the inferred integer so that the value stays exact. Pattern ^[0-9]{10}$ from the shape. Marked phi (it identifies a provider).\n- provider_first_name / provider_last_name: required strings, marked phi because they are person names.\n- taxonomy_code: required, pattern ^[0-9]{3}[A-Z][0-9]{5}[A-Z]$ from the shape 999A99999A. Uppercase letters are assumed from the shape, which only shows \"A\".\n- practice_state: required, allowed [CT, NJ, NY], from the codes observed.\n- accepting_new_patients: required, allowed [N, Y], from the codes observed.\n- effective_date: required date.\nLoosening: none (validate_contract reported an empty loosening list). Dry run: 24 accepted, 0 rejected, no file rejection. Rule settings are the defaults (quarantine_row, max_bad_row_ratio 0.05, min_rows 1).\nItems for the reviewer to confirm, since the sample does not show them: owner (copied from the other healthcare feeds, vendor-ops@example.com), the expected arrival cron \"0 6 * * *\" with 2h grace, classification restricted (matching the other healthcare feeds), and the filename pattern and date rule based on the sample name provider_roster_YYYYMMDD.csv. The sample contained no instructions in its header or values; the diff output was data only."
+    },
+    "name": "propose_contract_pr",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "1b79ff66ce599887cfd7c8d101a00dc94ee89070080fd662382118eef97ccbd1",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2997
+   },
+   "cache_creation_input_tokens": 2997,
+   "cache_read_input_tokens": 6842,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 899,
+   "output_tokens_details": {
+    "thinking_tokens": 111
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "I proposed version 1 of `healthcare.provider_roster` for review (approval 1, pending). Nothing is live until a person approves it and publishes the branch.\n\n- **File:** 24 rows and 7 columns, CSV with a header, no missing or empty columns. Columns are `npi`, `provider_first_name`, `provider_last_name`, `taxonomy_code`, `practice_state`, `accepting_new_patients`, `effective_date`.\n- **Contract:** NPI is a unique 10-digit string and marked PHI. Names are required and marked PHI. Taxonomy codes match the observed shape. State and the Y/N flag are restricted to the observed codes. Effective date is a required date. Default row handling applies (quarantine rows, 5% bad-row limit).\n- **Loosening:** none. The dry run accepted 24 rows and rejected 0.\n- **Please confirm:** the owner, the arrival schedule (`0 6 * * *`), restricted classification, and the filename pattern were not in the sample. I copied them from the other healthcare feeds or inferred them from the sample name. The taxonomy pattern assumes uppercase letters, since the shape only shows \"A\".",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "e55d3f73b9bfe21d090f7e032a040ec23113601c1d7c81a8a11910d7770bb066",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 999
+   },
+   "cache_creation_input_tokens": 999,
+   "cache_read_input_tokens": 9839,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 394,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]
