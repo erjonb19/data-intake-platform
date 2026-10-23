@@ -446,6 +446,10 @@ The MCP Read tier and OCR stay.
 
 **Follow-up (from the S3.1 review):** a PDF stream that inflates to gigabytes is bounded only by the task pod's memory limit; detect it before inflating (stream length caps in the reader), so an OOM-killed task cannot leave the file in landing to fail again.
 
+**Follow-up (from the S3.3 review):** an extract DAG (or an E2E step) so the FHIR → OMOP →
+shareable extract leg reaches Marquez in the cluster and is checked there; today it is
+emitted only when `dip extract build` runs with `OPENLINEAGE_URL` set.
+
 **Follow-up (from S3.3):** per-feed bronze datasets in lineage. All file feeds share `bronze.csv_record`, so Marquez joins their graphs at that node (docs/observability.md).
 
 **LLM calls:** none in Stage 3. **Data:** generated invoices and Synthea only.
