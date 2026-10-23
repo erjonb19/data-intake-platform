@@ -87,3 +87,9 @@ output "mcp_reader_key" {
   value       = random_password.mcp_reader_key.result
   sensitive   = true
 }
+
+output "mcp_triage_key" {
+  description = "The triage agent's MCP API key (agent `triage`): Authorization: Bearer <key>."
+  value       = random_password.mcp_triage_key.result
+  sensitive   = true
+}

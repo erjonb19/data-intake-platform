@@ -17,6 +17,8 @@
   triage eval [--record]       score the triage agent on agents/evals/triage/cases.yaml
                                (DIP_EVAL_DSN: a throwaway database). Replays the recorded
                                model turns by default; --record calls the model and saves them
+  triage loop [--record]       every dip break scenario through detect, triage, propose,
+                               approve, fix and check (agents/evals/break_loop; DIP_EVAL_DSN)
   approvals list|show|approve|reject|execute [ID]
                                the human side of agent proposals (audited as human:<you>)
   cohort list                  the cohort library (packs/healthcare/cohorts), latest versions
@@ -166,6 +168,8 @@ def _triage(args: argparse.Namespace) -> int:
               f" ${cost_usd(r.usage, r.model):.4f}", file=sys.stderr)  # fmt: skip
         return 0
     dsn = os.environ["DIP_EVAL_DSN"]
+    if args.action == "loop":
+        return _break_loop(args, dsn)
     source = args.cases_file or evals.CASES
     cases = [c for c in evals.load_cases(source) if not args.case or c["name"] in args.case]
     work = Path("data/tmp/triage-eval")
@@ -187,6 +191,39 @@ def _triage(args: argparse.Namespace) -> int:
     (args.out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
     print(json.dumps(rep["summary"], indent=1))
     return 0 if rep["summary"]["policy_violations"] == 0 else 1
+
+
+def _break_loop(args: argparse.Namespace, dsn: str) -> int:
+    from dip.agents import break_loop
+    from dip.agents.llm import AnthropicLLM, Recorder, Recording
+
+    recorders: dict[str, Recorder] = {}
+
+    def llm_for(name: str):
+        if args.record:
+            recorders[name] = Recorder(AnthropicLLM())
+            return recorders[name]
+        return AnthropicLLM() if args.live else Recording(break_loop.RECORDINGS / f"{name}.json")
+
+    results = []
+    for sc in break_loop.load_scenarios():
+        if args.case and sc["name"] not in args.case:
+            continue
+        recorders.clear()
+        r = break_loop.run_scenario(sc, dsn, llm_for, Path("data/tmp/break-loop"))
+        if args.record and r.passed:
+            for name, rec in recorders.items():
+                rec.save(break_loop.RECORDINGS / f"{name}.json")
+        results.append(r)
+        print(f"{'PASS' if r.passed else 'FAIL'} {sc['name']}: {r.actions}", file=sys.stderr)
+        for line in r.steps + [f"PROBLEM {p}" for p in r.problems]:
+            print(f"    {line}", file=sys.stderr)
+    rep = break_loop.report(results)
+    out = args.out if args.out != Path("data/evals/triage") else Path("data/evals/break_loop")
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
+    print(json.dumps(rep["summary"], indent=1))
+    return 0 if rep["summary"]["passed"] == rep["summary"]["scenarios"] else 1
 
 
 def _contracts_eval(args: argparse.Namespace) -> int:
@@ -341,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Host header to accept (DNS-rebinding protection); default localhost",
     )
     tri = sub.add_parser("triage")
-    tri.add_argument("action", choices=["run", "eval"])
+    tri.add_argument("action", choices=["run", "eval", "loop"])
     tri.add_argument("--record", action="store_true", help="call the model, save its turns")
     tri.add_argument("--live", action="store_true", help="call the model, save nothing")
     tri.add_argument("--cases-file", type=Path, default=None)

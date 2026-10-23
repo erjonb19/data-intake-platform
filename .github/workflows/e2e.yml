@@ -51,7 +51,7 @@ jobs:
         run: |
           # A venv, because the runner's system Python is externally managed (PEP 668).
           python3 -m venv .venv
-          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5"
+          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5" "jsonschema==4.*"
           bash scripts/e2e.sh
 
       # Always, per PLAN.md section 6: pod logs, cluster state and a dump of the ops schema.

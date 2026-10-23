@@ -39,6 +39,7 @@ class Outcome:
     reason_codes: tuple[str, ...] = ()
     raw_key: str = ""
     quarantine_keys: tuple[str, ...] = ()
+    superseded: int = 0  # open quarantine this file closed: the resend a person requested
 
 
 def feed_of(landing_key: str) -> str:
@@ -153,7 +154,7 @@ def process_file(
         status = "loaded_with_rejections" if result.rejected else "loaded"
 
     csv_mode = isinstance(result, CsvResult)
-    warehouse.record_outcome(
+    superseded = warehouse.record_outcome(
         _intake_record(
             contract,
             sha,
@@ -183,6 +184,7 @@ def process_file(
         reason_codes=tuple(sorted({q.reason_code for q in quarantine})),
         raw_key=raw_key,
         quarantine_keys=tuple(sorted({q.quarantine_key for q in quarantine})),
+        superseded=superseded or 0,
     )
 
 

@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any
 
@@ -80,8 +80,9 @@ class Warehouse:
         patient_id: str | None,
         loaded_at: datetime,
         csv_rows: Sequence[Row] = (),
-    ) -> None:
-        """Bronze rows, quarantine rows and the intake row commit together or not at all."""
+    ) -> int:
+        """Bronze rows, quarantine rows and the intake row commit together or not at all.
+        Returns how many open quarantine entries the file superseded (_close_resent)."""
         try:
             with self.conn.cursor() as cur:
                 if csv_rows:
@@ -137,10 +138,12 @@ class Warehouse:
                     ),
                 )
                 _insert_delivery(cur, intake)
+                superseded = _close_resent(cur, intake) if intake.status == "loaded" else 0
             self.conn.commit()
         except Exception:
             self.conn.rollback()
             raise
+        return superseded
 
     def record_delivery(self, intake: IntakeRecord) -> bool:
         """Record another delivery of content already processed; False if already known."""
@@ -201,6 +204,30 @@ def _insert_quarantine(cur: Any, quarantine: list[QuarantineRecord]) -> None:
     )
 
 
+def _close_resent(cur: Any, intake: IntakeRecord) -> int:
+    """The vendor's resend closes the open quarantine a person's executed request_resend
+    covered (status `superseded`, pointing at the resend). A resend is a file of the same
+    feed, loaded whole, with the same business date as the file it replaces (the date in
+    its name, else the UTC day it was received): the next routine delivery of an
+    incremental feed (another day's claims) never closes yesterday's quarantine. Entries no
+    executed resend request covers stay open, and so do entries of files quarantined for
+    their name (they have no delivery, so no business date). Returns how many closed."""
+    day = intake.file_date or intake.received_at.astimezone(UTC).date()
+    cur.execute(
+        "update ops.quarantine q set status = 'superseded', superseded_by = %s"
+        " from ops.intake_delivery d"
+        " where q.status = 'open' and q.feed = %s and q.file_sha256 <> %s"
+        "   and d.feed = q.feed and d.file_sha256 = q.file_sha256"
+        "   and coalesce(d.file_date, (d.received_at at time zone 'UTC')::date) = %s"
+        "   and q.quarantine_id in ("
+        "     select (jsonb_array_elements_text(payload -> 'quarantine_ids'))::bigint"
+        "     from ops.approvals where action = 'request_resend' and status = 'executed'"
+        "       and payload ->> 'feed' = %s)",
+        (intake.file_sha256, intake.feed, intake.file_sha256, day, intake.feed),
+    )
+    return cur.rowcount
+
+
 class DryRunWarehouse:
     """Records outcomes in memory and writes nothing: for "what would happen" reports."""
 
@@ -215,11 +242,12 @@ class DryRunWarehouse:
 
     def record_outcome(
         self, intake, quarantine, resources, patient_id, loaded_at, csv_rows=()
-    ) -> None:
+    ) -> int:
         self.intake.append(intake)
         self.quarantine.extend(quarantine)
         self.loaded += len(resources) + len(csv_rows)
         self.deliveries.add((intake.feed, intake.file_sha256, intake.source_key))
+        return 0
 
     def record_delivery(self, intake) -> bool:
         key = (intake.feed, intake.file_sha256, intake.source_key)

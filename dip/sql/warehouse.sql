@@ -54,10 +54,24 @@ CREATE TABLE IF NOT EXISTS ops.quarantine (
     detail            text,
     record_ref        text,
     quarantine_key    text        NOT NULL,
-    status            text        NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'released', 'discarded')),
-    created_at        timestamptz NOT NULL DEFAULT now()
+    status            text        NOT NULL DEFAULT 'open'
+        CHECK (status IN ('open', 'released', 'discarded', 'superseded')),
+    created_at        timestamptz NOT NULL DEFAULT now(),
+    superseded_by     text
 );
 CREATE INDEX IF NOT EXISTS quarantine_reason_idx ON ops.quarantine (feed, reason_code);
+-- Stage 4 (S4.5): `superseded` closes entries whose resend (an executed request_resend)
+-- has loaded; superseded_by is the resent file's sha256. Added in place on older installs.
+ALTER TABLE ops.quarantine ADD COLUMN IF NOT EXISTS superseded_by text;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'quarantine_status_check'
+                   AND pg_get_constraintdef(oid) LIKE '%superseded%') THEN
+        ALTER TABLE ops.quarantine DROP CONSTRAINT IF EXISTS quarantine_status_check;
+        ALTER TABLE ops.quarantine ADD CONSTRAINT quarantine_status_check
+            CHECK (status IN ('open', 'released', 'discarded', 'superseded'));
+    END IF;
+END $$;
 
 -- Accepted FHIR resources, as received. The silver dbt models flatten them.
 CREATE TABLE IF NOT EXISTS bronze.fhir_resource (
@@ -242,6 +256,14 @@ BEGIN
     IF to_regclass('ops.audit_log') IS NOT NULL THEN
         GRANT INSERT ON ops.audit_log TO dip_mcp;
         GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_mcp;
+    END IF;
+    -- The triage agent's proposals (Stage 4, S4.5): a pending row for a person to
+    -- approve. Inserting it changes no data; approving and executing stay a person's. It
+    -- may read back only the new row's id (INSERT ... RETURNING), not the proposals.
+    IF to_regclass('ops.approvals') IS NOT NULL THEN
+        GRANT INSERT ON ops.approvals TO dip_mcp;
+        GRANT SELECT (approval_id) ON ops.approvals TO dip_mcp;
+        GRANT USAGE ON SEQUENCE ops.approvals_approval_id_seq TO dip_mcp;
     END IF;
 END $$;
 SELECT ops.grant_mcp_reader();

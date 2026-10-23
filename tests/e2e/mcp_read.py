@@ -15,11 +15,13 @@ Env: MCP_URL, MCP_READER_KEY, WAREHOUSE_DSN, OBSERVABILITY (1 when that profile 
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 MCP = os.environ["MCP_URL"].rstrip("/") + "/mcp"
 KEY = os.environ["MCP_READER_KEY"]
@@ -72,6 +74,24 @@ class Session:
         return result.get("isError", False), (json.loads(text) if text[:1] in "{[" else text)
 
 
+MISSING_SHA = hashlib.sha256(
+    (
+        Path(__file__).resolve().parent.parent
+        / "fixtures/eligibility/bad/elig_missing_member_id.csv"
+    ).read_bytes()
+).hexdigest()
+
+
+def resent_earlier() -> bool:
+    """The missing-member file's entries were closed by a loaded resend (superseded)."""
+    import psycopg
+
+    with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute("select bool_and(status = 'superseded') from ops.quarantine"
+                    " where file_sha256 = %s", (MISSING_SHA,))  # fmt: skip
+        return bool(cur.fetchone()[0])
+
+
 def refused(key: str | None) -> bool:
     try:
         Session(key).open()
@@ -100,8 +120,11 @@ def main() -> int:
     feed = "healthcare.eligibility"
     _, groups = s.call("list_quarantine_groups", feed=feed)
     codes = {g["reason_code"]: g for g in groups["groups"]}
+    # The missing-column group is open, unless an earlier run's break loop (the upgrade
+    # job runs the E2E twice) closed it with a resend (tests/e2e/break_loop.py).
+    missing_open = "SCHEMA.MISSING_COLUMN:member_id" in codes or resent_earlier()
     check(
-        "VALUE.NOT_ALLOWED:plan_code" in codes and "SCHEMA.MISSING_COLUMN:member_id" in codes,
+        "VALUE.NOT_ALLOWED:plan_code" in codes and missing_open,
         f"open quarantine groups for {feed}: {sorted(codes)}",
     )
     group = codes.get("VALUE.NOT_ALLOWED:plan_code", {"group_id": f"{feed}|x"})
@@ -109,8 +132,7 @@ def main() -> int:
     rec = (sample.get("untrusted_vendor_content") or [{}])[0].get("record") or {}
     check(rec.get("plan_code") == "GOLD", "the sample shows the rejected record (plan_code GOLD)")
     check(rec.get("first_name") == "(PHI: not shown)", "the reader never sees a PHI value")
-    missing = codes.get("SCHEMA.MISSING_COLUMN:member_id", {"files": [{"sha256": "0" * 12}]})
-    err, prof = s.call("profile_file", feed=feed, file_sha256=missing["files"][0]["sha256"])
+    err, prof = s.call("profile_file", feed=feed, file_sha256=MISSING_SHA[:12])
     check(
         not err and "member_id" in prof.get("missing_contract_columns", []),
         "profile_file reads the raw copy (MinIO read-only user) and finds the missing column",
