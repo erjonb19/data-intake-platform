@@ -1,0 +1,342 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_017Ziowmk7rE8gWgpUPrK3BV",
+    "input": {},
+    "name": "list_quarantine_groups",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "96a091c82465546afda1ac5d8fc8e7b4686936a94f2e04a0abdb7976a61d4810",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 0
+   },
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 2736,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 32,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSlwYKEAgTGAI4AUIIdGhpbmtpbmcSDCYar9FfPKHm3G4yChoMZw+je28oHCLC51gAIjALK7OX8W/zTlJ5MVORFY/aJZIgz9EYs4lk5KVBlzC3HR0dtHWULMVGBsH0vvYBzTAqtAWWO+GQvhbBImSlGMHjc3Ky2T+5Qo+d5oW3eQYWvLUuMb6RhUhvxjwsgmOMMMKp4wAdy+tL8CHRohNaQ7Hi5dy0f04yzJG+UbpObjXawogIr/6fNrI9WrxbpiJ7tTnZ8Xo1KTEE7/wTTG/fPsmKz8PDR7gF4S6oLEsEMR+FfzbW4ggehfuHNIDJlZuTP7L2gpkGu1J1S2c1iWb09XVGmSIqKJC0Ie53eEaXnlyVijWTK3logPtd3TjLXoOt6JFg0X+osNhg3VAL6wLZkdh1Zx2ZtAbyCkZuAH62mEw31OS/s6hCEjqwDxDHIIo+j0z+SOylXfoEyDsLp6gBn/SIxaJnw4ZZwFtXxcPjAhZ3WcjM1mBaemOoTr0AvEnPZk64cN0+iR0Id6PDGffmwlpIqDqgIqHW8PDgBj0GUFfYa0OOVNb3TaUvOQPnd59H0kVWrIOb5HkOn+tIlL614V16iZIR/mQ24lNKM2msH5wP1PLxefU4qsYHiog5VssNcZTJ5SbGBJB0Dn1N5HJ29yM0hdTBSGLD3NcnAexXbPiCf3xWuLXhBCnwzT65sX54jt3equRbh9epm2UBxt7FRG9KpbjcwNX+MkbmD0cvtlWrUCNRc38n1J0DR967DxZqcbuyvN4Nsqs0AqUMQx2sOQV2SgXNj86zbL5Ed7B8NTnJmzR+Rx9nsBILc+8iKdtBxkcectZR2qySbeWNx2Gk8SBrDpud5e974pJX5P7RDml32tD1PlERlVAlaIwfQtXMLNpnV6tp/WkWK49eZNjbU2c5Ve579H8dbG1EGint7kZmMtyrjk6KPIXJP/LbpJvfjJfVaGgOJ8TulKOJOsojnIHMKkNmIM4wQCD0StOUNG2zh+mKLCVt+53Y/agHgX6ix/5aRnhFcai2XC59JiwMRhoACOtC7XDoOxgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01MBf3otphGc5yp33y6LhAsR",
+    "input": {
+     "group_id": "healthcare.eligibility|SCHEMA.UNEXPECTED_COLUMN:member_id;first_name;last_name;dob;sex;plan_code;coverage_start;coverage_end;patient_ref",
+     "limit": 3
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_012HZH1oo2Nwof9nxkDXmRy5",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01DtsCsB3CVrbazC8pwjJD84",
+    "input": {
+     "feed": "healthcare.eligibility",
+     "limit": 10
+    },
+    "name": "get_feed_history",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "a0065d518f248783c782ae0b1c4b9f98e1cf6e6ae4e72498051964e2c877ecc9",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2423
+   },
+   "cache_creation_input_tokens": 2423,
+   "cache_read_input_tokens": 2736,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 339,
+   "output_tokens_details": {
+    "thinking_tokens": 58
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01CXeThRJZMxn2F58BkwMrRv",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.UNEXPECTED_COLUMN:member_id;first_name;last_name;dob;sex;plan_code;coverage_start;coverage_end;patient_ref",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      10
+     ],
+     "rationale": "The file's header is one field: 'member_id;first_name;...;patient_ref', semicolon-separated. The contract requires a comma delimiter (format.delimiter ','). Read as comma-separated, the whole header becomes one unknown column, and every contract column then looks missing. Same file (elig_20261021.csv) as the other eligibility groups. Contract is v1 and the feed has no earlier history, so this is not a contract change. Vendor should resend with commas.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_012ficCytNzYELs9YnM43XA3",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "'member_id' is reported missing, but the file's header line is 'member_id;first_name;...;patient_ref' with semicolons. The contract requires comma delimiters, so the column is not missing: the delimiter is wrong. Same file as the unexpected-column group, which shows the whole header as one column.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01MMHbbBgfgcHbQqbC2W4k3Q",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:first_name",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      2
+     ],
+     "rationale": "'first_name' is reported missing, but the file header is semicolon-separated ('member_id;first_name;...'). The column is present; the delimiter is wrong for the contract's comma format. Same file as the unexpected-column group.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_0196dnHuX8czDPcbFEkBNQB4",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:last_name",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      3
+     ],
+     "rationale": "'last_name' is reported missing, but the file header is semicolon-separated and contains 'last_name'. The contract requires comma delimiters, so the column is misread, not missing. Same file as the unexpected-column group.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01TmFkNNRUAtCa2XVc2sQsdV",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:dob",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      4
+     ],
+     "rationale": "'dob' is reported missing, but the file header is semicolon-separated and contains 'dob'. The contract requires comma delimiters, so the column is misread, not missing. Same file as the unexpected-column group.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01X5khRXRhJnbxioDTfaDQ9o",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:sex",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      5
+     ],
+     "rationale": "'sex' is reported missing, but the file header is semicolon-separated and contains 'sex'. The contract requires comma delimiters, so the column is misread, not missing. Same file as the unexpected-column group.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Sgb4poHJRdCiWzrvH1m3Fg",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:plan_code",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      6
+     ],
+     "rationale": "'plan_code' is reported missing, but the file header is semicolon-separated and contains 'plan_code'. The contract requires comma delimiters, so the column is misread, not missing. Same file as the unexpected-column group.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01NpTrYCi6ojA1K888Es2Ni2",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:coverage_start",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      7
+     ],
+     "rationale": "'coverage_start' is reported missing, but the file header is semicolon-separated and contains 'coverage_start'. The contract requires comma delimiters, so the column is misread, not missing. Same file as the unexpected-column group.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01HHB4ayqfo6jtZ4Y5Z3DqQg",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:coverage_end",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      8
+     ],
+     "rationale": "'coverage_end' is reported missing, but the file header is semicolon-separated and contains 'coverage_end'. The contract requires comma delimiters, so the column is misread, not missing. Same file as the unexpected-column group.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01MsmVRUaeNx1zev9WKLGFvk",
+    "input": {
+     "action": "request_resend",
+     "confidence": 0.85,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:patient_ref",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but the healthcare.eligibility contract requires comma-separated values (,), UTF-8, with a header row. Please resend the file as a comma-delimited CSV with the nine columns: member_id, first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
+     "quarantine_ids": [
+      9
+     ],
+     "rationale": "'patient_ref' is reported missing, but the file header is semicolon-separated and contains 'patient_ref'. The contract requires comma delimiters, so the column is misread, not missing. Same file as the unexpected-column group.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "6c4ca56671ea42db3710a1010d4cb1796a7c4aaaa006fbc2b734c9dabdc2b461",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2340
+   },
+   "cache_creation_input_tokens": 2340,
+   "cache_read_input_tokens": 5159,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 4957,
+   "output_tokens_details": {
+    "thinking_tokens": 455
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "All ten open groups are one file, `elig_20261021.csv` (healthcare.eligibility, contract v1). I looked at the file's first rows and the contract. The file's header is semicolon-separated, but the contract requires commas. Read as commas, the whole header becomes one unknown column, and every contract column looks missing. So all ten groups share one cause: the wrong delimiter. I proposed `request_resend` for each group, with root cause `file_format`, at 0.85 confidence. Nothing runs until a person approves.\n\nSummary, one line per group:\n- **SCHEMA.UNEXPECTED_COLUMN (whole semicolon header, id 10):** resend as comma-delimited CSV (approval 10).\n- **SCHEMA.MISSING_COLUMN:member_id (id 1):** not actually missing; delimiter is wrong, resend (approval 1).\n- **SCHEMA.MISSING_COLUMN:first_name (id 2):** not actually missing; delimiter is wrong, resend (approval 2).\n- **SCHEMA.MISSING_COLUMN:last_name (id 3):** not actually missing; delimiter is wrong, resend (approval 3).\n- **SCHEMA.MISSING_COLUMN:dob (id 4):** not actually missing; delimiter is wrong, resend (approval 4).\n- **SCHEMA.MISSING_COLUMN:sex (id 5):** not actually missing; delimiter is wrong, resend (approval 5).\n- **SCHEMA.MISSING_COLUMN:plan_code (id 6):** not actually missing; delimiter is wrong, resend (approval 6).\n- **SCHEMA.MISSING_COLUMN:coverage_start (id 7):** not actually missing; delimiter is wrong, resend (approval 7).\n- **SCHEMA.MISSING_COLUMN:coverage_end (id 8):** not actually missing; delimiter is wrong, resend (approval 8).\n- **SCHEMA.MISSING_COLUMN:patient_ref (id 9):** not actually missing; delimiter is wrong, resend (approval 9).\n\nI did not check the data rows beyond the first few, so the rest of the file's values are unverified. Once the vendor resends a comma-delimited file, the row checks will run on it.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "cb9c3d04d286975904577f577d3527b5f5db571672e496705ee77b79717281a8",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 5573
+   },
+   "cache_creation_input_tokens": 5573,
+   "cache_read_input_tokens": 7499,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 775,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

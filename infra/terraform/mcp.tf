@@ -1,16 +1,18 @@
-# The MCP server, Read tier (Stage 3, S3.4; PLAN.md section 7), in the cluster: Streamable
-# HTTP at /mcp, ClusterIP only (a port-forward for local use). One agent is configured
-# here, `reader` (agents/policies/reader.yaml): read tools only, every call audited. The
-# triage agent's Propose tier stays a local `dip mcp-serve` (Stage 4) until Stage 6.
+# The MCP server (Stage 3, S3.4; PLAN.md section 7), in the cluster: Streamable HTTP at
+# /mcp, ClusterIP only (a port-forward for local use). Two agents are configured here:
+# `reader` (agents/policies/reader.yaml: read tools only) and, from Stage 4 (S4.5),
+# `triage` (agents/policies/triage.yaml: its read tools and propose_operation, which writes
+# a pending ops.approvals row and changes no data). Every call is audited.
 #
 # Least privilege for each thing the server touches:
 #   warehouse  the dip_mcp login: reads the ops tables its tools name, inserts into
-#              ops.audit_log, nothing in bronze, silver, gold or the research tiers
+#              ops.audit_log and (proposals) ops.approvals, nothing in bronze, silver,
+#              gold or the research tiers
 #   MinIO      a user that may only read raw/ and quarantine/ (samples, file profiles)
 #   Airflow    a Viewer login (DAG runs, task logs)
 #   Marquez, Prometheus (observability profile)  read-only HTTP APIs
-# The reader's key is generated here; only its SHA-256 is in the server's Secret, the key
-# itself is the sensitive output `mcp_reader_key`.
+# The agents' keys are generated here; only their SHA-256 is in the server's Secret, the
+# keys themselves are the sensitive outputs `mcp_reader_key` and `mcp_triage_key`.
 
 locals {
   mcp_minio_policy = jsonencode({
@@ -30,6 +32,11 @@ locals {
 }
 
 resource "random_password" "mcp_reader_key" {
+  length  = 40
+  special = false
+}
+
+resource "random_password" "mcp_triage_key" {
   length  = 40
   special = false
 }
@@ -207,7 +214,10 @@ resource "kubernetes_secret_v1" "mcp" {
     namespace = kubernetes_namespace_v1.data.metadata[0].name
   }
   data = {
-    DIP_AGENT_KEYS       = jsonencode({ reader = sha256(random_password.mcp_reader_key.result) })
+    DIP_AGENT_KEYS = jsonencode({
+      reader = sha256(random_password.mcp_reader_key.result)
+      triage = sha256(random_password.mcp_triage_key.result)
+    })
     DIP_WAREHOUSE_DSN    = "postgresql://dip_mcp:${local.pw["pg_mcp"]}@${local.postgres_host}:5432/warehouse"
     DIP_S3_ENDPOINT      = "http://${local.minio_host}:9000"
     DIP_S3_ACCESS_KEY    = local.mcp_minio_user

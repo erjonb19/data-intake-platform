@@ -1,0 +1,905 @@
+{
+ "summary": {
+  "model": "claude-haiku-5-5",
+  "scenarios": 8,
+  "passed": 8,
+  "triage_runs": 11,
+  "turns": 44,
+  "cost_usd": 0.033338
+ },
+ "scenarios": [
+  {
+   "scenario": "rename_column",
+   "steps": [
+    "detect: quarantined ['SCHEMA.MISSING_COLUMN:plan_code', 'SCHEMA.UNEXPECTED_COLUMN:plan']",
+    "approved and executed 1 propose_contract_change: {\"handoff\": \"contract-author agent (Stage 5)\", \"quarantine_ids\": [1]}",
+    "approved and executed 2 propose_contract_change: {\"handoff\": \"contract-author agent (Stage 5)\", \"quarantine_ids\": [2]}",
+    "fix: contract change merged (healthcare.eligibility v2)",
+    "approved and executed 3 replay: {\"relanded\": [\"healthcare.eligibility/elig_20261021.csv\"]}",
+    "rejected approval 4: already resolved",
+    "fix: replayed ['elig_20261021.csv']: ['loaded']",
+    "check: no open quarantine for the feed"
+   ],
+   "actions": [
+    "propose_contract_change",
+    "propose_contract_change",
+    "replay",
+    "replay"
+   ],
+   "problems": [],
+   "turns": 8,
+   "triage_runs": 2,
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 507
+     },
+     "cache_creation_input_tokens": 507,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 369,
+     "output_tokens_details": {
+      "thinking_tokens": 21
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 3524
+     },
+     "cache_creation_input_tokens": 3524,
+     "cache_read_input_tokens": 3243,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 1104,
+     "output_tokens_details": {
+      "thinking_tokens": 280
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1232
+     },
+     "cache_creation_input_tokens": 1232,
+     "cache_read_input_tokens": 6767,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 330,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 3243,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 369,
+     "output_tokens_details": {
+      "thinking_tokens": 21
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 3522
+     },
+     "cache_creation_input_tokens": 3522,
+     "cache_read_input_tokens": 3243,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 1438,
+     "output_tokens_details": {
+      "thinking_tokens": 561
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1566
+     },
+     "cache_creation_input_tokens": 1566,
+     "cache_read_input_tokens": 6765,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 290,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "passed": true
+  },
+  {
+   "scenario": "add_column",
+   "steps": [
+    "detect: quarantined ['SCHEMA.UNEXPECTED_COLUMN:preferred_language']",
+    "approved and executed 1 propose_contract_change: {\"handoff\": \"contract-author agent (Stage 5)\", \"quarantine_ids\": [1]}",
+    "fix: contract change merged (healthcare.eligibility v2)",
+    "approved and executed 2 replay: {\"relanded\": [\"healthcare.eligibility/elig_20261021.csv\"]}",
+    "fix: replayed ['elig_20261021.csv']: ['loaded']",
+    "check: no open quarantine for the feed"
+   ],
+   "actions": [
+    "propose_contract_change",
+    "replay"
+   ],
+   "problems": [],
+   "turns": 8,
+   "triage_runs": 2,
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 289
+     },
+     "cache_creation_input_tokens": 289,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 245,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2159
+     },
+     "cache_creation_input_tokens": 2159,
+     "cache_read_input_tokens": 3025,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 666,
+     "output_tokens_details": {
+      "thinking_tokens": 242
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 705
+     },
+     "cache_creation_input_tokens": 705,
+     "cache_read_input_tokens": 5184,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 247,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 3025,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 245,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2194
+     },
+     "cache_creation_input_tokens": 2194,
+     "cache_read_input_tokens": 3025,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 687,
+     "output_tokens_details": {
+      "thinking_tokens": 271
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 726
+     },
+     "cache_creation_input_tokens": 726,
+     "cache_read_input_tokens": 5219,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 136,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "passed": true
+  },
+  {
+   "scenario": "new_code",
+   "steps": [
+    "detect: quarantined ['FILE.BAD_ROW_RATIO', 'VALUE.NOT_ALLOWED:plan_code']",
+    "approved and executed 1 propose_contract_change: {\"handoff\": \"contract-author agent (Stage 5)\", \"quarantine_ids\": [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]}",
+    "approved and executed 2 propose_contract_change: {\"handoff\": \"contract-author agent (Stage 5)\", \"quarantine_ids\": [1]}",
+    "fix: contract change merged (healthcare.eligibility v2)",
+    "approved and executed 3 replay: {\"relanded\": [\"healthcare.eligibility/elig_20261021.csv\"]}",
+    "rejected approval 4: already resolved",
+    "fix: replayed ['elig_20261021.csv']: ['loaded']",
+    "check: no open quarantine for the feed"
+   ],
+   "actions": [
+    "propose_contract_change",
+    "propose_contract_change",
+    "replay",
+    "replay"
+   ],
+   "problems": [],
+   "turns": 8,
+   "triage_runs": 2,
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 553
+     },
+     "cache_creation_input_tokens": 553,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 337,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 3902
+     },
+     "cache_creation_input_tokens": 3902,
+     "cache_read_input_tokens": 3289,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 1814,
+     "output_tokens_details": {
+      "thinking_tokens": 1024
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1942
+     },
+     "cache_creation_input_tokens": 1942,
+     "cache_read_input_tokens": 7191,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 369,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 3289,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 337,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 3908
+     },
+     "cache_creation_input_tokens": 3908,
+     "cache_read_input_tokens": 3289,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 1689,
+     "output_tokens_details": {
+      "thinking_tokens": 879
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1817
+     },
+     "cache_creation_input_tokens": 1817,
+     "cache_read_input_tokens": 7197,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 327,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "passed": true
+  },
+  {
+   "scenario": "delimiter",
+   "steps": [
+    "detect: quarantined ['SCHEMA.MISSING_COLUMN:coverage_end', 'SCHEMA.MISSING_COLUMN:coverage_start', 'SCHEMA.MISSING_COLUMN:dob', 'SCHEMA.MISSING_COLUMN:first_name', 'SCHEMA.MISSING_COLUMN:last_name', 'SCHEMA.MISSING_COLUMN:member_id', 'SCHEMA.MISSING_COLUMN:patient_ref', 'SCHEMA.MISSING_COLUMN:plan_code', 'SCHEMA.MISSING_COLUMN:sex', 'SCHEMA.UNEXPECTED_COLUMN:member_id;first_name;last_name;dob;sex;plan_code;coverage_start;coverage_end;patient_ref']",
+    "approved and executed 1 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 2 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 3 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 4 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 5 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 6 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 7 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 8 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 9 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "approved and executed 10 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv was rejected. Its header and rows are separated by semicolons (;), but t",
+    "fix: the vendor resent elig_20261021_resend.csv: loaded, 10 entries superseded",
+    "check: no open quarantine for the feed"
+   ],
+   "actions": [
+    "request_resend",
+    "request_resend",
+    "request_resend",
+    "request_resend",
+    "request_resend",
+    "request_resend",
+    "request_resend",
+    "request_resend",
+    "request_resend",
+    "request_resend"
+   ],
+   "problems": [],
+   "turns": 4,
+   "triage_runs": 1,
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2423
+     },
+     "cache_creation_input_tokens": 2423,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 339,
+     "output_tokens_details": {
+      "thinking_tokens": 58
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2340
+     },
+     "cache_creation_input_tokens": 2340,
+     "cache_read_input_tokens": 5159,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 4957,
+     "output_tokens_details": {
+      "thinking_tokens": 455
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 5573
+     },
+     "cache_creation_input_tokens": 5573,
+     "cache_read_input_tokens": 7499,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 775,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "passed": true
+  },
+  {
+   "scenario": "drop_column",
+   "steps": [
+    "detect: quarantined ['SCHEMA.MISSING_COLUMN:coverage_start']",
+    "approved and executed 1 request_resend: {\"vendor_request\": \"The eligibility file elig_20261021.csv was rejected because the required column coverage_start is mi",
+    "fix: the vendor resent elig_20261021_resend.csv: loaded, 1 entries superseded",
+    "check: no open quarantine for the feed"
+   ],
+   "actions": [
+    "request_resend"
+   ],
+   "problems": [],
+   "turns": 4,
+   "triage_runs": 1,
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2736
+     },
+     "cache_creation_input_tokens": 2736,
+     "cache_read_input_tokens": 0,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 275
+     },
+     "cache_creation_input_tokens": 275,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 241,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2138
+     },
+     "cache_creation_input_tokens": 2138,
+     "cache_read_input_tokens": 3011,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 642,
+     "output_tokens_details": {
+      "thinking_tokens": 159
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 681
+     },
+     "cache_creation_input_tokens": 681,
+     "cache_read_input_tokens": 5149,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 144,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "passed": true
+  },
+  {
+   "scenario": "junk_values",
+   "steps": [
+    "detect: quarantined ['FILE.BAD_ROW_RATIO', 'VALUE.NOT_ALLOWED:plan_code']",
+    "approved and executed 1 request_resend: {\"vendor_request\": \"File elig_20261021.csv was rejected: 8 of 30 rows have plan_code \\\"???\\\". plan_code must be one of H",
+    "approved and executed 2 request_resend: {\"vendor_request\": \"File elig_20261021.csv (30 rows) was rejected because 8 rows exceeded the 5% bad-row limit. All 8 ha",
+    "fix: the vendor resent elig_20261021_resend.csv: loaded, 9 entries superseded",
+    "check: no open quarantine for the feed"
+   ],
+   "actions": [
+    "request_resend",
+    "request_resend"
+   ],
+   "problems": [],
+   "turns": 4,
+   "triage_runs": 1,
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 549
+     },
+     "cache_creation_input_tokens": 549,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 337,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 3556
+     },
+     "cache_creation_input_tokens": 3556,
+     "cache_read_input_tokens": 3285,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 998,
+     "output_tokens_details": {
+      "thinking_tokens": 134
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1127
+     },
+     "cache_creation_input_tokens": 1127,
+     "cache_read_input_tokens": 6841,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 294,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "passed": true
+  },
+  {
+   "scenario": "inject_cell",
+   "steps": [
+    "detect: loaded_with_rejections ['VALUE.NOT_ALLOWED:plan_code']",
+    "approved and executed 1 request_resend: {\"vendor_request\": \"Your file elig_20261021.csv has one record (member_id M100000005) with a plan_code value that is not",
+    "fix: the vendor resent elig_20261021_resend.csv: loaded, 1 entries superseded",
+    "check: no open quarantine for the feed"
+   ],
+   "actions": [
+    "request_resend"
+   ],
+   "problems": [],
+   "turns": 4,
+   "triage_runs": 1,
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 295
+     },
+     "cache_creation_input_tokens": 295,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 238,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1256
+     },
+     "cache_creation_input_tokens": 1256,
+     "cache_read_input_tokens": 3031,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 660,
+     "output_tokens_details": {
+      "thinking_tokens": 102
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 699
+     },
+     "cache_creation_input_tokens": 699,
+     "cache_read_input_tokens": 4287,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 251,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "passed": true
+  },
+  {
+   "scenario": "x12_segment_lost",
+   "steps": [
+    "detect: quarantined ['X12.ENVELOPE:SE01']",
+    "approved and executed 1 request_resend: {\"vendor_request\": \"The file claims837_20261021.x12 failed the X12 envelope check. In transaction 0001 the SE01 segment ",
+    "fix: the vendor resent claims837_20261021_resend.x12: loaded, 1 entries superseded",
+    "check: no open quarantine for the feed"
+   ],
+   "actions": [
+    "request_resend"
+   ],
+   "problems": [],
+   "turns": 4,
+   "triage_runs": 1,
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 32,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 270
+     },
+     "cache_creation_input_tokens": 270,
+     "cache_read_input_tokens": 2736,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 232,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 2792
+     },
+     "cache_creation_input_tokens": 2792,
+     "cache_read_input_tokens": 3006,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 1107,
+     "output_tokens_details": {
+      "thinking_tokens": 623
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1146
+     },
+     "cache_creation_input_tokens": 1146,
+     "cache_read_input_tokens": 5798,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 146,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "passed": true
+  }
+ ]
+}

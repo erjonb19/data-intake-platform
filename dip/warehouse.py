@@ -80,8 +80,9 @@ class Warehouse:
         patient_id: str | None,
         loaded_at: datetime,
         csv_rows: Sequence[Row] = (),
-    ) -> None:
-        """Bronze rows, quarantine rows and the intake row commit together or not at all."""
+    ) -> int:
+        """Bronze rows, quarantine rows and the intake row commit together or not at all.
+        Returns how many open quarantine entries the file superseded (_close_resent)."""
         try:
             with self.conn.cursor() as cur:
                 if csv_rows:
@@ -137,10 +138,12 @@ class Warehouse:
                     ),
                 )
                 _insert_delivery(cur, intake)
+                superseded = _close_resent(cur, intake) if intake.status == "loaded" else 0
             self.conn.commit()
         except Exception:
             self.conn.rollback()
             raise
+        return superseded
 
     def record_delivery(self, intake: IntakeRecord) -> bool:
         """Record another delivery of content already processed; False if already known."""
@@ -201,6 +204,21 @@ def _insert_quarantine(cur: Any, quarantine: list[QuarantineRecord]) -> None:
     )
 
 
+def _close_resent(cur: Any, intake: IntakeRecord) -> int:
+    """A file of the feed that loaded whole closes the open quarantine that a person's
+    executed request_resend covered (status `superseded`, pointing at this file): the
+    vendor was asked for a corrected file and it has arrived. Entries no executed resend
+    request covers stay open. Returns how many were closed."""
+    cur.execute(
+        "update ops.quarantine set status = 'superseded', superseded_by = %s"
+        " where status = 'open' and feed = %s and file_sha256 <> %s and quarantine_id in ("
+        "   select (jsonb_array_elements_text(payload -> 'quarantine_ids'))::bigint"
+        "   from ops.approvals where action = 'request_resend' and status = 'executed')",
+        (intake.file_sha256, intake.feed, intake.file_sha256),
+    )
+    return cur.rowcount
+
+
 class DryRunWarehouse:
     """Records outcomes in memory and writes nothing: for "what would happen" reports."""
 
@@ -215,11 +233,12 @@ class DryRunWarehouse:
 
     def record_outcome(
         self, intake, quarantine, resources, patient_id, loaded_at, csv_rows=()
-    ) -> None:
+    ) -> int:
         self.intake.append(intake)
         self.quarantine.extend(quarantine)
         self.loaded += len(resources) + len(csv_rows)
         self.deliveries.add((intake.feed, intake.file_sha256, intake.source_key))
+        return 0
 
     def record_delivery(self, intake) -> bool:
         key = (intake.feed, intake.file_sha256, intake.source_key)

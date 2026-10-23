@@ -4,7 +4,8 @@ Eight failures a vendor feed really has, each with what you see, where the evide
 what to do, and how to check the fix. Every runbook names the platform's real reason codes
 (docs/contracts.md), alerts (`observability/prometheus/rules.yml`), Read-tier MCP tools
 (docs/agents/mcp-read.md) and commands. Five of the eight (1–4 and 8) can be triggered on
-purpose with `python -m dip break` (dip/breakages.py) on a good file.
+purpose with `python -m dip break` (dip/breakages.py) on a good file, and so can a broken
+X12 envelope (`x12_segment_lost`, `X12.ENVELOPE:SE01`: handled like runbook 4).
 
 | # | Runbook | Reason code or signal | Break it with |
 |---|---|---|---|
@@ -38,5 +39,8 @@ purpose with `python -m dip break` (dip/breakages.py) on a good file.
 
 The E2E (`tests/e2e/cases.yaml`) covers the reason codes of runbooks 1, 3, 6 and 7 with
 committed fixtures, and the contract-author evals cover the scenarios of runbooks 1–4 and
-8. Running each runbook's whole loop in the E2E (break, triage, approve, fix, check) is
-planned, not built.
+8. **The whole loop** (break, detect, triage, propose, approve, fix, check) runs for every
+`dip break` scenario, which covers runbooks 1–4 and 8 and the X12 envelope:
+`python -m dip triage loop`, replayed in CI by `tests/integration/test_break_loop.py`,
+and once through the deployed stack in the kind E2E (`tests/e2e/break_loop.py`).
+Results: [docs/agents/triage.md](../agents/triage.md#the-break-and-fix-loop-stage-4).
