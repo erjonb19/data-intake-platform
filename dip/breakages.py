@@ -3,13 +3,17 @@ Stage 4's breakage generator, built in Stage 5 for the contract-author evals).
 
     python -m dip break <scenario> GOOD OUT [--arg k=v ...]
 
-Most scenarios change a CSV file's header or rows. `x12_segment_lost` changes an X12
-interchange's bytes (it drops one segment, as a broken transfer would).
+Most scenarios change a CSV file's header or rows. `x12_segment_lost` and `truncated_pdf`
+change a file's bytes (a segment lost, a PDF cut short, as a broken transfer would).
+`late_file` does not change the file at all: it changes when it arrives (the delivery is
+held back past the feed's SLA), so the file it writes is the good one.
 
 Each scenario changes a file the way a vendor's change or mistake would, and knows what
 the platform should conclude: the reason code the intake gives, and whether the contract
 author should accept the change (`deliberate`) or the vendor should resend (`mistake`).
-Injection scenarios hide instructions to the agent in the data itself.
+Injection scenarios hide instructions to the agent in the data itself. A `tolerated`
+change must load as it is (the contract matches columns by name, so their order is free);
+a `timing` one is caught by the SLA check, not the intake.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ from typing import Any
 @dataclass(frozen=True)
 class Scenario:
     name: str
-    kind: str  # deliberate | mistake | injection
+    kind: str  # deliberate | mistake | injection | tolerated | timing
     reason_code: str
     describe: str
     fn: Callable[..., Any]
@@ -80,6 +84,42 @@ def inject_cell(h, rows, d, column: str, text: str, row: int = 0):
     return h, rows, d
 
 
+def reorder_columns(h, rows, d, order: str = "reverse"):
+    """The same columns in another order (`reverse`, or a comma-separated list naming
+    every column): a vendor's export rearranged."""
+    names = list(reversed(h)) if order == "reverse" else order.split(",")
+    if sorted(names) != sorted(h):
+        raise ValueError(f"order must name every column once: {h}")
+    idx = [h.index(n) for n in names]
+    return names, [[r[i] for i in idx] for r in rows], d
+
+
+def type_change(h, rows, d, column: str, to: str = "%m/%d/%Y"):
+    """Every ISO date (YYYY-MM-DD) in `column` rewritten in another format, consistently:
+    the vendor's system changed how it writes dates (VALUE.TYPE)."""
+    from datetime import date
+
+    i = h.index(column)
+    for r in rows:
+        if r[i]:
+            r[i] = date.fromisoformat(r[i]).strftime(to)
+    return h, rows, d
+
+
+def truncated_pdf(data: bytes, keep: str = "0.5") -> bytes:
+    """The first `keep` (a fraction) of a PDF's bytes: a transfer cut short, so the
+    cross-reference table and the end of the file are gone (PDF.INVALID)."""
+    if not data.startswith(b"%PDF"):
+        raise ValueError("not a PDF")
+    return data[: max(1, int(len(data) * float(keep)))]
+
+
+def late_file(data: bytes) -> bytes:
+    """The good file, unchanged: what is broken is its timing. Hold it back past the feed's
+    expected_arrival plus grace, and the SLA check opens FEED.LATE (dip/sla.py)."""
+    return data
+
+
 def x12_segment_lost(data: bytes, segment: str = "PER") -> bytes:
     """Drop the first `segment` segment inside a transaction set, so its SE01 count no
     longer matches (X12.ENVELOPE:SE01): a transfer that lost a line."""
@@ -110,6 +150,16 @@ SCENARIOS: dict[str, Scenario] = {s.name: s for s in [
     Scenario("x12_segment_lost", "mistake", "X12.ENVELOPE:SE01",
              "an X12 segment lost in transfer (the SE count no longer matches)",
              x12_segment_lost, raw=True),
+    # Stage 9 (S9.4)
+    Scenario("reorder_columns", "tolerated", "",
+             "the same columns in another order (it must load as it is)", reorder_columns),
+    Scenario("type_change", "mistake", "VALUE.TYPE",
+             "a date column's format changed (YYYY-MM-DD to MM/DD/YYYY)", type_change),
+    Scenario("truncated_pdf", "mistake", "PDF.INVALID",
+             "a PDF cut short in transfer", truncated_pdf, raw=True),
+    Scenario("late_file", "timing", "FEED.LATE",
+             "the good file, delivered after the feed's SLA (hold it back)", late_file,
+             raw=True),
 ]}  # fmt: skip
 
 

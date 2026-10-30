@@ -109,6 +109,13 @@ with a person approving and executing: **8/8 fixed**, 11 triage runs, 45 turns, 
 [`agents/evals/break_loop/results/recorded.json`](../../agents/evals/break_loop/results/recorded.json);
 details in [triage.md](triage.md#the-break-and-fix-loop-stage-4).
 
+Stage 9 (S9.4) added four scenarios, so the loop now has 12: `type_change` and
+`truncated_pdf` go through triage (recorded once on 2026-10-30, both fixed by an approved
+resend, 2 triage runs, 8 turns, $0.005); `reorder_columns` must load as it is with every
+value under its own column, and `late_file` must open `FEED.LATE` with nothing quarantined
+and close it when the file arrives (no model in either). The 8 earlier recordings replay
+unchanged.
+
 ## Contract-author agent
 
 **Cases** (`agents/evals/contract_author/cases.yaml`, 12, all generated): five deliberate
