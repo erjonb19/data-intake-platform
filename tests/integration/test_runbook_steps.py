@@ -119,6 +119,8 @@ def test_a_bare_reason_code_finds_its_own_runbook():
     assert first("FEED.LATE") == "05-late-file"
     assert first("KEY.DUPLICATE:member_id") == "06-duplicate-keys"
     assert first("OCR.LOW_CONFIDENCE") == "07-low-confidence-scan"
+    assert first("PDF.INVALID") == "07-low-confidence-scan"  # S9.4's truncated PDF
+    assert first("VALUE.TYPE:dob") == "03-code-values"  # S9.4's type change
 
 
 def test_blank_steps_are_refused_and_steps_survive_a_re_diagnosis(setup):

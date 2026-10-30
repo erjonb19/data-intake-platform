@@ -130,7 +130,9 @@ the deployed stack with a scripted client (`tests/e2e/break_loop.py`).
 Recorded live on 2026-10-23 (`claude-haiku-5-5`; `agents/evals/break_loop/results/recorded.json`):
 **8 of 8 scenarios fixed** in 11 triage runs, 45 model turns, $0.034, no refused call
 (re-recorded with the Stage 6 prompt; the first recording, with the Stage 4 prompt, also
-fixed 8 of 8, in 44 turns).
+fixed 8 of 8, in 44 turns). Stage 9 (S9.4) added `reorder_columns`, `type_change`,
+`truncated_pdf` and `late_file`: 12 of 12 replay (the two that need triage recorded on
+2026-10-30, $0.005; the other two need no model, see docs/agents/EVALS.md).
 
 | Scenario | What breaks | Triage proposed | Fix |
 |---|---|---|---|

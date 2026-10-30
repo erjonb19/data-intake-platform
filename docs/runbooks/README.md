@@ -3,19 +3,19 @@
 Eight failures a vendor feed really has, each with what you see, where the evidence is,
 what to do, and how to check the fix. Every runbook names the platform's real reason codes
 (docs/contracts.md), alerts (`observability/prometheus/rules.yml`), Read-tier MCP tools
-(docs/agents/mcp-read.md) and commands. Five of the eight (1–4 and 8) can be triggered on
+(docs/agents/mcp-read.md) and commands. Seven of the eight (1–5, 7 and 8) can be triggered on
 purpose with `python -m dip break` (dip/breakages.py) on a good file, and so can a broken
 X12 envelope (`x12_segment_lost`, `X12.ENVELOPE:SE01`: handled like runbook 4).
 
 | # | Runbook | Reason code or signal | Break it with |
 |---|---|---|---|
-| 1 | [A column renamed or dropped](01-missing-column.md) | `SCHEMA.MISSING_COLUMN:<col>` | `rename_column`, `drop_column` |
+| 1 | [A column renamed or dropped](01-missing-column.md) | `SCHEMA.MISSING_COLUMN:<col>` | `rename_column`, `drop_column` (and `reorder_columns`, which must load as it is) |
 | 2 | [A new column](02-unexpected-column.md) | `SCHEMA.UNEXPECTED_COLUMN:<col>` | `add_column` |
-| 3 | [A new or junk code value](03-code-values.md) | `VALUE.NOT_ALLOWED:<col>` | `new_code`, `junk_values` |
+| 3 | [A new or junk code value](03-code-values.md) | `VALUE.NOT_ALLOWED:<col>`, `VALUE.TYPE:<col>` | `new_code`, `junk_values`, `type_change` |
 | 4 | [Delimiter or encoding changed](04-delimiter-encoding.md) | `SCHEMA.MISSING_COLUMN`, `FILE.ENCODING` | `delimiter` |
-| 5 | [A late file](05-late-file.md) | `FEED.LATE` incident, alert FeedLate | (stop sending: no file) |
+| 5 | [A late file](05-late-file.md) | `FEED.LATE` incident, alert FeedLate | `late_file` (hold the file back) |
 | 6 | [Duplicate keys](06-duplicate-keys.md) | `KEY.DUPLICATE:<col>` | (the finance fixture `invoices_breakages.xlsx`) |
-| 7 | [An unreadable scan](07-low-confidence-scan.md) | `OCR.LOW_CONFIDENCE` | (the fixture `invoice_scan_poor.pdf`) |
+| 7 | [An unreadable scan](07-low-confidence-scan.md) | `OCR.LOW_CONFIDENCE`, `PDF.INVALID` | `truncated_pdf` (and the fixture `invoice_scan_poor.pdf`) |
 | 8 | [Instructions hidden in a vendor file](08-prompt-injection.md) | a denied tool call in `ops.audit_log` | `inject_cell` |
 
 ## How every runbook works

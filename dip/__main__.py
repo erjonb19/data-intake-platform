@@ -677,6 +677,9 @@ def main(argv: list[str] | None = None) -> int:
         for kv in args.arg:
             k, _, v = kv.partition("=")
             step[k] = int(v) if k in ("every", "row") else v  # values stay text
+        if args.scenario == "late_file":
+            print("late_file writes the good file unchanged: deliver it after the feed's"
+                  " expected_arrival plus grace to see FEED.LATE")  # fmt: skip
         args.out.write_bytes(apply(args.good.read_bytes(), [step]))
         s = SCENARIOS[args.scenario]
         print(f"wrote {args.out}: {s.describe} ({s.kind}; intake: {s.reason_code or 'n/a'})")
