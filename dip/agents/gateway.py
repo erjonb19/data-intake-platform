@@ -200,10 +200,12 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
         tool: str | None = None,
         decision: str | None = Query(None, pattern="^(allowed|denied)$"),
         since: datetime | None = None,
+        chain: str | None = Query(None, max_length=100),  # Stage 10: one chain's trail
         limit: int = Query(200, ge=1, le=1000),
     ) -> list[dict[str, Any]]:
         where, params = [], []
-        for column, value in (("principal", principal), ("tool", tool), ("decision", decision)):
+        for column, value in (("principal", principal), ("tool", tool), ("decision", decision),
+                              ("chain_id", chain)):  # fmt: skip
             if value:
                 where.append(f"{column} = %s")
                 params.append(value)

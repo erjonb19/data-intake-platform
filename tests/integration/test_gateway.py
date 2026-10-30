@@ -210,3 +210,16 @@ def test_a_running_chain_without_a_provider_yet_is_labelled_unknown(page, wareho
     a = approvals.create(warehouse.conn, "triage", "chain-run/triage@gemini", "discard",
                          {"group_id": "g", "quarantine_ids": [1]})  # fmt: skip
     assert page.get(f"/api/approvals/{a}").json()["provider"] == "unknown"
+
+
+def test_the_audit_log_filters_by_chain(page, warehouse):
+    """Stage 10: one intake chain's trail, call by call."""
+    from dip.agents.registry import Registry
+
+    reg = Registry(warehouse.conn)
+    reg.audit("profile", "intake-x/profile", "report_profile", "propose", {}, "allowed", None,
+              "ok", 3)  # fmt: skip
+    reg.audit("triage", "chain-y/triage", "propose_operation", "propose", {}, "allowed", None,
+              "ok", 3)  # fmt: skip
+    got = page.get("/api/audit", params={"chain": "intake-x"}).json()
+    assert [r["principal"] for r in got] == ["profile"]

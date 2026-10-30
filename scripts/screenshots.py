@@ -18,6 +18,10 @@ the usual Windows install path), MARQUEZ_NAMESPACE (the warehouse's OpenLineage
 namespace), QUARANTINE_LOG_URL (the Airflow page of an intake task that quarantined files),
 APPROVALS_TOKEN (`terraform output -raw approvals_token`) and APPROVAL_ID (the pending
 proposal to open; default: the newest pending one).
+
+SHOTS=intake (Stage 10, S10.6) takes only the intake team's two: its proposal on the
+approvals page (APPROVAL_ID, a contract_pr) and its chain's audit trail (CHAIN), as
+intake-proposal.png and intake-audit.png; no Airflow, Grafana or Marquez needed.
 Needs `websocket-client` (pip). Every value shown is synthetic or invented.
 """
 
@@ -148,12 +152,29 @@ def stop(proc: subprocess.Popen, *dirs: str) -> None:
         shutil.rmtree(d, ignore_errors=True)
 
 
+def approvals_page(p: Page, e: dict) -> None:
+    """Open the approvals page with its token, kept for the tab (sessionStorage) as a
+    person's paste would keep it."""
+    p.go("http://127.0.0.1:8081/", settle=1)
+    token = json.dumps(e["APPROVALS_TOKEN"])
+    p.js(f"sessionStorage.setItem('dip.token', {token});"
+         "localStorage.setItem('dip.reviewer', 'reviewer')")  # fmt: skip
+
+
 def main() -> int:
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
     e = os.environ
     proc, p, profile = chrome()
     try:
+        if e.get("SHOTS") == "intake":
+            approvals_page(p, e)
+            p.go(f"http://127.0.0.1:8081/?id={e['APPROVAL_ID']}", settle=4)
+            p.shot(out / "intake-proposal.png")
+            chain = urllib.request.quote(e["CHAIN"], safe="")
+            p.go(f"http://127.0.0.1:8081/?tab=audit&chain={chain}", settle=4)
+            p.shot(out / "intake-audit.png")
+            return 0
         # 1. Airflow: the eligibility feed's intake DAG and its runs.
         p.go("http://localhost:8080/auth/login/")
         p.fill("input[name=username]", "admin")
@@ -187,11 +208,7 @@ def main() -> int:
         p.shot(out / "quarantine-reason.png")
 
         # 5. The approvals queue (S9.2): the page, with a pending proposal open.
-        p.go("http://127.0.0.1:8081/", settle=1)
-        # The page keeps the token for the tab (sessionStorage), as a person's paste would.
-        token = json.dumps(e["APPROVALS_TOKEN"])
-        p.js(f"sessionStorage.setItem('dip.token', {token});"
-             "localStorage.setItem('dip.reviewer', 'reviewer')")  # fmt: skip
+        approvals_page(p, e)
         query = f"?id={e['APPROVAL_ID']}" if e.get("APPROVAL_ID") else ""
         p.go(f"http://127.0.0.1:8081/{query}", settle=4)
         if not query:  # the newest pending proposal

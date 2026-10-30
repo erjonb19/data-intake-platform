@@ -81,6 +81,7 @@
     <div class="filters">
       <input id="f-principal" placeholder="principal">
       <input id="f-tool" placeholder="tool">
+      <input id="f-chain" placeholder="chain id">
       <select id="f-decision"><option value="">any decision</option><option>allowed</option><option>denied</option></select>
       <label>since <input id="f-since" type="datetime-local"></label>
       <button id="f-go">Filter</button>
@@ -199,7 +200,7 @@ async function show(id) {
 
 async function loadAudit() {
   const q = new URLSearchParams();
-  for (const [k, id] of [["principal", "f-principal"], ["tool", "f-tool"], ["decision", "f-decision"]]) if ($(id).value.trim()) q.set(k, $(id).value.trim());
+  for (const [k, id] of [["principal", "f-principal"], ["tool", "f-tool"], ["decision", "f-decision"], ["chain", "f-chain"]]) if ($(id).value.trim()) q.set(k, $(id).value.trim());
   if ($("f-since").value) q.set("since", new Date($("f-since").value).toISOString());
   const tbody = $("audit-rows");
   try {
@@ -216,6 +217,7 @@ async function loadAudit() {
 }
 
 const params = new URLSearchParams(location.search);
+for (const k of ["principal", "tool", "chain"]) if (params.get(k)) $("f-" + k).value = params.get(k);
 if (params.get("tab") === "audit") tab("audit"); else loadList();
 if (params.get("id")) show(Number(params.get("id")));
 </script>
