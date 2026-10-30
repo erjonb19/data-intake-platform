@@ -1,0 +1,154 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01W8hBBQZKNe7d1W2XC383Hc",
+    "input": {
+     "job_id": 1
+    },
+    "name": "get_intake_profile",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_011CDLEm1m4YFvevEGXJaMXV",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract_text",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "0919942c78301de7ed2e4e420b71530cad4ec732ba185b492ff0245e2f1e3858",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2963
+   },
+   "cache_creation_input_tokens": 2963,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 109,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSuQsKEAgTGAI4AUIIdGhpbmtpbmcSDMtkA8rEvmgR3VQKRBoMlrFOrbXmDiv6dkQvIjAc//yRO5GVhyOFkGCIPG4Uzv3oIOQ90bu5xwQsnR6jajOebGJuDWnuMQvKUZdCymQq1goNN4v8Tv4li1pdM47A/W7pPpQdZH1hSnW4uc2KhsSa9GxJWAPGxPjsEir7+dP8ypoGVGUr9C08LWuj1N7Uxm7iIwFUvV0fwmLlcA48EKshqgIGNTAHp7pHY61APBxnrlVjoUNw67jNavRI81oUpdZK3tsFASLXP6GryzzQ58paoYmuXVU3CLitDfiqr6z8S24q6L6UPaSOO7KE1C2Wd79qv/ZPd48DOISVw2xPrdjgGK+kz7IFbGVg9VO8YtzqCo34hrOEfIuZsJdZ/QoPjEws1PN+3KLcX3YGrkbpnTMu0TtHFrT3FxokrUHzThVLs2nQXXnR9xH+EyrFBC6042aRLVco6Y2xoXYbg/e2fouZdBA/Ry9Bmu26zdRzo/OiR5VkNxMmH9LRKtaQriJzJZV6tSZEu+i2LEEGoabTJVWyt3iITtmaRz4XGZ/Bi9Eerg5yAP/lPl4SXXA3t84ccdfzO3Olh45zGBWvy1EBWTjrorypOjFoqNBkAG8AfarFRtxeOfFYE4jHXrvznyYMCWymaRF4GcQJroHZjlTnW77EIA+8UV8JyVyWm7gTw5V/RbF0Uv7/ZFgdZ5mdbbVUAttQL9UWpyd0QnyupHtO2ofDQUKZTwJ5BctgX3/WFUOdY1sIYuDShjVf//LDdyWdhRWpbw6HkvKHr+WcRF7NyoLHm0IkiPXCDYZAmHAGvnKj0+C4cVXrTcjpW69JatneLjyzufxQIzJcg4BpYC8Kmab6isVJi2KLOEnK19foB/tYMG2rCNipaVJLUAsTKbQ/cfmpc7ZSGgakPfkdeVrxbu+1fC9a6nDJ+nxghJrNgpXPQrj/f+K/JW6jIgegKgeeeN3bM0Bo+HqGldU0MLZXVlv+SdnQVyeMYmt5sJnRHcceMM8A/U48A6SEMQ9SgTP/2MEMMJ2vHhjsunDt7Kj2v83V2wy33BQNwVWxR1OIlS7hFEDPwb3p3kzzUWdqmWdTa9QQGDU0ig3dMIXjmxuIcy2kzNumWaVrEmT+tykrdE8vFFg4I4mQaZjjwbfnu1dRcAMC3i4GJxoLvISS0xSNfB5LA90imyvwu4UcmPDlMQVgplKa5tYiEQSStzTNGVMSjiy1Pdz1m09o/N3ugLFL9Aud0H+fOfRxmF0Q2jNPWTwLgzKODf8/BDtdF01hivdqEy1ZsYhURakpLrdIEd88UUSThltiabXpbkWXp/DO91np1qJyGlNGizdySyU2Ci65NBlaurDgLn8j0wiEvyNxRq6/6KFVPujrycknjNQt6pSzs4g4sRKGqnpeKGAlKS2/2CPixfC2yCbcR0jlsALoXTtWit1gQEvs47YiK/1plikicJZx7MO9lJnABM0fqmoBUAEuiGYUi5xb0+/6F+lKMLBoa+yvuxGPIZ0+Z1cPiWLkyk1cgHAG/Oi+rDlYjELA8LXCTiOY9A//AJDP8PiJcDRj9XO/FhB8OpXY+u4tH+0SUN41q5LSLI4bLNZaWlgRxSSWBpI5IjX+g+TH4jayFSHUv1Yky1CDqlCQIC7Wa9m/Oe98qvsz56JYdMw7Y+oQQ1FNUvv2vpWscfTjIeeaYz2HEqV2h0aIr2J59WxZHN0LjI2FhrTl9DkqUaZXCnt86Rga4rTKhGtsWgUwbxq4OTeND1tIG03QsUPTMxIn+sdjTteYNv7WywgVgyev6iWUG1wbIF0ghA8HapJpVpFCKClPYmdyvdM7GFPE6ZKoMbQ0vtwMDcDDFZOxE2WgMaG1ZGhc1Ki4qodciFPS5HFFPLYgc7+AnVPZBCqimdxyqAitr4FD+RC6eyPrVmcHYrbArF2ZAgSnFZHvGAE=",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "The profile shows one drift: `plan_code` has a new value, `GOLD`, on 8 of 24 rows, and the contract's `allowed` list rejects it. Everything else matches. I'll widen only that list and bump the version.",
+    "type": "text"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01LMbwLjAFGD82mFxwes75ip",
+    "input": {
+     "contract_yaml": "# Member eligibility from a (synthetic) payer: one row per member, one file per day.\n# Generated from the Synthea patients by packs/healthcare/generators/eligibility.py.\nfeed: healthcare.eligibility\nversion: 2\nowner: vendor-ops@example.com\ndescription: >\n  Daily full eligibility file: every enrolled member with their plan and coverage dates.\n  All data is synthetic.\nclassification: restricted\nsource:\n  channels: [minio, sftp, api]\n  filename_pattern: \"elig_*.csv\"\n  # The business date in the name (elig_YYYYMMDD.csv). It must be a real date, not after\n  # the day the file was received, and at most 7 days before it; otherwise the file is\n  # quarantined (FILE.NAME_DATE). A name with no digits takes the date it was received.\n  filename_date:\n    regex: \"^elig_([0-9]+)\"\n    format: \"%Y%m%d\"\n    max_days_before_received: 7\n    max_days_after_received: 0\nformat: { type: csv, delimiter: \",\", encoding: utf-8, header: true }\nexpected_arrival: { cron: \"0 6 * * *\", grace: 2h }\non_row_violation: quarantine_row\nmax_bad_row_ratio: 0.05          # above this, the whole file is rejected\nmin_rows: 1\ncolumns:\n  - { name: member_id, type: string, required: true, unique: true, pattern: \"^M[0-9]{9}$\" }\n  - { name: first_name, type: string, required: true, phi: true }\n  - { name: last_name, type: string, required: true, phi: true }\n  - { name: dob, type: date, required: true, min: \"1900-01-01\", max: today, phi: true }\n  - { name: sex, type: string, required: true, allowed: [F, M, U] }\n  - { name: plan_code, type: string, required: true, allowed: [GOLD, HMO, PPO, EPO, HDHP] }\n  - { name: coverage_start, type: date, required: true, min: \"1990-01-01\" }\n  - { name: coverage_end, type: date, description: \"Empty while coverage is open\" }\n  - name: patient_ref\n    type: string\n    description: The payer's link to the clinical record (here the Synthea patient id)\n    phi: true\n",
+     "feed": "healthcare.eligibility",
+     "file_sha256": "f9914fca4cdf221a2beb4d81b94691226cd6fc68c7bc08efeada0397108cb0bc"
+    },
+    "name": "validate_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "0ee721d51a27de5076e526f13370d85537ef774585b91124aa72fe1473dc466d",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2156
+   },
+   "cache_creation_input_tokens": 2156,
+   "cache_read_input_tokens": 2963,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 1316,
+   "output_tokens_details": {
+    "thinking_tokens": 334
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01VVR8YCF4NEqZZq2yQgP9L5",
+    "input": {
+     "candidate_id": "72131f1bd6f34fa7",
+     "rationale": "Drift: the file has a new plan_code value, GOLD, on 8 of 24 rows. The rest of the file matches the contract: same columns, same order, no empty required values, member_id and patient_ref shapes fine, sex codes fine, dates fine. GOLD is a plausible plan tier, not junk, and it is consistent across rows, so this reads as a deliberate product change, not a vendor error. Change: added GOLD to plan_code's allowed list; version 1 -> 2. Loosening: plan_code allowed now includes GOLD. Justified by the profile showing GOLD as a consistent, well-formed new plan code on 8 rows. No other rules changed. Dry run over the file: 24 accepted, 0 rejected, file not rejected."
+    },
+    "name": "submit_candidate",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "65654365e4ebd81c2b9669177f13e06f4569fa43026db839cf516410a9322087",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 1826
+   },
+   "cache_creation_input_tokens": 1826,
+   "cache_read_input_tokens": 5119,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 335,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "The vendor added a new plan tier, `GOLD`, on 8 of 24 rows; the rest of the file matches the contract. I treated it as a deliberate change, not a mistake, because the value is consistent and plausible.\nMy change adds `GOLD` to `plan_code`'s allowed list and bumps the version from 1 to 2. That list is the one loosening; the rationale records it. No other rules changed.\nThe dry run accepted 24 rows and rejected 0, and the file was not rejected. The candidate is submitted (`72131f1bd6f34fa7`) for a person to review and publish.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "103277d1ea2b6f5b9f4cbfa07cd3f86659797701289327cacfbd0db55734b14b",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 387
+   },
+   "cache_creation_input_tokens": 387,
+   "cache_read_input_tokens": 6945,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 197,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

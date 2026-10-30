@@ -1,0 +1,15 @@
+# Policy for the validate worker (Stage 10, S10.4; PLAN.md section 8.12). Code, not a model:
+# the intake graph calls these two tools under this key, so the validator's verdicts are
+# recorded by the server under its own name (ops.contract_candidate) and audited.
+agent: validator
+description: >
+  Checks a candidate contract again (every contract rule, a dry run over the file) and the
+  dbt models generated from it. Records its verdict; nothing else.
+max_tier: read
+mask_phi: true
+tools:
+  - validate_contract
+  - check_dbt_models
+limits:
+  max_calls_per_run: 10
+  max_calls_per_hour: 400

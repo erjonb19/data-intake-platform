@@ -38,11 +38,9 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
                           contracts: dict[str, Contract]) -> None:  # fmt: skip
     from dip.agents import approvals
     from dip.agents.contract_pr import contract_path, text_sha256
+    from dip.agents.registry import chain_of
 
     obj = {"type": "object", "additionalProperties": False}
-    # (principal, run, candidate_id) -> (feed, contract_yaml, file_sha256) of each candidate
-    # that validated: an id is proposable only in the run that validated it.
-    validated: dict[tuple[str, str, str], tuple[str, str, str]] = {}
 
     def _file(feed: str, sha: str) -> tuple[str, bytes, str, Any]:
         if not re.match(r"^[0-9a-f]{8,64}$", sha or ""):
@@ -130,27 +128,82 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             "contract_yaml": c.path.read_text("utf-8"),
         }
 
+    def _chain(run_id: str | None) -> str:
+        """Candidates belong to an intake chain (S10.4), or to the run that made them."""
+        return chain_of(run_id) or run_id or ""
+
+    def _candidate(chain: str, cid: str) -> dict[str, Any] | None:
+        with conn.cursor() as cur:
+            cur.execute(
+                "select feed, file_sha256, contract_yaml, created_by, submitted, rationale,"
+                " validator_valid, dbt_ok, review from ops.contract_candidate"
+                " where chain_id = %s and candidate_id = %s",
+                (chain, cid),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        keys = ("feed", "file_sha256", "contract_yaml", "created_by", "submitted", "rationale",
+                "validator_valid", "dbt_ok", "review")  # fmt: skip
+        return dict(zip(keys, row, strict=True)) if row else None
+
     def validate_contract(principal: str, run_id: str | None, feed: str, contract_yaml: str,
                           file_sha256: str) -> dict:  # fmt: skip
+        """Records each candidate that validated in ops.contract_candidate (S10.4): a record
+        of a check, not a change to data. The validator's own run records its verdict."""
+        from dip.agents.intake_tools import safe_code
+
         out = _check(feed, contract_yaml, file_sha256)
         out.pop("base_sha256", None)
-        if out["valid"] and not out["dry_run"].get("file_rejected"):
-            cid = text_sha256("|".join((feed, out["file_sha256"], contract_yaml)))[:16]
-            validated[(principal, run_id or "", cid)] = (feed, contract_yaml, out["file_sha256"])
-            if len(validated) > 50:
-                validated.pop(next(iter(validated)))
+        if out["valid"] and "reason_codes" in out["dry_run"]:
+            # A vendor's column name inside a reason code is vendor text (S10.4).
+            out["dry_run"] = {**out["dry_run"], "reason_codes": {
+                safe_code(k): v for k, v in out["dry_run"]["reason_codes"].items()}}  # fmt: skip
+        ok = out["valid"] and not out["dry_run"].get("file_rejected")
+        cid = text_sha256("|".join((feed, out.get("file_sha256", file_sha256), contract_yaml)))[:16]
+        chain = _chain(run_id)
+        if ok or principal == "validator":
+            with conn.cursor() as cur:
+                cur.execute(
+                    "insert into ops.contract_candidate (chain_id, candidate_id, feed,"
+                    " file_sha256, contract_yaml, created_by) values (%s, %s, %s, %s, %s, %s)"
+                    " on conflict do nothing",
+                    (chain, cid, feed, out.get("file_sha256", file_sha256), contract_yaml,
+                     principal),
+                )  # fmt: skip
+                if principal == "validator":
+                    cur.execute("update ops.contract_candidate set validator_valid = %s"
+                                " where chain_id = %s and candidate_id = %s",
+                                (ok, chain, cid))  # fmt: skip
+            conn.commit()
+        if ok:
             out["candidate_id"] = cid
         return out
 
     def propose_contract_pr(principal: str, run_id: str | None, candidate_id: str, mode: str,
                             rationale: str) -> dict:  # fmt: skip
+        """Stage 10 (S10.4): only the intake orchestrator proposes, and the server checks
+        what it proposes: a candidate the map worker submitted and the validator passed (the
+        contract and its dbt models) in the same chain, while that chain's job runs. The
+        run id is the client's, but the verdicts were recorded under the validator's key."""
         if mode not in MODES:
             return {"error": f"mode must be one of {list(MODES)}"}
-        key = (principal, run_id or "", candidate_id)
-        if key not in validated:
-            return {"error": "unknown candidate_id: validate the candidate first, and propose "
-                             "the candidate_id validate_contract returned"}  # fmt: skip
-        feed, contract_yaml, file_sha256 = validated[key]
+        if principal != "intake_orchestrator":
+            return {"error": "only the intake orchestrator proposes a contract"}
+        chain = _chain(run_id)
+        cand = _candidate(chain, candidate_id)
+        if cand is None or not cand["submitted"]:
+            return {"error": "no candidate with that id was submitted in this chain"}
+        if not cand["validator_valid"] or cand["dbt_ok"] is not True:
+            return {"error": "the validator has not passed this candidate (contract and dbt)"}
+        with conn.cursor() as cur:
+            cur.execute("select job_id, mode from ops.intake_job where chain_id = %s"
+                        " and status = 'running' and feed = %s", (chain, cand["feed"]))  # fmt: skip
+            job = cur.fetchone()
+        conn.commit()
+        if job is None or job[1] != mode:
+            return {"error": "no running intake job of this mode for this chain"}
+        feed, contract_yaml, file_sha256 = cand["feed"], cand["contract_yaml"], cand["file_sha256"]
+        rationale = cand["rationale"] or rationale
         checked = _check(feed, contract_yaml, file_sha256)
         if not checked["valid"]:
             return {"error": "the candidate is not a valid contract", **checked}
@@ -164,6 +217,7 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             "validation": checked["dry_run"], "loosening": checked["loosening"],
             "diff": checked["diff"],
             **_dbt(feed, contract_yaml, checked["path"]),
+            "intake_job_id": job[0], "chain_id": chain,
         }  # fmt: skip
         approval_id = approvals.create(conn, principal, run_id, "contract_pr", payload)
         return {"approval_id": approval_id, "status": "pending",
@@ -187,27 +241,38 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         "Check a candidate contract (YAML text): every contract rule, then a dry run over the "
         "file (accepted, rejected, reason codes), what it loosens against the current "
         "contract, and the diff. A candidate that is valid and accepts the file gets a "
-        "candidate_id, which is what propose_contract_pr takes.",
+        "candidate_id, which is what submit_candidate takes.",
         {**obj, "properties": {"feed": {"type": "string"}, "contract_yaml": {"type": "string"},
                                "file_sha256": {"type": "string"}},
          "required": ["feed", "contract_yaml", "file_sha256"]}, validate_contract))  # fmt: skip
 
-    def check_dbt_models(principal: str, run_id: str | None, feed: str,
-                         contract_yaml: str) -> dict:  # fmt: skip
-        """Stage 10 (S10.3): the dbt side of a candidate, for the validate worker (S10.4)."""
+    def check_dbt_models(principal: str, run_id: str | None, candidate_id: str) -> dict:
+        """Stage 10 (S10.3, S10.4): the dbt side of a candidate of this chain, for the
+        validate worker; the validator's verdict is recorded on the candidate."""
         from dip import dbt_gen
 
-        try:
-            path = contract_path(feed, contracts[feed].path if feed in contracts else None)
-            parse_contract(contract_yaml, REPO_ROOT / path)
-        except ContractError as exc:
-            return {"error": f"not a valid contract: {exc}"}
+        chain = _chain(run_id)
+        cand = _candidate(chain, candidate_id)
+        if cand is None:
+            return {"error": "no candidate with that id in this chain"}
+        feed, contract_yaml = cand["feed"], cand["contract_yaml"]
+        path = contract_path(feed, contracts[feed].path if feed in contracts else None)
         out = _dbt(feed, contract_yaml, path)
-        if out.get("dbt_error"):
-            return {"error": out["dbt_error"], "affected_hand_written": out["dbt_affected"]}
         files = out["dbt_files"]
-        parsed = dbt_gen.dbt_parse(files) if files else {"ok": True, "output": ""}
+        parsed = (dbt_gen.dbt_parse(files) if files and not out.get("dbt_error")
+                  else {"ok": True, "output": ""})  # fmt: skip
+        ok = not out.get("dbt_error") and parsed["ok"] is not False
+        if principal == "validator":
+            with conn.cursor() as cur:
+                cur.execute("update ops.contract_candidate set dbt_ok = %s"
+                            " where chain_id = %s and candidate_id = %s",
+                            (ok, chain, candidate_id))  # fmt: skip
+            conn.commit()
+        if out.get("dbt_error"):
+            return {"ok": False, "error": out["dbt_error"],
+                    "affected_hand_written": out["dbt_affected"]}  # fmt: skip
         return {
+            "ok": ok,
             "feed": feed,
             "generated": sorted(files),
             "hand_written": [p.stem for p in dbt_gen.hand_written(feed)],
@@ -220,12 +285,16 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         "The dbt models generated from a candidate contract (none when the feed's models are "
         "hand-written), whether `dbt parse` accepts them, and the hand-written models that "
         "read a column the candidate removes or renames.",
-        {**obj, "properties": {"feed": {"type": "string"}, "contract_yaml": {"type": "string"}},
-         "required": ["feed", "contract_yaml"]}, check_dbt_models))  # fmt: skip
+        {**obj, "properties": {"candidate_id": {"type": "string"}},
+         "required": ["candidate_id"]}, check_dbt_models))  # fmt: skip
+    # The intake team's own tools (S10.4): the profile, and the map worker's submission.
+    from dip.agents.intake_tools import register_intake_tools
+
+    register_intake_tools(reg, Tool, conn, _file, _fmt, contracts)
     reg.register(Tool("propose_contract_pr", "propose",
-        "Propose a validated candidate for a person to approve, by the candidate_id "
-        "validate_contract returned (it must be valid and accept the file). Nothing changes "
-        "until the person approves it; then it becomes a branch they publish.",
+        "Propose a submitted candidate the validator passed, for a person to approve (the "
+        "intake orchestrator's only tool). Nothing changes until the person approves it; "
+        "then it becomes a branch they publish.",
         {**obj, "properties": {"candidate_id": {"type": "string"},
                                "mode": {"type": "string", "enum": list(MODES)},
                                "rationale": {"type": "string"}},

@@ -1,0 +1,22 @@
+# Policy for the profile worker (Stage 10, S10.4; PLAN.md section 8.12). The only member of
+# the intake team that reads vendor content: it sees the file through diff_schema (PHI and
+# undeclared columns masked) and labels each column. Its labels are fixed choices (phi,
+# role); the facts the map worker sees are built by the server, not written by this agent.
+agent: profile
+description: >
+  Reads the intake job's file and labels each column (phi, role). Cannot write a contract,
+  propose anything a person would approve, or act.
+max_tier: propose
+mask_phi: true
+tools:
+  - diff_schema
+  - get_contract
+  - get_feed_history
+  - profile_file
+  - report_profile
+limits:
+  max_calls_per_run: 20
+  max_calls_per_hour: 400
+  report_profile:
+    max_per_run: 3
+    max_per_hour: 60

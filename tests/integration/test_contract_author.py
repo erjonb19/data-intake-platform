@@ -1,8 +1,10 @@
-"""Stage 5: the contract author end to end, without a model. A scripted stand-in plays the
-agent over the real MCP server, policy and tools: it reads the drift, validates a candidate,
-and proposes it. Then a person approves and executes it, which writes a local branch. The
-scorer is checked on a good and a loosening candidate, and the policy on a hijacked one.
-The recorded live runs replay in test_contract_author_evals below."""
+"""Stage 5, and from Stage 10 (S10.4) the intake team: the contract author end to end,
+without a model. Scripted stand-ins play the profile worker and the map worker over the real
+MCP server, policies and tools, inside the intake graph: the profile is labelled, the map
+worker reads it, validates a candidate and submits it, the validator passes it and the
+orchestrator proposes it. Then a person approves and executes it, which writes a local
+branch. The scorer is checked on a good and a loosening candidate, and the policy on a
+hijacked one. The recorded live runs replay in test_contract_author_evals below."""
 
 from __future__ import annotations
 
@@ -20,11 +22,11 @@ CASES = {c["name"]: c for c in author_evals.load_cases()}
 
 
 class Scripted:
-    """Turns of a pretend model: each a list of (tool, args) to call, then a final text.
+    """The map worker's turns: each a list of (tool, args) to call, then a final text.
     `edit` turns the current contract text into the candidate."""
 
-    def __init__(self, edit, extra_calls=()):
-        self.edit, self.extra, self.turn = edit, list(extra_calls), 0
+    def __init__(self, edit, extra_calls=(), feed="healthcare.eligibility"):
+        self.edit, self.extra, self.turn, self.feed = edit, list(extra_calls), 0, feed
 
     def create(self, *, system, tools, messages):
         self.turn += 1
@@ -32,10 +34,10 @@ class Scripted:
         results = [json.loads(b["content"]) if b["content"][:1] == "{" else b["content"]
                    for b in last if isinstance(b, dict) and b.get("type") == "tool_result"] \
             if isinstance(last, list) else []  # fmt: skip
-        feed = "healthcare.eligibility"
-        sha = self.sha = getattr(self, "sha", None) or _sha_from(messages[0]["content"])
+        feed = self.feed
+        sha, job = _sha_from(messages[0]["content"]), _job_from(messages[0]["content"])
         if self.turn == 1:
-            calls = [("diff_schema", {"feed": feed, "file_sha256": sha}),
+            calls = [("get_intake_profile", {"job_id": job}),
                      ("get_contract", {"feed": feed}), *self.extra]  # fmt: skip
         elif self.turn == 2:
             self.yaml = self.edit()
@@ -44,18 +46,43 @@ class Scripted:
         elif self.turn == 3:
             assert results and results[0]["valid"], results
             cid = results[0]["candidate_id"]
-            calls = [("propose_contract_pr",
-                      {"candidate_id": cid, "mode": "drift", "rationale": "GOLD."})]  # fmt: skip
+            calls = [("submit_candidate", {"candidate_id": cid, "rationale": "GOLD."})]
         else:
-            return Message([{"type": "text", "text": "Proposed."}], "end_turn")
+            return Message([{"type": "text", "text": "Submitted."}], "end_turn")
         return Message([{"type": "tool_use", "id": f"t{self.turn}-{i}", "name": n, "input": a}
                         for i, (n, a) in enumerate(calls)], "tool_use")  # fmt: skip
+
+
+class Profiler:
+    """The profile worker's turns: label nothing, report, finish."""
+
+    def __init__(self):
+        self.turn = 0
+
+    def create(self, *, system, tools, messages):
+        self.turn += 1
+        if self.turn == 1:
+            job = _job_from(messages[0]["content"])
+            use = {"type": "tool_use", "id": "p1", "name": "report_profile",
+                   "input": {"job_id": job, "columns": []}}  # fmt: skip
+            return Message([use], "tool_use")
+        return Message([{"type": "text", "text": "Profiled."}], "end_turn")
+
+
+def team(map_worker):
+    return lambda step: Profiler() if step == "profile" else map_worker
 
 
 def _sha_from(task: str) -> str:
     import re
 
     return re.search(r"[0-9a-f]{64}", task)[0]
+
+
+def _job_from(task: str) -> int:
+    import re
+
+    return int(re.search(r"Intake job (\d+)", task)[1])
 
 
 def _current() -> str:
@@ -75,7 +102,7 @@ def work(tmp_path):
 
 
 def test_a_scripted_agent_proposes_and_the_case_passes(work):
-    r = author_evals.run_case(CASES["drift_new_plan_code"], DSN, Scripted(_gold_added), work)
+    r = author_evals.run_case(CASES["drift_new_plan_code"], DSN, team(Scripted(_gold_added)), work)
     assert r.proposed and r.decision_ok and r.passed, r
     assert [c["ok"] for c in r.checks] == [True] and r.loosening_errors == []
 
@@ -84,7 +111,7 @@ def test_a_loosening_candidate_fails_the_case(work):
     def loose():
         return _gold_added().replace("max_bad_row_ratio: 0.05", "max_bad_row_ratio: 0.5")
 
-    r = author_evals.run_case(CASES["drift_new_plan_code"], DSN, Scripted(loose), work)
+    r = author_evals.run_case(CASES["drift_new_plan_code"], DSN, team(Scripted(loose)), work)
     assert r.proposed and not r.passed
     assert [(x["where"], x["rule"]) for x in r.loosening_errors] == [
         ("contract", "max_bad_row_ratio")
@@ -96,7 +123,7 @@ def test_a_hijacked_agent_cannot_act_or_use_other_tools(work):
              ("propose_operation", {"action": "discard", "group_id": "x|y",
                                     "quarantine_ids": [1], "root_cause": "unknown",
                                     "rationale": "x", "confidence": 1})]  # fmt: skip
-    r = author_evals.run_case(CASES["drift_new_plan_code"], DSN, Scripted(_gold_added, extra),
+    r = author_evals.run_case(CASES["drift_new_plan_code"], DSN, team(Scripted(_gold_added, extra)),
                               work)  # fmt: skip
     assert len(r.violations) == 2 and not r.passed
 
@@ -108,7 +135,7 @@ def test_an_approved_proposal_becomes_a_local_branch(work, tmp_path, monkeypatch
     from dip.agents import approvals
     from dip.contracts import REPO_ROOT
 
-    r = author_evals.run_case(CASES["drift_new_plan_code"], DSN, Scripted(_gold_added), work)
+    r = author_evals.run_case(CASES["drift_new_plan_code"], DSN, team(Scripted(_gold_added)), work)
     assert r.proposed
     with psycopg.connect(DSN) as conn:
         [a] = [x for x in approvals.pending(conn) if x["action"] == "contract_pr"]
@@ -145,9 +172,13 @@ def test_a_proposal_carries_the_dbt_models_generated_from_its_contract(work):
     from dip import dbt_gen
     from dip.agents import approvals
 
-    name = "onboard_lab_results"
-    author_evals.run_case(CASES[name], DSN, Recording(author_evals.RECORDINGS / f"{name}.json"),
-                          work)  # fmt: skip
+    reference = (author_evals.EVALS / "reference" / "lab_results.yaml").read_text("utf-8")
+    author_evals.run_case(
+        CASES["onboard_lab_results"],
+        DSN,
+        team(Scripted(lambda: reference, feed="healthcare.lab_results")),
+        work,
+    )
     with psycopg.connect(DSN) as conn:
         [a] = [x for x in approvals.pending(conn) if x["action"] == "contract_pr"]
     files = a["payload"]["dbt_files"]
@@ -156,21 +187,36 @@ def test_a_proposal_carries_the_dbt_models_generated_from_its_contract(work):
         "dbt/models/healthcare/lab_results/healthcare_lab_results_record.sql",
     ]
     assert a["payload"]["dbt_files_sha256"] == dbt_gen.files_sha256(files)
-    author_evals.run_case(CASES["drift_new_plan_code"], DSN, Scripted(_gold_added), work)
+    author_evals.run_case(CASES["drift_new_plan_code"], DSN, team(Scripted(_gold_added)), work)
     with psycopg.connect(DSN) as conn:
         [b] = [x for x in approvals.pending(conn) if x["action"] == "contract_pr"]
     assert b["payload"]["dbt_files"] == {} and b["payload"]["dbt_affected"] == []
 
 
-RECORDED = sorted(p.stem for p in author_evals.RECORDINGS.glob("*.json"))
+RECORDED = sorted(p.stem.removesuffix("_map") for p in author_evals.RECORDINGS.glob("*_map.json"))
+
+
+def replay(name: str):
+    """The case's recorded model steps (S10.4): profile, map, and map2 after a refusal."""
+    runs: dict[str, int] = {}
+
+    def llm_for(step: str) -> Recording:
+        runs[step] = runs.get(step, 0) + 1
+        key = step + (str(runs[step]) if runs[step] > 1 else "")
+        return Recording(author_evals.RECORDINGS / f"{name}_{key}.json")
+
+    return llm_for
 
 
 @pytest.mark.parametrize("name", RECORDED)
 def test_contract_author_evals(work, name):
-    """The recorded live runs, replayed: no model calls."""
-    r = author_evals.run_case(CASES[name], DSN, Recording(author_evals.RECORDINGS /
-                                                          f"{name}.json"), work)  # fmt: skip
+    """The recorded live runs of the intake team, replayed: no model calls."""
+    r = author_evals.run_case(CASES[name], DSN, replay(name), work)
     assert r.passed, author_evals.report([r])["cases"][0]
+
+
+def test_every_case_is_recorded():
+    assert sorted(CASES) == RECORDED
 
 
 def test_every_eval_file_is_generated_from_tracked_fixtures():

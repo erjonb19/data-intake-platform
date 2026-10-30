@@ -1,0 +1,155 @@
+[
+ {
+  "content": [
+   {
+    "signature": "CAQSnwUKEAgTGAI4AUIIdGhpbmtpbmcSDDbdOOIhjoZbj9vnlhoMlDco17hHNV41dSJgIjDeRqH208LdRVV2LCZpLtKIB+ZRKgAbUS43AIE8zCDERWJJX3hzSZi8/t4lpxUQ1VoqvARNkLfv/0VQWSfi34TSHbmSWh5TkZJu++z2wbzCWAfGHmvSImfR0txYQhsIH0wH8GNmARtomd0pIH+eM8NyoW6v0yiEkEeMI2hdNcAFRne2LwXJ8HYsImrtnC2r8gQMj44JorF10ADGV3kgEVEQOY+Dvubo66b9FYNs+WD/Uzps0oVWGabyTvZxho38XMd44uBGSm1kAiWsvtiHHuO1TflkqTbD/OQhqLO82WOT53HcQ0a9+KxIOKY7wFGrLNrPAfrtgtR3iW9jx3PKMxfAo7D+tMSnskIBfihSwTxYuTHRDkD1QOHatPeUm4pk3zSbxDFB7X93myVY8Qiq9xBeHRDdboFhbnwOF5pvEz5p7bOa385eD4fgOqFz2RRchjnRYYEmanLHGgfY5EnVl2Ej9VD77/DhmTgcTXVDfcFTqm+AG40yhV/xeV9guUWsdzF50S530NqqKVvbFzG1qevvHKNwGrCrRUKT+JddrLCUQRawh7MygmYffQQ4ACFNw2Jcs0qVOBBIWWWL7NwE6e6RZ0v2I4gtAlpXzFbapG8lUzOR4r0n2+WpHAShFX1//B9QhjFtjLRwnOeBCDI7NLUzEXLOBTWrRv72WsQY/89q1mmLEPa4lYp50GG7RIxyv+WMdME/UUXLgFCrnn2u391v+mq68iqAIF81YeTr4uHenaq7N3OFHgSr3F8J1s1iirAdrEP6aCxb8e0LiAdNrSTu44I3xZRAtqZHz1CZ5RoQfUjiRKPo5lYVYRhcnj0TyBgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Sp5quHYHFxCv8Xsive7nvq",
+    "input": {
+     "job_id": 1
+    },
+    "name": "get_intake_profile",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Uph75L3GmkWiyfbowKy5Xz",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract_text",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "abf37f50cb3000bd97c7450a8f101673128fe442829a866ac6a36aae6df122ae",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2936
+   },
+   "cache_creation_input_tokens": 2936,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 130,
+   "output_tokens_details": {
+    "thinking_tokens": 20
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_0116WT6HYs43b46y5EmRcHaR",
+    "input": {
+     "contract_yaml": "# Provider roster from a vendor: one row per provider.\nfeed: healthcare.provider_roster\nversion: 1\nowner: vendor-ops@example.com\ndescription: >\n  Provider roster: one row per provider with NPI, taxonomy, practice state and\n  whether the provider is accepting new patients.\nclassification: restricted\nsource:\n  channels: [minio, sftp, api]\n  filename_pattern: \"provider_roster*.csv\"\nformat: { type: csv, delimiter: \",\", encoding: utf-8, header: true }\nexpected_arrival: { cron: \"0 6 * * *\", grace: 2h }\non_row_violation: quarantine_row\nmax_bad_row_ratio: 0.05          # above this, the whole file is rejected\nmin_rows: 1\ncolumns:\n  - { name: npi, type: integer, required: true, unique: true, phi: true }\n  - { name: provider_first_name, type: string, required: true, phi: true }\n  - { name: provider_last_name, type: string, required: true, phi: true }\n  - { name: taxonomy_code, type: string, required: true, pattern: \"^[0-9]{3}[A-Z][0-9]{5}[A-Z]$\" }\n  - { name: practice_state, type: string, required: true, allowed: [CT, NJ, NY] }\n  - { name: accepting_new_patients, type: string, required: true, allowed: [N, Y] }\n  - { name: effective_date, type: date, required: true }\n",
+     "feed": "healthcare.provider_roster",
+     "file_sha256": "e0b0812592a6166b22743e996fe3de07ef165f50f6572754cc91cffe9b82f51b"
+    },
+    "name": "validate_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "0d06e5a60fbfccf7c2d012c29bae3fe1b30ba44b0dcf575a539dc4fabc50fb58",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2101
+   },
+   "cache_creation_input_tokens": 2101,
+   "cache_read_input_tokens": 2936,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 1440,
+   "output_tokens_details": {
+    "thinking_tokens": 808
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01EMXzR3eEn2hD68rAEPLqT1",
+    "input": {
+     "candidate_id": "0f57f43c9fb2e87e",
+     "rationale": "Onboarding healthcare.provider_roster (version 1) from intake job 1. The file is UTF-8 CSV, comma-delimited, with 24 rows and 7 columns, all named and usable; no missing or reordered columns. Columns: npi (integer, 10 digits, all distinct: required, unique, phi per profile label), provider_first_name and provider_last_name (strings, no empties, phi per profile label), taxonomy_code (string, uniform shape 999A99999A: pattern ^[0-9]{3}[A-Z][0-9]{5}[A-Z]$), practice_state (allowed CT, NJ, NY from profile codes), accepting_new_patients (allowed N, Y), effective_date (date, all valid, required). Options: on_row_violation quarantine_row and max_bad_row_ratio 0.05, the defaults for a new feed. Loosenings: none reported by the validator. Assumptions to review: the filename_pattern \"provider_roster*.csv\" and owner vendor-ops@example.com are placeholders, since the profile does not show the vendor's filename or owner; no filename_date rule was added. Dry run: 24 accepted, 0 rejected, file not rejected."
+    },
+    "name": "submit_candidate",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "e349eda406db9b581e96c0d333889b9efdf5c23f4fdf6534881d87a039178824",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2190
+   },
+   "cache_creation_input_tokens": 2190,
+   "cache_read_input_tokens": 5037,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 487,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "I submitted version 1 of the `healthcare.provider_roster` contract (candidate `0f57f43c9fb2e87e`) for review.\n\n- **File:** 24 rows, 7 columns, UTF-8 comma-delimited CSV, with every column name usable and no missing or reordered columns.\n- **Contract:** `npi` is an integer, required, unique and PHI. The two name columns are required PHI strings. `taxonomy_code` has a pattern from its uniform shape. `practice_state` and `accepting_new_patients` are allowed-value lists from the profile's codes. `effective_date` is a required date. The row policy is the new-feed default: quarantine rows, 0.05 bad-row ratio.\n- **Loosening:** none reported. The dry run accepted 24 rows and rejected 0, and the file was not rejected.\n- **Please check before publishing:** the `filename_pattern` (`provider_roster*.csv`) and the owner (`vendor-ops@example.com`) are placeholders, because the profile shows neither the vendor's filename nor an owner. I also left out a filename-date rule. The reviewer should replace or confirm these.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "519576516534a3b8ce57e51d35f9583dff6ae7222bfa0d44af95f9452f19b461",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 540
+   },
+   "cache_creation_input_tokens": 540,
+   "cache_read_input_tokens": 7227,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 383,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]
