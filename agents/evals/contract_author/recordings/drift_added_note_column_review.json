@@ -1,0 +1,120 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01ME3RjkTFSDSJkVSeK6Jrtv",
+    "input": {
+     "candidate_id": "8aae97855601ae3e"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Wsdo12K3vMugE5mkCJ6q8u",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "32f6b937210810f94f31c9d857d50e2795229c5cac9d223602f129841a17a900",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2117
+   },
+   "cache_creation_input_tokens": 2117,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 117,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01HHb1skiS7udNo4pUAFnSY6",
+    "input": {
+     "candidate_id": "8aae97855601ae3e",
+     "reasons": [
+      {
+       "detail": "Pre-existing gap, not changed by this candidate, so not a reason to revise: member_id is declared phi: false in the current contract (and in this candidate), but the profile labels it phi: true, role identifier, and it is a member id that links to a person. Worth a look by the person deciding, as a separate change.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "fa716816b79cee62f17d85799e45febfd52286d110c27b6065e653a4c232f718",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3226
+   },
+   "cache_creation_input_tokens": 3226,
+   "cache_read_input_tokens": 2117,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 639,
+   "output_tokens_details": {
+    "thinking_tokens": 419
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate 8aae97855601ae3e (healthcare.eligibility, drift): **pass**.\n\nThe candidate's only change is adding `member_note` as an optional string column with `phi: true`, plus the version bump from 1 to 2. The loosening list is empty, nothing in the profile calls for a loosened rule, and the new column has no `allowed` or `pattern` to check against the profile. The column is populated in all 24 rows, its two shapes are consistent, and the dry run accepted all 24 rows. PHI labelling is correct because the profile marks it as free text and the contract's PHI list covers free-text notes.\n\nI recorded one note with issue `other`, not a reason to revise: `member_id` is declared `phi: false` in the current contract, but the profile labels it `phi: true` as an identifier that links to a person. That gap predates this candidate, so it is for the person deciding to look at as a separate change.\n\nVerdict: pass.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "8f15b97ec0fa5e764b0a4da5966b63410243bbab8e85e87b19cb59434a68424d",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 689
+   },
+   "cache_creation_input_tokens": 689,
+   "cache_read_input_tokens": 5343,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 311,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

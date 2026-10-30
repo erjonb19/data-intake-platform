@@ -233,3 +233,39 @@ def test_requeue_and_a_new_run_leave_nothing_of_the_last_claim(warehouse):
     finally:
         ig.run_intake = real
     assert seen["profile"] is None  # the earlier run's profile is gone
+
+
+@pytest.mark.parametrize(
+    "verdicts, provider, outcome",
+    [
+        (["reject"], "anthropic", "rejected"),
+        (["revise", "revise"], "anthropic", "revise"),
+        (["pass"], "gemini", "revise"),  # a review on the free fallback never passes
+        (["revise", "pass"], "anthropic", "proposed"),
+    ],
+)
+def test_the_reviewers_verdict_decides_what_happens(warehouse, verdicts, provider, outcome):
+    """S10.5: reject ends the job with nothing proposed; revise goes back to map once, then
+    ends the job `revise`; a pass on Gemini ends `revise` for a person; a pass proposes."""
+    if not DSN:
+        pytest.skip("DIP_TEST_DSN not set")
+    from dip.agents.llm import Failover
+    from tests.integration.test_contract_author import Profiler, Reviewer, Scripted, _gold_added
+
+    reviews = iter([Reviewer(v, [] if v == "pass" else [{"issue": "other", "detail": "x"}])
+                    for v in verdicts])  # fmt: skip
+    maps = iter([Scripted(_gold_added), Scripted(_gold_added)])
+
+    def llm_for(step):
+        if step == "profile":
+            return Profiler()
+        if step == "map":
+            return next(maps)
+        r = next(reviews)
+        return Failover([(provider, lambda: r)])
+
+    r = author_evals.run_case(CASE, DSN, llm_for)
+    assert r.outcome == outcome, r.reason
+    assert r.proposed == (outcome == "proposed")
+    approvals = rows(warehouse, "select count(*) from ops.approvals")[0][0]
+    assert approvals == (1 if outcome == "proposed" else 0)
