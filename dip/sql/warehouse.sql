@@ -95,6 +95,21 @@ CREATE TABLE IF NOT EXISTS ops.incident_file (
     file_sha256   text        NOT NULL,
     PRIMARY KEY (incident_id, file_sha256)
 );
+-- Stage 9 (S9.1): the agent_chain DAG's claim on an incident. One row per incident the
+-- DAG picked up, inserted before the chain runs so a second DAG run never starts the
+-- chain on the same incident. status: running -> done | failed | skipped (reason says why:
+-- no model key in the cluster, no MCP configuration, or the error).
+CREATE TABLE IF NOT EXISTS ops.agent_run (
+    incident_id   bigint      PRIMARY KEY REFERENCES ops.incident (incident_id),
+    started_at    timestamptz NOT NULL DEFAULT now(),
+    finished_at   timestamptz,
+    status        text        NOT NULL DEFAULT 'running'
+                              CHECK (status IN ('running', 'done', 'failed', 'skipped')),
+    reason        text,
+    chain_id      text,
+    root_cause    text,
+    dag_run_id    text
+);
 CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     diagnosis_id    bigserial   PRIMARY KEY,
     incident_id     bigint      NOT NULL REFERENCES ops.incident (incident_id),
@@ -108,6 +123,10 @@ CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     confidence      numeric(3, 2) NOT NULL CHECK (confidence BETWEEN 0 AND 1),
     created_at      timestamptz NOT NULL DEFAULT now()
 );
+-- Stage 9 (S9.3): the runbook the incident agent matched and the steps it proposes for a
+-- person, beside its diagnosis. Steps are text for people; nothing reads them to act.
+ALTER TABLE ops.incident_diagnosis ADD COLUMN IF NOT EXISTS runbook_id text;
+ALTER TABLE ops.incident_diagnosis ADD COLUMN IF NOT EXISTS steps jsonb;
 
 -- Accepted FHIR resources, as received. The silver dbt models flatten them.
 CREATE TABLE IF NOT EXISTS bronze.fhir_resource (
@@ -211,7 +230,13 @@ BEGIN
         AND NEW.executed_by IS NULL THEN
         RAISE EXCEPTION 'ops.approvals: an execution records who ran it';
     END IF;
-    IF (OLD.decided_by IS NOT NULL AND NEW.decided_by IS DISTINCT FROM OLD.decided_by)
+    -- (Stage 9, S9.2) The whole decision record, not only who: once decided, its time and
+    -- note stay too, and an approved hash is set only by the approval itself.
+    IF (OLD.decided_by IS NOT NULL AND (NEW.decided_by IS DISTINCT FROM OLD.decided_by
+                                        OR NEW.decided_at IS DISTINCT FROM OLD.decided_at
+                                        OR NEW.decision_note IS DISTINCT FROM OLD.decision_note))
+        OR (NEW.approved_sha256 IS DISTINCT FROM OLD.approved_sha256
+            AND NOT (OLD.status = 'pending' AND NEW.status = 'approved'))
         OR (OLD.executed_by IS NOT NULL AND NEW.executed_by IS DISTINCT FROM OLD.executed_by)
         OR (OLD.result IS NOT NULL AND NEW.result IS DISTINCT FROM OLD.result) THEN
         RAISE EXCEPTION 'ops.approvals: a decision or an execution cannot be rewritten';
@@ -325,6 +350,7 @@ BEGIN
     END IF;
     IF to_regclass('ops.incident_diagnosis') IS NOT NULL THEN
         GRANT SELECT, INSERT ON ops.incident_diagnosis TO dip_mcp;
+        GRANT UPDATE (runbook_id, steps) ON ops.incident_diagnosis TO dip_mcp;
         GRANT USAGE ON SEQUENCE ops.incident_diagnosis_diagnosis_id_seq TO dip_mcp;
     END IF;
     -- The triage agent's proposals (Stage 4, S4.5): a pending row for a person to
@@ -347,3 +373,27 @@ BEGIN
     END IF;
 END $$;
 SELECT ops.grant_mcp_reader();
+
+-- The approvals page's access (Stage 9, S9.2; the dip_approver login): list and show
+-- proposals, record a person's decision, and read and append to the audit log. Only the
+-- decision columns can be updated, and the trigger above still holds it to the one-way
+-- status machine (pending -> approved | rejected | expired). It cannot record an
+-- execution: executed_by, executed_at and result are not granted.
+CREATE OR REPLACE FUNCTION ops.grant_approver() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_approver') THEN
+        RETURN;
+    END IF;
+    GRANT USAGE ON SCHEMA ops TO dip_approver;
+    IF to_regclass('ops.approvals') IS NOT NULL THEN
+        GRANT SELECT ON ops.approvals TO dip_approver;
+        GRANT UPDATE (status, decided_by, decided_at, decision_note, approved_sha256)
+            ON ops.approvals TO dip_approver;
+    END IF;
+    IF to_regclass('ops.audit_log') IS NOT NULL THEN
+        GRANT SELECT, INSERT ON ops.audit_log TO dip_approver;
+        GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_approver;
+    END IF;
+END $$;
+SELECT ops.grant_approver();

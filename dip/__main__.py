@@ -154,6 +154,22 @@ def _mcp_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _approvals_serve(args: argparse.Namespace) -> int:
+    import psycopg
+    import uvicorn
+
+    from dip.agents.gateway import create_app
+
+    dsn = os.environ["DIP_WAREHOUSE_DSN"]
+    token = os.environ.get("DIP_APPROVALS_TOKEN") or None
+    if token is None and args.host not in ("127.0.0.1", "localhost", "::1"):
+        raise SystemExit("approvals-serve beyond loopback needs DIP_APPROVALS_TOKEN")
+    hosts = args.allowed_host or ["127.0.0.1", "localhost"]
+    app = create_app(lambda: psycopg.connect(dsn), hosts, token)
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0
+
+
 def _triage(args: argparse.Namespace) -> int:
     import asyncio
 
@@ -502,6 +518,15 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="Host header to accept (DNS-rebinding protection); default localhost",
     )
+    aps = sub.add_parser("approvals-serve", help="the approvals page and audit viewer (S9.2)")
+    aps.add_argument("--host", default="127.0.0.1")
+    aps.add_argument("--port", type=int, default=8081)
+    aps.add_argument(
+        "--allowed-host",
+        action="append",
+        default=None,
+        help="Host name to accept, no port (DNS-rebinding protection); default localhost",
+    )
     tri = sub.add_parser("triage")
     tri.add_argument("action", choices=["run", "eval", "loop", "act", "act-eval"])
     tri.add_argument("--approval", type=int, help="act: the approval a person approved")
@@ -612,6 +637,8 @@ def main(argv: list[str] | None = None) -> int:
         return _extract(args)
     elif args.command == "mcp-serve":
         return _mcp_serve(args)
+    elif args.command == "approvals-serve":
+        return _approvals_serve(args)
     elif args.command == "triage":
         return _triage(args)
     elif args.command == "approvals":

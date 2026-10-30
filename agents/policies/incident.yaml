@@ -6,7 +6,8 @@ agent: incident
 description: >
   Diagnoses one incident (a late file, a file quarantined whole, a failed DAG run) from the
   incident, quarantine, contracts, feed history, DAG runs and task logs, DQ results,
-  lineage and metrics, and reports a root cause. Never proposes or runs an operation.
+  lineage and metrics, and reports a root cause, then the runbook that applies and the
+  steps a person should take. Never proposes or runs an operation.
 max_tier: propose
 # The incident agent needs codes, counts, states and log lines, not values: PHI is masked
 # for it as for the reader (dip/agents/tools.py, read_tools.py).
@@ -23,9 +24,14 @@ tools:
   - get_lineage
   - query_metrics
   - report_diagnosis
+  - search_runbooks        # Stage 9 (S9.3): the platform's runbooks, read only
+  - propose_runbook_steps  # the matched runbook and steps for a person, beside the diagnosis
 limits:
   max_calls_per_run: 40
   max_calls_per_hour: 400
   report_diagnosis:
     max_per_run: 3   # a call with a malformed argument is answered with an error to fix
+    max_per_hour: 50
+  propose_runbook_steps:
+    max_per_run: 3
     max_per_hour: 50
