@@ -105,3 +105,9 @@ output "approvals_token" {
   value       = random_password.approvals_token.result
   sensitive   = true
 }
+
+output "mcp_team_keys" {
+  description = "The intake team's MCP API keys by agent (Stage 10), also in the agent_chain DAG's Secret."
+  value       = { for a, k in random_password.mcp_team_key : a => k.result }
+  sensitive   = true
+}

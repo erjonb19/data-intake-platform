@@ -15,7 +15,9 @@ from typing import Any
 import jsonschema
 import yaml
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+# DIP_REPO_ROOT: where an installed package finds the repo's folders (the MCP image sets
+# /app, which holds packs/, dbt/, agents/policies/ and docs/runbooks/; Stage 10, S10.6).
+REPO_ROOT = Path(os.environ.get("DIP_REPO_ROOT") or Path(__file__).resolve().parent.parent)
 # In the images the package is installed, so they set DIP_CONTRACT_DIRS. The default is
 # every domain pack's contracts (the MIMIC pack is local-only and loaded explicitly).
 PACKS = ("healthcare", "finance")

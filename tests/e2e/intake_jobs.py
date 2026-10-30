@@ -18,11 +18,12 @@ Env: MCP_URL, MCP_TRIAGE_KEY, WAREHOUSE_DSN, and the MinIO and Airflow settings 
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import sys
 
 import mcp_read
-from break_loop import dip
+from break_loop import REPO, dip
 from run import trigger_and_wait
 
 FEED = "finance.purchase_orders"
@@ -93,7 +94,55 @@ def main() -> int:
         cur.execute("select count(*) from ops.intake_job where feed = %s and mode = 'drift'",
                     (feed,))  # fmt: skip
         check(cur.fetchone()[0] >= 1, f"drift: a drift job for {feed} is queued")
+    team_checks(check)
     return report(failures)
+
+
+TEAM_TOOLS = {"profile": "report_profile", "contract_author": "submit_candidate",
+              "validator": "check_dbt_models", "reviewer": "report_review",
+              "intake_orchestrator": "propose_contract_pr"}  # fmt: skip
+
+
+def team_checks(check) -> None:
+    """Stage 10 (S10.6): each intake-team key reaches the in-cluster MCP server and is
+    listed its own tool (and not the orchestrator's, unless it is the orchestrator); and
+    the validator's check_dbt_models runs `dbt parse` inside the MCP pod, on the models
+    generated from a new feed's contract (dbt and the project are in the image)."""
+    import hashlib
+
+    import psycopg
+
+    keys = json.loads(os.environ.get("MCP_TEAM_KEYS") or "{}")
+    check(sorted(keys) == sorted(TEAM_TOOLS), f"the team's keys: {sorted(keys)}")
+    for agent, key in keys.items():
+        s = mcp_read.Session(key).open()
+        names = {t["name"] for t in s.post("tools/list")["tools"]}
+        own = TEAM_TOOLS[agent] in names
+        proposes = "propose_contract_pr" in names
+        check(
+            own and proposes == (agent == "intake_orchestrator"),
+            f"{agent}: listed {TEAM_TOOLS[agent]}, propose_contract_pr only if orchestrator",
+        )
+    text = (REPO / "tests/fixtures/dbt_gen/purchase_orders.yaml").read_text("utf-8")
+    cid = hashlib.sha256(text.encode()).hexdigest()[:16]
+    with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute(
+            "insert into ops.contract_candidate (chain_id, candidate_id, feed, file_sha256,"
+            " contract_yaml, created_by) values ('e2e-dbt', %s, 'finance.purchase_orders',"
+            " %s, %s, 'e2e') on conflict do nothing",
+            (cid, "0" * 64, text),
+        )
+    s = mcp_read.Session(keys.get("validator")).open()
+    result = s.post("tools/call", {"name": "check_dbt_models",
+                                   "arguments": {"candidate_id": cid,
+                                                 "_run_id": "e2e-dbt/validate"}})  # fmt: skip
+    out = json.loads(result["content"][0]["text"])
+    check(
+        out.get("ok") is True
+        and out.get("dbt_parse") is True
+        and len(out.get("generated", [])) == 3,
+        f"check_dbt_models parses the generated models in the MCP pod: {str(out)[:300]}",
+    )
 
 
 def report(failures: list[str]) -> int:
