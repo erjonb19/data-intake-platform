@@ -103,7 +103,7 @@ def _diagnosis(conn: Any, run_id: str) -> dict[str, Any] | None:
     with conn.cursor() as cur:
         cur.execute(
             "select diagnosis_id, incident_id, root_cause, summary, evidence, quarantine_ids,"
-            " confidence from ops.incident_diagnosis where run_id = %s"
+            " confidence, runbook_id, steps from ops.incident_diagnosis where run_id = %s"
             " order by diagnosis_id desc limit 1",
             (run_id,),
         )
@@ -119,6 +119,8 @@ def _diagnosis(conn: Any, run_id: str) -> dict[str, Any] | None:
         "evidence",
         "quarantine_ids",
         "confidence",
+        "runbook_id",  # Stage 9 (S9.3): the runbook the agent matched, and its steps for
+        "steps",  # a person; both None when it proposed none. Nothing reads them to act.
     )
     return dict(zip(keys, row, strict=True)) | {"confidence": float(row[6])}
 

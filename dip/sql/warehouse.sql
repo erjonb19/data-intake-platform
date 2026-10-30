@@ -123,6 +123,10 @@ CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     confidence      numeric(3, 2) NOT NULL CHECK (confidence BETWEEN 0 AND 1),
     created_at      timestamptz NOT NULL DEFAULT now()
 );
+-- Stage 9 (S9.3): the runbook the incident agent matched and the steps it proposes for a
+-- person, beside its diagnosis. Steps are text for people; nothing reads them to act.
+ALTER TABLE ops.incident_diagnosis ADD COLUMN IF NOT EXISTS runbook_id text;
+ALTER TABLE ops.incident_diagnosis ADD COLUMN IF NOT EXISTS steps jsonb;
 
 -- Accepted FHIR resources, as received. The silver dbt models flatten them.
 CREATE TABLE IF NOT EXISTS bronze.fhir_resource (
@@ -340,6 +344,7 @@ BEGIN
     END IF;
     IF to_regclass('ops.incident_diagnosis') IS NOT NULL THEN
         GRANT SELECT, INSERT ON ops.incident_diagnosis TO dip_mcp;
+        GRANT UPDATE (runbook_id, steps) ON ops.incident_diagnosis TO dip_mcp;
         GRANT USAGE ON SEQUENCE ops.incident_diagnosis_diagnosis_id_seq TO dip_mcp;
     END IF;
     -- The triage agent's proposals (Stage 4, S4.5): a pending row for a person to

@@ -15,8 +15,10 @@ COPY dip/ /tmp/dip/dip/
 RUN pip install --no-cache-dir --no-deps /tmp/dip && rm -rf /tmp/dip
 COPY packs/ /app/packs/
 COPY agents/policies/ /app/agents/policies/
+COPY docs/runbooks/ /app/docs/runbooks/
 ENV DIP_CONTRACT_DIRS=/app/packs/healthcare/contracts:/app/packs/finance/contracts \
-    DIP_POLICY_DIR=/app/agents/policies
+    DIP_POLICY_DIR=/app/agents/policies \
+    DIP_RUNBOOK_DIR=/app/docs/runbooks
 
 USER 10001
 EXPOSE 8765

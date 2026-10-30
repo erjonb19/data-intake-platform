@@ -49,6 +49,16 @@ platform's own line formats. Stage 7 added dbt's failure lines ("Failure in test
 N results …") and Airflow's exit line to that filter. Any other line is counted as hidden,
 not shown.
 
+**Runbooks (Stage 9, S9.3).** After the diagnosis the agent may call `search_runbooks`
+(read: the platform's runbooks in `docs/runbooks`, split at their `##` headings and ranked
+by BM25 in `dip/agents/runbooks.py`, no model and no vector store) and then
+`propose_runbook_steps` (propose: the matched `runbook_id` and the steps a person should
+take, written beside this run's diagnosis in `ops.incident_diagnosis.runbook_id` and
+`.steps`). The steps are text for people. Nothing reads them to act, the agent's policy
+still has no `propose_operation` or `execute_approved_operation`, and a runbook that says
+"replay" does not let it call anything that would. The tool refuses a runbook id that does
+not exist, an empty or over-long list, and steps for an incident this run has not diagnosed.
+
 ## The graph and the typed handoff (S7.3)
 
 `dip/agents/graph.py` defines a `StateGraph` with three nodes, `incident`, `handoff` and
