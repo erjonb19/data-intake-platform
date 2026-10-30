@@ -27,7 +27,10 @@ from typing import Any, Protocol
 
 from dip.contracts import REPO_ROOT
 
-CONFIG = REPO_ROOT / "config" / "llm.toml"
+# DIP_LLM_CONFIG and DIP_PROMPT_DIR: where an installed package (the Airflow image's agent
+# venv, Stage 9) finds them, like DIP_POLICY_DIR.
+CONFIG = Path(os.environ.get("DIP_LLM_CONFIG", REPO_ROOT / "config" / "llm.toml"))
+PROMPT_DIR = Path(os.environ.get("DIP_PROMPT_DIR", REPO_ROOT / "agents" / "prompts"))
 # claude-haiku-5-5, first-party prices per million tokens (input, output), for run reports.
 PRICES = {"claude-haiku-5-5": (0.10, 0.50), "gemini-3.1-flash-lite": (0.0, 0.0)}  # free tier
 

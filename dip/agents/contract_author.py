@@ -13,11 +13,10 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-from dip.agents.llm import LLM
+from dip.agents.llm import LLM, PROMPT_DIR
 from dip.agents.triage import TriageRun, run_agent
-from dip.contracts import REPO_ROOT
 
-PROMPT = (REPO_ROOT / "agents" / "prompts" / "contract_author.md").read_text(encoding="utf-8")
+PROMPT = (PROMPT_DIR / "contract_author.md").read_text(encoding="utf-8")
 
 
 def task(mode: str, feed: str, file_sha256: str, note: str = "") -> str:

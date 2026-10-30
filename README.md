@@ -132,7 +132,7 @@ start with at least 4 GB free.
 | `dip-data` | MinIO | Buckets: `landing`, `raw`, `quarantine`, `airflow-logs` |
 | `dip-data` | SFTP server, intake API | Vendor channels (Stage 2) |
 | `dip-data` | MCP server | The `reader`, `triage` and `incident` agents' door: Read, Propose and Act tiers behind per-agent keys and policies (Stages 3 to 7) |
-| `dip-airflow` | `agent_chain` DAG | Every 5 minutes, the incident -> triage chain on open incidents, each run its own pod with resource limits (Stage 9, S9.1). Claims are recorded in `ops.agent_run`; with no model key in the `dip-agent-chain` Secret (Terraform `anthropic_api_key` / `gemini_api_key`, default empty) every incident is recorded `skipped` and the DAG stays green |
+| `dip-airflow` | `agent_chain` DAG | Every 5 minutes, the incident -> triage chain on open incidents, each run its own pod with resource limits (Stage 9, S9.1). Claims are recorded in `ops.agent_run`; with no model key in the `dip-agent-chain` Secret (Terraform `anthropic_api_key` / `gemini_api_key`, default empty) it claims nothing and the DAG stays green, so incidents wait for a key; a claim a dead pod left `running` is taken back after 30 minutes |
 | `dip-obs` | Prometheus, Grafana, Marquez | The `observability` profile only (Stage 3) |
 
 ## Repo layout

@@ -38,11 +38,10 @@ from dataclasses import asdict, dataclass
 from typing import Any, TypedDict
 
 from dip.agents import triage
-from dip.agents.llm import LLM
+from dip.agents.llm import LLM, PROMPT_DIR
 from dip.agents.registry import Registry
-from dip.contracts import REPO_ROOT
 
-INCIDENT_PROMPT = (REPO_ROOT / "agents" / "prompts" / "incident.md").read_text(encoding="utf-8")
+INCIDENT_PROMPT = (PROMPT_DIR / "incident.md").read_text(encoding="utf-8")
 HYPOTHESIS_MAX = 500
 
 
