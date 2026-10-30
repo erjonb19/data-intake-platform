@@ -108,7 +108,15 @@ def _argument_error(tool: Tool, args: dict[str, Any]) -> dict[str, str] | None:
     unknown = sorted(set(args) - set(props))
     missing = sorted(set(tool.input_schema.get("required", [])) - set(args))
     if unknown or missing:
-        return {"error": f"{tool.name}: unknown arguments {unknown}, missing {missing}"}
+        error = f"{tool.name}: unknown arguments {unknown}, missing {missing}"
+        if missing and any(isinstance(v, str) and "<parameter" in v for v in args.values()):
+            # Seen live (S9.3): a long string argument swallowed the next argument's
+            # markup, and the model repeated the same call. Say what went wrong.
+            error += (
+                "; a string argument contains '<parameter' markup: send each argument"
+                " on its own, with the missing one as its own JSON value"
+            )
+        return {"error": error}
     return None
 
 
