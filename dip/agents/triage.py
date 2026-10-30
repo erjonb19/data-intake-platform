@@ -17,10 +17,9 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
-from dip.agents.llm import LLM, Message
-from dip.contracts import REPO_ROOT
+from dip.agents.llm import LLM, PROMPT_DIR, Message
 
-PROMPT = (REPO_ROOT / "agents" / "prompts" / "triage.md").read_text(encoding="utf-8")
+PROMPT = (PROMPT_DIR / "triage.md").read_text(encoding="utf-8")
 TASK = (
     "Triage the open quarantine now: look at every group, then propose one action per "
     "group. Finish with the one-line summary per group."
@@ -75,7 +74,7 @@ async def run(client: Any, llm: LLM, max_turns: int = 30, run_id: str | None = N
     return await run_agent(client, llm, PROMPT, TASK, max_turns, run_id)
 
 
-ACT_PROMPT = (REPO_ROOT / "agents" / "prompts" / "triage_act.md").read_text(encoding="utf-8")
+ACT_PROMPT = (PROMPT_DIR / "triage_act.md").read_text(encoding="utf-8")
 
 
 def act_task(approval_id: int) -> str:

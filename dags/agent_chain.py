@@ -6,11 +6,12 @@ approve executes: the chain ends in pending proposals, as it does from the CLI.
 The task runs in the platform image (the agents' dependencies are in it) with the
 `dip-agent-chain` Secret as its environment: the in-cluster MCP URL, the incident and
 triage agents' keys, and, when a person has set one, a model key. Without a model key
-every claimed incident is recorded `skipped` in ops.agent_run and the task still
-succeeds: the cluster never needs a paid key to be healthy. Like every DAG here it
-starts paused."""
+the task claims nothing and still succeeds: the cluster never needs a paid key to be
+healthy, and the incidents wait for one. Like every DAG here it starts paused."""
 
 from __future__ import annotations
+
+from datetime import timedelta
 
 import pendulum
 from airflow.providers.postgres.hooks.postgres import PostgresHook
@@ -42,26 +43,44 @@ def _executor_config() -> dict:
     doc_md=__doc__,
 )
 def agent_chain():
-    @task(executor_config=_executor_config())
+    # Shorter than chain_job.STALE_AFTER, so a live task's claim is never taken back; a
+    # hung MCP or model call fails the task instead of holding max_active_runs forever.
+    @task(executor_config=_executor_config(), execution_timeout=timedelta(minutes=20))
     def run_chain() -> dict:
+        import json
         import os
+        import subprocess
 
         from airflow.sdk import get_current_context
 
-        from dip.agents import chain_job
+        from dip.dbt_runner import connection_dsn
+        from dip.warehouse import Warehouse
 
         try:
             run_id = get_current_context()["dag_run"].run_id
         except Exception:
             run_id = None
-        conn = PostgresHook(postgres_conn_id="warehouse").get_conn()
+        hook = PostgresHook(postgres_conn_id="warehouse")
+        conn = hook.get_conn()
         try:
-            summary = chain_job.run(conn, env=dict(os.environ), limit=3, dag_run_id=run_id)
+            Warehouse(conn).init()  # ops.agent_run, before any intake run created it
         finally:
             conn.close()
+        # The chain runs in the agent venv: its dependencies (the Anthropic SDK, the MCP
+        # client, LangGraph) are kept out of Airflow's, as dbt's are.
+        python = os.environ.get("DIP_AGENT_PYTHON", "/opt/airflow/agent-venv/bin/python")
+        cmd = [python, "-m", "dip.agents.chain_job", "--limit", "3"]
+        if run_id:
+            cmd += ["--dag-run-id", run_id]
+        env = {**os.environ, "DIP_WAREHOUSE_DSN": connection_dsn(hook.get_connection("warehouse"))}
+        p = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        print(p.stdout[-4000:], p.stderr[-4000:], sep="\n")
+        if p.returncode != 0:
+            raise RuntimeError(f"chain_job exited {p.returncode}")
+        summary = json.loads(p.stdout.strip().splitlines()[-1])
         print(
             f"claimed {summary['claimed']}: done {summary['done']}, failed"
-            f" {summary['failed']}, skipped {summary['skipped']} ({summary['plan']})"
+            f" {summary['failed']} ({summary['plan']})"
         )
         return summary
 

@@ -4,7 +4,7 @@ stubbed: what is under test is the claim and the record, not the agents."""
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from dip.agents import chain_job
 from dip.incidents import open_incident
@@ -20,21 +20,81 @@ def _open(wh, feed, kind="DAG.FAILED", detail="a task failed"):
     return rows(wh, "select max(incident_id) from ops.incident")[0][0]
 
 
-def test_without_a_model_key_every_incident_is_skipped_and_claimed_once(warehouse):
+def test_without_a_model_key_nothing_is_claimed_and_incidents_wait(warehouse):
+    a = _open(warehouse, "healthcare.eligibility")
+
+    s = chain_job.run(warehouse.conn, env=MCP, dag_run_id="manual__1")
+    assert s["claimed"] == 0 and s["done"] == [] and s["failed"] == []
+    assert "no model key" in s["plan"]
+    assert rows(warehouse, "select count(*) from ops.agent_run") == [(0,)]
+
+    # once a key is set, the same incident runs
+    ran = chain_job.run(warehouse.conn, env={**MCP, "GEMINI_API_KEY": "g"}, runner=_ok)
+    assert ran["done"] == [a]
+
+
+def _ok(conn, incident_id, env, provider):
+    return {"chain_id": f"chain-{incident_id}", "diagnosis": {"root_cause": "x"}}
+
+
+def test_skipped_rows_and_a_dead_pods_stale_claim_are_claimed_again(warehouse):
+    old = _open(warehouse, "healthcare.eligibility")
+    stale = _open(warehouse, "finance.invoices")
+    live = _open(warehouse, "healthcare.claims")
+    with warehouse.conn.cursor() as cur:
+        # `skipped`, as an earlier version recorded incidents with no key
+        cur.execute(
+            "insert into ops.agent_run (incident_id, status, finished_at) values"
+            " (%s, 'skipped', now()), (%s, 'running', null), (%s, 'running', null)",
+            (old, stale, live),
+        )
+        cur.execute(
+            "update ops.agent_run set started_at = now() - %s where incident_id = %s",
+            (chain_job.STALE_AFTER + timedelta(minutes=1), stale),
+        )
+    warehouse.conn.commit()
+
+    s = chain_job.run(warehouse.conn, env={**MCP, "GEMINI_API_KEY": "g"}, runner=_ok,
+                      dag_run_id="scheduled__2")  # fmt: skip
+    assert s["done"] == [old, stale]  # the live claim (a running pod's) is left alone
+    assert rows(
+        warehouse,
+        "select incident_id, status, dag_run_id from ops.agent_run order by incident_id",
+    ) == [(old, "done", "scheduled__2"), (stale, "done", "scheduled__2"), (live, "running", None)]
+
+
+def test_a_database_error_in_the_chain_is_recorded_and_the_next_incident_still_runs(warehouse):
     a = _open(warehouse, "healthcare.eligibility")
     b = _open(warehouse, "finance.invoices")
 
-    s = chain_job.run(warehouse.conn, env=MCP, dag_run_id="manual__1")
-    assert s["claimed"] == 2 and s["skipped"] == [a, b] and s["done"] == [] and s["failed"] == []
-    assert rows(
-        warehouse,
-        "select incident_id, status, dag_run_id, finished_at is not null"
-        " from ops.agent_run order by incident_id",
-    ) == [(a, "skipped", "manual__1", True), (b, "skipped", "manual__1", True)]
-    assert "no model key" in rows(warehouse, "select reason from ops.agent_run limit 1")[0][0]
+    def runner(conn, incident_id, env, provider):
+        if incident_id == a:  # leaves the shared connection's transaction aborted
+            with conn.cursor() as cur:
+                cur.execute("select * from ops.no_such_table")
+        return _ok(conn, incident_id, env, provider)
 
-    # the next run finds nothing: the claim rows are the memory
-    assert chain_job.run(warehouse.conn, env=MCP)["claimed"] == 0
+    s = chain_job.run(warehouse.conn, env={**MCP, "GEMINI_API_KEY": "g"}, runner=runner)
+    assert s["failed"] == [a] and s["done"] == [b]
+    reason = rows(warehouse, "select reason from ops.agent_run where incident_id = %s", (a,))
+    assert reason[0][0].startswith("UndefinedTable")
+
+
+def test_two_claimers_at_once_get_different_incidents(warehouse):
+    import psycopg
+
+    from tests.integration.conftest import DSN
+
+    a = _open(warehouse, "healthcare.eligibility")
+    b = _open(warehouse, "finance.invoices")
+    with psycopg.connect(DSN) as other:
+        # the first claimer holds its incident's row lock (an open transaction) ...
+        with warehouse.conn.cursor() as cur:
+            cur.execute("select 1 from ops.incident where incident_id = %s for update", (a,))
+        # ... so the second skips it instead of waiting or taking it twice
+        assert chain_job.claim_one(other)[0] == b
+        warehouse.conn.rollback()
+        assert chain_job.claim_one(other)[0] == a
+        assert chain_job.claim_one(other) is None
 
 
 def test_a_run_records_the_chain_and_a_failure_stays_on_its_incident(warehouse):
@@ -55,7 +115,7 @@ def test_a_run_records_the_chain_and_a_failure_stays_on_its_incident(warehouse):
 
     s = chain_job.run(warehouse.conn, env=env, runner=runner)
     assert calls == [(a, "gemini"), (b, "gemini")]
-    assert s["done"] == [a] and s["failed"] == [b] and s["skipped"] == []
+    assert s["done"] == [a] and s["failed"] == [b]
     got = rows(
         warehouse,
         "select incident_id, status, chain_id, root_cause, reason"
