@@ -6,7 +6,13 @@
 # in ops.grant_approver()): reads ops.approvals and ops.audit_log, appends to the audit
 # log, and sets an approval's decision columns. No MinIO, no Airflow, no execution: a
 # person's approval is carried out by `dip approvals execute` or the proposing agent's
-# Act tier, never by this page.
+# Act tier, never by this page. Every /api route needs the bearer token generated here
+# (output `approvals_token`), so other pods cannot approve by calling the Service.
+
+resource "random_password" "approvals_token" {
+  length  = 40
+  special = false
+}
 
 resource "kubernetes_secret_v1" "approvals" {
   metadata {
@@ -14,7 +20,8 @@ resource "kubernetes_secret_v1" "approvals" {
     namespace = kubernetes_namespace_v1.data.metadata[0].name
   }
   data = {
-    DIP_WAREHOUSE_DSN = "postgresql://dip_approver:${local.pw["pg_approver"]}@${local.postgres_host}:5432/warehouse"
+    DIP_WAREHOUSE_DSN   = "postgresql://dip_approver:${local.pw["pg_approver"]}@${local.postgres_host}:5432/warehouse"
+    DIP_APPROVALS_TOKEN = random_password.approvals_token.result
   }
 }
 
@@ -55,9 +62,10 @@ resource "kubernetes_deployment_v1" "approvals" {
               name = kubernetes_secret_v1.approvals.metadata[0].name
             }
           }
+          # TCP, like the MCP server's: an HTTP probe's Host header (the pod IP) is not one
+          # the page accepts.
           readiness_probe {
-            http_get {
-              path = "/healthz"
+            tcp_socket {
               port = 8081
             }
             period_seconds = 5

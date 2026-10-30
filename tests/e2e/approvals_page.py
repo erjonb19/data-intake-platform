@@ -4,7 +4,7 @@ call behind. The page runs as its own login (dip_approver): it lists and shows t
 proposal, finds the denial in the audit log, refuses a decision on a row that is no longer
 pending, and refuses a Host header it was not told to accept.
 
-Env: APPROVALS_URL (http://127.0.0.1:<port>).
+Env: APPROVALS_URL (http://127.0.0.1:<port>), APPROVALS_TOKEN (its bearer token).
 """
 
 from __future__ import annotations
@@ -16,6 +16,7 @@ import urllib.error
 import urllib.request
 
 URL = os.environ["APPROVALS_URL"]
+TOKEN = os.environ["APPROVALS_TOKEN"]
 
 
 def call(method: str, path: str, body: dict | None = None, headers: dict | None = None):
@@ -23,7 +24,11 @@ def call(method: str, path: str, body: dict | None = None, headers: dict | None 
         URL + path,
         method=method,
         data=json.dumps(body).encode() if body is not None else None,
-        headers={"Content-Type": "application/json", **(headers or {})},
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {TOKEN}",
+            **(headers or {}),
+        },
     )
     try:
         with urllib.request.urlopen(req, timeout=30) as r:
@@ -71,6 +76,8 @@ def main() -> int:
         status == 200 and any(r["principal"] == "human:e2e@dip_approver" for r in refused),
         "the page's refused decision is audited as dip_approver",
     )
+    status, _ = call("GET", "/api/approvals", headers={"Authorization": "Bearer wrong"})
+    check(status == 401, f"a wrong token is refused ({status})")
     status, _ = call("GET", "/api/approvals", headers={"Host": "evil.example:8081"})
     check(status == 400, f"an unknown Host header is refused ({status})")
 

@@ -211,7 +211,13 @@ BEGIN
         AND NEW.executed_by IS NULL THEN
         RAISE EXCEPTION 'ops.approvals: an execution records who ran it';
     END IF;
-    IF (OLD.decided_by IS NOT NULL AND NEW.decided_by IS DISTINCT FROM OLD.decided_by)
+    -- (Stage 9, S9.2) The whole decision record, not only who: once decided, its time and
+    -- note stay too, and an approved hash is set only by the approval itself.
+    IF (OLD.decided_by IS NOT NULL AND (NEW.decided_by IS DISTINCT FROM OLD.decided_by
+                                        OR NEW.decided_at IS DISTINCT FROM OLD.decided_at
+                                        OR NEW.decision_note IS DISTINCT FROM OLD.decision_note))
+        OR (NEW.approved_sha256 IS DISTINCT FROM OLD.approved_sha256
+            AND NOT (OLD.status = 'pending' AND NEW.status = 'approved'))
         OR (OLD.executed_by IS NOT NULL AND NEW.executed_by IS DISTINCT FROM OLD.executed_by)
         OR (OLD.result IS NOT NULL AND NEW.result IS DISTINCT FROM OLD.result) THEN
         RAISE EXCEPTION 'ops.approvals: a decision or an execution cannot be rewritten';

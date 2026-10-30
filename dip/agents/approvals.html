@@ -55,6 +55,7 @@
     <button role="tab" id="tab-audit" aria-selected="false">Audit log</button>
   </nav>
   <span style="flex:1"></span>
+  <label>Token <input id="token" type="password" size="14" placeholder="approvals token" autocomplete="off"></label>
   <label>Reviewer <input id="reviewer" size="14" placeholder="your name" autocomplete="off"></label>
 </header>
 <main>
@@ -96,13 +97,20 @@ const $ = (id) => document.getElementById(id);
 const el = (tag, text, cls) => { const e = document.createElement(tag); if (text != null) e.textContent = String(text); if (cls) e.className = cls; return e; };
 const when = (s) => s ? new Date(s).toLocaleString() : "";
 async function api(path, opts) {
+  opts = opts || {};
+  const token = $("token").value.trim();
+  opts.headers = Object.assign({}, opts.headers, token ? { Authorization: "Bearer " + token } : {});
   const r = await fetch(path, opts);
+  if (r.status === 401) throw new Error("enter the approvals token (terraform output -raw approvals_token)");
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body.detail ? (typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)) : r.statusText);
   return body;
 }
 try { $("reviewer").value = localStorage.getItem("dip.reviewer") || ""; } catch (e) {}
 $("reviewer").addEventListener("change", () => { try { localStorage.setItem("dip.reviewer", $("reviewer").value.trim()); } catch (e) {} });
+// The token is kept for this tab only (sessionStorage), never across browser sessions.
+try { $("token").value = sessionStorage.getItem("dip.token") || ""; } catch (e) {}
+$("token").addEventListener("change", () => { try { sessionStorage.setItem("dip.token", $("token").value.trim()); } catch (e) {} loadList(); });
 
 function tab(name) {
   for (const t of ["proposals", "audit"]) {

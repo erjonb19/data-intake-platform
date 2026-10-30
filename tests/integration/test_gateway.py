@@ -15,6 +15,7 @@ ROLES_SQL = REPO_ROOT / "infra/terraform/files/postgres-roles.sql"
 # A fixed, public test password: fine for a throwaway CI database, never for a deployment.
 PASSWORD = "ci-approver-0123456789"
 HOST = "testserver"  # the Host header TestClient sends
+TOKEN = "ci-approvals-token"
 
 
 def approver_conn():
@@ -36,7 +37,8 @@ def page(warehouse):
         cur.execute(f"alter role dip_approver password '{PASSWORD}'")
     warehouse.conn.commit()
     warehouse.init()  # the role exists now: its grants apply
-    with TestClient(create_app(approver_conn, [HOST])) as client:
+    app = create_app(approver_conn, [HOST], token=TOKEN)
+    with TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"}) as client:
         yield client
 
 
@@ -146,3 +148,35 @@ def test_audit_filters(page, warehouse):
     assert [(x["tool"], x["reason"]) for x in got] == [("propose_operation", "rate")]
     assert page.get("/api/audit", params={"since": "2999-01-01T00:00:00Z"}).json() == []
     assert len(page.get("/api/audit", params={"limit": 1}).json()) == 1
+
+
+def test_every_api_route_needs_the_token(page, warehouse):
+    a = _propose(warehouse)
+    for h in ({"Authorization": ""}, {"Authorization": "Bearer wrong"}, {"Authorization": TOKEN}):
+        assert page.get("/api/approvals", headers=h).status_code == 401
+        assert page.get("/api/audit", headers=h).status_code == 401
+        r = page.post(f"/api/approvals/{a}/decision", json={"decision": "approve"},
+                      headers={"X-Reviewer": "mallory", **h})  # fmt: skip
+        assert r.status_code == 401
+    assert page.get("/", headers={"Authorization": ""}).status_code == 200  # the page itself
+    assert rows(warehouse, "select status from ops.approvals where approval_id = %s", (a,)) == [
+        ("pending",)
+    ]
+
+
+def test_a_decision_record_cannot_be_rewritten(page, warehouse):
+    import psycopg
+
+    a = _propose(warehouse)
+    b = _propose(warehouse, action="request_resend")
+    assert _decide(page, a, "approve", note="ok").status_code == 200
+    assert _decide(page, b, "reject").status_code == 200
+    edits = [
+        ("update ops.approvals set decision_note = 'edited' where approval_id = %s", a),
+        ("update ops.approvals set decided_at = now() where approval_id = %s", a),
+        ("update ops.approvals set approved_sha256 = payload_sha256 where approval_id = %s", b),
+    ]
+    for sql, approval_id in edits:
+        refused = pytest.raises(psycopg.errors.RaiseException, match="cannot be rewritten")
+        with approver_conn() as conn, conn.cursor() as cur, refused:
+            cur.execute(sql, (approval_id,))

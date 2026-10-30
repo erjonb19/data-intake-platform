@@ -14,13 +14,18 @@ approval rules (pending only, expiry, the approved payload's hash) live in one p
 Who decided: the `X-Reviewer` header, recorded as `human:<name>@<database login>`, the
 same shape as the CLI's `human:<OS user>@<database login>`. Like the CLI's, the name is
 self-asserted: anyone who can reach this page can decide, as anyone with the warehouse
-DSN can with the CLI. Two browser-side guards: the Host header must be one this server
-was told to accept (a DNS-rebinding page cannot reach it through a port-forward), and a
-decision needs the custom header and a JSON body, which a cross-site form cannot send.
+DSN can with the CLI. Reaching it means holding its token: every /api route needs
+`Authorization: Bearer <DIP_APPROVALS_TOKEN>` (Terraform's `approvals_token` output; the
+page asks for it once), so another pod in the cluster cannot approve as a person by
+calling the Service. Two browser-side guards besides: the Host header must be one this
+server was told to accept (a DNS-rebinding page cannot reach it through a port-forward),
+and a decision needs the custom header and a JSON body, which a cross-site form cannot
+send.
 """
 
 from __future__ import annotations
 
+import hmac
 import re
 import time
 from collections.abc import Callable, Iterator
@@ -58,6 +63,19 @@ def _db(request: Request) -> Iterator[Any]:
 Conn = Annotated[Any, Depends(_db)]
 
 
+def _authorized(request: Request) -> None:
+    token = request.app.state.token
+    if token is None:
+        return
+    given = request.headers.get("authorization", "")
+    if not hmac.compare_digest(given.encode(), f"Bearer {token}".encode()):
+        raise HTTPException(401, "a valid approvals token is required",
+                            headers={"WWW-Authenticate": "Bearer"})  # fmt: skip
+
+
+API = [Depends(_authorized)]
+
+
 class Decision(BaseModel):
     decision: str = Field(pattern="^(approve|reject)$")
     note: str = Field(default="", max_length=2000)
@@ -79,12 +97,16 @@ def _summary(a: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def create_app(connect: Callable[[], Any], allowed_hosts: list[str]) -> FastAPI:
+def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
+               token: str | None = None) -> FastAPI:  # fmt: skip
     """`connect` opens a warehouse connection (one per request: the page is for a few
-    people, and a dropped connection never outlives a request)."""
+    people, and a dropped connection never outlives a request). With `token`, every /api
+    route needs it as a bearer token; without, the server is for a laptop only (the CLI
+    refuses to listen beyond loopback without one)."""
     app = FastAPI(title="dip approvals", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
     app.state.connect = connect
+    app.state.token = token or None
 
     @contextmanager
     def unavailable() -> Iterator[None]:
@@ -105,14 +127,14 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str]) -> FastAPI:
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.get("/api/approvals")
+    @app.get("/api/approvals", dependencies=API)
     def list_approvals(conn: Conn, status: str = Query("pending", pattern=STATUS_PATTERN)
                        ) -> list[dict[str, Any]]:  # fmt: skip
         with unavailable():
             rows = approvals.pending(conn, None if status == "all" else status)
         return [_summary(a) for a in reversed(rows)]  # newest first
 
-    @app.get("/api/approvals/{approval_id}")
+    @app.get("/api/approvals/{approval_id}", dependencies=API)
     def show(approval_id: int, conn: Conn) -> dict[str, Any]:
         with unavailable(), conn.cursor() as cur:
             cur.execute(f"select {', '.join(DETAIL)} from ops.approvals where approval_id = %s",
@@ -126,7 +148,7 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str]) -> FastAPI:
         a["diff"] = (a["payload"] or {}).get("diff") if a["action"] == "contract_pr" else None
         return a
 
-    @app.post("/api/approvals/{approval_id}/decision")
+    @app.post("/api/approvals/{approval_id}/decision", dependencies=API)
     def decide(approval_id: int, body: Decision, conn: Conn,
                x_reviewer: str | None = Header(default=None)) -> dict[str, Any]:  # fmt: skip
         if not x_reviewer or not REVIEWER.fullmatch(x_reviewer):
@@ -153,7 +175,7 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str]) -> FastAPI:
                                  None)  # fmt: skip
         return {"approval_id": approval_id, "status": status, "decided_by": me.agent}
 
-    @app.get("/api/audit")
+    @app.get("/api/audit", dependencies=API)
     def audit(
         conn: Conn,
         principal: str | None = None,

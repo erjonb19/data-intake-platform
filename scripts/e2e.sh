@@ -117,4 +117,4 @@ kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-data \
   port-forward svc/approvals "$APPROVALS_PORT:8081" >/dev/null 2>&1 &
 pids+=("$!")
 wait_port "$APPROVALS_PORT"
-APPROVALS_URL="http://127.0.0.1:$APPROVALS_PORT" "$py" "$REPO_ROOT/tests/e2e/approvals_page.py"
+APPROVALS_URL="http://127.0.0.1:$APPROVALS_PORT" APPROVALS_TOKEN="$(tf output -raw approvals_token)"   "$py" "$REPO_ROOT/tests/e2e/approvals_page.py"

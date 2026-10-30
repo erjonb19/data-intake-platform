@@ -161,7 +161,11 @@ def _approvals_serve(args: argparse.Namespace) -> int:
     from dip.agents.gateway import create_app
 
     dsn = os.environ["DIP_WAREHOUSE_DSN"]
-    app = create_app(lambda: psycopg.connect(dsn), args.allowed_host or ["127.0.0.1", "localhost"])
+    token = os.environ.get("DIP_APPROVALS_TOKEN") or None
+    if token is None and args.host not in ("127.0.0.1", "localhost", "::1"):
+        raise SystemExit("approvals-serve beyond loopback needs DIP_APPROVALS_TOKEN")
+    hosts = args.allowed_host or ["127.0.0.1", "localhost"]
+    app = create_app(lambda: psycopg.connect(dsn), hosts, token)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
 
