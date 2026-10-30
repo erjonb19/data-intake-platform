@@ -165,7 +165,7 @@ new code. Source: the committed reports
 
 ## Claude vs Gemini (PLAN.md §7.1)
 
-The comparison runs the same 12 contract-author cases through the same harness, with
+The comparison runs the same 13 contract-author cases through the same harness, with
 Gemini behind the same `LLM` interface (`dip/agents/gemini.py`). Gemini wrote valid
 contracts, slightly less complete than Claude's (its pharmacy claims contract fell under
 the 0.8 recall bar), and was weaker on judgment: it proposed contract changes
@@ -209,7 +209,7 @@ proposals. Sources: [`triage/results/gemini.json`](../../agents/evals/triage/res
 
 ## Limits
 
-- **Small case sets.** 19 triage cases and 12 contract-author cases, all synthetic. They
+- **Small case sets.** 19 triage cases and 13 contract-author cases, all synthetic. They
   cover the failure types the platform's contracts produce, not the long tail of real
   vendor files. Results are evidence the design works, not a benchmark.
 - **Few runs.** Variance is 3 live runs per case for Claude and 1 for Gemini.

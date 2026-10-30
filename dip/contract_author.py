@@ -78,9 +78,18 @@ def _table(data: bytes, fmt: dict[str, Any]) -> tuple[list[str], list[list[str]]
 
 
 def shape(value: str) -> str:
-    """A value's shape: letters A (a for lower case), digits 9, the rest kept, max 32."""
-    out = re.sub(r"[A-Z]", "A", re.sub(r"[a-z]", "a", re.sub(r"[0-9]", "9", value)))
-    return out[:32]
+    """A value's shape: letters A (a for lower case), digits 9, ASCII punctuation and spaces
+    kept, max 32. Any other character (a letter or digit of another script included) is
+    mapped too, never kept: a shape carries no text (Stage 10, S10.4)."""
+
+    def one(ch: str) -> str:
+        if ch.isalpha():
+            return "a" if ch.islower() else "A"
+        if ch.isdigit():
+            return "9"
+        return ch if ch.isascii() else "?"
+
+    return "".join(one(ch) for ch in value[:32])
 
 
 def _infer(values: list[str]) -> str:

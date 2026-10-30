@@ -189,3 +189,47 @@ def test_the_runner_claims_nothing_without_keys_and_records_each_outcome(warehou
     got = rows(warehouse, "select job_id, status, approval_id, provider from ops.intake_job"
                           " order by job_id")  # fmt: skip
     assert got == [(a, "proposed", 9, "profile:anthropic map:gemini"), (b, "queued", None, None)]
+
+
+def test_a_job_without_a_chain_serves_no_profile(world, warehouse):
+    call, job, _ = world
+    call("profile", "report_profile", "c1/profile", job_id=job["job_id"], columns=[])
+    with warehouse.conn.cursor() as cur:
+        cur.execute("update ops.intake_job set chain_id = null")
+    warehouse.conn.commit()
+    err, out = call("contract_author", "get_intake_profile", "c1/map", job_id=job["job_id"])
+    assert "another chain" in json.dumps(out)
+
+
+def test_requeue_and_a_new_run_leave_nothing_of_the_last_claim(warehouse):
+    from dip.agents import intake_runner
+
+    with warehouse.conn.cursor() as cur:
+        a = queue(cur, "finance.a", "onboard", "a" * 64, "landing")
+    warehouse.conn.commit()
+    claim_one(warehouse.conn, "run-1")
+    assert not intake_runner.requeue(warehouse.conn, a, "outage", "run-0")  # not its claim
+    assert intake_runner.requeue(warehouse.conn, a, "outage", "run-1")
+    with warehouse.conn.cursor() as cur:
+        cur.execute("update ops.intake_job set profile = '{\"old\": true}'")
+    warehouse.conn.commit()
+    job = claim_one(warehouse.conn, "run-2")
+    seen = {}
+
+    def fake_run_intake(team, job_, chain_id):
+        seen["profile"] = rows(warehouse, "select profile from ops.intake_job")[0][0]
+
+        async def done():
+            return {"outcome": "failed", "reason": "test"}
+
+        return done()
+
+    import dip.agents.intake_graph as ig
+
+    real, ig.run_intake = ig.run_intake, fake_run_intake
+    try:
+        intake_runner.run_job(warehouse.conn, job, {"DIP_MCP_URL": "u", **{
+            v: "k" for v in intake_runner.KEYS.values()}}, ("anthropic",))  # fmt: skip
+    finally:
+        ig.run_intake = real
+    assert seen["profile"] is None  # the earlier run's profile is gone

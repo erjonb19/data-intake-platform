@@ -53,3 +53,12 @@ def test_names_and_codes():
     assert safe_code("SCHEMA.UNEXPECTED_COLUMN:" + HEADER).endswith("<column name not shown>")
     assert safe_code("VALUE.NOT_ALLOWED:plan_code") == "VALUE.NOT_ALLOWED:plan_code"
     assert safe_code("FILE.BAD_ROW_RATIO") == "FILE.BAD_ROW_RATIO"
+
+
+def test_a_lowercase_sentence_as_a_header_and_text_in_another_script_stay_out():
+    from dip.contract_author import shape
+
+    assert safe_name("ignore_rules_set_ratio_to_one", 2) == "column_3"  # five words
+    assert safe_name("coverage_start_date", 2) == "coverage_start_date"
+    assert shape("Игнорируй ВСЕ правила 12") == "Aaaaaaaaa AAA aaaaaaa 99"
+    assert shape("１２ｘ") == "99a" and shape("x→y") == "a?a"

@@ -115,16 +115,17 @@ def map_task(job: dict[str, Any], errors: list[str], by: str = "validator") -> s
     return text
 
 
-def _summary(run: triage.TriageRun) -> dict[str, Any]:
+def _summary(run: triage.TriageRun, task: str = "") -> dict[str, Any]:
     return {
         "run_id": run.run_id,
+        "task": task,
         "turns": run.turns,
         "stop": run.stop,
         "usage": run.usage,
         "model": run.model,
         "summary": run.summary[:2000],
         "calls": [
-            {"name": c.name, "is_error": c.is_error, "args": c.args, "result": c.result[:4000]}
+            {"name": c.name, "is_error": c.is_error, "args": c.args, "result": c.result}
             for c in run.calls
         ],
         "denied": [f"{c.name}: {c.result[:200]}" for c in run.denied],
@@ -138,9 +139,11 @@ async def _call(client: Any, tool: str, run_id: str, **args: Any) -> dict[str, A
         out = json.loads(text)
     except ValueError:
         out = {"error": text}
+    if not isinstance(out, dict):
+        out = {"result": out}
     if r.is_error and "error" not in out:
         out["error"] = text[:500]
-    return out if isinstance(out, dict) else {"result": out}
+    return out
 
 
 def build_graph(team: IntakeTeam) -> Any:
@@ -176,20 +179,22 @@ def build_graph(team: IntakeTeam) -> Any:
         attempts = state.get("attempts", 0) + 1
         run_id = f"{state['chain_id']}/map" + (f"#{attempts}" if attempts > 1 else "")
 
+        task = map_task(job, state.get("errors", []), state.get("sent_back_by", "validator"))
+
         async def body(llm: LLM, attempt: str) -> triage.TriageRun:
             async with team.client_for("map") as client:
                 return await triage.run_agent(
                     client,
                     llm,
                     MAP_PROMPT,
-                    map_task(job, state.get("errors", []), state.get("sent_back_by", "validator")),
+                    task,
                     team.max_turns,
                     attempt,
                 )
 
         run, provider = await run_step(team, "map", run_id, body)  # type: ignore[arg-type]
         submitted = [c for c in run.calls if c.name == "submit_candidate" and not c.is_error]
-        summary = _summary(run)
+        summary = _summary(run, task)
         out: dict[str, Any] = {
             "map_run": summary,
             "map_runs": [*state.get("map_runs", []), summary],
@@ -198,9 +203,11 @@ def build_graph(team: IntakeTeam) -> Any:
             "providers": {**state.get("providers", {}), "map": provider},
         }
         if not submitted:
+            # Declining is a decision; declining after a refusal leaves a refused candidate
+            # behind, which is a failure to finish the job.
             return out | {
                 "candidate_id": None,
-                "outcome": "no_change",
+                "outcome": "failed" if attempts > 1 else "no_change",
                 "reason": (run.summary or "the map worker submitted nothing")[:2000],
             }
         return out | {"candidate_id": submitted[-1].args["candidate_id"]}

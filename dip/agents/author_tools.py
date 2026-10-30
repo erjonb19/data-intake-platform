@@ -207,6 +207,12 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         if job is None or job[1] != mode:
             return {"error": "no running intake job of this mode for this chain"}
         feed, contract_yaml, file_sha256 = cand["feed"], cand["contract_yaml"], cand["file_sha256"]
+        with conn.cursor() as cur:
+            cur.execute("select file_sha256 from ops.intake_job where job_id = %s", (job[0],))
+            (job_file,) = cur.fetchone()
+        conn.commit()
+        if cand["created_by"] != "contract_author" or file_sha256 != job_file:
+            return {"error": "the candidate is not the map worker's, for this job's file"}
         rationale = cand["rationale"] or rationale
         checked = _check(feed, contract_yaml, file_sha256)
         if not checked["valid"]:
