@@ -19,10 +19,10 @@ def test_missing_mcp_configuration_names_what_is_unset():
     assert p.reason == "no MCP configuration: DIP_INCIDENT_KEY, DIP_TRIAGE_KEY unset"
 
 
-def test_anthropic_wins_over_gemini_when_both_are_set():
+def test_anthropic_is_tried_first_and_gemini_after_it():
     both = {**MCP, "ANTHROPIC_API_KEY": "a", "GEMINI_API_KEY": "g"}
-    assert chain_job.plan(both).provider == "anthropic"
-    assert chain_job.plan({**MCP, "GEMINI_API_KEY": "g"}).provider == "gemini"
+    assert chain_job.plan(both).providers == ("anthropic", "gemini")
+    assert chain_job.plan({**MCP, "GEMINI_API_KEY": "g"}).providers == ("gemini",)
 
 
 def test_an_empty_key_counts_as_unset():

@@ -158,3 +158,108 @@ def cost_usd(usage_list: list[dict[str, int]], model: str) -> float:
               + u.get("cache_creation_input_tokens", 0) for u in usage_list)  # fmt: skip
     tout = sum(u.get("output_tokens", 0) for u in usage_list)
     return round(tin * pin / 1e6 + tout * pout / 1e6, 6)
+
+
+# --- The free fallback, per worker step (Stage 10, S10.1; PLAN.md section 8.12) ---------
+#
+# A step (one agent's whole run) starts on the first provider in config/llm.toml whose key
+# is set. If that provider is unavailable (no key, a rate limit, an overload or a server
+# error, a connection failure), the step starts again from its task on the next one. Never
+# mid-conversation: the providers' histories (thinking blocks, Gemini's signed parts) do
+# not translate safely. And never after the step has written anything (a propose- or
+# act-tier call the server allowed), so a restart cannot write twice: that step fails.
+
+FAILOVER_STATUS = {429, 500, 502, 503, 504, 529}
+
+
+class StepWrote(RuntimeError):
+    """The provider failed after the step had written: it is not restarted elsewhere."""
+
+
+class NoProvider(RuntimeError):
+    """Every provider was missing or unavailable."""
+
+
+def is_failover(exc: BaseException) -> bool:
+    """Whether an error means "this provider is unavailable now", not a bug of ours: a
+    429, an overload (529) or a 5xx, or no connection. A 400 (a malformed request) is ours
+    and fails the step everywhere alike, so it is not retried on another provider.
+
+    A step runs inside its MCP client's task group, which raises what failed inside it as
+    an exception group: a group means "unavailable" only if everything in it does."""
+    if isinstance(exc, BaseExceptionGroup):
+        return bool(exc.exceptions) and all(is_failover(e) for e in exc.exceptions)
+    status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
+    if isinstance(status, int):
+        return status in FAILOVER_STATUS
+    try:
+        import anthropic
+
+        if isinstance(exc, anthropic.APIConnectionError):  # includes timeouts
+            return True
+    except ImportError:  # pragma: no cover - the agents extra is not installed
+        pass
+    from dip.agents.gemini import GeminiError
+
+    return isinstance(exc, GeminiError) and exc.status is None  # unreachable
+
+
+def provider_names(env: dict[str, str] | None = None) -> list[str]:
+    """The providers in config order (primary first) whose key is set in `env`."""
+    env = os.environ if env is None else env
+    with CONFIG.open("rb") as f:
+        cfg = tomllib.load(f)
+    out = []
+    for p in [cfg["primary"], *cfg.get("fallback", [])]:
+        if p["provider"] not in FACTORIES:
+            raise ValueError(f"config/llm.toml names {p['provider']!r}, which has no client")
+        if env.get(p.get("api_key_env", "")):
+            out.append(p["provider"])
+    return out
+
+
+def _anthropic() -> LLM:
+    return AnthropicLLM()
+
+
+def _gemini() -> LLM:
+    from dip.agents.gemini import GeminiLLM
+
+    return GeminiLLM()
+
+
+FACTORIES: dict[str, Any] = {"anthropic": _anthropic, "gemini": _gemini}
+
+
+class Failover:
+    """The providers to try for a step, in order. `run` runs the whole step on the first
+    one and moves on only while the step has written nothing (`wrote()`)."""
+
+    def __init__(self, providers: list[tuple[str, Any]]):
+        self.providers = providers  # (name, factory returning an LLM)
+
+    @classmethod
+    def from_env(cls, env: dict[str, str] | None = None) -> Failover:
+        return cls([(n, FACTORIES[n]) for n in provider_names(env)])
+
+    async def run(self, step: Any, wrote: Any) -> tuple[Any, str]:
+        """`step(llm)` is awaited; returns (its result, the provider that answered)."""
+        tried: list[str] = []
+        for name, make in self.providers:
+            try:
+                llm = make()
+            except LookupError as exc:  # no key for this one
+                tried.append(f"{name}: {exc}")
+                continue
+            try:
+                return await step(llm), name
+            except Exception as exc:
+                if not is_failover(exc):
+                    raise
+                if wrote():
+                    raise StepWrote(
+                        f"{name} failed after the step had written; not restarted on "
+                        f"another provider: {type(exc).__name__}: {exc}"
+                    ) from exc
+                tried.append(f"{name}: {type(exc).__name__}: {str(exc)[:200]}")
+        raise NoProvider("no provider answered: " + ("; ".join(tried) or "none configured"))

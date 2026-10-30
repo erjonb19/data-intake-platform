@@ -1,0 +1,231 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1
+      },
+      "id": "call_903715",
+      "name": "get_incident"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T5Yakf/DjZSopIzuftJNknWfwdeGq9nLczV7Ab+xJsj7aRGsDZ22+hvmBSdnvcJY6OcZDijdqWCsfowtS5X6u1GnzHJVrmEI2Np20RwAbaQRnB6/HqS76EdWnxAfh5syQ15y2qaUlxvCUD77/"
+    },
+    "id": "g-0a5bd60dc327",
+    "input": {
+     "incident_id": 1
+    },
+    "name": "get_incident",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "fc3e9cea4e0bf506f1201f91edbcde8318682bd6fbf5170b0fdc653898d7e7f6",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2418,
+   "output_tokens": 16
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code"
+      },
+      "id": "call_1058645",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TwGxYrqHTULFfTObzgyrtYm8hXIABaVdFC1KvOebRj+MjZr+D+J/+uhfjXBZ7u3Yat9EOtRIVnhnT1W6Kh0a3meX8s++p+ZHMrh9MUpXJfbBeW0fO6LZppjKcVCeq/ukqy9Ioz/chTmymswqB"
+    },
+    "id": "g-95ed4f73fabb",
+    "input": {
+     "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "e3a4f9402770f7a91566262cd064a1b08a86557ab530391d42cf3168720dc827",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2784,
+   "output_tokens": 34
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.eligibility"
+      },
+      "id": "call_799561",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TIsssB41bdju1xQSnGtyCeopnVHXkRV9homcDD1P9BqleiJl1i25b9FU2jB0ecq4h+kGGr5abfhZRK1Uc0VjXYMSEq+lfwURUN2v7hsZcT6FF088ik8CKF7p7BMPVijiv7QG2iamlP3ROlcP6"
+    },
+    "id": "g-17ef0139ef8b",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "16c68a6f26e21794dae528871836b8a5ec74f2327741d9ab358af40a6bdd5d87",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3074,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "confidence": 1,
+       "evidence": [
+        "File 'healthcare.eligibility/elig_20261021.csv' was quarantined with reasons: 'FILE.BAD_ROW_RATIO' and 'VALUE.NOT_ALLOWED:plan_code'.",
+        "Records with quarantine_id 2 and 3 failed the contract check because 'plan_code is not one of ['HMO', 'PPO', 'EPO', 'HDHP']'."
+       ],
+       "incident_id": 1,
+       "quarantine_ids": [
+        1,
+        2,
+        3
+       ],
+       "root_cause": "quarantined_records",
+       "summary": "The file 'healthcare.eligibility/elig_20261021.csv' was quarantined because it contained records with invalid 'plan_code' values that do not conform to the data contract. Additionally, the file triggered a 'FILE.BAD_ROW_RATIO' violation, leading to the rejection of the entire file."
+      },
+      "id": "call_779322",
+      "name": "report_diagnosis"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TwJgWg3EhN3e/vTknGgzkyDlFMc7kPH1ip3gC/aZv1ZKwc0sfiYIx3yfoO0D+Zw26R8sLQgIsjLipe+C0GrBQPjTq4zJk9jVHEaPJIS0z0jfySHCfoOJ0j0SdctPN/vDu6cI5ZhLjIzmDa78F"
+    },
+    "id": "g-2d2bac2685c7",
+    "input": {
+     "confidence": 1,
+     "evidence": [
+      "File 'healthcare.eligibility/elig_20261021.csv' was quarantined with reasons: 'FILE.BAD_ROW_RATIO' and 'VALUE.NOT_ALLOWED:plan_code'.",
+      "Records with quarantine_id 2 and 3 failed the contract check because 'plan_code is not one of ['HMO', 'PPO', 'EPO', 'HDHP']'."
+     ],
+     "incident_id": 1,
+     "quarantine_ids": [
+      1,
+      2,
+      3
+     ],
+     "root_cause": "quarantined_records",
+     "summary": "The file 'healthcare.eligibility/elig_20261021.csv' was quarantined because it contained records with invalid 'plan_code' values that do not conform to the data contract. Additionally, the file triggered a 'FILE.BAD_ROW_RATIO' violation, leading to the rejection of the entire file."
+    },
+    "name": "report_diagnosis",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "100afabcc0156b96eeb18d9d905c75296bc0ea0edef942f9067f283c277e4e6e",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3526,
+   "output_tokens": 213
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "query": "quarantined_records"
+      },
+      "id": "call_687645",
+      "name": "search_runbooks"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TOowd8tLf7hLFMOzkMtnsnIZFG7oUZif5xxfDIR7MKKUCuiJuGgX0x1OPXVBFCTDQfe6iJ+WR3Kugf1q4lbaLp+dbvQJpzkdNWAV8dm6jRxPtNUVMJ0Ypjp+7VZl8ufbiadvEHtfy8dOPWbw3"
+    },
+    "id": "g-c51a9c78258b",
+    "input": {
+     "query": "quarantined_records"
+    },
+    "name": "search_runbooks",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "c6f38bff8a778115aae9023d8d0ecb18f35e021e58c89a00fd1f71b688209c7a",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3776,
+   "output_tokens": 21
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1,
+       "runbook_id": "03-code-values",
+       "steps": [
+        "Review the quarantined records to confirm if the 'plan_code' values are valid updates from the vendor that were not yet reflected in the contract.",
+        "If these codes should be supported, update the data contract for the 'healthcare.eligibility' feed to include the new 'plan_code' values.",
+        "Request that the vendor resend the file once the contract update has been processed."
+       ]
+      },
+      "id": "call_902688",
+      "name": "propose_runbook_steps"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TeW97psUNeoHmM+nEL9HMQougI9bAgwUIY8lS+KWkbw8NF4hJRvFs6sAbfXWUXxR4I1vf1Mctf+50VK3qJarRIYNjfAVXFavhG0Hzy39yZ5fAZhSX76xx7dWWtN1o2COW0fPhBNwA0qk+X9Y5"
+    },
+    "id": "g-55f304b09e41",
+    "input": {
+     "incident_id": 1,
+     "runbook_id": "03-code-values",
+     "steps": [
+      "Review the quarantined records to confirm if the 'plan_code' values are valid updates from the vendor that were not yet reflected in the contract.",
+      "If these codes should be supported, update the data contract for the 'healthcare.eligibility' feed to include the new 'plan_code' values.",
+      "Request that the vendor resend the file once the contract update has been processed."
+     ]
+    },
+    "name": "propose_runbook_steps",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "f11000612f489a901f2bbba40a32ed2092d4240971493f240bbe1dcfbfd0de67",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 4389,
+   "output_tokens": 121
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The incident 1 involving `healthcare.eligibility` is due to `quarantined_records`. The file `elig_20261021.csv` was quarantined because it failed the contract validation: the `plan_code` values (e.g., beyond the accepted `['HMO', 'PPO', 'EPO', 'HDHP']`) were invalid, triggering `VALUE.NOT_ALLOWED:plan_code`. Furthermore, the file failed the bad row ratio threshold, leading to a `FILE.BAD_ROW_RATIO` violation.\n\nI have reported the diagnosis and proposed steps based on Runbook 3 for handling unexpected code values.",
+     "thoughtSignature": "EnMKcQFpFH0TrzwDa2LFbY0bGOTV/rlRJSKDFhjJmuHdYR4l2hPyR9WvMbJkHYZ+MxHSNjHYgDqFRKO/r4D9p4nBY/Bt4GPOQrUMsa/Nsv6MerEXJ41zxXx2bn4b1A6pXRBThdpgRBvr0i3MMl7mj+TlzHxV"
+    },
+    "text": "The incident 1 involving `healthcare.eligibility` is due to `quarantined_records`. The file `elig_20261021.csv` was quarantined because it failed the contract validation: the `plan_code` values (e.g., beyond the accepted `['HMO', 'PPO', 'EPO', 'HDHP']`) were invalid, triggering `VALUE.NOT_ALLOWED:plan_code`. Furthermore, the file failed the bad row ratio threshold, leading to a `FILE.BAD_ROW_RATIO` violation.\n\nI have reported the diagnosis and proposed steps based on Runbook 3 for handling unexpected code values.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "cb896c2d2acbe1292b20be154d94376c6524863f8150b099dc546a4b69067f51",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 4567,
+   "output_tokens": 140
+  }
+ }
+]

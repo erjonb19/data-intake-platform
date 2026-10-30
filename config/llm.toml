@@ -9,17 +9,12 @@ api_key_env = "ANTHROPIC_API_KEY"
 thinking = "adaptive"
 effort = "medium"
 
-# Tried in order on rate limits, outages, or a missing key. Evals run against each.
+# Tried in order on rate limits, outages, or a missing key, per worker step (Stage 10,
+# S10.1: dip.agents.llm.Failover). Evals run against each.
 [[fallback]]
 provider = "gemini"
 # Checked 2026-10-23: gemini-2.5-flash is closed to new users; this one answers (free tier).
 model = "gemini-3.1-flash-lite"
 api_key_env = "GEMINI_API_KEY"
 
-[[fallback]]
-provider = "groq"
-api_key_env = "GROQ_API_KEY"
-
-[[fallback]]
-provider = "openrouter"
-api_key_env = "OPENROUTER_API_KEY"
+# Gemini is the only fallback (decisions log, 2026-10-23): no Groq or OpenRouter client.

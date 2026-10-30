@@ -114,7 +114,7 @@ def test_a_run_records_the_chain_and_a_failure_stays_on_its_incident(warehouse):
         }
 
     s = chain_job.run(warehouse.conn, env=env, runner=runner)
-    assert calls == [(a, "gemini"), (b, "gemini")]
+    assert calls == [(a, ("gemini",)), (b, ("gemini",))]
     assert s["done"] == [a] and s["failed"] == [b]
     got = rows(
         warehouse,
@@ -145,3 +145,18 @@ def test_closed_incidents_are_not_claimed_and_the_limit_holds(warehouse):
     second = chain_job.claim(warehouse.conn, limit=2)
     assert [i for i, _, _ in second] == [ids[3]]
     assert chain_job.claim(warehouse.conn, limit=2) == []
+
+
+def test_the_row_says_which_provider_answered_each_step(warehouse):
+    """S10.1: a chain that fell back to the free provider says so on its row."""
+    a = _open(warehouse, "healthcare.eligibility", "FILE.QUARANTINED", "elig_20261021.csv")
+
+    def runner(conn, incident_id, env_, providers):
+        assert providers == ("anthropic", "gemini")
+        return {"chain_id": "chain-fb", "diagnosis": {"root_cause": "quarantined_records"},
+                "providers": {"incident": "anthropic", "triage": "gemini"}}  # fmt: skip
+
+    env = {**MCP, "ANTHROPIC_API_KEY": "a", "GEMINI_API_KEY": "g"}
+    assert chain_job.run(warehouse.conn, env=env, runner=runner)["done"] == [a]
+    assert rows(warehouse, "select provider from ops.agent_run") == [
+        ("incident:anthropic triage:gemini",)]  # fmt: skip

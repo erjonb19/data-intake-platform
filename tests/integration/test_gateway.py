@@ -180,3 +180,20 @@ def test_a_decision_record_cannot_be_rewritten(page, warehouse):
         refused = pytest.raises(psycopg.errors.RaiseException, match="cannot be rewritten")
         with approver_conn() as conn, conn.cursor() as cur, refused:
             cur.execute(sql, (approval_id,))
+
+
+def test_a_proposal_from_a_chain_shows_the_provider_it_ran_on(page, warehouse):
+    """S10.1: a proposal made on the free fallback is labelled with its provider."""
+    from dip.incidents import open_incident
+
+    with warehouse.conn.cursor() as cur:
+        iid = open_incident(cur, "healthcare.eligibility", "DAG.FAILED", "a task failed")
+        cur.execute("insert into ops.agent_run (incident_id, status, chain_id, provider)"
+                    " values (%s, 'done', 'chain-fb', 'incident:anthropic triage:gemini')",
+                    (iid,))  # fmt: skip
+    warehouse.conn.commit()
+    a = approvals.create(warehouse.conn, "triage", "chain-fb/triage", "discard",
+                         {"group_id": "g", "quarantine_ids": [1]})  # fmt: skip
+    b = _propose(warehouse)  # a person's own `dip triage run`: no chain
+    assert page.get(f"/api/approvals/{a}").json()["provider"] == "incident:anthropic triage:gemini"
+    assert page.get(f"/api/approvals/{b}").json()["provider"] is None

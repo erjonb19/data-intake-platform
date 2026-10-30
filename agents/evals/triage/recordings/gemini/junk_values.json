@@ -1,0 +1,268 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {},
+      "id": "call_750782",
+      "name": "list_quarantine_groups"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T6qtOarqcJiVUrrCORk/JCP5L+W7VJkkYmiRfATvFl92/Wp6scAVXqVUSLqsl5jaFtFA/+ZnbjEKiec0YcAzJvRx4OgMHq2LWNYJDkYCJP7dqTKjuzmjww9k+F6JjFscEmfYVP2oNru7bRGNq"
+    },
+    "id": "g-b3a51c8bb892",
+    "input": {},
+    "name": "list_quarantine_groups",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "61ac7cb38720598f6c1b41aa62b765935ac757b56ab027e69d845ad5b9c97185",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1719,
+   "output_tokens": 13
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.eligibility"
+      },
+      "id": "call_774140",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TYgxv0U8ukwj2CxOjyxuaWkmwuf2MPJCH66sPkTxqxa0zhbyomrY2g4nnDKhTA69A+hyIT4RXeoAh2BhZbSSit4omzVvWhQKx1/btUQ66Yy/TCQk9/+egDhWOWNoOEsESXJHyTNW26Wm02nkp"
+    },
+    "id": "g-3c3a55b8f4b1",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "8a0e8f9806408825b0215c142d441efdf9d9d784b15c25c948f8e1ffcec30121",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2246,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code"
+      },
+      "id": "call_867059",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TAGM7+BFHtEI8stlnq8sThNe9AoFCer+ZIvbdDW4RfkCpdGMUAfFjRIWFDY5ww0xx4otUDMz/afpO2fTjBlFgdNaVpIOzsOrkg0wO1SF63p5/vm+jD7nVT2fwqMvyYlHTe+hx5FO142utNY3t"
+    },
+    "id": "g-e937b24fc783",
+    "input": {
+     "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "93a280089b09c894e8752ef94b93855b1edb60f1d2bb2694b36e615f5bd9d9f8",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2698,
+   "output_tokens": 34
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|VALUE.TYPE:dob"
+      },
+      "id": "call_638102",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TXHMIteKnuZdP9yobAzmabKm62oDOCmCAm1NWhF1jgVdSEFz8Du+ZGweNZUvxFvEnRH7gkZEWk0WVckmB346B2JNhkH7RUvHwRkhJO4UGvaM+D58I2A2M4jKK7WT0cw3c70kCXWW6twBkKfjj"
+    },
+    "id": "g-ff26d3052caa",
+    "input": {
+     "group_id": "healthcare.eligibility|VALUE.TYPE:dob"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "a2b09756930c67e9df8fae5735515cb4806f551ddc5d18c2960a25e94e6ea504",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2927,
+   "output_tokens": 30
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "action": "request_resend",
+       "confidence": 1,
+       "group_id": "healthcare.eligibility|FILE.BAD_ROW_RATIO",
+       "message_to_vendor": "The file 'elig_junk.csv' contains multiple invalid records (invalid dob and plan_code) exceeding our quality threshold. Please review the data format and resend a corrected file.",
+       "quarantine_ids": [
+        1
+       ],
+       "rationale": "The file has a row error ratio exceeding the 0.05 limit defined in the data contract. The issue is due to specific invalid records (invalid dob and plan_code) within the file.",
+       "root_cause": "invalid_values"
+      },
+      "id": "call_1096076",
+      "name": "propose_operation"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TL0719XmtQmIPoKwxvEaGh3qnLwY8rWHbBJtrU0I08cbhEXp6uwKDIPOc2x25M9VOuv4p8MYxtudhqSyCG2h51cMK35kPHLz8SKWvPXsgYC9iSRIZIC8jpxXAIkOm40+A0DkXaDAXU5BuFMTC"
+    },
+    "id": "g-3aa3ba873e56",
+    "input": {
+     "action": "request_resend",
+     "confidence": 1,
+     "group_id": "healthcare.eligibility|FILE.BAD_ROW_RATIO",
+     "message_to_vendor": "The file 'elig_junk.csv' contains multiple invalid records (invalid dob and plan_code) exceeding our quality threshold. Please review the data format and resend a corrected file.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "The file has a row error ratio exceeding the 0.05 limit defined in the data contract. The issue is due to specific invalid records (invalid dob and plan_code) within the file.",
+     "root_cause": "invalid_values"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "1c2b90162fbd4fd0cb67fb8ecb7b8f18d1a66f5bd43ff2498433d3feec9fc851",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3124,
+   "output_tokens": 155
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "action": "request_resend",
+       "confidence": 1,
+       "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code",
+       "message_to_vendor": "The plan_code 'HMDP' is not supported. Please use one of the valid codes: HMO, PPO, EPO, or HDHP. Please correct and resend.",
+       "quarantine_ids": [
+        3
+       ],
+       "rationale": "The record contains an invalid 'plan_code' (HMDP) which is not permitted by the data contract.",
+       "root_cause": "invalid_values"
+      },
+      "id": "call_523817",
+      "name": "propose_operation"
+     },
+     "thoughtSignature": "EnMKcQFpFH0Tv1r5wxdSn6J3mAUhHucUJDlUCkIz7YVo1YB90OoHZHMLiFXuNkS0PBt6x5pyeHyXP/qi7RM5sDJ5UYiVcS1d1QhPp8ekhPRt3oEbI5pxOfyrK+n57EozVZZok4VyzYBbINUxdmRRppsrYh/t"
+    },
+    "id": "g-442f1bc35283",
+    "input": {
+     "action": "request_resend",
+     "confidence": 1,
+     "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code",
+     "message_to_vendor": "The plan_code 'HMDP' is not supported. Please use one of the valid codes: HMO, PPO, EPO, or HDHP. Please correct and resend.",
+     "quarantine_ids": [
+      3
+     ],
+     "rationale": "The record contains an invalid 'plan_code' (HMDP) which is not permitted by the data contract.",
+     "root_cause": "invalid_values"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "c8fb89c68d3c726d5b456bfc7a5917c1e78fa1905e6917c77addd5653d1308b4",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3314,
+   "output_tokens": 137
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "action": "request_resend",
+       "confidence": 1,
+       "group_id": "healthcare.eligibility|VALUE.TYPE:dob",
+       "message_to_vendor": "The 'dob' column contains invalid data ('N/A'). Please ensure all dates of birth are in YYYY-MM-DD format and resend.",
+       "quarantine_ids": [
+        2
+       ],
+       "rationale": "The record contains an invalid 'dob' ('N/A') which fails the date type requirement in the data contract.",
+       "root_cause": "invalid_values"
+      },
+      "id": "call_943258",
+      "name": "propose_operation"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T3AIgVsKwpBzhvXyaIdIKwnFnUA9orT5rng7HL9Iri/T5dj8jJOWbUFyYNV8Qmz0K5IKk9DWbC3fj4IfSQIXM073LTG8lpbh10JE5GresLz9rmo90pdfpTocUfHlTx2b5JT0ByY/bTelLsKou"
+    },
+    "id": "g-59baa8bfa2cc",
+    "input": {
+     "action": "request_resend",
+     "confidence": 1,
+     "group_id": "healthcare.eligibility|VALUE.TYPE:dob",
+     "message_to_vendor": "The 'dob' column contains invalid data ('N/A'). Please ensure all dates of birth are in YYYY-MM-DD format and resend.",
+     "quarantine_ids": [
+      2
+     ],
+     "rationale": "The record contains an invalid 'dob' ('N/A') which fails the date type requirement in the data contract.",
+     "root_cause": "invalid_values"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "fedf08b689d419a8b415c25737a0a0b152b2aa037f265ebf744f20e674fa4520",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3486,
+   "output_tokens": 130
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The quarantine has been triaged. Below is the summary of the actions proposed:\n\n*   **healthcare.eligibility|FILE.BAD_ROW_RATIO**: `request_resend` - The file exceeds the bad row threshold due to invalid values; requested a correction and resend.\n*   **healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code**: `request_resend` - The record uses an unsupported plan code ('HMDP'); requested a correction and resend.\n*   **healthcare.eligibility|VALUE.TYPE:dob**: `request_resend` - The record contains an invalid 'dob' value ('N/A') instead of a valid date; requested a correction and resend.",
+     "thoughtSignature": "EnMKcQFpFH0TxqOxGvPWiOQSyFikXiWzYvYoufq7Z2m+nUhJ1nyv4rzFNyAToMOPTRuPIKGgYGl5wUKFQGY7rrQltVY78PiS2QVI8BrFVMXTKUnsHJH2+pzFR4VOXV1G8LHsrog8EP2mpAefDV9Eccbz38L7"
+    },
+    "text": "The quarantine has been triaged. Below is the summary of the actions proposed:\n\n*   **healthcare.eligibility|FILE.BAD_ROW_RATIO**: `request_resend` - The file exceeds the bad row threshold due to invalid values; requested a correction and resend.\n*   **healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code**: `request_resend` - The record uses an unsupported plan code ('HMDP'); requested a correction and resend.\n*   **healthcare.eligibility|VALUE.TYPE:dob**: `request_resend` - The record contains an invalid 'dob' value ('N/A') instead of a valid date; requested a correction and resend.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "a720f1c132ce6e8b79970508d3a42eb283f5c030a77003a928fa58b558272e1e",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 3651,
+   "output_tokens": 153
+  }
+ }
+]
