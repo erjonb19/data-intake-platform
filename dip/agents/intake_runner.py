@@ -45,7 +45,7 @@ def requeue(conn: Any, job_id: int, reason: str) -> None:
     with conn.cursor() as cur:
         cur.execute(
             "update ops.intake_job set status = 'queued', claimed_at = null,"
-            " reason = %s where job_id = %s",
+            " reason = %s where job_id = %s and status = 'running'",
             (reason[:2000], job_id),
         )
     conn.commit()
@@ -100,7 +100,9 @@ def run(
                 requeue(conn, job["job_id"], f"no provider answered: {exc}")
                 summary["done"][job["job_id"]] = "queued"
                 break
-            finish(conn, job["job_id"], "failed", reason=f"NoProvider: {exc}")
+            finish(
+                conn, job["job_id"], "failed", reason=f"NoProvider: {exc}", dag_run_id=dag_run_id
+            )
             summary["done"][job["job_id"]] = "failed"
             continue
         except Exception as exc:  # the team's errors are the record, not a crash
@@ -110,6 +112,7 @@ def run(
                 job["job_id"],
                 "failed",
                 reason=f"{type(exc).__name__}: {exc}\n{traceback.format_exc()[-1500:]}",
+                dag_run_id=dag_run_id,
             )
             summary["done"][job["job_id"]] = "failed"
             continue
@@ -123,6 +126,7 @@ def run(
             chain_id=state.get("chain_id"),
             provider=provider or None,
             approval_id=state.get("approval_id"),
+            dag_run_id=dag_run_id,
         )
         summary["done"][job["job_id"]] = status
     return summary

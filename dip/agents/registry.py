@@ -104,8 +104,7 @@ def args_sha256(args: dict[str, Any]) -> str:
 # The incident -> triage chain's steps (dip/agents/graph.py): their run ids are
 # "<chain id>/<step>", so the audit log can carry the chain id as its own column.
 # The incident chain (Stage 7) and the intake chain (Stage 10, S10.4).
-CHAIN_STEPS = ("incident", "handoff", "triage", "profile", "map", "validate", "review",
-               "propose")
+CHAIN_STEPS = ("incident", "handoff", "triage", "profile", "map", "validate", "review", "propose")
 
 
 def chain_of(run_id: str | None) -> str | None:

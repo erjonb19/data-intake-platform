@@ -9,6 +9,13 @@ It can only Read and Propose. Like the triage agent, it is an MCP client with it
 and the server's policy (`agents/policies/contract_author.yaml`) decides and audits every
 call.
 
+**From Stage 10 (S10.4) it is the map worker of the intake team** ([intake-team.md](intake-team.md)).
+It no longer reads the file: it reads the profile the platform built from it
+(`get_intake_profile`, no vendor text), writes and validates a candidate, and submits it
+(`submit_candidate`). The validator checks it again in code, and the intake orchestrator
+proposes it; `propose_contract_pr` is no longer in its policy. The tool table below
+describes the Stage 5 agent; `diff_schema` is now the profile worker's.
+
 ## The human-approval step: a local branch, then `gh pr create`
 
 Decided 2026-10-23: there is no GitHub App token, and the agent never pushes, opens a PR or

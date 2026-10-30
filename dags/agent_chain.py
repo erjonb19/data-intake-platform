@@ -120,8 +120,14 @@ def agent_chain():
         print(f"onboarding: queued {out['queued']}, feed already open {out['already_open']}")
         python = os.environ.get("DIP_AGENT_PYTHON", "/opt/airflow/agent-venv/bin/python")
         env = {**os.environ, "DIP_WAREHOUSE_DSN": connection_dsn(hook.get_connection("warehouse"))}
-        p = subprocess.run([python, "-m", "dip.agents.intake_runner", "--limit", "1"], env=env,
-                           capture_output=True, text=True)  # fmt: skip
+        cmd = [python, "-m", "dip.agents.intake_runner", "--limit", "1"]
+        try:
+            from airflow.sdk import get_current_context
+
+            cmd += ["--dag-run-id", get_current_context()["dag_run"].run_id]
+        except Exception:  # noqa: BLE001 - outside a run, no claim id
+            pass
+        p = subprocess.run(cmd, env=env, capture_output=True, text=True)
         print(p.stdout[-4000:], p.stderr[-4000:], sep="\n")
         if p.returncode != 0:
             raise RuntimeError(f"intake_runner exited {p.returncode}")
