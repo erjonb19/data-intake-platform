@@ -342,6 +342,37 @@ CREATE TABLE IF NOT EXISTS ops.intake_job (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS intake_job_one_open ON ops.intake_job (feed)
     WHERE status IN ('queued', 'running');
+-- (S10.4) The job's profile: facts about the file built in code (dip/agents/intake_tools.py)
+-- with the profile worker's labels; the only view of the file the map worker gets. And
+-- (S10.5) the reviewer's verdict. Only when missing (ALTER locks even when it exists).
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'intake_job' AND column_name = 'profile') THEN
+        ALTER TABLE ops.intake_job ADD COLUMN profile jsonb, ADD COLUMN review jsonb;
+    END IF;
+END $$;
+
+-- Stage 10 (S10.4): candidate contracts of an intake job, kept by the server (they were in
+-- the MCP server's memory before). The map worker's validate_contract records one; the
+-- validator's validate_contract and check_dbt_models record their own verdicts on it; only
+-- the intake orchestrator may propose one, and only after the validator passed it in the
+-- same chain while the job runs (dip/agents/author_tools.py, propose_contract_pr).
+CREATE TABLE IF NOT EXISTS ops.contract_candidate (
+    chain_id         text        NOT NULL,
+    candidate_id     text        NOT NULL,
+    created_at       timestamptz NOT NULL DEFAULT now(),
+    feed             text        NOT NULL,
+    file_sha256      text        NOT NULL,
+    contract_yaml    text        NOT NULL,
+    created_by       text        NOT NULL,
+    submitted        boolean     NOT NULL DEFAULT false,
+    rationale        text,
+    validator_valid  boolean,
+    dbt_ok           boolean,
+    review           jsonb,
+    PRIMARY KEY (chain_id, candidate_id)
+);
 
 -- The metrics exporter's read access (S3.2, dip/metrics.py): only the ops columns its
 -- queries name, on whichever of its tables exist yet. Called here, and again where
@@ -425,6 +456,22 @@ BEGIN
         GRANT SELECT, INSERT ON ops.approvals TO dip_mcp;
         GRANT UPDATE (status, executed_by, executed_at, result) ON ops.approvals TO dip_mcp;
         GRANT USAGE ON SEQUENCE ops.approvals_approval_id_seq TO dip_mcp;
+    END IF;
+    -- The intake team (Stage 10, S10.4): samples to read, the job's profile and review to
+    -- record, and candidate contracts with the validator's and reviewer's verdicts. It
+    -- cannot change a job's status or claim one (the intake runner does, as the warehouse
+    -- owner), and nothing here writes a contract: a proposal is an approvals row.
+    IF to_regclass('ops.sample_file') IS NOT NULL THEN
+        GRANT SELECT ON ops.sample_file TO dip_mcp;
+    END IF;
+    IF to_regclass('ops.intake_job') IS NOT NULL THEN
+        GRANT SELECT ON ops.intake_job TO dip_mcp;
+        GRANT UPDATE (profile, review) ON ops.intake_job TO dip_mcp;
+    END IF;
+    IF to_regclass('ops.contract_candidate') IS NOT NULL THEN
+        GRANT SELECT, INSERT ON ops.contract_candidate TO dip_mcp;
+        GRANT UPDATE (submitted, rationale, validator_valid, dbt_ok, review)
+            ON ops.contract_candidate TO dip_mcp;
     END IF;
 END $$;
 SELECT ops.grant_mcp_reader();

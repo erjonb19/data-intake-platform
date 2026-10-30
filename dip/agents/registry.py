@@ -103,14 +103,16 @@ def args_sha256(args: dict[str, Any]) -> str:
 
 # The incident -> triage chain's steps (dip/agents/graph.py): their run ids are
 # "<chain id>/<step>", so the audit log can carry the chain id as its own column.
-CHAIN_STEPS = ("incident", "handoff", "triage")
+# The incident chain (Stage 7) and the intake chain (Stage 10, S10.4).
+CHAIN_STEPS = ("incident", "handoff", "triage", "profile", "map", "validate", "review", "propose")
 
 
 def chain_of(run_id: str | None) -> str | None:
     """The chain a run id belongs to, if it is a chain step's. Like the run id it comes
     from the client: a label for following a chain, not a security boundary."""
     chain, sep, step = (run_id or "").rpartition("/")
-    step = step.partition("@")[0]  # a step restarted on another provider (Stage 10, S10.1)
+    # A step restarted on another provider (`@gemini`, S10.1) or run again (`#2`, S10.4).
+    step = step.partition("@")[0].partition("#")[0]
     return chain if sep and chain and step in CHAIN_STEPS else None
 
 

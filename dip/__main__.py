@@ -386,32 +386,36 @@ def _break_loop(args: argparse.Namespace, dsn: str) -> int:
 
 def _contracts_eval(args: argparse.Namespace) -> int:
     from dip.agents import author_evals
-    from dip.agents.llm import AnthropicLLM, Recorder, Recording
+    from dip.agents.llm import Recorder, Recording
 
     _load_dotenv()
     dsn = os.environ["DIP_EVAL_DSN"]
     cases = [c for c in author_evals.load_cases() if not args.case or c["name"] in args.case]
     work = Path("data/tmp/contract-author-eval")
     results = []
+    base = _recordings(author_evals.RECORDINGS, args)
     for case in cases * max(1, args.repeat if args.live else 1):
-        path = author_evals.RECORDINGS / f"{case['name']}.json"
-        if args.provider == "gemini":
-            from dip.agents.gemini import GeminiLLM
+        # Stage 10 (S10.4): the intake team's model steps, a recording each: profile, map,
+        # and map2 when the validator sent the candidate back.
+        recorders: dict[str, Recorder] = {}
+        runs: dict[str, int] = {}
 
-            if not args.live:
-                parser_error = "--provider gemini runs live only (recordings are Claude's)"
-                raise SystemExit(parser_error)
-            llm = GeminiLLM()
-        elif args.record:
-            llm = Recorder(AnthropicLLM())
-        else:
-            llm = AnthropicLLM() if args.live else Recording(path)
-        r = author_evals.run_case(case, dsn, llm, work)
-        if args.record:
-            llm.save(path)
+        def llm_for(step: str, name: str = case["name"], recorders: dict = recorders,
+                    runs: dict = runs) -> Any:  # fmt: skip
+            runs[step] = runs.get(step, 0) + 1
+            key = step + (str(runs[step]) if runs[step] > 1 else "")
+            if args.record:
+                recorders[key] = Recorder(_live_llm(args))
+                return recorders[key]
+            return _live_llm(args) if args.live else Recording(base / f"{name}_{key}.json")
+
+        r = author_evals.run_case(case, dsn, llm_for, work)
+        for key, rec in recorders.items():
+            rec.save(base / f"{case['name']}_{key}.json")
         results.append(r)
         print(f"{'PASS' if r.passed else 'FAIL'} {case['name']}: {r.turns} turns,"
-              f" proposed {r.proposed}, loosening errors {len(r.loosening_errors)},"
+              f" proposed {r.proposed} ({r.outcome}), loosening errors"
+              f" {len(r.loosening_errors)}, leaked {r.leaked or 'none'},"
               f" violations {r.violations or 'none'}", file=sys.stderr)  # fmt: skip
     rep = author_evals.report(results)
     args.out.mkdir(parents=True, exist_ok=True)

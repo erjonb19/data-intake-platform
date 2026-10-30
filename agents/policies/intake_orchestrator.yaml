@@ -1,0 +1,17 @@
+# Policy for the intake orchestrator (Stage 10, S10.4; PLAN.md section 8.12). Code, not a
+# model: the intake graph proposes, under this key, the one candidate the map worker
+# submitted and the validator passed. The server checks both before it writes the
+# approvals row; a person approves it, and nothing is written before they do.
+agent: intake_orchestrator
+description: >
+  Proposes a validated contract (with its generated dbt models) for a person to approve.
+max_tier: propose
+mask_phi: true
+tools:
+  - propose_contract_pr
+limits:
+  max_calls_per_run: 3
+  max_calls_per_hour: 60
+  propose_contract_pr:
+    max_per_run: 1
+    max_per_hour: 30

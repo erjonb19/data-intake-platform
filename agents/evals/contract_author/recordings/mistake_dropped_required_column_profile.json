@@ -1,0 +1,156 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01191ZS1EDwNn2p3bdHySSZd",
+    "input": {
+     "feed": "healthcare.eligibility",
+     "file_sha256": "636ea6995bac47bbbe82b9279a0b0069f88523d82a98f55a7c5896c2acca0640"
+    },
+    "name": "diff_schema",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01DhHHjxDU6L6jPFtdygk4ki",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "c85fb911d59964ebe03dac1a7283247e65c90f47b83c2227193039ace40c1c20",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2051
+   },
+   "cache_creation_input_tokens": 2051,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 177,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSjwkKEAgTGAI4AUIIdGhpbmtpbmcSDDVn8CwzV2SiTQnzhRoMnv1OIZyuGaLRxA+/IjAOYeR1Yr58Sf3NFjepEbhYuCDIxCJ4QvwnftFAtexCNS1BfJi2yYFUVVu9jFw+gtkqrAiGGfVC77iYJyMB6u0Uzi+3D4qAOtzN/nldSq67xneitYFB+LYMkGItMdRp9UmN0oMicxMSPNJuYAScd27jOJ0HbQPecsnnbtxjSvS/TZluHijWw04Et0ecW7l7foEcAKPgje5HDNcPvgGSdh7H/6gu9EQ7XId4PUjSFMHskeUi1+XvWNuJnT248OEahMtbNtoIzlsqRzb9BxoOgVOHas3SR5xhopOb8KHOpnVsGa1UW0posA6Yds9l29e8gsGBLohV7SWtfJkb6dh9tVwe4wSDtvYvwEVqI8p2r2tmsV/+dddTF8+Zh91IbmHFAg+y45Jgxuhry6G08QkS8gRTROIfLrJYCJwo6q3yL9zdRd/lzMiLqgntehgeUY12Sp1Kq2pBdSSZ+EuUz2NcDKJnyg4RpBcmfiflZ+enmoYxNqwvdqO2SOyCclAagoiPZbv7dAqgobP7oExJUEPpXSVRLAXFldF1llJ+V6klC2ok1Um82zkSSKun4QnXo8EN/jvx2u7wJGZK/pPz7A58epEGp6W01E6HCgwRO376ZkHsxrV+9lGxZ5uAZYvW1+EobOqymdtsroJbJlXH6baRsbIKBUYSVH1uQBOsrib2Tut54rsz/KKj5Oub6+sRjxwveiu2u5gvUwWZyWEULgh6/fpOWT0YCIkCfwzJrIFPtlbpmPlbQ3f/hNwHAhVANvPIFjeYrrt53P0OTjFod+JkxmE1osFuqUYBj8PVuqKfvRbHHH3XoAside4woIMJTMhnfodpBI1c0/Y0E9i9erRDsexA+9oapf8nsiKSR8Zfu/bCaZTsSDwZkyhI1oaV+0bdXk/T1YjU5vCfVPaSBS0dLOJeeFDBhG2MjpSPuDRzvcVoJq2URL9TOVUnHwoYRp3HThGCL81TgWNr+UmSzoBE8RTFkIvgF6kRIJWDyKrJ0AUmZjVmViFx3WPGgUqNH/cxs0oXOUXTV16qX+/cDqAt2BIcdu4f2zrKLBqzWCqn4ULIYZIlkD0M9gGaRmLGZZfAYGQiu6D83pIRub/sebAfjTBfrQiMVVLR1YqORMFKNk2lkRt/npZJ3AqjrbfDOatf29DYD4yrD8ju71v4sOm13gv2HduRwzRTC9Ym1C5Lr80G/WApkRpbZkID/5amDWrD0MbTwWJjjubQ8pm2DoDVThVHxyTcmfP/Iv2PmR/yYxjv8bl5x1JCBDBZ0neKjW15i4E4etim8+3WCoBpkNlPdbDeajTz5csQnr2IK+AhVWm1LEcBvvIXVo7RosnIL1ZLkhX09Ee92o8jgonwoLUb9W3wiHIQoXtEK229kC5H9KDC+CwbPJaGpMV9VbZySzUTKQfXkSbHRN+Y/fy/S7y3i5LqKG3oKdrH/6y3idwlzODuylaEpWTngXcC5zN+JJlTa47IcqSdbjRic7m+8Sx7yp0YAQ==",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01L194qAPMqZ18PD3wsWN28z",
+    "input": {
+     "columns": [
+      {
+       "column": "member_id",
+       "phi": true,
+       "role": "identifier"
+      },
+      {
+       "column": "first_name",
+       "phi": true,
+       "role": "name"
+      },
+      {
+       "column": "last_name",
+       "phi": true,
+       "role": "name"
+      },
+      {
+       "column": "dob",
+       "phi": true,
+       "role": "date"
+      },
+      {
+       "column": "sex",
+       "phi": false,
+       "role": "code"
+      },
+      {
+       "column": "plan_code",
+       "phi": false,
+       "role": "code"
+      },
+      {
+       "column": "coverage_end",
+       "phi": false,
+       "role": "date"
+      },
+      {
+       "column": "patient_ref",
+       "phi": true,
+       "role": "identifier"
+      }
+     ],
+     "job_id": 1
+    },
+    "name": "report_profile",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "05b97ce9b848dd04fdc2bbe5dd01d1115d314563f154d1f0f3ac21ad5d6fd860",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 1761
+   },
+   "cache_creation_input_tokens": 1761,
+   "cache_read_input_tokens": 2051,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 446,
+   "output_tokens_details": {
+    "thinking_tokens": 182
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "I labelled 8 columns for job 1 and reported them. `coverage_start` is in the contract but missing from this file, so it has no label.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "3a389cac3f805e773ee6914674538d546061bba4643e3ef24ac1a18d75c6e352",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 477
+   },
+   "cache_creation_input_tokens": 477,
+   "cache_read_input_tokens": 3812,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 46,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

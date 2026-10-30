@@ -1,25 +1,23 @@
-# Policy for the contract-author agent (Stage 5; PLAN.md sections 4.2 and 8.8). Enforced by
-# the tool registry behind the MCP server, never by the model; every call is audited.
+# Policy for the contract author, the intake team's map worker (Stage 5; Stage 10, S10.4;
+# PLAN.md sections 4.2, 8.8 and 8.12). Enforced by the tool registry behind the MCP server,
+# never by the model; every call is audited.
 agent: contract_author
 description: >
-  Reads a feed's contract, history and a file's observed schema; checks candidate
-  contracts; proposes one for a person to approve. Never acts: an approved proposal becomes
-  a local branch that the person publishes.
+  Writes a candidate contract from the job's profile (built by the platform; no vendor
+  text), validates it and submits it. It cannot see the file itself, propose to a person,
+  or act: the validator checks the candidate again and the orchestrator proposes it.
 max_tier: propose
 # The agent writes rules, not records: it never needs a PHI value.
 mask_phi: true
 tools:
+  - get_intake_profile
   - get_contract
   - get_contract_text
-  - get_feed_history
-  - list_quarantine_groups
-  - get_quarantine_sample
-  - diff_schema
   - validate_contract
-  - propose_contract_pr
+  - submit_candidate
 limits:
   max_calls_per_run: 40
   max_calls_per_hour: 400
-  propose_contract_pr:
+  submit_candidate:
     max_per_run: 2
-    max_per_hour: 20
+    max_per_hour: 40

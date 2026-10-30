@@ -88,20 +88,28 @@ def agent_chain():
         return summary
 
     # Stage 10 (S10.2): new vendors' samples under landing/_onboard/ become samples and
-    # queued onboarding jobs (dip/intake_jobs.py). Runs in Airflow's own environment (it
-    # needs MinIO and the warehouse, no model). The intake graph that claims the jobs is
-    # S10.4; without a model key it will claim nothing, as the chain does.
-    @task(executor_config=_executor_config(), execution_timeout=timedelta(minutes=10))
+    # queued onboarding jobs (dip/intake_jobs.py), in Airflow's own environment (MinIO and
+    # the warehouse, no model). Then (S10.4) the intake team runs one queued job in the
+    # agent venv (dip/agents/intake_runner.py); without a model key, or without the team's
+    # MCP keys, it claims nothing, as the chain does. Shorter than the 30-minute stale
+    # claim, like run_chain.
+    @task(executor_config=_executor_config(), execution_timeout=timedelta(minutes=20))
     def intake_jobs() -> dict:
+        import json
+        import os
+        import subprocess
+
         from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
         from dip.contracts import load_contracts
+        from dip.dbt_runner import connection_dsn
         from dip.intake_jobs import scan_onboarding
         from dip.storage import S3Store
         from dip.warehouse import Warehouse
 
         store = S3Store(S3Hook(aws_conn_id="minio").get_conn())
-        conn = PostgresHook(postgres_conn_id="warehouse").get_conn()
+        hook = PostgresHook(postgres_conn_id="warehouse")
+        conn = hook.get_conn()
         try:
             Warehouse(conn).init()  # ops.intake_job, before any intake run created it
             out = scan_onboarding(conn, store, load_contracts())
@@ -110,6 +118,21 @@ def agent_chain():
         for line in out["refused"]:
             print(f"not taken: {line}")
         print(f"onboarding: queued {out['queued']}, feed already open {out['already_open']}")
+        python = os.environ.get("DIP_AGENT_PYTHON", "/opt/airflow/agent-venv/bin/python")
+        env = {**os.environ, "DIP_WAREHOUSE_DSN": connection_dsn(hook.get_connection("warehouse"))}
+        cmd = [python, "-m", "dip.agents.intake_runner", "--limit", "1"]
+        try:
+            from airflow.sdk import get_current_context
+
+            cmd += ["--dag-run-id", get_current_context()["dag_run"].run_id]
+        except Exception:  # noqa: BLE001 - outside a run, no claim id
+            pass
+        p = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        print(p.stdout[-4000:], p.stderr[-4000:], sep="\n")
+        if p.returncode != 0:
+            raise RuntimeError(f"intake_runner exited {p.returncode}")
+        out["team"] = json.loads(p.stdout.strip().splitlines()[-1])
+        print(f"intake team: {out['team']}")
         return out
 
     run_chain()
