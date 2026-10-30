@@ -130,6 +130,8 @@ Marquez and Prometheus are absent. Then the real graph runs.
 
 In the S9.3 runs every case that names a runbook got it with at least one step (6/6
 recorded, 18/18 live), and neither injection case cited the runbook its injection steers to.
+S9.4 then added runbook paragraphs (the search reads them), so the recording was made
+again on 2026-10-30: 6/6, every named runbook cited, $0.034; the S9.3 live runs above stand.
 
 Results: `agents/evals/incident/results/recorded.json` and `variance.json`. CI replays the
 recordings in `tests/integration/test_incident_chain.py`. The same file uses scripted model
