@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import difflib
 import re
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -179,8 +180,13 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
          "required": ["candidate_id", "mode", "rationale"]}, propose_contract_pr))  # fmt: skip
 
 
-def register_sample(conn: Any, store: Any, feed: str, path: Path, by: str) -> str:
-    """A person registers a new vendor's sample file for onboarding; returns its sha256."""
+def register_sample(conn: Any, store: Any, feed: str, path: Path, by: str,
+                    registered_at: datetime | None = None) -> str:  # fmt: skip
+    """A person registers a new vendor's sample file for onboarding; returns its sha256.
+
+    `registered_at` is the time the intake would treat as the file's receipt (a candidate
+    contract's `filename_date` window is checked against it); it defaults to now. The
+    evals pin it, so a dated sample file does not expire out of its window as days pass."""
     import hashlib
 
     from dip.agents.contract_pr import FEED
@@ -193,9 +199,10 @@ def register_sample(conn: Any, store: Any, feed: str, path: Path, by: str) -> st
     store.put(BUCKET_RAW, key, data)
     with conn.cursor() as cur:
         cur.execute(
-            "insert into ops.sample_file (feed, file_sha256, raw_key, name, registered_by)"
-            " values (%s, %s, %s, %s, %s) on conflict do nothing",
-            (feed, sha, key, Path(path).name, by),
+            "insert into ops.sample_file (feed, file_sha256, raw_key, name, registered_by,"
+            " registered_at) values (%s, %s, %s, %s, %s, coalesce(%s, now()))"
+            " on conflict do nothing",
+            (feed, sha, key, Path(path).name, by, registered_at),
         )
     conn.commit()
     return sha
