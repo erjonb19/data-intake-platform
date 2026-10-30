@@ -51,7 +51,10 @@ def main() -> int:
     check(status == 200 and "<title>Approvals</title>" in page, "the page is served")
     status, rows = call("GET", "/api/approvals?status=all")
     check(status == 200 and isinstance(rows, list), f"list every proposal ({status})")
-    done = [r for r in rows if r["agent_id"] == "triage" and r["status"] == "executed"]
+    # The break loop's request_resend, which triage ran (S10.2's intake_jobs E2E leaves an
+    # executed propose_contract_change behind too, executed by a person).
+    done = [r for r in rows if r["agent_id"] == "triage" and r["status"] == "executed"
+            and r["action"] == "request_resend"]  # fmt: skip
     check(bool(done), "the break loop's executed request_resend is listed")
     if done:
         aid = done[0]["approval_id"]

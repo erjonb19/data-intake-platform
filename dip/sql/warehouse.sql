@@ -315,6 +315,34 @@ CREATE TABLE IF NOT EXISTS ops.sample_file (
     PRIMARY KEY (feed, file_sha256)
 );
 
+-- Stage 10 (S10.2): intake jobs for the multi-agent intake team (PLAN.md section 8.12).
+-- One row per contract to write: `onboard` for a new vendor's sample that landed under
+-- landing/_onboard/<pack>.<name>/, `drift` for a feed whose propose_contract_change a
+-- person approved and executed. The agent_chain DAG claims them one at a time (like
+-- ops.agent_run), or `dip contracts author` (cli) runs one directly. At most one open (queued
+-- or running) job per feed.
+CREATE TABLE IF NOT EXISTS ops.intake_job (
+    job_id        bigserial   PRIMARY KEY,
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    feed          text        NOT NULL,
+    mode          text        NOT NULL CHECK (mode IN ('onboard', 'drift')),
+    file_sha256   text        NOT NULL,
+    source        text        NOT NULL CHECK (source IN ('landing', 'handoff', 'cli')),
+    source_ref    text,
+    status        text        NOT NULL DEFAULT 'queued'
+        CHECK (status IN ('queued', 'running', 'proposed', 'no_change', 'revise',
+                          'rejected', 'failed', 'skipped')),
+    claimed_at    timestamptz,
+    finished_at   timestamptz,
+    dag_run_id    text,
+    chain_id      text,
+    provider      text,
+    approval_id   bigint,
+    reason        text
+);
+CREATE UNIQUE INDEX IF NOT EXISTS intake_job_one_open ON ops.intake_job (feed)
+    WHERE status IN ('queued', 'running');
+
 -- The metrics exporter's read access (S3.2, dip/metrics.py): only the ops columns its
 -- queries name, on whichever of its tables exist yet. Called here, and again where
 -- ops.incident (dip/sla.py) and ops.dq_results (dbt macro store_dq_results) are created.

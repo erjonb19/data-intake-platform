@@ -51,6 +51,15 @@ An onboarding sample is registered by a person:
 `python -m dip contracts sample <pack>.<feed> <file>`. This stores its raw copy and prints
 its sha256.
 
+**From Stage 10 (S10.2), a sample can also arrive on its own.** A new vendor's file put in
+MinIO under `landing/_onboard/<pack>.<feed>/` is registered the same way by the
+`agent_chain` DAG's `intake_jobs` task (every 5 minutes), removed from landing, and queued
+as an `onboard` job in `ops.intake_job`. The pack must already exist and the feed must not
+have a contract; any other key is left in place and logged. An executed
+`propose_contract_change` (triage's handoff) queues a `drift` job for the group's latest
+quarantined file. At most one job per feed is open. The intake team that runs the jobs is
+S10.4 (PLAN.md §8.12); until then, and always without a model key, jobs wait in the queue.
+
 ## What "loosening" means
 
 `dip.contract_author.loosening` compares the candidate with the current contract. Each of

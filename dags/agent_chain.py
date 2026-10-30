@@ -7,7 +7,10 @@ The task runs in the platform image (the agents' dependencies are in it) with th
 `dip-agent-chain` Secret as its environment: the in-cluster MCP URL, the incident and
 triage agents' keys, and, when a person has set one, a model key. Without a model key
 the task claims nothing and still succeeds: the cluster never needs a paid key to be
-healthy, and the incidents wait for one. Like every DAG here it starts paused."""
+healthy, and the incidents wait for one. Like every DAG here it starts paused.
+
+A second task, `intake_jobs` (Stage 10, S10.2), turns new vendors' samples under
+landing/_onboard/<pack>.<name>/ into queued onboarding jobs for the intake team."""
 
 from __future__ import annotations
 
@@ -84,7 +87,33 @@ def agent_chain():
         )
         return summary
 
+    # Stage 10 (S10.2): new vendors' samples under landing/_onboard/ become samples and
+    # queued onboarding jobs (dip/intake_jobs.py). Runs in Airflow's own environment (it
+    # needs MinIO and the warehouse, no model). The intake graph that claims the jobs is
+    # S10.4; without a model key it will claim nothing, as the chain does.
+    @task(executor_config=_executor_config(), execution_timeout=timedelta(minutes=10))
+    def intake_jobs() -> dict:
+        from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+        from dip.contracts import load_contracts
+        from dip.intake_jobs import scan_onboarding
+        from dip.storage import S3Store
+        from dip.warehouse import Warehouse
+
+        store = S3Store(S3Hook(aws_conn_id="minio").get_conn())
+        conn = PostgresHook(postgres_conn_id="warehouse").get_conn()
+        try:
+            Warehouse(conn).init()  # ops.intake_job, before any intake run created it
+            out = scan_onboarding(conn, store, load_contracts())
+        finally:
+            conn.close()
+        for line in out["refused"]:
+            print(f"not taken: {line}")
+        print(f"onboarding: queued {out['queued']}, feed already open {out['already_open']}")
+        return out
+
     run_chain()
+    intake_jobs()
 
 
 agent_chain()

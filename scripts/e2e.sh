@@ -110,6 +110,10 @@ MCP_URL="http://127.0.0.1:$MCP_PORT" MCP_READER_KEY="$(tf output -raw mcp_reader
 MCP_URL="http://127.0.0.1:$MCP_PORT" MCP_READER_KEY="$(tf output -raw mcp_reader_key)" \
   MCP_TRIAGE_KEY="$(tf output -raw mcp_triage_key)" "$py" "$REPO_ROOT/tests/e2e/break_loop.py"
 
+# Stage 10 (S10.2): intake jobs queued from a new vendor's sample under landing/_onboard/
+# (the agent_chain DAG's intake_jobs task) and from an executed propose_contract_change.
+MCP_URL="http://127.0.0.1:$MCP_PORT" MCP_READER_KEY="$(tf output -raw mcp_reader_key)"   MCP_TRIAGE_KEY="$(tf output -raw mcp_triage_key)" "$py" "$REPO_ROOT/tests/e2e/intake_jobs.py"
+
 # Stage 9 (S9.2): the approvals page, after the break loop left an executed approval and
 # a denied Act call behind. It runs as its own login (dip_approver).
 APPROVALS_PORT="${APPROVALS_PORT:-8081}"
