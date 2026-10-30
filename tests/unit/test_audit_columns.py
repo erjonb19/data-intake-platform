@@ -18,3 +18,6 @@ def test_approval_of_reads_args_then_the_result():
     assert approval_of({"approval_id": "12"}, None) == 12
     assert approval_of({}, ["not", "a", "dict"]) is None
     assert approval_of({"approval_id": "x"}, None) is None
+    assert approval_of({"approval_id": True}, {"approval_id": 3}) == 3
+    assert approval_of({"approval_id": 12.0}, None) == 12
+    assert approval_of({"approval_id": 12.5}, None) is None

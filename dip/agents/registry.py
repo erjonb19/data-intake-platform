@@ -120,6 +120,10 @@ def approval_of(args: dict[str, Any], result: Any) -> int | None:
     for source, key in ((args, "approval_id"), (result, "approval_id"),
                         (result, "pending_approval_id")):  # fmt: skip
         value = source.get(key) if isinstance(source, dict) else None
+        if isinstance(value, bool):  # True is an int in Python, never an approval id
+            continue
+        if isinstance(value, float) and value.is_integer():  # 12.0 from a model's JSON
+            return int(value)
         if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
             return int(value)
     return None
