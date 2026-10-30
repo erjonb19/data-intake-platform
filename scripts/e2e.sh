@@ -104,8 +104,17 @@ tf output -json profiles | grep -q '"observability"' && OBSERVABILITY=1
 MCP_URL="http://127.0.0.1:$MCP_PORT" MCP_READER_KEY="$(tf output -raw mcp_reader_key)" \
   OBSERVABILITY="$OBSERVABILITY" "$py" "$REPO_ROOT/tests/e2e/mcp_read.py"
 
-# Stage 4 (S4.5): one break-and-fix loop through the deployed stack, last: it closes the
+# Stage 4 (S4.5): one break-and-fix loop through the deployed stack: it closes the
 # eligibility feed's missing-column group (the corrected file loads, the entries are
 # superseded). Every scenario's model-driven loop runs on recordings in CI's test job.
 MCP_URL="http://127.0.0.1:$MCP_PORT" MCP_READER_KEY="$(tf output -raw mcp_reader_key)" \
   MCP_TRIAGE_KEY="$(tf output -raw mcp_triage_key)" "$py" "$REPO_ROOT/tests/e2e/break_loop.py"
+
+# Stage 9 (S9.2): the approvals page, after the break loop left an executed approval and
+# a denied Act call behind. It runs as its own login (dip_approver).
+APPROVALS_PORT="${APPROVALS_PORT:-8081}"
+kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" -n dip-data \
+  port-forward svc/approvals "$APPROVALS_PORT:8081" >/dev/null 2>&1 &
+pids+=("$!")
+wait_port "$APPROVALS_PORT"
+APPROVALS_URL="http://127.0.0.1:$APPROVALS_PORT" APPROVALS_TOKEN="$(tf output -raw approvals_token)"   "$py" "$REPO_ROOT/tests/e2e/approvals_page.py"

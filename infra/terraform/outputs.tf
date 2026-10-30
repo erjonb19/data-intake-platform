@@ -99,3 +99,9 @@ output "mcp_incident_key" {
   value       = random_password.mcp_incident_key.result
   sensitive   = true
 }
+
+output "approvals_token" {
+  description = "The approvals page's bearer token (Stage 9, S9.2): paste it into the page once"
+  value       = random_password.approvals_token.result
+  sensitive   = true
+}

@@ -64,3 +64,20 @@ ALTER ROLE dip_mcp WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
 ALTER ROLE dip_mcp SET statement_timeout = '15s';
 ALTER ROLE dip_mcp SET idle_in_transaction_session_timeout = '60s';
 ALTER ROLE dip_mcp SET search_path = ops;
+
+-- The approvals page's login (Stage 9, S9.2, infra/terraform/approvals.tf): reads
+-- ops.approvals and ops.audit_log, appends to the audit log, and sets an approval's
+-- decision columns, by the grants in ops.grant_approver() (dip/sql/warehouse.sql). It
+-- cannot execute an approval or touch any data table.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_approver') THEN
+        CREATE ROLE dip_approver LOGIN;
+    END IF;
+END
+$$;
+ALTER ROLE dip_approver WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+    NOBYPASSRLS NOINHERIT CONNECTION LIMIT 5;
+ALTER ROLE dip_approver SET statement_timeout = '15s';
+ALTER ROLE dip_approver SET idle_in_transaction_session_timeout = '60s';
+ALTER ROLE dip_approver SET search_path = ops;
