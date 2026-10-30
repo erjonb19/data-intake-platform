@@ -1,0 +1,24 @@
+# A new finance feed for the dbt generator's golden tests (Stage 10, S10.3). Invented.
+feed: finance.purchase_orders
+version: 1
+owner: ap-ops@example.com
+description: Purchase orders from a new procurement system, one row per order line.
+classification: internal
+source:
+  channels: [minio]
+  filename_pattern: "po_*.csv"
+format: { type: csv, delimiter: ",", encoding: utf-8, header: true }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.05
+min_rows: 1
+model: { grain: latest_per_key, key: [po_number, line] }
+columns:
+  - { name: po_number, type: string, required: true, pattern: "^PO-[0-9]{4}$" }
+  - { name: line, type: integer, required: true, min: 1 }
+  - { name: vendor_id, type: string, required: true }
+  - { name: order_date, type: date, required: true }
+  - { name: amount, type: decimal, required: true, min: 0 }
+  - { name: currency, type: string, required: true, allowed: [USD, EUR] }
+  - { name: approved, type: boolean, required: true }
+  - { name: note, type: string }
+  - { name: due_date, type: date }

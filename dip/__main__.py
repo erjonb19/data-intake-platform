@@ -36,6 +36,8 @@
   cohort verify-audit          check the hash chain of the cohort audit log
   contracts sample FEED FILE   register a new vendor's sample file for the contract author
                                (Stage 5): its raw copy and its sha256, for diff_schema
+  contracts dbt FEED [--write]  the dbt models generated from FEED's contract (Stage 10,
+                               S10.3: dip/dbt_gen.py); prints them, --write writes them
   contracts eval [--record|--live]
                                score the contract author on agents/evals/contract_author
                                (DIP_EVAL_DSN: a throwaway database); replays recordings by
@@ -582,7 +584,8 @@ def main(argv: list[str] | None = None) -> int:
     coh.add_argument("--audit", type=Path, default=Path("data/cohort_audit.jsonl"))
     coh.add_argument("--requester", default=os.environ.get("USER") or os.environ.get("USERNAME"))
     con = sub.add_parser("contracts")
-    con.add_argument("action", choices=["sample", "eval"])
+    con.add_argument("action", choices=["sample", "eval", "dbt"])
+    con.add_argument("--write", action="store_true", help="dbt: write the generated files")
     con.add_argument("feed", nargs="?")
     con.add_argument("file", type=Path, nargs="?")
     con.add_argument("--record", action="store_true", help="call the model, save its turns")
@@ -683,6 +686,28 @@ def main(argv: list[str] | None = None) -> int:
         return demo_mod.run(os.environ["DIP_EVAL_DSN"], work, args.record)
     elif args.command == "contracts" and args.action == "eval":
         return _contracts_eval(args)
+    elif args.command == "contracts" and args.action == "dbt":
+        from dip import dbt_gen
+
+        contracts = load_contracts()
+        if args.feed not in contracts:
+            parser.error(f"no contract for {args.feed!r}")
+        c = contracts[args.feed]
+        models = dbt_gen.disk_models()
+        if made := dbt_gen.hand_written(c.feed, models):
+            print(f"{c.feed}: its models are hand-written ({', '.join(made)});"
+                  " nothing is generated", file=sys.stderr)  # fmt: skip
+            return 1
+        files = dbt_gen.render(c)
+        dbt_gen.check_paths(c.feed, files, models)
+        if args.write:
+            for rel in dbt_gen.write(files):
+                print(f"wrote {rel}")
+        else:
+            for rel, text in sorted(files.items()):
+                print(f"=== {rel}")
+                print(text)
+        return 0
     elif args.command == "contracts":
         from dip.agents.author_tools import register_sample
 

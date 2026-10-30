@@ -170,6 +170,15 @@ def parse_contract(text: str, path: Path) -> Contract:
                 f" the parser's: {parsed} (missing {sorted(set(parsed) - set(names))},"
                 f" unknown {sorted(set(names) - set(parsed))})"
             )
+    if model := spec.get("model"):  # Stage 10 (S10.3): the generated gold model's grain
+        names = {c["name"] for c in spec.get("columns", [])}
+        key = model.get("key", [])
+        if spec["format"]["type"] not in ("csv", "excel"):
+            raise ContractError(f"{path.name}: model: only CSV and Excel feeds have one")
+        if (model["grain"] == "latest_per_key") != bool(key):
+            raise ContractError(f"{path.name}: model: latest_per_key needs a key, all_rows none")
+        if unknown := sorted(set(key) - names):
+            raise ContractError(f"{path.name}: model/key: not contract columns: {unknown}")
     if spec["format"]["type"] in ("csv", "excel", "pdf", "x12"):
         from dip.csvfeed import check_contract
 

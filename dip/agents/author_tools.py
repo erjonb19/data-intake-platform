@@ -92,6 +92,27 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
                 "loosening": loosening(current.spec if current else None, c.spec),
                 "diff": diff[:12000], "base_sha256": base}  # fmt: skip
 
+    def _dbt(feed: str, contract_yaml: str, path: str) -> dict[str, Any]:
+        """Stage 10 (S10.3): what the person approves with the contract: the dbt models
+        generated from it (dip/dbt_gen.py; none for a feed whose models are hand-written),
+        their hash, and the hand-written models that read a column it removes or renames.
+        Kept out of the tool's result, so the model never sees or shapes them."""
+        from dip import dbt_gen
+
+        cand = parse_contract(contract_yaml, REPO_ROOT / path)
+        current = contracts.get(feed)
+        before = {c["name"] for c in current.spec.get("columns", [])} if current else set()
+        removed = sorted(before - {c["name"] for c in cand.spec.get("columns", [])})
+        models = dbt_gen.disk_models()
+        affected = dbt_gen.affected_models(feed, removed, models)
+        try:
+            files = dbt_gen.plan_files(cand)
+        except dbt_gen.GenerationError as exc:
+            return {"dbt_files": {}, "dbt_error": str(exc), "dbt_affected": affected}
+        return {"dbt_files": files,
+                "dbt_files_sha256": dbt_gen.files_sha256(files) if files else None,
+                "dbt_affected": affected}  # fmt: skip
+
     def diff_schema(principal: str, run_id: str | None, feed: str, file_sha256: str) -> dict:
         full, data, name, _ = _file(feed, file_sha256)
         fmt = _fmt(feed, name)
@@ -143,6 +164,7 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             "file_sha256": checked["file_sha256"], "rationale": rationale[:4000],
             "validation": checked["dry_run"], "loosening": checked["loosening"],
             "diff": checked["diff"],
+            **_dbt(feed, contract_yaml, checked["path"]),
         }  # fmt: skip
         approval_id = approvals.create(conn, principal, run_id, "contract_pr", payload)
         return {"approval_id": approval_id, "status": "pending",
@@ -170,6 +192,37 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         {**obj, "properties": {"feed": {"type": "string"}, "contract_yaml": {"type": "string"},
                                "file_sha256": {"type": "string"}},
          "required": ["feed", "contract_yaml", "file_sha256"]}, validate_contract))  # fmt: skip
+
+    def check_dbt_models(principal: str, run_id: str | None, feed: str,
+                         contract_yaml: str) -> dict:  # fmt: skip
+        """Stage 10 (S10.3): the dbt side of a candidate, for the validate worker (S10.4)."""
+        from dip import dbt_gen
+
+        try:
+            path = contract_path(feed, contracts[feed].path if feed in contracts else None)
+            parse_contract(contract_yaml, REPO_ROOT / path)
+        except ContractError as exc:
+            return {"error": f"not a valid contract: {exc}"}
+        out = _dbt(feed, contract_yaml, path)
+        if out.get("dbt_error"):
+            return {"error": out["dbt_error"], "affected_hand_written": out["dbt_affected"]}
+        files = out["dbt_files"]
+        parsed = dbt_gen.dbt_parse(files) if files else {"ok": True, "output": ""}
+        return {
+            "feed": feed,
+            "generated": sorted(files),
+            "hand_written": dbt_gen.hand_written(feed, dbt_gen.disk_models()),
+            "affected_hand_written": out["dbt_affected"],
+            "dbt_parse": parsed["ok"],  # None: dbt is not installed where the server runs
+            "dbt_output": parsed["output"] if parsed["ok"] is False else "",
+        }
+
+    reg.register(Tool("check_dbt_models", "read",
+        "The dbt models generated from a candidate contract (none when the feed's models are "
+        "hand-written), whether `dbt parse` accepts them, and the hand-written models that "
+        "read a column the candidate removes or renames.",
+        {**obj, "properties": {"feed": {"type": "string"}, "contract_yaml": {"type": "string"}},
+         "required": ["feed", "contract_yaml"]}, check_dbt_models))  # fmt: skip
     reg.register(Tool("propose_contract_pr", "propose",
         "Propose a validated candidate for a person to approve, by the candidate_id "
         "validate_contract returned (it must be valid and accept the file). Nothing changes "
