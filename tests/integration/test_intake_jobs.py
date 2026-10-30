@@ -106,3 +106,45 @@ def test_an_executed_propose_contract_change_queues_a_drift_job(warehouse, tmp_p
                     "queued")]  # fmt: skip
     # No data changed: the quarantine stays open for the contract change and its replay.
     assert rows(warehouse, "select distinct status from ops.quarantine") == [("open",)]
+
+
+def test_a_resent_sample_is_not_queued_again_and_one_bad_key_blocks_nothing(
+    warehouse, tmp_path, monkeypatch
+):
+    from dip import intake_jobs
+
+    store = LocalStore(tmp_path)
+    store.put(BUCKET_LANDING, "_onboard/finance.purchase_orders/po_20261030.csv", CSV)
+    scan_onboarding(warehouse.conn, store, load_contracts())
+    (job,) = rows(warehouse, "select job_id from ops.intake_job")[0]
+    with warehouse.conn.cursor() as cur:  # the job ran and ended
+        cur.execute("update ops.intake_job set status = 'running' where job_id = %s", (job,))
+    warehouse.conn.commit()
+    assert finish(warehouse.conn, job, "no_change")
+    # The same content again (a resend, or a delete that failed): registered, not queued.
+    store.put(BUCKET_LANDING, "_onboard/finance.purchase_orders/po_20261031.csv", CSV)
+    # And a file too big for a sample, before it in key order: refused, the other goes on.
+    store.put(BUCKET_LANDING, "_onboard/finance.aaa_orders/big.csv", b"x" * 64)
+    monkeypatch.setattr(intake_jobs, "MAX_SAMPLE_BYTES", 50)
+    out = scan_onboarding(warehouse.conn, store, load_contracts())
+    assert len(out["already_done"]) == 1 and out["queued"] == [], out
+    assert any("over 50" in r for r in out["refused"])
+    assert rows(warehouse, "select count(*) from ops.intake_job") == [(1,)]
+    assert store.list(BUCKET_LANDING, "_onboard/") == ["_onboard/finance.aaa_orders/big.csv"]
+    # process_landing (dip intake) skips the samples left under _onboard/.
+    assert process_landing(store, warehouse, load_contracts()) == []
+
+
+def test_finish_only_ends_the_claim_it_was_given(warehouse):
+    with warehouse.conn.cursor() as cur:
+        a = queue(cur, "finance.a", "onboard", "s" * 64, "landing")
+    warehouse.conn.commit()
+    assert not finish(warehouse.conn, a, "failed")  # still queued: nothing to end
+    claim_one(warehouse.conn, "run-1")
+    with warehouse.conn.cursor() as cur:  # run-1's pod died; run-2 takes the claim back
+        cur.execute("update ops.intake_job set claimed_at = now() - %s", (timedelta(minutes=31),))
+    warehouse.conn.commit()
+    claim_one(warehouse.conn, "run-2")
+    assert not finish(warehouse.conn, a, "failed", dag_run_id="run-1")  # the slow pod
+    assert finish(warehouse.conn, a, "proposed", dag_run_id="run-2")
+    assert rows(warehouse, "select status from ops.intake_job") == [("proposed",)]
