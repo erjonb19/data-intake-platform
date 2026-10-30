@@ -40,7 +40,7 @@ from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from dip.agents import approvals
-from dip.agents.registry import Registry, human_policy
+from dip.agents.registry import Registry, chain_of, human_policy
 
 REVIEWER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 STATUSES = ("pending", "approved", "rejected", "expired", "executed", "failed")
@@ -97,6 +97,23 @@ def _summary(a: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _provider(conn: Any, run_id: str | None) -> str | None:
+    """Which model provider the proposing chain ran on (S10.1), e.g. `incident:anthropic
+    triage:gemini`, so a proposal made on the free fallback is labelled as such. None for a
+    proposal made outside a scheduled chain (a person's `dip triage run`)."""
+    chain = chain_of(run_id)
+    if chain is None:
+        return None
+    with conn.cursor() as cur:
+        cur.execute("select provider from ops.agent_run where chain_id = %s", (chain,))
+        row = cur.fetchone()
+    conn.commit()
+    if row is None:
+        return None
+    # A scheduled chain whose row has no provider yet: say so, never imply Claude.
+    return row[0] or "unknown"
+
+
 def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
                token: str | None = None) -> FastAPI:  # fmt: skip
     """`connect` opens a warehouse connection (one per request: the page is for a few
@@ -146,6 +163,7 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
         a = dict(zip(DETAIL, row, strict=True))
         # A contract PR carries its unified diff against the current contract (Stage 5).
         a["diff"] = (a["payload"] or {}).get("diff") if a["action"] == "contract_pr" else None
+        a["provider"] = _provider(conn, a["run_id"])
         return a
 
     @app.post("/api/approvals/{approval_id}/decision", dependencies=API)

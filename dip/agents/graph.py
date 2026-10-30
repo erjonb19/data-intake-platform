@@ -38,7 +38,7 @@ from dataclasses import asdict, dataclass
 from typing import Any, TypedDict
 
 from dip.agents import triage
-from dip.agents.llm import LLM, PROMPT_DIR
+from dip.agents.llm import LLM, PROMPT_DIR, Failover, NoProvider
 from dip.agents.registry import Registry
 
 INCIDENT_PROMPT = (PROMPT_DIR / "incident.md").read_text(encoding="utf-8")
@@ -64,6 +64,7 @@ class ChainState(TypedDict, total=False):
     handoff: HandoffToTriage | None
     handoff_refused: str | None
     triage_run: dict[str, Any] | None
+    providers: dict[str, str]  # step -> the provider that answered (Stage 10, S10.1)
 
 
 def incident_task(incident_id: int) -> str:
@@ -191,8 +192,56 @@ class Chain:
     conn: Any
     incident_client: Callable[[], Any]  # an async context manager per call
     triage_client: Callable[[], Any]
-    llm_for: Callable[[str], LLM]  # "incident" or "triage"
+    # "incident" or "triage" -> a model, or a Failover (S10.1): the providers to try, in
+    # order, the whole step restarted on the next while it has written nothing.
+    llm_for: Callable[[str], LLM | Failover]
     max_turns: int = 30
+    # Called as soon as a step finishes, with the provider that answered it (S10.1): the
+    # agent_chain job records it on ops.agent_run at once, so a proposal made on the
+    # fallback is labelled even while the chain runs on, or if it later fails.
+    on_step: Callable[[str, str], None] | None = None
+
+
+def provider_of(llm: Any) -> str:
+    name = type(llm).__name__
+    return {"AnthropicLLM": "anthropic", "GeminiLLM": "gemini"}.get(name, name.lower())
+
+
+def wrote(conn: Any, run_id: str) -> bool:
+    """Whether the step's run has written anything: a propose- or act-tier call the server
+    allowed and that did not return an error. Read from the audit log, which the server
+    writes, not from what the model said."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "select exists (select 1 from ops.audit_log where run_id = %s"
+            " and tier in ('propose', 'act') and decision = 'allowed'"
+            " and result_status = 'ok')",
+            (run_id,),
+        )
+        (out,) = cur.fetchone()
+    conn.commit()
+    return bool(out)
+
+
+async def run_step(chain: Chain, step: str, run_id: str, body: Callable[[Any, str], Any]
+                   ) -> tuple[Any, str]:  # fmt: skip
+    """One agent step on its model, or on its providers in order (S10.1). `body(llm,
+    run_id)` runs the step; a restart on another provider gets `<run_id>@<provider>`."""
+    llm = chain.llm_for(step)
+    if isinstance(llm, Failover):
+        try:
+            out, provider = await llm.run(
+                lambda m, suffix: body(m, run_id + suffix),
+                lambda suffix: wrote(chain.conn, run_id + suffix),
+            )
+        except NoProvider as exc:
+            exc.step = step
+            raise
+    else:
+        out, provider = await body(llm, run_id), provider_of(llm)
+    if chain.on_step:
+        chain.on_step(step, provider)
+    return out, provider
 
 
 def build_graph(chain: Chain) -> Any:
@@ -202,16 +251,19 @@ def build_graph(chain: Chain) -> Any:
 
     async def incident(state: ChainState) -> dict[str, Any]:
         run_id = f"{state['chain_id']}/incident"
-        async with chain.incident_client() as client:
-            run = await triage.run_agent(
-                client,
-                chain.llm_for("incident"),
-                INCIDENT_PROMPT,
-                incident_task(state["incident_id"]),
-                chain.max_turns,
-                run_id,
-            )
-        return {"incident_run": _summary(run), "diagnosis": _diagnosis(chain.conn, run_id)}
+
+        async def body(llm: LLM, attempt: str) -> triage.TriageRun:
+            async with chain.incident_client() as client:
+                return await triage.run_agent(client, llm, INCIDENT_PROMPT,
+                                              incident_task(state["incident_id"]),
+                                              chain.max_turns, attempt)  # fmt: skip
+
+        run, provider = await run_step(chain, "incident", run_id, body)
+        return {
+            "incident_run": _summary(run),
+            "diagnosis": _diagnosis(chain.conn, run.run_id),
+            "providers": {**state.get("providers", {}), "incident": provider},
+        }
 
     def route_after_incident(state: ChainState) -> str:
         d = state.get("diagnosis")
@@ -247,16 +299,18 @@ def build_graph(chain: Chain) -> Any:
     async def triage_node(state: ChainState) -> dict[str, Any]:
         h = state["handoff"]
         assert h is not None
-        async with chain.triage_client() as client:
-            run = await triage.run_agent(
-                client,
-                chain.llm_for("triage"),
-                triage.PROMPT,
-                triage_task(h),
-                chain.max_turns,
-                f"{state['chain_id']}/triage",
-            )
-        return {"triage_run": _summary(run)}
+        run_id = f"{state['chain_id']}/triage"
+
+        async def body(llm: LLM, attempt: str) -> triage.TriageRun:
+            async with chain.triage_client() as client:
+                return await triage.run_agent(client, llm, triage.PROMPT, triage_task(h),
+                                              chain.max_turns, attempt)  # fmt: skip
+
+        run, provider = await run_step(chain, "triage", run_id, body)
+        return {
+            "triage_run": _summary(run),
+            "providers": {**state.get("providers", {}), "triage": provider},
+        }
 
     g = StateGraph(ChainState)
     g.add_node("incident", incident)
@@ -279,5 +333,6 @@ async def run_chain(chain: Chain, incident_id: int, chain_id: str | None = None)
             "handoff": None,
             "handoff_refused": None,
             "triage_run": None,
+            "providers": {},
         }
     )

@@ -31,6 +31,14 @@ API = "https://generativelanguage.googleapis.com/v1beta/models"
 RETRY = (429, 500, 502, 503, 504)
 
 
+class GeminiError(RuntimeError):
+    """A failed call: `status` is the HTTP status, or None when Gemini was unreachable."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
+
+
 def gemini_settings() -> dict[str, Any]:
     with CONFIG.open("rb") as f:
         cfg = tomllib.load(f)
@@ -136,11 +144,11 @@ class GeminiLLM:
             except urllib.error.HTTPError as exc:
                 if exc.code not in RETRY or attempt == self.tries - 1:
                     detail = exc.read().decode("utf-8", "replace")[:300]
-                    raise RuntimeError(f"Gemini {exc.code}: {detail}") from exc
+                    raise GeminiError(f"Gemini {exc.code}: {detail}", exc.code) from exc
                 wait = exc.headers.get("Retry-After", "") if exc.headers else ""
                 time.sleep(min(60, int(wait) if wait.isdigit() else 5 * 2**attempt))
             except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
                 if attempt == self.tries - 1:
-                    raise RuntimeError(f"Gemini unreachable: {exc}") from exc
+                    raise GeminiError(f"Gemini unreachable: {exc}") from exc
                 time.sleep(min(60, 5 * 2**attempt))
         raise RuntimeError("unreachable")

@@ -1,0 +1,151 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {},
+      "id": "call_607655",
+      "name": "list_quarantine_groups"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TAmuNfCP6NgAn4U4rwBraBIM42ON84n0Z8Lb+ozAmRPWM4OXljUzkeUhcL1d67jGDwraixWSNApRTWBdx8oLItdItRG92xsN7u3YF9lej/rw1+XSv+zrO4upcZ1Yue0aZEgGwkf2ZvX+DXIHA"
+    },
+    "id": "g-ae90641f6d89",
+    "input": {},
+    "name": "list_quarantine_groups",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "4b18d748afd5eacf42e0366ac91ae495b22c2b837956d4ed0fde31a77967dfe9",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1836,
+   "output_tokens": 13
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.eligibility"
+      },
+      "id": "call_626618",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T2b3gxHOg9kPitw+LPoa9xZUnn2fKHULRiXUb2GOCpdRBE32tlfZTBcAQU+ujLsl//ucyWZxQUgnM6bSnlXs6f1ZJaJCBy5GSWewe4So6eZip6EBNnjdlml+mzG+IkdVbDn1JGI5HI6I2ei6G"
+    },
+    "id": "g-044a58827651",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "9183cd67971787a9da98bd46f6b13e6840060da1605b4024266124641313cf06",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2031,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
+       "limit": 1
+      },
+      "id": "call_965307",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TKqikeeBLoKk10ZkVyJK20MYJDb9QQuW7xid+mAgIuc5gHVpCkt1nT7lClr6LIdo5+JPfe+F9A++K9wJ4BBdpO4KaokkGKjMe5HbCrq36n/u7N9zdDmdcSV6IASHAL3Z6gR+GEZVuCjACwU/v"
+    },
+    "id": "g-bfd707982af2",
+    "input": {
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
+     "limit": 1
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "4c175c4e7deb40eaaf0e6e96eb2f2c696b0e6c335f777cb3550a78f452c352b0",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2483,
+   "output_tokens": 39
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "action": "request_resend",
+       "confidence": 1,
+       "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
+       "message_to_vendor": "The file 'elig_20261020.csv' is missing the required 'member_id' column. Please include this column and resend the file.",
+       "quarantine_ids": [
+        1
+       ],
+       "rationale": "The file 'elig_20261020.csv' is missing the 'member_id' column, which is explicitly required by the data contract for 'healthcare.eligibility'.",
+       "root_cause": "schema_drift"
+      },
+      "id": "call_709787",
+      "name": "propose_operation"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T8hbsw+tXO4sKjW1ffbVYIdfKSEoFJoyz7oqMtstPE9lMvG9sZvjO3IYV14u+jPCsuHMMBgBGqwfWSG6UQerj3OfKgbip7T5WceK856tvwjqUOzajApRcqpSG7SP4y6Kn+5LkgBiCW5BXaZ0o"
+    },
+    "id": "g-ea9acf33d706",
+    "input": {
+     "action": "request_resend",
+     "confidence": 1,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
+     "message_to_vendor": "The file 'elig_20261020.csv' is missing the required 'member_id' column. Please include this column and resend the file.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "The file 'elig_20261020.csv' is missing the 'member_id' column, which is explicitly required by the data contract for 'healthcare.eligibility'.",
+     "root_cause": "schema_drift"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "19eea27c50c82ac0793ac1f3e2e4072782f2be9964492d95829e41411f5bea8e",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2748,
+   "output_tokens": 156
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The triage for the healthcare.eligibility feed is complete:\n\n*   **healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id**: Proposed `request_resend` (confidence: 1.0) because the required 'member_id' column is missing from the provided CSV file.",
+     "thoughtSignature": "EnMKcQFpFH0TDK3GUXoAdmjA1j09HHeKEuGaKepBtgo71chEivqhVEfzX4fcLLM9uknqq9sPHVQGpaeOua0oQWysLrMcJ+Eag6bK9y8/iPILQXLzsZ+zXkHplgXaONYIoU5Yx+YQe73IOMvciJxVwUUto6kF"
+    },
+    "text": "The triage for the healthcare.eligibility feed is complete:\n\n*   **healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id**: Proposed `request_resend` (confidence: 1.0) because the required 'member_id' column is missing from the provided CSV file.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "c933fd3c678b576546abbf950584318a6acec6c7461a28349954dccf5ec5ea65",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 2939,
+   "output_tokens": 64
+  }
+ }
+]

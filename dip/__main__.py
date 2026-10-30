@@ -61,6 +61,7 @@ import shutil
 import sys
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from dip import BUCKET_LANDING
 from dip.contracts import load_contracts
@@ -215,11 +216,11 @@ def _triage(args: argparse.Namespace) -> int:
     work = Path("data/tmp/triage-eval")
     results = []
     for case in cases * max(1, args.repeat if args.live else 1):
-        path = evals.RECORDINGS / f"{case['name']}.json"
+        path = _recordings(evals.RECORDINGS, args) / f"{case['name']}.json"
         if args.record:
-            llm = Recorder(AnthropicLLM())
+            llm = Recorder(_live_llm(args))
         else:
-            llm = AnthropicLLM() if args.live else Recording(path)
+            llm = _live_llm(args) if args.live else Recording(path)
         r = evals.run_case(case, dsn, llm, work)
         if args.record:
             llm.save(path)
@@ -231,6 +232,23 @@ def _triage(args: argparse.Namespace) -> int:
     (args.out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
     print(json.dumps(rep["summary"], indent=1))
     return 0 if rep["summary"]["policy_violations"] == 0 else 1
+
+
+def _live_llm(args: argparse.Namespace) -> Any:
+    """The live model for an eval: Claude, or with --provider gemini the free fallback
+    (Stage 10, S10.1: the evals run against each provider)."""
+    if getattr(args, "provider", "anthropic") == "gemini":
+        from dip.agents.gemini import GeminiLLM
+
+        return GeminiLLM()
+    from dip.agents.llm import AnthropicLLM
+
+    return AnthropicLLM()
+
+
+def _recordings(base: Path, args: argparse.Namespace) -> Path:
+    """Gemini's recordings sit beside Claude's, under gemini/ (S10.1)."""
+    return base / "gemini" if getattr(args, "provider", "anthropic") == "gemini" else base
 
 
 def _incident(args: argparse.Namespace) -> int:
@@ -277,16 +295,17 @@ def _incident(args: argparse.Namespace) -> int:
         recorders: dict[str, Recorder] = {}
 
         def llm_for(step: str, name: str = case["name"], recorders: dict = recorders):
-            path = incident_evals.RECORDINGS / f"{name}_{step}.json"
+            path = _recordings(incident_evals.RECORDINGS, args) / f"{name}_{step}.json"
             if args.record:
-                recorders[step] = Recorder(AnthropicLLM())
+                recorders[step] = Recorder(_live_llm(args))
                 return recorders[step]
-            return AnthropicLLM() if args.live else Recording(path)
+            return _live_llm(args) if args.live else Recording(path)
 
         r = incident_evals.run_case(case, dsn, llm_for, Path("data/tmp/incident-eval"))
         if args.record:
             for step, rec in recorders.items():
-                rec.save(incident_evals.RECORDINGS / f"{case['name']}_{step}.json")
+                rec.save(_recordings(incident_evals.RECORDINGS, args)
+                         / f"{case['name']}_{step}.json")  # fmt: skip
         results.append(r)
         print(
             f"{'PASS' if r.passed else 'FAIL'} {case['name']}: cause {r.root_cause},"
@@ -536,6 +555,9 @@ def main(argv: list[str] | None = None) -> int:
     tri.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
     tri.add_argument("--case", action="append", default=[])
     tri.add_argument("--out", type=Path, default=Path("data/evals/triage"))
+    tri.add_argument("--provider", choices=["anthropic", "gemini"], default="anthropic",
+                     help="the model (gemini: the free fallback; its recordings are under "
+                          "recordings/gemini/)")  # fmt: skip
     demo = sub.add_parser("demo")
     demo.add_argument("--record", action="store_true", help="call the model, save its turns")
     inc = sub.add_parser("incident")
@@ -546,6 +568,9 @@ def main(argv: list[str] | None = None) -> int:
     inc.add_argument("--repeat", type=int, default=1, help="live runs per case (variance)")
     inc.add_argument("--case", action="append", default=[])
     inc.add_argument("--out", type=Path, default=Path("data/evals/incident"))
+    inc.add_argument("--provider", choices=["anthropic", "gemini"], default="anthropic",
+                     help="the model (gemini: the free fallback; its recordings are under "
+                          "recordings/gemini/)")  # fmt: skip
     appr = sub.add_parser("approvals")
     appr.add_argument("action", choices=["list", "show", "approve", "reject", "execute"])
     appr.add_argument("approval_id", type=int, nargs="?")

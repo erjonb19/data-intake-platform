@@ -157,6 +157,12 @@ async function show(id) {
   const meta = el("p", null, "muted");
   meta.append(`proposed by ${a.agent_id} at ${when(a.created_at)}, expires ${when(a.expires_at)} · `, el("span", a.status, "status " + a.status));
   d.replaceChildren(head, meta);
+  if (a.provider) {  // Stage 10 (S10.1): the model provider each step of the proposing chain ran on
+    const fb = a.provider.includes("gemini");
+    const r = el("p", null, fb ? "denied" : "muted");
+    r.append(el("strong", "Model: "), a.provider + (fb ? " (the free fallback, weaker at judgment: check it closely)" : ""));
+    d.append(r);
+  }
   const fields = [["Group", p.group_id || p.feed], ["Root cause", p.root_cause], ["Confidence", p.confidence],
                   ["Quarantine entries", (p.quarantine_ids || []).length || null], ["Rationale", p.rationale],
                   ["Message to the vendor", p.message], ["Decided by", a.decided_by && `${a.decided_by} at ${when(a.decided_at)}`],

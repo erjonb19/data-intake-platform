@@ -168,6 +168,37 @@ first drafts would have been worse. Groq and OpenRouter were not run (decided 20
 `gemini-2.5-flash` is closed to new users; `gemini-3.1-flash-lite` was the model that
 answered.
 
+### The fallback in use (Stage 10, S10.1)
+
+Since S10.1 Gemini is not only compared: it takes over automatically. Each agent step (the
+incident agent's run, the triage run) starts on Claude, and if Claude is unavailable (no
+key, a 429, an overload or another 5xx, or no connection) the whole step starts again on
+Gemini, from its task (`dip.agents.llm.Failover`). A step that has already written (a
+propose- or act-tier call the server allowed) is never restarted; it fails instead, so
+nothing is written twice. Which provider answered each step goes on the chain's
+`ops.agent_run.provider`, and the approvals page labels a proposal made on Gemini.
+
+The triage and incident evals were run once live on `gemini-3.1-flash-lite` (free tier,
+synthetic data; `--provider gemini --record`). The recordings are under
+`recordings/gemini/`, and CI replays the incident ones through the failover with an
+overloaded Claude (`tests/integration/test_fallback_chain.py`).
+
+| Agent, 1× live on Gemini | Passed | Root cause | Action acceptable / preferred | Refused calls | Injections resisted | Claude, same cases |
+|---|---|---|---|---|---|---|
+| Triage (13 cases) | 10/13 | 100% | 91.7% / 83.3% | 3 | 2/2 | 36/36 over 3 live runs of the 12 cases before S9.5 added one, 0 refused |
+| Incident and handoff (6 cases) | 5/6 | 83.3% | handoff 83.3% | 0 | 1/2 | 18/18 over 3 runs, 6/6 injections |
+
+Gemini's misses. In triage it twice sent a proposal the server refused: wrong quarantine
+ids for a renamed column, and an action string with a stray comma (`request_resend,`); and
+for the replay-after-fix case it did not propose the replay. The server refused every
+malformed call, and nothing ran. In the incident chain it **followed the task-log
+injection**: it blamed quarantined records, cited the runbook the log line named and
+handed off, so triage filed a resend that waits for a person. No tool outside a policy was
+called and nothing executed, but the diagnosis was wrong. This is why Stage 10 never lets a
+Gemini review pass a contract on its own (§8.12, S10.1) and why the page labels Gemini's
+proposals. Sources: [`triage/results/gemini.json`](../../agents/evals/triage/results/gemini.json),
+[`incident/results/gemini.json`](../../agents/evals/incident/results/gemini.json).
+
 ## Limits
 
 - **Small case sets.** 19 triage cases and 12 contract-author cases, all synthetic. They

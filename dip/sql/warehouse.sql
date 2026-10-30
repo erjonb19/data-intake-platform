@@ -110,6 +110,16 @@ CREATE TABLE IF NOT EXISTS ops.agent_run (
     root_cause    text,
     dag_run_id    text
 );
+-- (Stage 10, S10.1) Which provider answered each step, e.g. `incident:anthropic
+-- triage:gemini`: a run that fell back to the free provider says so. Only when missing
+-- (see audit_log below: ALTER locks even when the column exists).
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'agent_run' AND column_name = 'provider') THEN
+        ALTER TABLE ops.agent_run ADD COLUMN provider text;
+    END IF;
+END $$;
 CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     diagnosis_id    bigserial   PRIMARY KEY,
     incident_id     bigint      NOT NULL REFERENCES ops.incident (incident_id),
@@ -411,6 +421,10 @@ BEGIN
     IF to_regclass('ops.audit_log') IS NOT NULL THEN
         GRANT SELECT, INSERT ON ops.audit_log TO dip_approver;
         GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_approver;
+    END IF;
+    -- (S10.1) Which provider a chain ran on, to label a proposal made on the fallback.
+    IF to_regclass('ops.agent_run') IS NOT NULL THEN
+        GRANT SELECT (chain_id, provider) ON ops.agent_run TO dip_approver;
     END IF;
 END $$;
 SELECT ops.grant_approver();

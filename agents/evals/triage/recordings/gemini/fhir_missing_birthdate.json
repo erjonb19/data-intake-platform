@@ -1,0 +1,149 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {},
+      "id": "call_527819",
+      "name": "list_quarantine_groups"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T7r8SEligo8ivKCvDtaYD4ScM2MMG4EJu2Ftr2KwhmEL9I8oMey9nrCLb68lpYPKhdXSPxhhVV5GG2z/ltKJ48uSPun9BHcUactoRLbDx0aE/0SjMT9C8BLroALTqM91Epdjp+j8tBTm/lwkM"
+    },
+    "id": "g-ef737d055c0a",
+    "input": {},
+    "name": "list_quarantine_groups",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "61ac7cb38720598f6c1b41aa62b765935ac757b56ab027e69d845ad5b9c97185",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1719,
+   "output_tokens": 13
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.fhir_patient_bundle"
+      },
+      "id": "call_641582",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T4GtURRAd5yVQ7uegPq1EFwiVhjFaSEVZae/pmgynrIQH5jgmwyZAKEax20H1eSWqFW2Ehf15Ujpnw3KYixaEdG8V87zd9dkT/jSqJNJszFbD3Mw98El1yjEL1xGj/2R3GbkO3fZ46xo1c7pM"
+    },
+    "id": "g-fd8f4e2e5ea6",
+    "input": {
+     "feed": "healthcare.fhir_patient_bundle"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "784509c0c3fb034721c10d41163fd8fd252640f4c3703ff5087346c6e72d093d",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1971,
+   "output_tokens": 22
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.fhir_patient_bundle|FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate"
+      },
+      "id": "call_1093971",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TagfMuZGqRThJjfUyJYU/th8lH2pXeGhNAkBZLebbImuyqlCBD3yLMcV5/Tnlh/XaY/76zmqj+UItmlpt3YZoOh9fBN09adhZDO3siPxTLAUA7VWnHEiR29fYsaHI/N7tUrVtY6ZUf3hFiIz/"
+    },
+    "id": "g-65b8dc465888",
+    "input": {
+     "group_id": "healthcare.fhir_patient_bundle|FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "9c0af1aa4d607c2eb502bd13b60797e8b2893f9a2da9df29735f1534d8bec00b",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2100,
+   "output_tokens": 48
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "action": "request_resend",
+       "confidence": 1,
+       "group_id": "healthcare.fhir_patient_bundle|FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate",
+       "message_to_vendor": "The FHIR bundle 'patient_missing_birthdate.json' is missing the 'birthDate' field in the Patient resource, which is required. Please include the patient's birth date and resend the file.",
+       "quarantine_ids": [
+        1
+       ],
+       "rationale": "The Patient resource in the provided FHIR bundle is missing the required 'birthDate' field.",
+       "root_cause": "fhir_structure"
+      },
+      "id": "call_465082",
+      "name": "propose_operation"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TX6FhVkk/o8lOY9EULxR7mCNzoBiyojkk4B2oYwSWuakEhfBGgCfyuzW80Ml+riEAV2tIc3zlT0ynjRYVHNzHxYb7KGHnUkc+HurerCYBDWESNpUrOOMlpioiVRy43Px3JptAqsazBlwWKgGP"
+    },
+    "id": "g-fb0044014bcc",
+    "input": {
+     "action": "request_resend",
+     "confidence": 1,
+     "group_id": "healthcare.fhir_patient_bundle|FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate",
+     "message_to_vendor": "The FHIR bundle 'patient_missing_birthdate.json' is missing the 'birthDate' field in the Patient resource, which is required. Please include the patient's birth date and resend the file.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "The Patient resource in the provided FHIR bundle is missing the required 'birthDate' field.",
+     "root_cause": "fhir_structure"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "0e8c3cf4c3a3b851723eb28b32a8127039069d3c709db7d1ec94eb857861a42d",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2861,
+   "output_tokens": 155
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The triage for the open quarantine is complete.\n\n*   **Group:** `healthcare.fhir_patient_bundle|FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate`\n    *   **Root Cause:** `fhir_structure`\n    *   **Action:** `request_resend`\n    *   **Summary:** The Patient resource is missing the required `birthDate` field; requested the vendor to correct and resend.",
+     "thoughtSignature": "EnMKcQFpFH0TKZk88kmr3sql0qBuRxHNdr3fIG3tNq4/IOs9rG3ByZ00d6lWMvXf5qxH0yEyv3CGfyhPGlarHFG6NTviPE3iuh//1vtGYjtF+NTnS2PMmDR8LgQb+2ZZm5hWynmdKrEoxhwReygJojG0X2Kl"
+    },
+    "text": "The triage for the open quarantine is complete.\n\n*   **Group:** `healthcare.fhir_patient_bundle|FHIR.PATIENT_INVALID:FHIR.MISSING_FIELD:Patient.birthDate`\n    *   **Root Cause:** `fhir_structure`\n    *   **Action:** `request_resend`\n    *   **Summary:** The Patient resource is missing the required `birthDate` field; requested the vendor to correct and resend.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "3306389f21c23465c39db76142d00e553899b04f9d28e1d28cca33fdec053f05",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 3051,
+   "output_tokens": 100
+  }
+ }
+]

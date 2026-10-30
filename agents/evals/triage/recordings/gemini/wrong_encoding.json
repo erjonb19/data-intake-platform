@@ -1,0 +1,151 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {},
+      "id": "call_237766",
+      "name": "list_quarantine_groups"
+     },
+     "thoughtSignature": "EnMKcQFpFH0To0wX+WwY1vOjeL8/uFnGGgLoECpLDkEQuFWzzyqvjRWEkUhKw6rqSTzF67XvYq1OAROKabvM3+aHh+dHAWJ951+55J5Tqq/0UIRc1DLQbSZWiiMDLMFMlmY0TzoYw3c0jhaWjqoDDkmCWAjp"
+    },
+    "id": "g-a899f35dccda",
+    "input": {},
+    "name": "list_quarantine_groups",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "61ac7cb38720598f6c1b41aa62b765935ac757b56ab027e69d845ad5b9c97185",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1719,
+   "output_tokens": 13
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.eligibility"
+      },
+      "id": "call_640221",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T9302vRvGovZHbxIG6aVDmTCgNkcvn0wfKx22XpITrWBDH4Y1ah35lHYw2Fk7krc1Vpy0qmlDc7MKGnd+I+yksGHAcNixjiVJI73QIAd6LVG0CI/5T/wVXaCQSEmuGsddKjxRGygCHMFR1RrO"
+    },
+    "id": "g-fed2d4b28afe",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "8ee13fab0c0347589b5949816abc854e9b5ae3635587a51ee99c7c69d2d8a704",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1899,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|FILE.ENCODING",
+       "limit": 1
+      },
+      "id": "call_1012144",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TMpSFqvpmu/qyIjwc0Az00iRfieZ8N3cT3nspHlhBIuCcYwe2Lcese5Za9pGZiYEaesh+iZSGjA+zxJcdxYYw348TQymgYqJA+mFK7m2L1X1PeKO3Hy9zba6OvxCFxPZ0ZJkAAetUEp5Dspw8"
+    },
+    "id": "g-c2662dd11bc6",
+    "input": {
+     "group_id": "healthcare.eligibility|FILE.ENCODING",
+     "limit": 1
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "5157a5bb3e9bbfe962b9d2ac259146af2711522c65baaba4d85bfeb3f0609c84",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2351,
+   "output_tokens": 34
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "action": "request_resend",
+       "confidence": 1,
+       "group_id": "healthcare.eligibility|FILE.ENCODING",
+       "message_to_vendor": "The file 'elig_latin1.csv' was rejected because it is not encoded in UTF-8 (it contains invalid characters for that encoding). Please resend the file using UTF-8 encoding.",
+       "quarantine_ids": [
+        1
+       ],
+       "rationale": "The file 'elig_latin1.csv' failed to parse due to a character encoding issue (invalid UTF-8 bytes). The sample shows special characters like '\u00e9' and '\u00f1' which are being incorrectly interpreted.",
+       "root_cause": "file_format"
+      },
+      "id": "call_687078",
+      "name": "propose_operation"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TpWnCd8A5RvXZxhpN/5Jf6UUXf/D+PsKLS1d8tdxxdhRqw1ix0Wmu2TJErA6Ym8EctdLpWEHy3KHIjm0o7LVft9OFkZyEmOFsFfAG6QSO8bH5V12J2A/b4kOUndb6cCcE1hx2EtNT4PkGKoGS"
+    },
+    "id": "g-270ebb17c577",
+    "input": {
+     "action": "request_resend",
+     "confidence": 1,
+     "group_id": "healthcare.eligibility|FILE.ENCODING",
+     "message_to_vendor": "The file 'elig_latin1.csv' was rejected because it is not encoded in UTF-8 (it contains invalid characters for that encoding). Please resend the file using UTF-8 encoding.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "The file 'elig_latin1.csv' failed to parse due to a character encoding issue (invalid UTF-8 bytes). The sample shows special characters like '\u00e9' and '\u00f1' which are being incorrectly interpreted.",
+     "root_cause": "file_format"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "c3d1458dbabc3f698abad8ad37884a15c605d1792a3ff827418e1ea3b04cf927",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2623,
+   "output_tokens": 159
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The open quarantine has been triaged. Here is the summary:\n\n- **healthcare.eligibility|FILE.ENCODING**: Requested resend because the file is not UTF-8 encoded, which caused character parsing errors.",
+     "thoughtSignature": "EnMKcQFpFH0TD91Q8uwD1jLBIfaivzIJlYKrFgIvRJtu3poWFYFLG0wcPo96hNXz1rZ/962zhjDEIQz+Y80MS7efBp2QhYpviUzDx2Odf/VmY+a64KSr3DF7kdQp9Yv+zCikRAKirpPQphRm8QWwM54FxdSl"
+    },
+    "text": "The open quarantine has been triaged. Here is the summary:\n\n- **healthcare.eligibility|FILE.ENCODING**: Requested resend because the file is not UTF-8 encoded, which caused character parsing errors.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "149a6043cf6d447d6a1790764d2618af0be11a9e940a3780d6596d9be79911dd",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 2817,
+   "output_tokens": 46
+  }
+ }
+]

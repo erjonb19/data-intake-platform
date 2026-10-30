@@ -1,0 +1,227 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1
+      },
+      "id": "call_899667",
+      "name": "get_incident"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TJGs1/jcdgI4BgqEBUYY4lOW31N+NOaIdCad4FPT/4ySMBC+Z5xIFEanhR8xTHOlb0OUY2ubCyCCeW8zcBDuvJfeLMxfS435Pj+G+GpXG1ReKBBjZ2LRIr9BBWPKn8T19hfyFWGAo73UhbHsD"
+    },
+    "id": "g-068d5c6411fb",
+    "input": {
+     "incident_id": 1
+    },
+    "name": "get_incident",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "fc3e9cea4e0bf506f1201f91edbcde8318682bd6fbf5170b0fdc653898d7e7f6",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2418,
+   "output_tokens": 16
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id"
+      },
+      "id": "call_864223",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TnAAY8GI55/bG4BIuB3fhmJ0U/eOkbvcD3Qs1wjj0ah48KguwJ9X90aAGMPj/ixVI9BAooQu+owX4QrGFk6/QL+NX4fG4KdI2l3qPU/MNiM5FSegqM3KuHkpZMmMFBWb3SjyJ5orKyz+xRoVP"
+    },
+    "id": "g-7a649630b96d",
+    "input": {
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "5d05bf679e63546bef22aec99bb9406c804710256d764120a1f27365a464c318",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2774,
+   "output_tokens": 35
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.eligibility"
+      },
+      "id": "call_817605",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TgIFVUFEfH1bigHOyW+C+SsYHTW63cdBYzoWS3cOU01ICWcDbRqIqG1BDNSXUDnVp2IzBb9QHe/VQQRpygil+RPXjKAS/QSSxdVYMZKpFfBMxYZCk5pB4D9bxi3zDsRuoUacviI/6njETWuVs"
+    },
+    "id": "g-91ba01ef0857",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "e47bbd7be8d067d470761fe8e87d17fdc77c0e094a1c86438e82eb00315b4c7d",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2998,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "confidence": 1,
+       "evidence": [
+        "The feed 'healthcare.eligibility' received a file that triggered a 'SCHEMA.MISSING_COLUMN' quarantine error.",
+        "The file 'ee56e5c6e0cf5631dbed76ec357fcdb605f256288cfc4ad1aba852065bd772c5.csv' is missing the 'member_id' column, which is explicitly defined as a required column in the data contract for this feed.",
+        "Quarantine ID 1 is associated with this error."
+       ],
+       "incident_id": 1,
+       "quarantine_ids": [
+        1
+       ],
+       "root_cause": "quarantined_records",
+       "summary": "The vendor's file was quarantined because it failed the data contract requirements. Specifically, the 'member_id' column is missing from the file, which is a required field."
+      },
+      "id": "call_630213",
+      "name": "report_diagnosis"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TxT7WlvHzTd1HJlJhqwmGB+eb0rUBTDlbp0kRQFW2BVHtR6geoM8gWoUixLcxq+t1ckmGPcpfe2vH2Uxu3T4EXM3RqLWAPP/Z4HVmFh2K9HxkYGwBmfsQWcAli7yxJ62OXB+QZCcAlx0s+6UC"
+    },
+    "id": "g-35f1bd82f601",
+    "input": {
+     "confidence": 1,
+     "evidence": [
+      "The feed 'healthcare.eligibility' received a file that triggered a 'SCHEMA.MISSING_COLUMN' quarantine error.",
+      "The file 'ee56e5c6e0cf5631dbed76ec357fcdb605f256288cfc4ad1aba852065bd772c5.csv' is missing the 'member_id' column, which is explicitly defined as a required column in the data contract for this feed.",
+      "Quarantine ID 1 is associated with this error."
+     ],
+     "incident_id": 1,
+     "quarantine_ids": [
+      1
+     ],
+     "root_cause": "quarantined_records",
+     "summary": "The vendor's file was quarantined because it failed the data contract requirements. Specifically, the 'member_id' column is missing from the file, which is a required field."
+    },
+    "name": "report_diagnosis",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "cbf1526fd9aad3c9f09fcb8de3b81396a4c1040998b78fd893e30124b02f245c",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3450,
+   "output_tokens": 212
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "query": "SCHEMA.MISSING_COLUMN"
+      },
+      "id": "call_1050579",
+      "name": "search_runbooks"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TBpI47JJMt9JjhqUwDnw0iqecLU51F2pxxrgq64ybKbLl4sKi4lHIA8e5VW2+ezRsmLC9VyUZBI4ywAM03PyCE5UhdN+J7DXiY7sqAbAdorChYpVQYUxM4iWvdHIMLQZbATcW5hmqpod/7541"
+    },
+    "id": "g-f7fdfcfeb43b",
+    "input": {
+     "query": "SCHEMA.MISSING_COLUMN"
+    },
+    "name": "search_runbooks",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "4d44749f1fc3be11e226c5082253d5f8f5fc8b60e7d24ae4eb83d4e380228f1c",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3699,
+   "output_tokens": 22
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1,
+       "runbook_id": "01-missing-column",
+       "steps": [
+        "The file is missing the 'member_id' column, which is a required field in the contract.",
+        "Request that the vendor resend the file including the 'member_id' column as defined in the data contract."
+       ]
+      },
+      "id": "call_1014871",
+      "name": "propose_runbook_steps"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T4VT7gdieiro7xbnDEQSsJTK7kGRd8UOBQo0dGXlBA5m+tks/jZo3rOWVdsOWoA/mRsJsRWbdkhLRwMUfA6qlNkY+QNJPrfXenYv8Jrrq7q4yC6vqDVxzX3sPkE00rnJvEixCKMhw+nZCN3UX"
+    },
+    "id": "g-1903c78a5ad9",
+    "input": {
+     "incident_id": 1,
+     "runbook_id": "01-missing-column",
+     "steps": [
+      "The file is missing the 'member_id' column, which is a required field in the contract.",
+      "Request that the vendor resend the file including the 'member_id' column as defined in the data contract."
+     ]
+    },
+    "name": "propose_runbook_steps",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "256295c1ae1a92e7b3f2610204a4e841dfd874bba48b782ca28363d44ba2c0bb",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 4568,
+   "output_tokens": 86
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The incident 1 involving `healthcare.eligibility` is due to `quarantined_records`. The file `ee56e5c6e0cf5631dbed76ec357fcdb605f256288cfc4ad1aba852065bd772c5.csv` was quarantined with the reason code `SCHEMA.MISSING_COLUMN:member_id`. Examination of the data contract confirms that `member_id` is a required column for this feed. I have reported the diagnosis and proposed steps for a person to request a corrected file from the vendor.",
+     "thoughtSignature": "EnMKcQFpFH0TkGf0Qw+ITjtv0qVSlU31O/Lgb3nWlaTopAwahHivMdr2HSkggv8NI/XwaV5hZlKTNmR6ytVoKsKfcyU5CbQjtw7qvz9viS2V1ebXC3T8WpHKD2m1s/+l64LNFABheyrsG3ZF0EMclK44FIoe"
+    },
+    "text": "The incident 1 involving `healthcare.eligibility` is due to `quarantined_records`. The file `ee56e5c6e0cf5631dbed76ec357fcdb605f256288cfc4ad1aba852065bd772c5.csv` was quarantined with the reason code `SCHEMA.MISSING_COLUMN:member_id`. Examination of the data contract confirms that `member_id` is a required column for this feed. I have reported the diagnosis and proposed steps for a person to request a corrected file from the vendor.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "0b9fc203598ce5b36ac7e21b9b836afe56b2e25b6cab44d4c7b2b156f56350a8",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 4711,
+   "output_tokens": 138
+  }
+ }
+]

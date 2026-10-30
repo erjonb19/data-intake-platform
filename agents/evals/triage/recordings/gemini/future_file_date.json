@@ -1,0 +1,149 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {},
+      "id": "call_1018488",
+      "name": "list_quarantine_groups"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T1pKXYUOykD/aUeqegSZyKcoTtzAeMW0lXPnYGRDZTtQGuaB2ROcpuY9bktePomyvxWSwfxdq5c2EaDx3FMkJ6OvNsriUum0J6056AUS0axWSptl6Wdtv/lcP2ffAKgviyWf1NkE/+DOe07pv"
+    },
+    "id": "g-64bb82691fbe",
+    "input": {},
+    "name": "list_quarantine_groups",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "61ac7cb38720598f6c1b41aa62b765935ac757b56ab027e69d845ad5b9c97185",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1719,
+   "output_tokens": 13
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.eligibility"
+      },
+      "id": "call_918255",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T+JrgjtcuPd9p7+M7PnaD0MgD3RYC3RG1WzlebMYS23mHf5E53rwyYl7wEyoYq/PKDquoxd012zTOAw2Vm4IGRGHXOPcd8vhZfXiztVKY22ZRb3dyCySsImi5N6QsXZYLU3Foc2byIOSwRON2"
+    },
+    "id": "g-4a8212e9453f",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "1ba7a6f46eb5520f0d07687eca26b497e9656a979d50a9881fd4f6a872b5275f",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1984,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|FILE.NAME_DATE"
+      },
+      "id": "call_764664",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TeM7df5Xzl91jfOp16BQbJexe0PoQTw9F/sOm0TIdeHmj6e8tp0CssJNoWVEUbAcW49H/VVWwTVHH+YRpAN2xhaYO3SZN+koMd97sEOb2Pt52SEPeiv83epd94PzkWXrrQWqXDcXwpc/J+hHe"
+    },
+    "id": "g-7d8fc5689604",
+    "input": {
+     "group_id": "healthcare.eligibility|FILE.NAME_DATE"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "d7cace5e4594ef5b43ee33b4e740358216e61515839eea2ded96c19cd13b503f",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2436,
+   "output_tokens": 30
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "action": "request_resend",
+       "confidence": 1,
+       "group_id": "healthcare.eligibility|FILE.NAME_DATE",
+       "message_to_vendor": "The file date 2099-12-31 in the filename '7cfb0d7db1dd7aa77d643e2cb8c3498fb58c4f96435ae6499d38b17ec2746383.elig_20991231.csv' violates the requirement that the date must be within 0 days of the receipt date (2026-10-21). Please correct the file date and resend.",
+       "quarantine_ids": [
+        1
+       ],
+       "rationale": "The file name date 20991231 is far in the future compared to the receipt date 2026-10-21, failing the contract constraint for filename_date.",
+       "root_cause": "file_naming"
+      },
+      "id": "call_584048",
+      "name": "propose_operation"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TyLNbVwEBVMYS62fy26BUualgUs6eZBkifKGJVuc/86MUuES60st2Vc16Y9fzkIJNeRI9KuoH1AYGn7olJeEjIeWztyhJghpcNgMI1XGLbFdh5zff4172QXbUYTpHeiSsLz8lMh8VeEupytps"
+    },
+    "id": "g-e0e737d04c9c",
+    "input": {
+     "action": "request_resend",
+     "confidence": 1,
+     "group_id": "healthcare.eligibility|FILE.NAME_DATE",
+     "message_to_vendor": "The file date 2099-12-31 in the filename '7cfb0d7db1dd7aa77d643e2cb8c3498fb58c4f96435ae6499d38b17ec2746383.elig_20991231.csv' violates the requirement that the date must be within 0 days of the receipt date (2026-10-21). Please correct the file date and resend.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "The file name date 20991231 is far in the future compared to the receipt date 2026-10-21, failing the contract constraint for filename_date.",
+     "root_cause": "file_naming"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "6e9595346d300711965f917857a4920a5d3b50840af8d45b3409c1067e8f8437",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2737,
+   "output_tokens": 242
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The open quarantine has been triaged:\n\n- **healthcare.eligibility|FILE.NAME_DATE**: Proposed `request_resend` because the filename date 20991231 is invalid per the data contract (must be within 0 days of the receipt date 2026-10-21).",
+     "thoughtSignature": "EnMKcQFpFH0TFVsXp1q5Z2BB2rJyvztJ9zITuKvJO9RTUHr3+TTQJcv3hG2cPodo0YQtwYzRpO4RO9oAwiwKnGzJRlwz7FfsjTRINIiMvhwxMWj+K5+/oDGyHei851PK52lytmRgLfC1L8xz3kuYS6ZgpPIE"
+    },
+    "text": "The open quarantine has been triaged:\n\n- **healthcare.eligibility|FILE.NAME_DATE**: Proposed `request_resend` because the filename date 20991231 is invalid per the data contract (must be within 0 days of the receipt date 2026-10-21).",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "a75397ee5153359bc652d0198f798a36d31584b5dc4ac615be809cccfc74c8cd",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 3014,
+   "output_tokens": 71
+  }
+ }
+]
