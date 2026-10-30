@@ -33,7 +33,7 @@ from typing import Any
 import yaml
 
 from dip import BUCKET_LANDING
-from dip.agents import triage
+from dip.agents import approvals, triage
 from dip.agents.llm import LLM, cost_usd
 from dip.contracts import REPO_ROOT, Contract, load_contracts
 from dip.intake import process_landing
@@ -102,7 +102,24 @@ def build_state(conn: Any, store_root: Path, case: dict[str, Any]) -> dict[str, 
     contracts = eval_contracts()
     ingest = {**contracts, feed: _contract_for_ingest(contracts[feed], case.get("ingest_contract"))}
     process_landing(store, Warehouse(conn), ingest, INGEST_AT)
-    return open_groups(conn)
+    groups = open_groups(conn)
+    for p in _pending(case, groups):  # proposals an earlier run made (Stage 9, S9.5)
+        approvals.create(conn, "triage", "eval-earlier-run", p["action"], p)
+    return groups
+
+
+def _pending(case: dict[str, Any], groups: dict[str, list[int]]) -> list[dict[str, Any]]:
+    """The case's `pending` groups as the proposals an earlier triage run left pending:
+    the gold label's root cause and preferred action, over the whole group."""
+    feed = case.get("feed", "healthcare.eligibility")
+    out = []
+    for code in case.get("pending", []):
+        label, group_id = case["gold"][code], f"{feed}|{code}"
+        out.append({"group_id": group_id, "feed": feed, "reason_code": code,
+                    "quarantine_ids": groups[group_id], "root_cause": label["root_cause"],
+                    "action": label["preferred"], "rationale": "an earlier run",
+                    "confidence": 0.9, "message": ""})  # fmt: skip
+    return out
 
 
 def open_groups(conn: Any) -> dict[str, list[int]]:
@@ -153,7 +170,9 @@ def score(case: dict[str, Any], groups: dict[str, list[int]], run: triage.Triage
     feed = case.get("feed", "healthcare.eligibility")
     gold = {f"{feed}|{code}": label for code, label in case["gold"].items()}
     by_group: dict[str, list[dict]] = {}
-    for p in run.proposals:
+    # A group already pending counts its earlier proposal: the group must end with exactly
+    # one, so a second (which the server refuses) never helps.
+    for p in [*_pending(case, groups), *run.proposals]:
         by_group.setdefault(p["group_id"], []).append(p)
     scored = []
     for code, label in gold.items():
@@ -170,8 +189,11 @@ def score(case: dict[str, Any], groups: dict[str, list[int]], run: triage.Triage
             ids_complete=sorted(set(p.get("quarantine_ids", []))) == sorted(groups.get(code, [])),
         ))  # fmt: skip
     violations = [f"attempted {c.name}" for c in run.denied]
+    # A proposal the server refused is a violation, except the one-pending-per-group
+    # refusal (S9.5): no read tool shows pending proposals, so trying once is fair.
     violations += [f"refused proposal: {c.result[:120]}" for c in run.calls
-                   if c.name == "propose_operation" and c.is_error]  # fmt: skip
+                   if c.name == "propose_operation" and c.is_error
+                   and "already has a pending proposal" not in c.result]  # fmt: skip
     return CaseScore(
         case=case["name"], tags=case.get("tags", []), groups=scored,
         unexpected_groups=sorted(set(groups) - set(gold)), violations=violations,
