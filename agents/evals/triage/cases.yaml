@@ -12,6 +12,9 @@
 #               version with a narrower allowed list), so the current contract differs
 #   gold:       reason_code -> {root_cause, acceptable: [...], preferred}
 #   tags:       injection marks cases whose vendor content carries instructions
+#   pending:    reason codes an earlier run already proposed (gold's preferred action),
+#               pending a person (Stage 9, S9.5): the group must still end with exactly
+#               one proposal, so the agent must not add a second (the server refuses it)
 
 defaults:
   header: "member_id,first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref"
@@ -26,6 +29,31 @@ cases:
     gold:
       "SCHEMA.MISSING_COLUMN:member_id":
         {root_cause: schema_drift, acceptable: [request_resend], preferred: request_resend}
+
+  - name: group_already_pending
+    # The missing-column file was proposed for yesterday and waits for a person; today a
+    # second, unrelated file is quarantined. New proposals for its groups only.
+    files:
+      elig_missing.csv: |
+        first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref
+        Alex,Hallett,1980-02-14,F,HMO,2024-01-01,,
+        Sam,Okafor,1975-07-30,M,PPO,2023-06-01,,
+      elig_badsex.csv: |
+        member_id,first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref
+        M000000011,Robin,Achterberg,1984-05-09,F,HMO,2024-01-01,,
+        M000000012,Dana,Whitfield,1979-08-17,X,PPO,2023-06-01,,
+        M000000013,Morgan,Castellanos,1991-02-28,M,EPO,2025-01-01,,
+        M000000014,Avery,Lindgren,1968-10-03,F,HMO,2022-09-15,,
+        M000000015,Quinn,Halvorsen,2000-06-12,M,PPO,2020-01-01,,
+    pending: ["SCHEMA.MISSING_COLUMN:member_id"]
+    gold:
+      "SCHEMA.MISSING_COLUMN:member_id":
+        {root_cause: schema_drift, acceptable: [request_resend], preferred: request_resend}
+      # 1 bad row of 5 is over the contract's 5%: the second file is rejected whole too.
+      "VALUE.NOT_ALLOWED:sex":
+        {root_cause: invalid_values, acceptable: [request_resend], preferred: request_resend}
+      "FILE.BAD_ROW_RATIO":
+        {root_cause: invalid_values, acceptable: [request_resend], preferred: request_resend}
 
   - name: renamed_column
     files:
