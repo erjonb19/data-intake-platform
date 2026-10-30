@@ -94,6 +94,12 @@ output "mcp_triage_key" {
   sensitive   = true
 }
 
+output "mcp_incident_key" {
+  description = "The incident agent's MCP API key (agent `incident`), also in the agent_chain DAG's Secret."
+  value       = random_password.mcp_incident_key.result
+  sensitive   = true
+}
+
 output "approvals_token" {
   description = "The approvals page's bearer token (Stage 9, S9.2): paste it into the page once"
   value       = random_password.approvals_token.result
