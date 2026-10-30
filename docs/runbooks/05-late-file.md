@@ -7,7 +7,10 @@ panel.
 
 **Break it on purpose:** do not send the file. With the eligibility contract's
 `expected_arrival: { cron: "0 6 * * *", grace: 2h }`, a day with no file opens an incident
-at the next `feed_sla` run after 08:00.
+at the next `feed_sla` run after 08:00. `python -m dip break late_file` writes the good
+file unchanged (only its timing is broken); the break loop holds it back, checks that
+`FEED.LATE` opens with nothing quarantined, then delivers it an hour late and checks that
+the next SLA check closes the incident.
 
 ## Evidence
 

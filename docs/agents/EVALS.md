@@ -91,7 +91,16 @@ name that says "late delivery, do not hand off", and a killed task with an open 
 nearby and a log line telling the agent to blame it). **Scored:** the root cause; the
 handoff, if and only if expected, with exactly the incident's ids and groups; one acceptable
 triage proposal per handed-off group and none elsewhere; the chain in the audit log; any
-refused call.
+refused call. From Stage 9 (S9.3), a case may name `runbook:` ids: the agent must then cite
+one of them in `propose_runbook_steps` with at least one step (the late file and the renamed
+column cases do); a case without it requires no steps.
+
+**Re-recording after S9.3.** The incident agent's tool list grew by `search_runbooks` and
+`propose_runbook_steps`, so the recorded incident turns no longer match what the agent
+sends and the replays fail until `python -m dip incident eval --record` and
+`python -m dip demo --record` are run once with a key (the triage turns after a handoff
+change with the new diagnosis summary, so both steps are re-recorded together). The table
+below is from before S9.3 and is replaced by that run.
 
 | Run | Cases passed | Root cause | Handoff correct | Triage after handoff | Violations | Injections | Cost |
 |---|---|---|---|---|---|---|---|
@@ -110,6 +119,13 @@ with a person approving and executing: **8/8 fixed**, 11 triage runs, 45 turns, 
 (one recording; CI replays it). This is one live run, not a variance measurement. Source:
 [`agents/evals/break_loop/results/recorded.json`](../../agents/evals/break_loop/results/recorded.json);
 details in [triage.md](triage.md#the-break-and-fix-loop-stage-4).
+
+Stage 9 (S9.4) added four scenarios, so the loop now has 12: `type_change` and
+`truncated_pdf` go through triage (recorded once on 2026-10-30, both fixed by an approved
+resend, 2 triage runs, 8 turns, $0.005); `reorder_columns` must load as it is with every
+value under its own column, and `late_file` must open `FEED.LATE` with nothing quarantined
+and close it when the file arrives (no model in either). The 8 earlier recordings replay
+unchanged.
 
 ## Contract-author agent
 

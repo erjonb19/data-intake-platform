@@ -307,6 +307,14 @@ def main() -> int:
         cur.execute("select to_regclass('ops.incident') is not null")
         if not cur.fetchone()[0]:
             failures.append("feed_sla ran but ops.incident does not exist")
+    # Stage 9 (S9.1): the agent chain's DAG parses, its pod starts with the pod_override
+    # and the dip-agent-chain Secret, and its agent venv imports the chain. CI sets no
+    # model key, so it claims nothing and must still succeed.
+    trigger_and_wait(body["access_token"], "agent_chain", failures)
+    with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute("select count(*) from ops.agent_run")
+        if cur.fetchone()[0] != 0:
+            failures.append("agent_chain claimed incidents with no model key")
     for f in failures:
         print(f"FAIL: {f}", file=sys.stderr)
     if failures:

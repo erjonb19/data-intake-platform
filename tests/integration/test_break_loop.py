@@ -26,8 +26,13 @@ def test_the_scenario_is_detected_triaged_approved_and_fixed(sc, tmp_path):
         sc, DSN, lambda name: Recording(break_loop.RECORDINGS / f"{name}.json"), tmp_path
     )
     assert result.problems == [], result.steps
-    assert set(result.actions) <= set(sc["expect"]) | {"replay"}
-    assert result.steps[-1] == "check: no open quarantine for the feed"
+    if sc.get("timing") == "late":  # S9.4: the SLA check's, no triage
+        assert result.actions == [] and result.steps[-1] == "check: loaded, incident closed"
+    elif sc["expect"] == "loads":  # S9.4: a tolerated change, no triage
+        assert result.actions == [] and result.steps[-1] == "check: loaded, nothing quarantined"
+    else:
+        assert set(result.actions) <= set(sc["expect"]) | {"replay"}
+        assert result.steps[-1] == "check: no open quarantine for the feed"
 
 
 def test_every_dip_break_scenario_is_in_the_loop():

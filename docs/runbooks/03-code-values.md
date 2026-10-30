@@ -10,6 +10,12 @@ eligibility contract's `max_bad_row_ratio` (0.05) of the rows fail, so the file 
 quarantined whole with `FILE.BAD_ROW_RATIO`, each bad row still carrying
 `VALUE.NOT_ALLOWED:plan_code`. Use a larger `every` (say 30) to see the row-level case.
 
+**A changed value format** works the same way with `VALUE.TYPE:<col>`: a vendor that starts
+writing dates as MM/DD/YYYY fails every row's date check
+(`python -m dip break type_change <good> <out> --arg column=dob`), so the file is
+quarantined whole with `FILE.BAD_ROW_RATIO`. The contract's date type is ISO 8601; ask the
+vendor to resend in it (`request_resend`) rather than loosening the contract.
+
 **Break it on purpose:**
 
 ```bash

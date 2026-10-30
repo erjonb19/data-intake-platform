@@ -36,7 +36,7 @@ from typing import Any
 
 import yaml
 
-from dip import BUCKET_LANDING
+from dip import BUCKET_LANDING, sla
 from dip.agents import approvals, evals, triage
 from dip.agents.llm import LLM, cost_usd
 from dip.agents.registry import human_policy
@@ -222,8 +222,19 @@ def run_scenario(sc: dict[str, Any], dsn: str, llm_for: Any, work: Path) -> Loop
     good = (BASE / sc["base"]).read_bytes()
     with psycopg.connect(dsn) as conn:
         evals._reset(conn)
+        if sc.get("timing") == "late":
+            return _late(conn, store, contracts, sc, apply(good, sc["break"]), out)
         # 1. Break and detect.
         o = _land(conn, store, contracts, feed, sc["file"], apply(good, sc["break"]), 0)
+        if sc["expect"] == "loads":  # a tolerated change: it must load as it is
+            out.steps.append(f"detect: {o.status} {list(o.reason_codes)}")
+            if o.status != "loaded" or _open(conn, feed):
+                out.problems.append(f"expected it to load as it is: {o.status} {o.reason_codes}")
+            elif _records(conn, o.file_sha256) != _good_records(good):
+                out.problems.append("loaded, but its records differ from the good file's")
+            out.steps.append("check: loaded, nothing quarantined" if not out.problems
+                             else "check: FAIL")  # fmt: skip
+            return out
         out.steps.append(f"detect: {o.status} {list(o.reason_codes)}")
         groups = _open(conn, feed)
         if not groups:
@@ -275,6 +286,55 @@ def run_scenario(sc: dict[str, Any], dsn: str, llm_for: Any, work: Path) -> Loop
         if left:
             out.problems.append(f"still open after the fix: {sorted(left)}")
         out.steps.append("check: no open quarantine for the feed" if not left else "check: FAIL")
+    return out
+
+
+def _records(conn: Any, sha: str) -> list[dict[str, str]]:
+    with conn.cursor() as cur:
+        cur.execute("select record from bronze.csv_record where file_sha256 = %s"
+                    " order by row_number", (sha,))  # fmt: skip
+        out = [r[0] for r in cur.fetchall()]
+    conn.commit()
+    return out
+
+
+def _good_records(good: bytes) -> list[dict[str, str]]:
+    """The good file's rows by column name: a reordered file must load the same values."""
+    import csv
+    import io
+
+    return list(csv.DictReader(io.StringIO(good.decode("utf-8"))))
+
+
+def _late(conn: Any, store: LocalStore, contracts: dict[str, Contract], sc: dict[str, Any],
+          data: bytes, out: LoopResult) -> LoopResult:  # fmt: skip
+    """A late file (S9.4): the SLA check opens FEED.LATE while nothing has arrived, the file
+    then arrives and loads, and the next check closes the incident. No model: this is
+    the SLA check's and the intake's job; the incident agent reads it (runbook 5)."""
+    feed = sc["feed"]
+    only = {feed: contracts[feed]}  # the scenario's feed alone, not every pinned contract
+
+    def open_late() -> list[int]:
+        with conn.cursor() as cur:
+            cur.execute("select incident_id from ops.incident where feed = %s"
+                        " and kind = 'FEED.LATE' and closed_at is null", (feed,))  # fmt: skip
+            ids = [r[0] for r in cur.fetchall()]
+        conn.commit()
+        return ids
+
+    opened = sla.check(conn, only, AT)["opened"]
+    out.steps.append(f"detect: nothing arrived; SLA check at {AT:%Y-%m-%d %H:%M} opened {opened}")
+    if not open_late() or _open(conn, feed):
+        out.problems.append("expected FEED.LATE open and nothing quarantined")
+        return out
+    o = _land(conn, store, contracts, feed, sc["file"], data, 1)
+    closed = sla.check(conn, only, AT + timedelta(hours=1))["closed"]
+    out.steps.append(f"fix: the file arrived an hour later: {o.status}; SLA check closed {closed}")
+    if o.status != "loaded":
+        out.problems.append(f"the late file did not load: {o.status} {o.reason_codes}")
+    if open_late():
+        out.problems.append("FEED.LATE still open after the file arrived")
+    out.steps.append("check: loaded, incident closed" if not out.problems else "check: FAIL")
     return out
 
 
