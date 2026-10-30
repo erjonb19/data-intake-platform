@@ -697,12 +697,13 @@ def main(argv: list[str] | None = None) -> int:
         if args.feed not in contracts:
             parser.error(f"no contract for {args.feed!r}")
         c = contracts[args.feed]
-        if made := dbt_gen.hand_written(c.feed):
-            print(f"{c.feed}: its models are hand-written ({', '.join(p.stem for p in made)});"
+        models = dbt_gen.disk_models()
+        if made := dbt_gen.hand_written(c.feed, models):
+            print(f"{c.feed}: its models are hand-written ({', '.join(made)});"
                   " nothing is generated", file=sys.stderr)  # fmt: skip
             return 1
         files = dbt_gen.render(c)
-        dbt_gen.check_paths(c.feed, files)
+        dbt_gen.check_paths(c.feed, files, models)
         if args.write:
             for rel in dbt_gen.write(files):
                 print(f"wrote {rel}")

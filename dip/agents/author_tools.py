@@ -101,14 +101,15 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
         current = contracts.get(feed)
         before = {c["name"] for c in current.spec.get("columns", [])} if current else set()
         removed = sorted(before - {c["name"] for c in cand.spec.get("columns", [])})
+        models = dbt_gen.disk_models()
+        affected = dbt_gen.affected_models(feed, removed, models)
         try:
             files = dbt_gen.plan_files(cand)
         except dbt_gen.GenerationError as exc:
-            return {"dbt_files": {}, "dbt_error": str(exc),
-                    "dbt_affected": dbt_gen.affected_models(feed, removed)}  # fmt: skip
+            return {"dbt_files": {}, "dbt_error": str(exc), "dbt_affected": affected}
         return {"dbt_files": files,
                 "dbt_files_sha256": dbt_gen.files_sha256(files) if files else None,
-                "dbt_affected": dbt_gen.affected_models(feed, removed)}  # fmt: skip
+                "dbt_affected": affected}  # fmt: skip
 
     def diff_schema(principal: str, run_id: str | None, feed: str, file_sha256: str) -> dict:
         full, data, name, _ = _file(feed, file_sha256)
@@ -275,7 +276,7 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             "ok": ok,
             "feed": feed,
             "generated": sorted(files),
-            "hand_written": [p.stem for p in dbt_gen.hand_written(feed)],
+            "hand_written": dbt_gen.hand_written(feed, dbt_gen.disk_models()),
             "affected_hand_written": out["dbt_affected"],
             "dbt_parse": parsed["ok"],  # None: dbt is not installed where the server runs
             "dbt_output": parsed["output"] if parsed["ok"] is False else "",

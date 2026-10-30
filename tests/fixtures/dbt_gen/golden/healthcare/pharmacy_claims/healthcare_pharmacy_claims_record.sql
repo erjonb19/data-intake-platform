@@ -29,7 +29,7 @@ select
     b.record ->> 'member_id' as "member_id",
     (b.record ->> 'fill_date')::date as "fill_date",
     b.record ->> 'ndc' as "ndc",
-    (b.record ->> 'days_supply')::bigint as "days_supply",
+    (b.record ->> 'days_supply')::numeric as "days_supply",
     (b.record ->> 'quantity')::numeric as "quantity",
     (b.record ->> 'paid_amount')::numeric as "paid_amount",
     b.record ->> 'pharmacy_npi' as "pharmacy_npi"
