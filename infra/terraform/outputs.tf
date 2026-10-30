@@ -93,3 +93,9 @@ output "mcp_triage_key" {
   value       = random_password.mcp_triage_key.result
   sensitive   = true
 }
+
+output "mcp_incident_key" {
+  description = "The incident agent's MCP API key (agent `incident`), also in the agent_chain DAG's Secret."
+  value       = random_password.mcp_incident_key.result
+  sensitive   = true
+}

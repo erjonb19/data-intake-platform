@@ -95,6 +95,21 @@ CREATE TABLE IF NOT EXISTS ops.incident_file (
     file_sha256   text        NOT NULL,
     PRIMARY KEY (incident_id, file_sha256)
 );
+-- Stage 9 (S9.1): the agent_chain DAG's claim on an incident. One row per incident the
+-- DAG picked up, inserted before the chain runs so a second DAG run never starts the
+-- chain on the same incident. status: running -> done | failed | skipped (reason says why:
+-- no model key in the cluster, no MCP configuration, or the error).
+CREATE TABLE IF NOT EXISTS ops.agent_run (
+    incident_id   bigint      PRIMARY KEY REFERENCES ops.incident (incident_id),
+    started_at    timestamptz NOT NULL DEFAULT now(),
+    finished_at   timestamptz,
+    status        text        NOT NULL DEFAULT 'running'
+                              CHECK (status IN ('running', 'done', 'failed', 'skipped')),
+    reason        text,
+    chain_id      text,
+    root_cause    text,
+    dag_run_id    text
+);
 CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     diagnosis_id    bigserial   PRIMARY KEY,
     incident_id     bigint      NOT NULL REFERENCES ops.incident (incident_id),

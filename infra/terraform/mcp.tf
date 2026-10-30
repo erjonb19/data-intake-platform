@@ -43,6 +43,12 @@ resource "random_password" "mcp_triage_key" {
   special = false
 }
 
+# Stage 9 (S9.1): the incident agent's key, used by the agent_chain DAG's pods.
+resource "random_password" "mcp_incident_key" {
+  length  = 40
+  special = false
+}
+
 resource "kubernetes_config_map_v1" "mcp_minio_policy" {
   metadata {
     name      = "mcp-minio-policy"
@@ -217,8 +223,9 @@ resource "kubernetes_secret_v1" "mcp" {
   }
   data = {
     DIP_AGENT_KEYS = jsonencode({
-      reader = sha256(random_password.mcp_reader_key.result)
-      triage = sha256(random_password.mcp_triage_key.result)
+      reader   = sha256(random_password.mcp_reader_key.result)
+      triage   = sha256(random_password.mcp_triage_key.result)
+      incident = sha256(random_password.mcp_incident_key.result)
     })
     DIP_WAREHOUSE_DSN    = "postgresql://dip_mcp:${local.pw["pg_mcp"]}@${local.postgres_host}:5432/warehouse"
     DIP_S3_ENDPOINT      = "http://${local.minio_host}:9000"
