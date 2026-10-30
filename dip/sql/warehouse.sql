@@ -226,7 +226,13 @@ BEGIN
         AND NEW.executed_by IS NULL THEN
         RAISE EXCEPTION 'ops.approvals: an execution records who ran it';
     END IF;
-    IF (OLD.decided_by IS NOT NULL AND NEW.decided_by IS DISTINCT FROM OLD.decided_by)
+    -- (Stage 9, S9.2) The whole decision record, not only who: once decided, its time and
+    -- note stay too, and an approved hash is set only by the approval itself.
+    IF (OLD.decided_by IS NOT NULL AND (NEW.decided_by IS DISTINCT FROM OLD.decided_by
+                                        OR NEW.decided_at IS DISTINCT FROM OLD.decided_at
+                                        OR NEW.decision_note IS DISTINCT FROM OLD.decision_note))
+        OR (NEW.approved_sha256 IS DISTINCT FROM OLD.approved_sha256
+            AND NOT (OLD.status = 'pending' AND NEW.status = 'approved'))
         OR (OLD.executed_by IS NOT NULL AND NEW.executed_by IS DISTINCT FROM OLD.executed_by)
         OR (OLD.result IS NOT NULL AND NEW.result IS DISTINCT FROM OLD.result) THEN
         RAISE EXCEPTION 'ops.approvals: a decision or an execution cannot be rewritten';
@@ -362,3 +368,27 @@ BEGIN
     END IF;
 END $$;
 SELECT ops.grant_mcp_reader();
+
+-- The approvals page's access (Stage 9, S9.2; the dip_approver login): list and show
+-- proposals, record a person's decision, and read and append to the audit log. Only the
+-- decision columns can be updated, and the trigger above still holds it to the one-way
+-- status machine (pending -> approved | rejected | expired). It cannot record an
+-- execution: executed_by, executed_at and result are not granted.
+CREATE OR REPLACE FUNCTION ops.grant_approver() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_approver') THEN
+        RETURN;
+    END IF;
+    GRANT USAGE ON SCHEMA ops TO dip_approver;
+    IF to_regclass('ops.approvals') IS NOT NULL THEN
+        GRANT SELECT ON ops.approvals TO dip_approver;
+        GRANT UPDATE (status, decided_by, decided_at, decision_note, approved_sha256)
+            ON ops.approvals TO dip_approver;
+    END IF;
+    IF to_regclass('ops.audit_log') IS NOT NULL THEN
+        GRANT SELECT, INSERT ON ops.audit_log TO dip_approver;
+        GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_approver;
+    END IF;
+END $$;
+SELECT ops.grant_approver();
