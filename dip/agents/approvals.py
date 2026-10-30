@@ -295,8 +295,7 @@ def _run(conn: Any, store: ObjectStore, action: str, payload: dict, landed: list
             # for a person, never a change on its own.
             from dip.intake_jobs import drift_from_handoff
 
-            feed = payload["group_id"].partition("|")[0]
-            return {**drift_from_handoff(cur, feed, open_ids, approval_id),
+            return {**drift_from_handoff(cur, payload["group_id"], open_ids, approval_id),
                     "quarantine_ids": open_ids}  # fmt: skip
         raise ApprovalError(f"unknown action {action!r}")
 

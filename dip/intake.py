@@ -197,6 +197,8 @@ def process_landing(
     """Process every file waiting in the landing bucket, in key order."""
     outcomes = []
     for key in store.list(BUCKET_LANDING):
+        if key.startswith("_onboard/"):  # new vendors' samples (Stage 10, dip/intake_jobs.py)
+            continue
         feed = feed_of(key)
         if feed not in contracts:
             raise KeyError(f"no contract for feed {feed!r} (file {key})")

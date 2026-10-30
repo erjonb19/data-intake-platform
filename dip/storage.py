@@ -13,6 +13,7 @@ from typing import Any, Protocol
 
 class ObjectStore(Protocol):
     def get(self, bucket: str, key: str) -> bytes: ...
+    def size(self, bucket: str, key: str) -> int: ...
     def put(
         self,
         bucket: str,
@@ -42,6 +43,9 @@ class LocalStore:
 
     def get(self, bucket: str, key: str) -> bytes:
         return self._path(bucket, key).read_bytes()
+
+    def size(self, bucket: str, key: str) -> int:
+        return self._path(bucket, key).stat().st_size
 
     def _meta_path(self, bucket: str, key: str) -> Path:
         self._path(bucket, key)  # the same escape check
@@ -94,6 +98,9 @@ class S3Store:
 
     def get(self, bucket: str, key: str) -> bytes:
         return self.client.get_object(Bucket=bucket, Key=key)["Body"].read()
+
+    def size(self, bucket: str, key: str) -> int:
+        return int(self.client.head_object(Bucket=bucket, Key=key)["ContentLength"])
 
     def put(
         self,

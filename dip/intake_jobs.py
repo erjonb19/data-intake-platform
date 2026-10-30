@@ -37,8 +37,17 @@ ONBOARD_PREFIX = "_onboard/"
 FEED = re.compile(r"^(?P<pack>[a-z][a-z0-9_]*)\.(?P<name>[a-z][a-z0-9_]*)$")
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 STALE_AFTER = timedelta(minutes=30)
+MAX_SAMPLE_BYTES = 50 * 1024 * 1024  # the task's pod has 512Mi; a sample is a sample
 OPEN = ("queued", "running")
-ENDS = ("proposed", "no_change", "revise", "rejected", "failed", "skipped")
+# How a job ends. (A job with no provider is put back in the queue, never ended.)
+ENDS = ("proposed", "no_change", "revise", "rejected", "failed")
+
+
+def open_job(cur: Any, feed: str) -> int | None:
+    cur.execute("select job_id from ops.intake_job where feed = %s"
+                " and status in ('queued', 'running')", (feed,))  # fmt: skip
+    row = cur.fetchone()
+    return int(row[0]) if row else None
 
 
 def queue(cur: Any, feed: str, mode: str, file_sha256: str, source: str,
@@ -77,44 +86,62 @@ def onboard_target(key: str, contracts: dict[str, Any]) -> tuple[str, str] | str
 def scan_onboarding(conn: Any, store: Any, contracts: dict[str, Any],
                     by: str = "intake:landing") -> dict[str, list[str]]:  # fmt: skip
     """Register every sample under landing/_onboard/ and queue its onboarding job. A key
-    that is not usable is left where it is and reported (nothing is queued for it)."""
+    that is not usable (or fails) is left where it is and reported, and the others go on.
+    A sample whose content already has a job (a resend of it, or a delete that failed
+    after the commit) is registered again harmlessly and not queued a second time."""
     from dip.agents.author_tools import register_sample_bytes
 
-    out: dict[str, list[str]] = {"queued": [], "already_open": [], "refused": []}
+    out: dict[str, list[str]] = {"queued": [], "already_open": [], "already_done": [],
+                                 "refused": []}  # fmt: skip
     for key in sorted(store.list(BUCKET_LANDING, ONBOARD_PREFIX)):
         target = onboard_target(key, contracts)
         if isinstance(target, str):
             out["refused"].append(target)
             continue
         feed, name = target
-        sha = register_sample_bytes(conn, store, feed, name, store.get(BUCKET_LANDING, key), by)
-        with conn.cursor() as cur:
-            job = queue(cur, feed, "onboard", sha, "landing", key)
-        conn.commit()
+        try:
+            if (n := store.size(BUCKET_LANDING, key)) > MAX_SAMPLE_BYTES:
+                out["refused"].append(f"{key}: {n} bytes, over {MAX_SAMPLE_BYTES} for a sample")
+                continue
+            data = store.get(BUCKET_LANDING, key)
+            sha = register_sample_bytes(conn, store, feed, name, data, by)
+            with conn.cursor() as cur:
+                cur.execute("select 1 from ops.intake_job where feed = %s and file_sha256 = %s",
+                            (feed, sha))  # fmt: skip
+                done = cur.fetchone() is not None
+                job = None if done else queue(cur, feed, "onboard", sha, "landing", key)
+            conn.commit()
+        except Exception as exc:  # noqa: BLE001 - one bad file must not block the rest
+            conn.rollback()
+            out["refused"].append(f"{key}: {type(exc).__name__}: {str(exc)[:200]}")
+            continue
         store.delete(BUCKET_LANDING, key)  # registered: its copy is under raw/samples/
-        (out["queued"] if job else out["already_open"]).append(f"{feed} {sha[:12]}")
+        where = "already_done" if done else "queued" if job else "already_open"
+        out[where].append(f"{feed} {sha[:12]}")
     return out
 
 
-def drift_from_handoff(cur: Any, feed: str, quarantine_ids: list[int],
+def drift_from_handoff(cur: Any, group_id: str, quarantine_ids: list[int],
                        approval_id: int) -> dict[str, Any]:  # fmt: skip
     """An executed propose_contract_change: the group's latest quarantined file (a file
-    quarantined whole first) becomes a drift job. Uncommitted: the approval's execution
-    commits it with the approval's status."""
+    quarantined whole first) becomes a drift job. The group's open entries are found by its
+    feed and reason code, not only by the proposal's ids (a proposal lists at most 200).
+    Uncommitted: the approval's execution commits it with the approval's status."""
+    feed, _, reason = group_id.partition("|")
     cur.execute(
-        "select file_sha256 from ops.quarantine where quarantine_id = any(%s) and feed = %s"
+        "select file_sha256 from ops.quarantine where feed = %s and status = 'open'"
+        " and (reason_code = %s or quarantine_id = any(%s))"
         " order by (level = 'file') desc, created_at desc, quarantine_id desc limit 1",
-        (quarantine_ids, feed),
+        (feed, reason, quarantine_ids),
     )
     row = cur.fetchone()
     if row is None:
         return {"handoff": "none: the group has no open entries", "job_id": None}
     job = queue(cur, feed, "drift", row[0], "handoff", f"approval:{approval_id}")
-    return {
-        "handoff": "intake team (drift)" if job else f"{feed} already has an open intake job",
-        "job_id": job,
-        "file_sha256": row[0],
-    }
+    if job is None:
+        return {"handoff": f"{feed} already has an open intake job; it was not queued again",
+                "job_id": open_job(cur, feed), "file_sha256": row[0]}  # fmt: skip
+    return {"handoff": "intake team (drift)", "job_id": job, "file_sha256": row[0]}
 
 
 def claim_one(conn: Any, dag_run_id: str | None = None) -> dict[str, Any] | None:
@@ -137,13 +164,21 @@ def claim_one(conn: Any, dag_run_id: str | None = None) -> dict[str, Any] | None
 
 def finish(conn: Any, job_id: int, status: str, reason: str | None = None,
            chain_id: str | None = None, provider: str | None = None,
-           approval_id: int | None = None) -> None:  # fmt: skip
+           approval_id: int | None = None, dag_run_id: str | None = None) -> bool:  # fmt: skip
+    """End a running job. With `dag_run_id`, only the claim that run made: a slow pod whose
+    claim was taken back cannot overwrite the new claimant's result. False when nothing
+    was updated."""
     if status not in ENDS:
         raise ValueError(f"a job ends as one of {ENDS}, not {status!r}")
     with conn.cursor() as cur:
         cur.execute(
-            "update ops.intake_job set status = %s, reason = %s, chain_id = %s,"
-            " provider = %s, approval_id = %s, finished_at = now() where job_id = %s",
-            (status, reason and reason[:2000], chain_id, provider, approval_id, job_id),
-        )
+            "update ops.intake_job set status = %s, reason = %s, chain_id = coalesce(%s,"
+            " chain_id), provider = %s, approval_id = %s, finished_at = now()"
+            " where job_id = %s and status = 'running'"
+            " and (%s::text is null or dag_run_id = %s::text)",
+            (status, reason and reason[:2000], chain_id, provider, approval_id, job_id,
+             dag_run_id, dag_run_id),
+        )  # fmt: skip
+        updated = cur.rowcount == 1
     conn.commit()
+    return updated
