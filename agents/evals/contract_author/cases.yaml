@@ -56,6 +56,21 @@ cases:
       checks: [{column: member_phone, exists: true}, {column: member_phone, phi: true}]
       may_loosen: []
 
+  - name: drift_added_note_column
+    mode: drift
+    feed: healthcare.eligibility
+    file:
+      name: elig_20261021.csv
+      base: onboarding/elig_base.csv
+      # Free text a person wrote about a member (Stage 10, S10.4): the profile must flag it
+      # PHI, and the contract must mark it.
+      steps: [{op: add_column, column: member_note, value: "Called {n} times about the renewal",
+               after: last_name}]
+    expect:
+      propose: true
+      checks: [{column: member_note, exists: true}, {column: member_note, phi: true}]
+      may_loosen: []
+
   - name: drift_semicolon_delimiter
     mode: drift
     feed: healthcare.eligibility

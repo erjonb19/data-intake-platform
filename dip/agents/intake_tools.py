@@ -27,7 +27,7 @@ from dip.contract_author import CODE, observe
 ROLES = ("identifier", "code", "amount", "count", "date", "name", "free_text", "other")
 NAME_OK = re.compile(r"^[a-z][a-z0-9_]{0,62}$")
 SHEET_OK = re.compile(r"^[A-Za-z0-9_-]{1,31}$")
-MAX_NAME_WORDS = 6  # more underscore-separated words than this reads as a sentence
+MAX_NAME_WORDS = 4  # more underscore-separated words than this starts to read as a sentence
 
 
 def safe_name(name: str, i: int) -> str:
@@ -119,7 +119,7 @@ def register_intake_tools(
         job = _job(job_id)
         if job is None or job["status"] != "running":
             return f"job {job_id} is not a running intake job"
-        if job["chain_id"] and chain_of(run_id) != job["chain_id"]:
+        if not job["chain_id"] or chain_of(run_id) != job["chain_id"]:
             return f"job {job_id} belongs to another chain"
         return job
 

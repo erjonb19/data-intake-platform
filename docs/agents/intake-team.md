@@ -32,16 +32,27 @@ nothing and add an injection surface.
 The profile the map worker reads (`get_intake_profile`) is built by the server, in code,
 from what `diff_schema` sees (`dip/agents/intake_tools.py`):
 
-- counts, types, value shapes (`A999999999`), and rule failures as counts only;
+- counts, types, value shapes (`A999999999`: every letter of any script A or a, every
+  digit 9, other non-ASCII characters `?`), and rule failures as counts only;
 - code values only when every value fits the short code pattern (at most 12, each 8
   characters or fewer, upper case or digits);
-- column names only when they could be contract columns (`^[a-z][a-z0-9_]*$`, at most six
-  words); any other name is `column_<n>`, flagged `name_usable: false`. Sheet names alike;
+- column names only when they could be contract columns (`^[a-z][a-z0-9_]{0,62}$`, at
+  most four words); any other name is `column_<n>`, flagged `name_usable: false`. Sheet
+  names alike. A short lowercase name is the one vendor string that can still reach the
+  map worker (a contract must name its columns); the reviewer (S10.5) and the person see
+  every column the candidate declares;
 - `validate_contract`'s reason codes, which can carry a column name, get the same rule.
 
 The profile worker's own output is labels from fixed lists, so a hijacked profile worker
-can mislabel a column, and nothing more. The evals check this directly: in both injection
-cases, no injected text appears anywhere the map worker read (its task or any tool result).
+can mislabel a column, and nothing more (a column it leaves unlabelled has `phi` null, and
+the map worker applies its own PHI rule). The evals check this directly: in both injection
+cases, no 20 characters of the injected text appear anywhere the map worker read or wrote
+(its tasks, every tool result in full, its arguments).
+
+All members reach the warehouse through the MCP server's one login (`dip_mcp`), so the
+separation between them (who may submit, whose verdict counts) is enforced by the server's
+code and policies, not by database grants; separate logins per agent are in the backlog
+(PLAN.md section 11).
 
 ## What the server checks before anything is proposed
 

@@ -41,14 +41,18 @@ def plan(env: dict[str, str]) -> tuple[tuple[str, ...], str | None]:
     return tuple(names), None
 
 
-def requeue(conn: Any, job_id: int, reason: str) -> None:
+def requeue(conn: Any, job_id: int, reason: str, dag_run_id: str | None = None) -> bool:
+    """Back to the queue: only the claim this run made (like finish)."""
     with conn.cursor() as cur:
         cur.execute(
-            "update ops.intake_job set status = 'queued', claimed_at = null,"
-            " reason = %s where job_id = %s and status = 'running'",
-            (reason[:2000], job_id),
+            "update ops.intake_job set status = 'queued', claimed_at = null, reason = %s"
+            " where job_id = %s and status = 'running'"
+            " and (%s::text is null or dag_run_id = %s::text)",
+            (reason[:2000], job_id, dag_run_id, dag_run_id),
         )
+        updated = cur.rowcount == 1
     conn.commit()
+    return updated
 
 
 def run_job(
@@ -61,7 +65,11 @@ def run_job(
     chain_id = f"intake-{uuid.uuid4().hex[:10]}"
     with conn.cursor() as cur:
         cur.execute(
-            "update ops.intake_job set chain_id = %s where job_id = %s", (chain_id, job["job_id"])
+            # A new chain, and no profile from an earlier run of the job: this run's profile
+            # worker must report its own.
+            "update ops.intake_job set chain_id = %s, profile = null, review = null"
+            " where job_id = %s",
+            (chain_id, job["job_id"]),
         )
     conn.commit()
     url = env["DIP_MCP_URL"]
@@ -97,7 +105,7 @@ def run(
         except NoProvider as exc:
             conn.rollback()
             if exc.step == "profile":  # nothing written: the job waits for a provider
-                requeue(conn, job["job_id"], f"no provider answered: {exc}")
+                requeue(conn, job["job_id"], f"no provider answered: {exc}", dag_run_id)
                 summary["done"][job["job_id"]] = "queued"
                 break
             finish(
