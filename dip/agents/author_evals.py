@@ -75,7 +75,11 @@ def build_state(conn: Any, work: Path, case: dict[str, Any]) -> tuple[LocalStore
         path = work / "upload" / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-        return store, register_sample(conn, store, case["feed"], path, "eval")
+        # Registered at the same fixed time the drift cases are ingested at: the fixtures'
+        # file names carry a date, and a candidate's `filename_date` window (7 days by
+        # default) is checked against the registration time, so now() would reject them
+        # once the fixtures are a week old and the recorded tool outputs would drift.
+        return store, register_sample(conn, store, case["feed"], path, "eval", INGEST_AT)
     store.put(BUCKET_LANDING, f"{case['feed']}/{name}", data)
     [outcome] = process_landing(store, Warehouse(conn), eval_contracts(), INGEST_AT)
     return store, outcome.file_sha256
