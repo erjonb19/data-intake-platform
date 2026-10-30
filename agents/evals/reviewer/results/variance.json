@@ -2,11 +2,12 @@
  "summary": {
   "model": "claude-haiku-5-5",
   "cases": 24,
-  "cases_passed": 24,
+  "cases_passed": 23,
   "faulty_stopped": "12/12",
-  "good_sent_back": "0/12",
+  "good_sent_back": "1/12",
+  "no_verdict": 0,
   "policy_violations": 0,
-  "cost_usd": 0.044995
+  "cost_usd": 0.045099
  },
  "cases": [
   {
@@ -19,11 +20,15 @@
    "reasons": [
     {
      "issue": "loosening",
-     "detail": "The only loosening is plan_code allowed += GOLD. The profile supports it: GOLD appears in 8 of 24 rows, and the current contract's allowed rule fails on exactly those 8 rows (rule_failures allowed: 8). The dry run accepts 24 and rejects 0. The vendor is adding a new code, not a junk one."
+     "detail": "The only change is plan_code allowed += GOLD. The profile supports it: GOLD appears in codes with 8 rows, and the 8 'allowed' rule_failures are exactly those GOLD rows. The vendor's added code is real and used consistently, so the loosening is needed. Nothing else in the rules was widened."
     },
     {
      "issue": "other",
-     "detail": "Not changed by this candidate, so not a revise reason: member_id is labelled phi: false in the profile and in the current contract. It is a payer member id that links to a person (pattern ^M[0-9]{9}$), and the PHI rule covers member ids that link to a person. Worth a separate look by a person; patie"
+     "detail": "Not part of this candidate's changes, noted only: member_id is labelled phi: false (role other) in the profile and in the current contract. It is a member id that links to a person, which the PHI list says should be phi: true. This is an existing-column gap for a person to review, not a reason to re"
+    },
+    {
+     "issue": "other",
+     "detail": "The diff also drops the two header comment lines (the description of the feed and the generator reference). This is comment-only and changes no rule, so no action is needed beyond noting it."
     }
    ],
    "violations": [],
@@ -36,10 +41,10 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2118,
+     "cache_read_input_tokens": 2250,
      "inference_geo": "global",
      "input_tokens": 4,
-     "output_tokens": 117,
+     "output_tokens": 116,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -52,12 +57,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5288,
+     "cache_read_input_tokens": 5329,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 849,
+     "output_tokens": 882,
      "output_tokens_details": {
-      "thinking_tokens": 486
+      "thinking_tokens": 477
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -65,153 +70,13 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 899
+      "ephemeral_5m_input_tokens": 931
      },
-     "cache_creation_input_tokens": 899,
-     "cache_read_input_tokens": 5288,
+     "cache_creation_input_tokens": 931,
+     "cache_read_input_tokens": 5329,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 231,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 8.4,
-   "passed": true
-  },
-  {
-   "case": "good_added_phone",
-   "faulty": false,
-   "expect": [
-    "pass"
-   ],
-   "verdict": "pass",
-   "reasons": [
-    {
-     "issue": "other",
-     "detail": "Non-blocking: the candidate YAML opens with a header comment labelled 'Reviewer eval candidate (Stage 10, S10.5)'. It is a comment only and does not affect the contract, but it is not a real header and could be removed before the contract is adopted."
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2116,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 115,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 3106
-     },
-     "cache_creation_input_tokens": 3106,
-     "cache_read_input_tokens": 2116,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 498,
-     "output_tokens_details": {
-      "thinking_tokens": 291
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 546
-     },
-     "cache_creation_input_tokens": 546,
-     "cache_read_input_tokens": 5222,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 200,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 5.5,
-   "passed": true
-  },
-  {
-   "case": "good_lab_results",
-   "faulty": false,
-   "expect": [
-    "pass"
-   ],
-   "verdict": "pass",
-   "reasons": [
-    {
-     "issue": "other",
-     "detail": "Notes only, no change required. The header comments describe this as a reviewer eval reference contract with invented data; confirm that is intended before it is used for a real feed. The unit allowed list (mg/dL, %, g/dL) matches the three profile shapes (aa/aA, a/aA, %), and the loinc_code pattern"
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2120,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 65,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 4511,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 815,
-     "output_tokens_details": {
-      "thinking_tokens": 566
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 867
-     },
-     "cache_creation_input_tokens": 867,
-     "cache_read_input_tokens": 4511,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 171,
+     "output_tokens": 164,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -224,7 +89,7 @@
    "passed": true
   },
   {
-   "case": "good_provider_roster",
+   "case": "good_added_phone",
    "faulty": false,
    "expect": [
     "pass"
@@ -233,7 +98,7 @@
    "reasons": [
     {
      "issue": "other",
-     "detail": "Not blocking: the YAML header comments label the file as a 'Reviewer eval candidate' / 'Reference contract for the onboarding eval'. These are comments only and do not affect the rules, but the author may want them removed before a production contract is saved. Checks that passed: provider_first_nam"
+     "detail": "Non-rule note: the diff also drops the two header comment lines from the current contract (the 'Member eligibility from a (synthetic) payer' line and the 'Generated from the Synthea patients by packs/healthcare/generators/eligibility.py' line). No rule is affected, but the provenance note could be k"
     }
    ],
    "violations": [],
@@ -246,236 +111,7 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2121,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 65,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 4349,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 1339,
-     "output_tokens_details": {
-      "thinking_tokens": 943
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 1391
-     },
-     "cache_creation_input_tokens": 1391,
-     "cache_read_input_tokens": 4349,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 200,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 8.8,
-   "passed": true
-  },
-  {
-   "case": "loosened_pattern",
-   "faulty": true,
-   "expect": [
-    "revise",
-    "reject"
-   ],
-   "verdict": "revise",
-   "reasons": [
-    {
-     "issue": "loosening",
-     "detail": "member_id loses its pattern rule (^M[0-9]{9}$) with no evidence in the profile. The profile shows member_id as 24 distinct, 0 empty, with no codes, no shapes and no rule_failures, and the map worker's rationale only mentions the new GOLD plan code. Restore the pattern unless the vendor's member_id f"
-    },
-    {
-     "issue": "other",
-     "detail": "Supported change, no action needed: plan_code adds GOLD. The profile lists GOLD in codes with 8 rows, and the 8 allowed failures match those rows. The dry run accepts 24 of 24 rows."
-    },
-    {
-     "issue": "other",
-     "detail": "Existing-column gap, not changed by this candidate, so not a reason to send it back: member_id is a payer member id that links to a person, but it is not marked phi: true (the profile labels it phi: false, role other). Flag it for the owner to review separately."
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2116,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 116,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5417,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 986,
-     "output_tokens_details": {
-      "thinking_tokens": 551
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 1035
-     },
-     "cache_creation_input_tokens": 1035,
-     "cache_read_input_tokens": 5417,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 61,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 7.8,
-   "passed": true
-  },
-  {
-   "case": "missed_phi",
-   "faulty": true,
-   "expect": [
-    "revise",
-    "reject"
-   ],
-   "verdict": "revise",
-   "reasons": [
-    {
-     "issue": "phi",
-     "detail": "The candidate adds member_phone (required: true) without phi: true. The profile labels member_phone phi: true (shape 999-9999, 24 of 24 values populated, unique per row), and a phone number identifies a person under the PHI rule. Add phi: true to the member_phone column."
-    },
-    {
-     "issue": "other",
-     "detail": "The candidate YAML carries a header comment reading 'Reviewer eval candidate (Stage 10, S10.5): missed phi. All data invented.' and the generator note. This is not a contract rule, but it should be removed from the production contract text before it is proposed."
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2119,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 119,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5214,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 543,
-     "output_tokens_details": {
-      "thinking_tokens": 227
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 595
-     },
-     "cache_creation_input_tokens": 595,
-     "cache_read_input_tokens": 5214,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 142,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 6.0,
-   "passed": true
-  },
-  {
-   "case": "accepted_dropped_column",
-   "faulty": true,
-   "expect": [
-    "revise",
-    "reject"
-   ],
-   "verdict": "reject",
-   "reasons": [
-    {
-     "issue": "mistake_taken_for_change",
-     "detail": "The candidate drops coverage_start, a required column (required: true, min 1990-01-01) that the current contract enforces. The profile shows it in missing_declared and the file has no such column. The rationale says only that the vendor 'no longer sends coverage_start'. A required column the file lo"
-    },
-    {
-     "issue": "other",
-     "detail": "The candidate YAML opens with a comment line describing it as a 'Reviewer eval candidate (Stage 10, S10.5): accepted dropped column. All data invented.' This is not a real contract comment and should not be in a candidate. It is noted here only; it did not change the verdict."
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2118,
+     "cache_read_input_tokens": 2251,
      "inference_geo": "global",
      "input_tokens": 4,
      "output_tokens": 118,
@@ -491,12 +127,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5055,
+     "cache_read_input_tokens": 5276,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 517,
+     "output_tokens": 756,
      "output_tokens_details": {
-      "thinking_tokens": 142
+      "thinking_tokens": 525
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -504,13 +140,13 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 568
+      "ephemeral_5m_input_tokens": 807
      },
-     "cache_creation_input_tokens": 568,
-     "cache_read_input_tokens": 5055,
+     "cache_creation_input_tokens": 807,
+     "cache_read_input_tokens": 5276,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 72,
+     "output_tokens": 325,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -519,230 +155,7 @@
     }
    ],
    "model": "claude-haiku-5-5",
-   "seconds": 4.8,
-   "passed": true
-  },
-  {
-   "case": "unsupported_allowed",
-   "faulty": true,
-   "expect": [
-    "revise",
-    "reject"
-   ],
-   "verdict": "revise",
-   "reasons": [
-    {
-     "issue": "unsupported_rule",
-     "detail": "plan_code allowed adds PLATINUM, but the profile shows no PLATINUM. plan_code codes in the file are [GOLD, HMO, HDHP, EPO, PPO] (GOLD: 8 rows). Nothing in the profile supports PLATINUM, so it must be removed from allowed. The GOLD addition is supported and can stay: allowed should be [HMO, PPO, EPO,"
-    },
-    {
-     "issue": "loosening",
-     "detail": "The loosening entry widens plan_code to include PLATINUM with no evidence in the file. Only the GOLD widening is justified by the profile (the rationale says the vendor added GOLD and PLATINUM, but the file only shows GOLD)."
-    },
-    {
-     "issue": "other",
-     "detail": "The candidate YAML starts with an added comment line ('Reviewer eval candidate (Stage 10, S10.5): unsupported allowed. All data invented.') that is not a contract rule and is not part of the vendor change. It should be removed before the contract is committed."
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2115,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 116,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5312,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 940,
-     "output_tokens_details": {
-      "thinking_tokens": 468
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 989
-     },
-     "cache_creation_input_tokens": 989,
-     "cache_read_input_tokens": 5312,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 145,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 6.5,
-   "passed": true
-  },
-  {
-   "case": "good_new_plan_code",
-   "faulty": false,
-   "expect": [
-    "pass"
-   ],
-   "verdict": "pass",
-   "reasons": [
-    {
-     "issue": "other",
-     "detail": "Not changed by this candidate, so not a blocker: member_id (unchanged rule, profile phi: false) is a member identifier that links to a person, which the PHI list says should be phi: true. Worth a look in a later revision of the current contract."
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2118,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 117,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5288,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 610,
-     "output_tokens_details": {
-      "thinking_tokens": 410
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 660
-     },
-     "cache_creation_input_tokens": 660,
-     "cache_read_input_tokens": 5288,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 225,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 6.6,
-   "passed": true
-  },
-  {
-   "case": "good_added_phone",
-   "faulty": false,
-   "expect": [
-    "pass"
-   ],
-   "verdict": "pass",
-   "reasons": [
-    {
-     "issue": "other",
-     "detail": "Not this candidate's change: the existing member_id column (unchanged by this drift) is labelled phi: false in the profile and in the contract. It is a member id that links to a person, which the PHI list covers. Worth a look by a person, but it was approved before and I have not held this candidate"
-    },
-    {
-     "issue": "other",
-     "detail": "Housekeeping only: the candidate YAML header carries a comment ('Reviewer eval candidate ... All data invented.'). It does not affect the contract's rules; the candidate can be proposed as-is or the comment stripped before it is adopted."
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2116,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 115,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5222,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 782,
-     "output_tokens_details": {
-      "thinking_tokens": 475
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 830
-     },
-     "cache_creation_input_tokens": 830,
-     "cache_read_input_tokens": 5222,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 298,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 7.9,
+   "seconds": 7.6,
    "passed": true
   },
   {
@@ -755,11 +168,7 @@
    "reasons": [
     {
      "issue": "other",
-     "detail": "Non-blocking note: the profile gives shapes only for result_id (AA999999), unit (aa/aA, a/aA, %) and loinc_code, with no codes. The literal 'LR' prefix in result_id and the unit allowed list (mg/dL, g/dL, %) cannot be confirmed beyond shape. The shapes are consistent with them, so I am not treating "
-    },
-    {
-     "issue": "other",
-     "detail": "Non-blocking note: the candidate's header comments ('Reviewer eval candidate... All data invented') are not contract content. Remove them before the contract is promoted to production."
+     "detail": "Onboard candidate, no loosening, no drift. Checked each column against the profile: result_id pattern ^LR[0-9]{6}$ matches shape AA999999; loinc_code pattern matches both observed shapes (9999-9, 999-9); unit allowed list (mg/dL, %, g/dL) matches the observed shapes (aa/aA, a/aA, %), though the prof"
     }
    ],
    "violations": [],
@@ -772,10 +181,10 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2120,
+     "cache_read_input_tokens": 2255,
      "inference_geo": "global",
      "input_tokens": 4,
-     "output_tokens": 65,
+     "output_tokens": 66,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -788,12 +197,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 4511,
+     "cache_read_input_tokens": 4606,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 1412,
+     "output_tokens": 958,
      "output_tokens_details": {
-      "thinking_tokens": 1075
+      "thinking_tokens": 546
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -801,13 +210,13 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 1464
+      "ephemeral_5m_input_tokens": 1011
      },
-     "cache_creation_input_tokens": 1464,
-     "cache_read_input_tokens": 4511,
+     "cache_creation_input_tokens": 1011,
+     "cache_read_input_tokens": 4606,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 382,
+     "output_tokens": 133,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -816,7 +225,7 @@
     }
    ],
    "model": "claude-haiku-5-5",
-   "seconds": 10.5,
+   "seconds": 6.4,
    "passed": true
   },
   {
@@ -825,11 +234,15 @@
    "expect": [
     "pass"
    ],
-   "verdict": "pass",
+   "verdict": "revise",
    "reasons": [
     {
+     "issue": "phi",
+     "detail": "npi is an onboarding column with phi unset, but it is a unique 10-digit identifier of an individual person (a provider), unique per row (distinct 24 of 24). The PHI rule covers columns that identify a person, including member or patient ids that link to a person. Set npi to phi: true, or document wh"
+    },
+    {
      "issue": "other",
-     "detail": "Notes only, not blocking. (1) provider_first_name and provider_last_name are marked phi: true, which the platform PHI list requires for names even though the profile labels them phi: false. Correct. (2) npi is an individual provider identifier. The profile labels it non-PHI and the PHI list does not"
+     "detail": "Not a blocker: the taxonomy_code pattern ^[0-9]{3}[A-Z0-9]{6}X$ matches the profile shape 999A99999A (10 characters) and the dry run accepted 24 of 24 rows. The profile does not show the literal letters, so the trailing X is unverified. Consider confirming it against the file."
     }
    ],
    "violations": [],
@@ -842,10 +255,10 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2121,
+     "cache_read_input_tokens": 2255,
      "inference_geo": "global",
      "input_tokens": 4,
-     "output_tokens": 65,
+     "output_tokens": 64,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -858,12 +271,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 4349,
+     "cache_read_input_tokens": 4439,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 1479,
+     "output_tokens": 1696,
      "output_tokens_details": {
-      "thinking_tokens": 1130
+      "thinking_tokens": 1279
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -871,23 +284,23 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 1531
+      "ephemeral_5m_input_tokens": 1839
      },
-     "cache_creation_input_tokens": 1531,
-     "cache_read_input_tokens": 4349,
+     "cache_creation_input_tokens": 1839,
+     "cache_read_input_tokens": 4439,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 179,
+     "output_tokens": 250,
      "output_tokens_details": {
-      "thinking_tokens": 0
+      "thinking_tokens": 33
      },
      "service_tier": "standard",
      "speed": "standard"
     }
    ],
    "model": "claude-haiku-5-5",
-   "seconds": 10.0,
-   "passed": true
+   "seconds": 11.3,
+   "passed": false
   },
   {
    "case": "loosened_pattern",
@@ -900,11 +313,15 @@
    "reasons": [
     {
      "issue": "loosening",
-     "detail": "The candidate drops the member_id pattern ^M[0-9]{9}$ with no evidence in the profile. The profile shows no shape or format change for member_id (24 distinct, 0 empty, no rule_failures on member_id), and the rationale only says the vendor added plan code GOLD. Restore the pattern unless the vendor h"
+     "detail": "The pattern ^M[0-9]{9}$ on member_id is dropped with no evidence. The map worker's rationale only covers the new GOLD plan code. The profile gives no shapes or codes for member_id showing a different id format, and it shows no unexpected values. Restore the pattern unless the vendor's id format has "
+    },
+    {
+     "issue": "phi",
+     "detail": "member_id is edited by this candidate, and it is a member id that links to a person (the feed is every enrolled member). The PHI list requires it to be phi: true. The candidate and the profile both have it as not PHI. Set phi: true on member_id."
     },
     {
      "issue": "other",
-     "detail": "Supported: the GOLD addition to plan_code is backed by the profile (codes include GOLD, 8 rows, and the only rule_failures are allowed:8 for GOLD, which this change fixes). Not this candidate's change, but member_id (existing column, unchanged by this candidate) is labelled phi: false and not declar"
+     "detail": "GOLD in plan_code is supported: the profile shows GOLD as a code in 8 rows. The dry run accepted all 24 rows. The coverage_end and patient_ref rules are not changed by this candidate and were not reviewed further."
     }
    ],
    "violations": [],
@@ -917,10 +334,10 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2116,
+     "cache_read_input_tokens": 2250,
      "inference_geo": "global",
      "input_tokens": 4,
-     "output_tokens": 116,
+     "output_tokens": 62,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -933,12 +350,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5417,
+     "cache_read_input_tokens": 4802,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 998,
+     "output_tokens": 1064,
      "output_tokens_details": {
-      "thinking_tokens": 572
+      "thinking_tokens": 637
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -946,13 +363,13 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 1047
+      "ephemeral_5m_input_tokens": 1113
      },
-     "cache_creation_input_tokens": 1047,
-     "cache_read_input_tokens": 5417,
+     "cache_creation_input_tokens": 1113,
+     "cache_read_input_tokens": 4802,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 169,
+     "output_tokens": 194,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -961,7 +378,7 @@
     }
    ],
    "model": "claude-haiku-5-5",
-   "seconds": 8.0,
+   "seconds": 7.5,
    "passed": true
   },
   {
@@ -975,86 +392,11 @@
    "reasons": [
     {
      "issue": "phi",
-     "detail": "The candidate adds member_phone (required: true) without phi: true. The profile labels member_phone phi: true (shape 999-9999, 24 of 24 values populated), and a phone number identifies a person, so it must be phi: true. The other new column, patient_ref, and the existing PHI columns are already mark"
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2119,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 119,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5214,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 471,
-     "output_tokens_details": {
-      "thinking_tokens": 243
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 523
-     },
-     "cache_creation_input_tokens": 523,
-     "cache_read_input_tokens": 5214,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 138,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 5.4,
-   "passed": true
-  },
-  {
-   "case": "accepted_dropped_column",
-   "faulty": true,
-   "expect": [
-    "revise",
-    "reject"
-   ],
-   "verdict": "reject",
-   "reasons": [
-    {
-     "issue": "mistake_taken_for_change",
-     "detail": "The candidate drops coverage_start, a required column (required: true, min 1990-01-01), and the profile confirms it is missing: missing_declared is [coverage_start]. The profile shows no unexpected columns, so there is no evidence of a vendor rename. The rationale is only 'the vendor no longer sends"
-    },
-    {
-     "issue": "loosening",
-     "detail": "The only loosening is the removal of required coverage_start. Nothing in the profile shows a new code or a renamed column that would justify it. The dry run's 24 accepted rows pass only because the rule is gone, so the acceptance is not evidence for the change."
+     "detail": "The candidate adds member_phone with no phi flag. The profile labels member_phone phi: true (shape 999-9999, 24 of 24 populated, distinct per row), and a phone number identifies a person, so it is on the platform's PHI list. It must be `phi: true`."
     },
     {
      "issue": "other",
-     "detail": "The candidate YAML carries a stray header comment ('Reviewer eval candidate (Stage 10, S10.5): accepted dropped column') that should not appear in a production contract. Separately, the version is bumped 1 to 2 for a change that should not be made. Neither changes the verdict."
+     "detail": "Not a change in this candidate, but the diff also drops the file header comments (the 'synthetic payer' description and the 'Generated from the Synthea patients by packs/healthcare/generators/eligibility.py' note). Restoring them would keep the provenance note. Not a blocker."
     }
    ],
    "violations": [],
@@ -1067,147 +409,7 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2118,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 118,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5055,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 692,
-     "output_tokens_details": {
-      "thinking_tokens": 215
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 743
-     },
-     "cache_creation_input_tokens": 743,
-     "cache_read_input_tokens": 5055,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 172,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 6.2,
-   "passed": true
-  },
-  {
-   "case": "unsupported_allowed",
-   "faulty": true,
-   "expect": [
-    "revise",
-    "reject"
-   ],
-   "verdict": "revise",
-   "reasons": [
-    {
-     "issue": "unsupported_rule",
-     "detail": "plan_code allowed adds PLATINUM, but the profile shows no PLATINUM. Codes in the file are HMO (6), PPO (2), EPO (4), GOLD (8), HDHP (4), with no PLATINUM anywhere. The map worker's rationale ('added plan codes GOLD and PLATINUM') is only half supported. Remove PLATINUM from the allowed list. GOLD is"
-    },
-    {
-     "issue": "other",
-     "detail": "The candidate YAML starts with a comment reading 'Reviewer eval candidate (Stage 10, S10.5): unsupported allowed. All data invented.' That text is not a contract rule and should not appear in the published contract. Remove it when revising. The rest of the diff (version 1 to 2, the GOLD addition, no"
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2115,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 116,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5312,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 763,
-     "output_tokens_details": {
-      "thinking_tokens": 348
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 812
-     },
-     "cache_creation_input_tokens": 812,
-     "cache_read_input_tokens": 5312,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 186,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 6.2,
-   "passed": true
-  },
-  {
-   "case": "good_new_plan_code",
-   "faulty": false,
-   "expect": [
-    "pass"
-   ],
-   "verdict": "pass",
-   "reasons": [],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2118,
+     "cache_read_input_tokens": 2250,
      "inference_geo": "global",
      "input_tokens": 4,
      "output_tokens": 63,
@@ -1220,15 +422,15 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 2512
+      "ephemeral_5m_input_tokens": 0
      },
-     "cache_creation_input_tokens": 2512,
-     "cache_read_input_tokens": 2118,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4596,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 405,
+     "output_tokens": 756,
      "output_tokens_details": {
-      "thinking_tokens": 296
+      "thinking_tokens": 377
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -1236,35 +438,48 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 455
+      "ephemeral_5m_input_tokens": 3136
      },
-     "cache_creation_input_tokens": 455,
-     "cache_read_input_tokens": 4630,
+     "cache_creation_input_tokens": 3136,
+     "cache_read_input_tokens": 4596,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 191,
+     "output_tokens": 330,
      "output_tokens_details": {
-      "thinking_tokens": 0
+      "thinking_tokens": 30
      },
      "service_tier": "standard",
      "speed": "standard"
     }
    ],
    "model": "claude-haiku-5-5",
-   "seconds": 5.5,
+   "seconds": 6.8,
    "passed": true
   },
   {
-   "case": "good_added_phone",
-   "faulty": false,
+   "case": "accepted_dropped_column",
+   "faulty": true,
    "expect": [
-    "pass"
+    "revise",
+    "reject"
    ],
-   "verdict": "pass",
+   "verdict": "reject",
    "reasons": [
     {
+     "issue": "mistake_taken_for_change",
+     "detail": "coverage_start was a required column (min 1990-01-01) in v1. The profile lists it under missing_declared: the file no longer contains it, and the dry run accepted all 24 rows only because the rule is dropped. The candidate makes the vendor's dropped required column a contract change. This is a vendo"
+    },
+    {
+     "issue": "loosening",
+     "detail": "The only loosening is the dropped required coverage_start. It is not supported by the profile as a vendor rename (no new or renamed column appears in unexpected or elsewhere), so it is not justified."
+    },
+    {
+     "issue": "affected_models",
+     "detail": "dbt.affected_hand_written_models lists eligibility_record and member_eligibility. Both read coverage_start, which this candidate removes, so a person would need to fix them if the change were approved."
+    },
+    {
      "issue": "other",
-     "detail": "Non-blocking: the candidate YAML's first line is a comment reading 'Reviewer eval candidate (Stage 10, S10.5): good added phone. All data invented.' It is a comment only and does not affect rules, but it looks like an eval marker and should be removed before the contract is published. The descriptio"
+     "detail": "Not changed by this candidate, noted only: patient_ref is described as the Synthea patient id and is marked phi: true, which is correct. The candidate's added or edited PHI flags are otherwise consistent with the profile. No other problems found in the diff."
     }
    ],
    "violations": [],
@@ -1277,10 +492,10 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2116,
+     "cache_read_input_tokens": 2251,
      "inference_geo": "global",
      "input_tokens": 4,
-     "output_tokens": 115,
+     "output_tokens": 63,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -1293,12 +508,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5222,
+     "cache_read_input_tokens": 4452,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 883,
+     "output_tokens": 808,
      "output_tokens_details": {
-      "thinking_tokens": 646
+      "thinking_tokens": 260
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -1306,13 +521,13 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 931
+      "ephemeral_5m_input_tokens": 858
      },
-     "cache_creation_input_tokens": 931,
-     "cache_read_input_tokens": 5222,
+     "cache_creation_input_tokens": 858,
+     "cache_read_input_tokens": 4452,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 162,
+     "output_tokens": 173,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -1325,147 +540,7 @@
    "passed": true
   },
   {
-   "case": "good_lab_results",
-   "faulty": false,
-   "expect": [
-    "pass"
-   ],
-   "verdict": "pass",
-   "reasons": [
-    {
-     "issue": "other",
-     "detail": "Minor, not blocking: the profile gives shapes for unit (aa/aA, a/aA, %) but no code values, so the exact allowed list [mg/dL, %, g/dL] can only be checked against shapes. All three shapes fit the list, and the list is narrower than the shapes, so it is supported. Worth confirming the exact unit stri"
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2120,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 65,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 4511,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 930,
-     "output_tokens_details": {
-      "thinking_tokens": 681
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 982
-     },
-     "cache_creation_input_tokens": 982,
-     "cache_read_input_tokens": 4511,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 343,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 7.9,
-   "passed": true
-  },
-  {
-   "case": "good_provider_roster",
-   "faulty": false,
-   "expect": [
-    "pass"
-   ],
-   "verdict": "pass",
-   "reasons": [
-    {
-     "issue": "other",
-     "detail": "Notes only, not blocking. (1) provider_first_name and provider_last_name are marked phi: true although the profile says phi false; that is correct, since names identify a person. (2) npi is phi: false. It is a provider identifier, not a member or patient id, so it is arguably outside the PHI list, b"
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2121,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 65,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 4349,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 1381,
-     "output_tokens_details": {
-      "thinking_tokens": 1021
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 1433
-     },
-     "cache_creation_input_tokens": 1433,
-     "cache_read_input_tokens": 4349,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 316,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 10.0,
-   "passed": true
-  },
-  {
-   "case": "loosened_pattern",
+   "case": "unsupported_allowed",
    "faulty": true,
    "expect": [
     "revise",
@@ -1474,12 +549,12 @@
    "verdict": "revise",
    "reasons": [
     {
-     "issue": "loosening",
-     "detail": "The candidate drops the member_id pattern ^M[0-9]{9}$ with no evidence in the profile. The rationale only justifies the GOLD plan code, and the profile shows no member_id values outside the pattern (member_id has 24 distinct values, 0 empty, no rule_failures). Keep the pattern, or justify its remova"
+     "issue": "unsupported_rule",
+     "detail": "plan_code allowed list adds PLATINUM, but the profile shows no PLATINUM value: codes are [GOLD, HMO, HDHP, EPO, PPO] with GOLD=8 rows. Only GOLD is supported by the file. The rationale says the vendor added GOLD and PLATINUM, which the profile does not confirm. Remove PLATINUM from the allowed list "
     },
     {
      "issue": "other",
-     "detail": "The GOLD addition is supported: plan_code has GOLD in codes with 8 rows, and the 8 rule_failures match those rows. Keep it. The PHI labels on added or renamed columns are not affected, since the candidate adds or renames none. Pre-existing gap, not this candidate's change: member_id is not marked ph"
+     "detail": "The diff also drops the two header comment lines (the 'Member eligibility from a (synthetic) payer' and 'Generated from the Synthea patients by packs/healthcare/generators/eligibility.py' lines). This is cosmetic, not a rule change, but the provenance note should be kept. Not a verdict driver."
     }
    ],
    "violations": [],
@@ -1492,78 +567,7 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2116,
-     "inference_geo": "global",
-     "input_tokens": 4,
-     "output_tokens": 116,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5417,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 836,
-     "output_tokens_details": {
-      "thinking_tokens": 416
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    },
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 885
-     },
-     "cache_creation_input_tokens": 885,
-     "cache_read_input_tokens": 5417,
-     "inference_geo": "global",
-     "input_tokens": 2,
-     "output_tokens": 196,
-     "output_tokens_details": {
-      "thinking_tokens": 0
-     },
-     "service_tier": "standard",
-     "speed": "standard"
-    }
-   ],
-   "model": "claude-haiku-5-5",
-   "seconds": 7.4,
-   "passed": true
-  },
-  {
-   "case": "missed_phi",
-   "faulty": true,
-   "expect": [
-    "revise",
-    "reject"
-   ],
-   "verdict": "revise",
-   "reasons": [
-    {
-     "issue": "phi",
-     "detail": "The candidate adds member_phone (required: true) without phi: true. The profile labels member_phone phi: true (shape 999-9999 on all 24 rows, declared false, unexpected column). A phone number identifies a person, so it must be marked phi: true. Add phi: true to the member_phone column."
-    }
-   ],
-   "violations": [],
-   "turns": 3,
-   "stop": "end_turn",
-   "usage": [
-    {
-     "cache_creation": {
-      "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 0
-     },
-     "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2119,
+     "cache_read_input_tokens": 2254,
      "inference_geo": "global",
      "input_tokens": 4,
      "output_tokens": 119,
@@ -1579,12 +583,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5214,
+     "cache_read_input_tokens": 5364,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 413,
+     "output_tokens": 650,
      "output_tokens_details": {
-      "thinking_tokens": 191
+      "thinking_tokens": 254
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -1592,13 +596,13 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 465
+      "ephemeral_5m_input_tokens": 702
      },
-     "cache_creation_input_tokens": 465,
-     "cache_read_input_tokens": 5214,
+     "cache_creation_input_tokens": 702,
+     "cache_read_input_tokens": 5364,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 79,
+     "output_tokens": 80,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -1607,25 +611,28 @@
     }
    ],
    "model": "claude-haiku-5-5",
-   "seconds": 5.1,
+   "seconds": 5.8,
    "passed": true
   },
   {
-   "case": "accepted_dropped_column",
-   "faulty": true,
+   "case": "good_new_plan_code",
+   "faulty": false,
    "expect": [
-    "revise",
-    "reject"
+    "pass"
    ],
-   "verdict": "reject",
+   "verdict": "pass",
    "reasons": [
     {
-     "issue": "mistake_taken_for_change",
-     "detail": "The candidate drops the required column coverage_start (required: true, min 1990-01-01) because the file no longer sends it. The profile shows missing_declared: [\"coverage_start\"] and no unexpected columns, so no vendor rename is evidenced. The map worker's rationale, \"The vendor no longer sends cov"
+     "issue": "loosening",
+     "detail": "The only change is adding GOLD to plan_code allowed. The profile shows GOLD in codes on 8 of 24 rows (code_counts GOLD: 8), and the 8 allowed-rule failures under the current contract are exactly that new code. The loosening is needed by the file, and the dry run accepts all 24 rows with 0 rejected."
     },
     {
-     "issue": "loosening",
-     "detail": "The loosening list contains only the dropped required coverage_start. Nothing in the profile shows a renamed or new column that would justify it, so the loosening is unsupported."
+     "issue": "other",
+     "detail": "Not changed by this candidate, so not a reason to revise: member_id (existing column) links to a person and is labelled phi: false in both the profile and the current contract. Under the PHI list it looks like it should be phi: true. Worth a separate fix by the owner."
+    },
+    {
+     "issue": "other",
+     "detail": "Not a rule change, but the candidate drops the two header comment lines (the note that the file is generated from Synthea patients by packs/healthcare/generators/eligibility.py). The provenance note should be kept or moved to the description."
     }
    ],
    "violations": [],
@@ -1638,7 +645,77 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2118,
+     "cache_read_input_tokens": 2250,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 116,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 5329,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 886,
+     "output_tokens_details": {
+      "thinking_tokens": 464
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 935
+     },
+     "cache_creation_input_tokens": 935,
+     "cache_read_input_tokens": 5329,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 149,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 7.0,
+   "passed": true
+  },
+  {
+   "case": "good_added_phone",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [
+    {
+     "issue": "other",
+     "detail": "Notes only, no change required: the diff also drops the two header comment lines (the 'Generated from the Synthea patients by packs/healthcare/generators/eligibility.py' provenance note) and bumps version 1 to 2. Neither affects validation. The vendor-facing description is unchanged. Worth keeping t"
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2251,
      "inference_geo": "global",
      "input_tokens": 4,
      "output_tokens": 118,
@@ -1654,12 +731,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 5055,
+     "cache_read_input_tokens": 5276,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 585,
+     "output_tokens": 489,
      "output_tokens_details": {
-      "thinking_tokens": 201
+      "thinking_tokens": 248
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -1667,13 +744,13 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 636
+      "ephemeral_5m_input_tokens": 540
      },
-     "cache_creation_input_tokens": 636,
-     "cache_read_input_tokens": 5055,
+     "cache_creation_input_tokens": 540,
+     "cache_read_input_tokens": 5276,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 87,
+     "output_tokens": 173,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -1682,7 +759,380 @@
     }
    ],
    "model": "claude-haiku-5-5",
-   "seconds": 5.3,
+   "seconds": 6.3,
+   "passed": true
+  },
+  {
+   "case": "good_lab_results",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [
+    {
+     "issue": "other",
+     "detail": "Notes only, no change required. unit's allowed values (mg/dL, g/dL, %) are not listed as codes in the profile; they are supported by shapes aa/aA, a/aA and % (14/10/6 rows). loinc_code pattern matches both observed shapes (9999-9, 999-9). result_id pattern ^LR[0-9]{6}$ matches the observed AA999999 "
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2255,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 66,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4606,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 891,
+     "output_tokens_details": {
+      "thinking_tokens": 589
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 944
+     },
+     "cache_creation_input_tokens": 944,
+     "cache_read_input_tokens": 4606,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 184,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 6.9,
+   "passed": true
+  },
+  {
+   "case": "good_provider_roster",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [
+    {
+     "issue": "other",
+     "detail": "Note only: npi is labelled phi: false (role other). It is a provider identifier rather than a member or patient id, so it is not on the PHI list as I read it. A person may want to confirm that. No change needed for this verdict."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2255,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 64,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4439,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 1072,
+     "output_tokens_details": {
+      "thinking_tokens": 877
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1123
+     },
+     "cache_creation_input_tokens": 1123,
+     "cache_read_input_tokens": 4439,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 384,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 8.3,
+   "passed": true
+  },
+  {
+   "case": "loosened_pattern",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "loosening",
+     "detail": "member_id's pattern ^M[0-9]{9}$ was removed with no evidence in the profile. The map worker's rationale covers only the new GOLD plan code. The packet gives no member_id shapes, codes or failures showing the vendor changed its id format, and the dry run had 0 rejections. Restore the pattern unless t"
+    },
+    {
+     "issue": "loosening",
+     "detail": "plan_code adding GOLD is supported: the profile lists GOLD as a code with 8 rows and the 8 'allowed' rule failures match those rows. This item is fine as is."
+    },
+    {
+     "issue": "phi",
+     "detail": "Other (not changed by this candidate): member_id identifies an enrolled member and links to a person, but the profile labels it phi: false and the contract has no phi flag. It is edited in this candidate, so please set phi: true on it in the same revision. It is not a new or renamed column, so this "
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2250,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 62,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4802,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 872,
+     "output_tokens_details": {
+      "thinking_tokens": 428
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 921
+     },
+     "cache_creation_input_tokens": 921,
+     "cache_read_input_tokens": 4802,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 78,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 6.5,
+   "passed": true
+  },
+  {
+   "case": "missed_phi",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "phi",
+     "detail": "The candidate adds member_phone (required: true) without phi: true. The profile labels member_phone phi: true (role 'other', shape 999-9999 on all 24 rows), and a member's phone number identifies a person, so it must be phi: true. Add phi: true to member_phone."
+    },
+    {
+     "issue": "other",
+     "detail": "The diff also drops the two header comment lines (the description of the file and that it is generated from the Synthea patients by packs/healthcare/generators/eligibility.py). This is a comment-only change, not a rule change; the author should restore them or confirm the removal is intended."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2250,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 63,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4596,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 593,
+     "output_tokens_details": {
+      "thinking_tokens": 175
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 714
+     },
+     "cache_creation_input_tokens": 714,
+     "cache_read_input_tokens": 4596,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 398,
+     "output_tokens_details": {
+      "thinking_tokens": 74
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 6.3,
+   "passed": true
+  },
+  {
+   "case": "accepted_dropped_column",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "reject",
+   "reasons": [
+    {
+     "issue": "mistake_taken_for_change",
+     "detail": "The candidate drops coverage_start, a required column (required: true, min 1990-01-01). The profile shows missing_declared: [coverage_start] and unexpected: [], so the file lost a required column rather than renamed it. The map worker's rationale ('the vendor no longer sends coverage_start') is a re"
+    },
+    {
+     "issue": "loosening",
+     "detail": "The loosening list has one item: coverage_start dropped from required column. Nothing in the profile or rationale justifies it beyond the absence of the column, so the loosening is not supported."
+    },
+    {
+     "issue": "affected_models",
+     "detail": "Dropping coverage_start breaks hand-written models that read it: eligibility_record and member_eligibility. A person must review these if the vendor change is ever confirmed."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2251,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 63,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4452,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 773,
+     "output_tokens_details": {
+      "thinking_tokens": 282
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1424
+     },
+     "cache_creation_input_tokens": 1424,
+     "cache_read_input_tokens": 4452,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 332,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 6.7,
    "passed": true
   },
   {
@@ -1696,11 +1146,11 @@
    "reasons": [
     {
      "issue": "unsupported_rule",
-     "detail": "plan_code allowed list adds PLATINUM, but the profile shows no PLATINUM. Profile codes are [GOLD, HMO, HDHP, EPO, PPO] with code_counts having no PLATINUM. Only GOLD is supported by the file. Remove PLATINUM from allowed and from the loosening entry. The rationale ('vendor added GOLD and PLATINUM') "
+     "detail": "The plan_code allowed list adds PLATINUM, but the profile shows no PLATINUM value: codes are [GOLD, HMO, HDHP, EPO, PPO] with counts EPO 4, HMO 6, PPO 2, GOLD 8, HDHP 4 (24 rows). Only GOLD is evidenced (it caused the 8 'allowed' rule_failures). Remove PLATINUM from the allowed list, or get evidence"
     },
     {
      "issue": "other",
-     "detail": "Not changed by this candidate, so not a revise reason: member_id is profiled phi:false and not declared phi in the current contract. It is a member id that links to a person, so it should be phi:true under the platform's PHI list. Fix in a later change or note it to the person deciding."
+     "detail": "The diff also drops the two header comment lines (the 'Member eligibility from a (synthetic) payer' and 'Generated from the Synthea patients' notes). This is cosmetic and not a rule change, but the author should keep them or say why they were removed."
     }
    ],
    "violations": [],
@@ -1713,12 +1163,12 @@
       "ephemeral_5m_input_tokens": 0
      },
      "cache_creation_input_tokens": 0,
-     "cache_read_input_tokens": 2115,
+     "cache_read_input_tokens": 2254,
      "inference_geo": "global",
      "input_tokens": 4,
-     "output_tokens": 196,
+     "output_tokens": 119,
      "output_tokens_details": {
-      "thinking_tokens": 79
+      "thinking_tokens": 0
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -1726,15 +1176,15 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 3277
+      "ephemeral_5m_input_tokens": 0
      },
-     "cache_creation_input_tokens": 3277,
-     "cache_read_input_tokens": 2115,
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 5364,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 1093,
+     "output_tokens": 696,
      "output_tokens_details": {
-      "thinking_tokens": 722
+      "thinking_tokens": 295
      },
      "service_tier": "standard",
      "speed": "standard"
@@ -1742,13 +1192,13 @@
     {
      "cache_creation": {
       "ephemeral_1h_input_tokens": 0,
-      "ephemeral_5m_input_tokens": 1142
+      "ephemeral_5m_input_tokens": 748
      },
-     "cache_creation_input_tokens": 1142,
-     "cache_read_input_tokens": 5392,
+     "cache_creation_input_tokens": 748,
+     "cache_read_input_tokens": 5364,
      "inference_geo": "global",
      "input_tokens": 2,
-     "output_tokens": 205,
+     "output_tokens": 274,
      "output_tokens_details": {
       "thinking_tokens": 0
      },
@@ -1757,7 +1207,607 @@
     }
    ],
    "model": "claude-haiku-5-5",
-   "seconds": 8.1,
+   "seconds": 7.0,
+   "passed": true
+  },
+  {
+   "case": "good_new_plan_code",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [
+    {
+     "issue": "loosening",
+     "detail": "The only rule change is plan_code allowed gains GOLD. The profile supports it: GOLD appears in codes with 8 rows, and the 8 allowed-rule failures under the current contract match those 8 GOLD rows. The map worker's rationale is consistent with this. No other rule was widened or dropped."
+    },
+    {
+     "issue": "other",
+     "detail": "Not this candidate's change, so not a reason to send it back: member_id (M + 9 digits, unique, links to one person) is labelled phi: false in the current contract and profile. The PHI rule treats member ids that link to a person as PHI, so this looks like a gap in the existing contract that a person"
+    },
+    {
+     "issue": "other",
+     "detail": "The candidate also drops the two header comment lines (the synthetic-payer description and the generator reference). These are comments, not rules, so there is no validation effect. A person may want them kept for provenance."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2250,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 116,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 5329,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 813,
+     "output_tokens_details": {
+      "thinking_tokens": 399
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 862
+     },
+     "cache_creation_input_tokens": 862,
+     "cache_read_input_tokens": 5329,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 182,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 6.9,
+   "passed": true
+  },
+  {
+   "case": "good_added_phone",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [
+    {
+     "issue": "other",
+     "detail": "Minor, not a rule change: the diff drops the two header comment lines from the current contract (the synthetic-source note and the generator path packs/healthcare/generators/eligibility.py). Worth restoring for provenance, but it does not affect validation."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2251,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 118,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 5276,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 518,
+     "output_tokens_details": {
+      "thinking_tokens": 315
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 569
+     },
+     "cache_creation_input_tokens": 569,
+     "cache_read_input_tokens": 5276,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 319,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 5.9,
+   "passed": true
+  },
+  {
+   "case": "good_lab_results",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [
+    {
+     "issue": "other",
+     "detail": "Notes only, no change required. unit allowed values (mg/dL, %, g/dL) are not in the profile's code list (no codes shown for unit), but their shapes (aa/aA, a/aA, %) match the observed shapes, so they are supported. The description says 'All data is invented', which is a claim the profile cannot veri"
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2255,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 66,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4606,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 880,
+     "output_tokens_details": {
+      "thinking_tokens": 629
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 933
+     },
+     "cache_creation_input_tokens": 933,
+     "cache_read_input_tokens": 4606,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 317,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 7.1,
+   "passed": true
+  },
+  {
+   "case": "good_provider_roster",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [
+    {
+     "issue": "other",
+     "detail": "Non-blocking note: npi is a provider identifier, not a member or patient id, so leaving it phi: false is defensible under the platform list. The candidate already marks the provider first and last names phi: true, which matches the names rule. A person may still want to confirm the NPI treatment."
+    },
+    {
+     "issue": "other",
+     "detail": "Non-blocking note: the taxonomy pattern requires a trailing X. The profile shape 999A99999A shows only a letter in position 10, not the literal X. The trailing X is the standard NUCC taxonomy format, so I accept it, but the profile does not show it directly."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2255,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 64,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4439,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 1243,
+     "output_tokens_details": {
+      "thinking_tokens": 925
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 1294
+     },
+     "cache_creation_input_tokens": 1294,
+     "cache_read_input_tokens": 4439,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 232,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 8.5,
+   "passed": true
+  },
+  {
+   "case": "loosened_pattern",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "loosening",
+     "detail": "The member_id pattern ^M[0-9]{9}$ is dropped with no evidence. The map worker's rationale covers only the new GOLD plan code, and the profile shows no member_id values, shapes or mismatches that would justify removing the pattern. The profile reports no rule_failures for member_id. Restore the patte"
+    },
+    {
+     "issue": "other",
+     "detail": "GOLD is supported: 8 of 24 rows use it, and the plan_code allowed-list change is the only other loosening that is needed. Not a blocker. Separately, the existing member_id column (not changed by this candidate, so not a blocker) is a member id that links to a person, but it is not labelled phi: true"
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2250,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 62,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4802,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 790,
+     "output_tokens_details": {
+      "thinking_tokens": 404
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 839
+     },
+     "cache_creation_input_tokens": 839,
+     "cache_read_input_tokens": 4802,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 235,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 6.7,
+   "passed": true
+  },
+  {
+   "case": "missed_phi",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "phi",
+     "detail": "The candidate adds member_phone (required: true) without phi: true. The profile labels member_phone phi: true (shape 999-9999 on all 24 rows, distinct per row), and a member's phone number identifies a person. It must be phi: true. Column is new in this drift, so this is in scope."
+    },
+    {
+     "issue": "other",
+     "detail": "Drift also removes the header comment lines ('Member eligibility from a (synthetic) payer...' and 'Generated from the Synthea patients by packs/healthcare/generators/eligibility.py'). These are not rules, so no verdict impact, but the provenance note is lost; the author may want to keep it."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2250,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 63,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4596,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 639,
+     "output_tokens_details": {
+      "thinking_tokens": 307
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 689
+     },
+     "cache_creation_input_tokens": 689,
+     "cache_read_input_tokens": 4596,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 147,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 5.6,
+   "passed": true
+  },
+  {
+   "case": "accepted_dropped_column",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "reject",
+   "reasons": [
+    {
+     "issue": "mistake_taken_for_change",
+     "detail": "The candidate drops coverage_start, a required column (min 1990-01-01), because the file no longer contains it. The profile shows missing_declared: [coverage_start] and unexpected: []. The map worker's rationale is only 'the vendor no longer sends coverage_start; the contract follows.' That is a ven"
+    },
+    {
+     "issue": "loosening",
+     "detail": "The only loosening is coverage_start going from a required column to absent. The profile gives no evidence for a rename or a new column that would justify it, so the loosening is unsupported."
+    },
+    {
+     "issue": "affected_models",
+     "detail": "Dropping coverage_start breaks hand-written models that read it: eligibility_record and member_eligibility. A person would need to fix these if the change were ever accepted."
+    },
+    {
+     "issue": "other",
+     "detail": "Not part of this change: patient_ref has phi: true and dob/first_name/last_name are PHI-labelled, which is correct. Sex allows U and plan_code allows its four codes, and the profile supports both. The remaining columns are unchanged from the current contract and were not reviewed as part of this can"
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2251,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 63,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 4452,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 772,
+     "output_tokens_details": {
+      "thinking_tokens": 259
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 822
+     },
+     "cache_creation_input_tokens": 822,
+     "cache_read_input_tokens": 4452,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 177,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 6.3,
+   "passed": true
+  },
+  {
+   "case": "unsupported_allowed",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "unsupported_rule",
+     "detail": "plan_code allowed list adds PLATINUM, but the profile's codes for plan_code are [GOLD, HMO, HDHP, EPO, PPO] and PLATINUM does not appear in the file (code_counts has no PLATINUM). Only GOLD is supported by the file. Remove PLATINUM from the allowed list. The map worker's rationale (vendor added GOLD"
+    },
+    {
+     "issue": "other",
+     "detail": "The diff also drops the two header comment lines (the 'Generated from the Synthea patients by packs/healthcare/generators/eligibility.py' note). Cosmetic, but the provenance note is lost; consider restoring it. Not a rule change."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 2254,
+     "inference_geo": "global",
+     "input_tokens": 4,
+     "output_tokens": 119,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 0
+     },
+     "cache_creation_input_tokens": 0,
+     "cache_read_input_tokens": 5364,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 777,
+     "output_tokens_details": {
+      "thinking_tokens": 400
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    },
+    {
+     "cache_creation": {
+      "ephemeral_1h_input_tokens": 0,
+      "ephemeral_5m_input_tokens": 829
+     },
+     "cache_creation_input_tokens": 829,
+     "cache_read_input_tokens": 5364,
+     "inference_geo": "global",
+     "input_tokens": 2,
+     "output_tokens": 279,
+     "output_tokens_details": {
+      "thinking_tokens": 0
+     },
+     "service_tier": "standard",
+     "speed": "standard"
+    }
+   ],
+   "model": "claude-haiku-5-5",
+   "seconds": 6.6,
    "passed": true
   }
  ]

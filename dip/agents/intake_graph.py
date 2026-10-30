@@ -3,8 +3,8 @@ workers, as a LangGraph graph with no model routing it (section 4.1).
 
     profile ──▶ map ──▶ validate ──▶ review ──▶ propose ──▶ end
                  ▲          │             │
-                 └──────────┴─────────────┘ once each: the validator's errors, the
-                                            reviewer's reasons
+                 └──────────┴─────────────┘ once in all: the validator's errors or the
+                                            reviewer's reasons go back to map one time
 
   profile   a model (key `profile`): reads the job's file through diff_schema and labels
             each column (report_profile). The server builds the profile's facts itself.
@@ -17,8 +17,10 @@ workers, as a LangGraph graph with no model routing it (section 4.1).
   review    a model (key `reviewer`, S10.5): reads the candidate, its diff, dry run,
             loosening list and the profile (no vendor values) and records pass, revise or
             reject. `revise` goes back to map once; a second `revise` ends the job `revise`
-            for a person; `reject` ends it with nothing proposed. A review that ran on the
-            free fallback can never pass: the job ends `revise` (section 8.12, S10.1).
+            for a person; `reject` ends it with nothing proposed. The graph never proposes
+            a candidate whose review ran on the free fallback: the job ends `revise`
+            (section 8.12, S10.1). (The server checks that the reviewer passed it, not on
+            which provider: this rule is the graph's.)
   propose   code (key `intake_orchestrator`): propose_contract_pr on that candidate. The
             server proposes only a candidate submitted, passed by the validator and by the
             reviewer in this chain while its job runs; the result is an ops.approvals row
@@ -63,7 +65,7 @@ class IntakeState(TypedDict, total=False):
     review_rounds: int
     attempts: int
     approval_id: int | None
-    outcome: str  # proposed | no_change | failed
+    outcome: str  # proposed | no_change | revise | rejected | failed
     reason: str | None
     providers: dict[str, str]
 
@@ -295,6 +297,8 @@ def build_graph(team: IntakeTeam) -> Any:
             "review_rounds": rounds,
             "providers": {**state.get("providers", {}), "review": provider},
         }
+        if verdict and not str(verdict.get("run_id") or "").startswith(run_id):
+            verdict = None  # an earlier round's verdict: this round reported nothing
         if not verdict:
             return out | {"outcome": "failed", "reason": "the reviewer reported no verdict"}
         reasons = "; ".join(f"{r['issue']}: {r['detail']}" for r in verdict["reasons"])

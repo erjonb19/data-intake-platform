@@ -171,6 +171,12 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
                     (chain, cid, feed, out.get("file_sha256", file_sha256), contract_yaml,
                      principal),
                 )  # fmt: skip
+                if principal == "contract_author":  # S10.5: a re-validated candidate
+                    cur.execute(
+                        "update ops.contract_candidate set review = null"  # is
+                        " where chain_id = %s and candidate_id = %s",
+                        (chain, cid),
+                    )  # new
                 if principal == "validator":
                     cur.execute("update ops.contract_candidate set validator_valid = %s"
                                 " where chain_id = %s and candidate_id = %s",
@@ -304,7 +310,13 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
     # The reviewer's tools (S10.5).
     from dip.agents.intake_tools import register_review_tools
 
-    register_review_tools(reg, Tool, conn, _check)
+    def _dbt_for_review(feed: str, contract_yaml: str) -> dict[str, Any]:
+        path = contract_path(feed, contracts[feed].path if feed in contracts else None)
+        out = _dbt(feed, contract_yaml, path)
+        return {"generated_files": sorted(out["dbt_files"]),
+                "affected_hand_written_models": out["dbt_affected"]}  # fmt: skip
+
+    register_review_tools(reg, Tool, conn, _check, _dbt_for_review)
     reg.register(Tool("propose_contract_pr", "propose",
         "Propose a submitted candidate the validator passed, for a person to approve (the "
         "intake orchestrator's only tool). Nothing changes until the person approves it; "
