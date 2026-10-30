@@ -8,29 +8,38 @@ models:
       - unique_combination:
           arguments: {columns: [file_sha256, row_number]}
       - unique_combination:
-          arguments: {columns: [file_sha256, rx_claim_id]}
+          arguments: {columns: [file_sha256, '"rx_claim_id"']}
+          config: {where: '"rx_claim_id" is not null'}
     columns:
       - name: rx_claim_id
+        quote: true
         data_tests:
           - not_null
       - name: member_id
+        quote: true
         data_tests:
           - not_null
       - name: fill_date
+        quote: true
         data_tests:
           - not_null
       - name: ndc
+        quote: true
         data_tests:
           - not_null
       - name: days_supply
+        quote: true
         data_tests:
           - not_null
       - name: quantity
+        quote: true
         data_tests:
           - not_null
       - name: paid_amount
+        quote: true
         data_tests:
           - not_null
       - name: pharmacy_npi
+        quote: true
         data_tests:
           - not_null

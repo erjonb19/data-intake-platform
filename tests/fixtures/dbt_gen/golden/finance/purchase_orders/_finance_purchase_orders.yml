@@ -9,28 +9,35 @@ models:
           arguments: {columns: [file_sha256, row_number]}
     columns:
       - name: po_number
+        quote: true
         data_tests:
           - not_null
       - name: line
+        quote: true
         data_tests:
           - not_null
       - name: vendor_id
+        quote: true
         data_tests:
           - not_null
       - name: order_date
+        quote: true
         data_tests:
           - not_null
       - name: amount
+        quote: true
         data_tests:
           - not_null
       - name: currency
+        quote: true
         data_tests:
           - not_null
           - accepted_values: {arguments: {values: ["USD", "EUR"]}}
       - name: approved
+        quote: true
         data_tests:
           - not_null
   - name: finance_purchase_orders
     data_tests:
       - unique_combination:
-          arguments: {columns: [po_number, line]}
+          arguments: {columns: ['"po_number"', '"line"']}

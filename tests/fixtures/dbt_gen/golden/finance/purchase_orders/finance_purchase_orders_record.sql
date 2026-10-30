@@ -26,7 +26,7 @@ select
     d.received_at,
     f.contract_version,
     b.record ->> 'po_number' as "po_number",
-    (b.record ->> 'line')::bigint as "line",
+    (b.record ->> 'line')::numeric as "line",
     b.record ->> 'vendor_id' as "vendor_id",
     (b.record ->> 'order_date')::date as "order_date",
     (b.record ->> 'amount')::numeric as "amount",

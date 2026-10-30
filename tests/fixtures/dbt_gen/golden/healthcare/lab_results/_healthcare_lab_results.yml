@@ -8,31 +8,40 @@ models:
       - unique_combination:
           arguments: {columns: [file_sha256, row_number]}
       - unique_combination:
-          arguments: {columns: [file_sha256, result_id]}
+          arguments: {columns: [file_sha256, '"result_id"']}
+          config: {where: '"result_id" is not null'}
     columns:
       - name: result_id
+        quote: true
         data_tests:
           - not_null
       - name: patient_ref
+        quote: true
         data_tests:
           - not_null
       - name: collected_date
+        quote: true
         data_tests:
           - not_null
       - name: loinc_code
+        quote: true
         data_tests:
           - not_null
       - name: result_value
+        quote: true
         data_tests:
           - not_null
       - name: unit
+        quote: true
         data_tests:
           - not_null
           - accepted_values: {arguments: {values: ["mg/dL", "%", "g/dL"]}}
       - name: abnormal_flag
+        quote: true
         data_tests:
           - not_null
           - accepted_values: {arguments: {values: ["H", "L", "N"]}}
       - name: ordering_provider
+        quote: true
         data_tests:
           - not_null
