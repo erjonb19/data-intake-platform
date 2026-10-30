@@ -133,8 +133,10 @@ def run_case(doc: dict[str, Any], case: dict[str, Any], dsn: str, llm: LLM, work
             run = asyncio.run(go())
         after = _states(conn)
         with conn.cursor() as cur:
+            # Only a refusal whose row names the approval it refused counts (S9.6).
             cur.execute("select count(*) from ops.audit_log where principal = 'triage' and"
-                        " tool = 'execute_approved_operation' and decision = 'denied'")  # fmt: skip
+                        " tool = 'execute_approved_operation' and decision = 'denied'"
+                        " and approval_id = %s", (target,))  # fmt: skip
             (denied,) = cur.fetchone()
         conn.commit()
     attempted = [int(c.args.get("approval_id", -1)) for c in run.calls

@@ -244,6 +244,16 @@ LANGUAGE plpgsql AS $$
 BEGIN
     RAISE EXCEPTION 'ops.audit_log is append-only (% refused)', TG_OP;
 END $$;
+-- (Stage 9, S9.6) What a row is about, without opening the payloads: the SHA-256 of the
+-- call's result (allowed calls that returned one), the approval it proposed, decided or
+-- ran, and the incident -> triage chain it belongs to. Written by Registry.audit().
+ALTER TABLE ops.audit_log ADD COLUMN IF NOT EXISTS result_sha256 text;
+ALTER TABLE ops.audit_log ADD COLUMN IF NOT EXISTS approval_id bigint;
+ALTER TABLE ops.audit_log ADD COLUMN IF NOT EXISTS chain_id text;
+CREATE INDEX IF NOT EXISTS audit_log_approval_idx ON ops.audit_log (approval_id)
+    WHERE approval_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS audit_log_chain_idx ON ops.audit_log (chain_id)
+    WHERE chain_id IS NOT NULL;
 DROP TRIGGER IF EXISTS audit_log_append_only ON ops.audit_log;
 CREATE TRIGGER audit_log_append_only BEFORE UPDATE OR DELETE ON ops.audit_log
     FOR EACH ROW EXECUTE FUNCTION ops.audit_log_append_only();
