@@ -321,10 +321,16 @@ def test_one_pending_proposal_per_group(setup):
     assert again["pending_approval_id"] == first and "already has a pending" in again["error"]
     assert scalar(wh, "select count(*) from ops.approvals") == 1
     assert audit(wh)[-1][1:] == ("propose_operation", "propose", "allowed", None, "error: tool")
-    # an expired pending row does not block, nor does a decided one
+    # a rejected one does not block; an approved one not yet run does
     approvals.decide(wh.conn, first, False, "human:tester")
     second, _ = _propose(reg, "discard")
     assert second != first
+    approvals.decide(wh.conn, second, True, "human:tester")
+    third = reg.call(policy, "r3", "propose_operation", {
+        "action": "request_resend", "group_id": g["group_id"], "quarantine_ids": ids,
+        "root_cause": "schema_drift", "rationale": "third", "confidence": 0.5})  # fmt: skip
+    assert third["pending_approval_id"] == second and "already has a approved" not in third["error"]
+    assert "already has an approved proposal" in third["error"]
 
 
 def test_two_proposals_at_once_for_one_group_make_one_row(setup):

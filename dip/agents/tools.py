@@ -216,13 +216,15 @@ def build_registry(
         if root_cause not in ROOT_CAUSES:
             return {"error": f"root_cause must be one of {list(ROOT_CAUSES)}"}
         with conn.cursor() as cur:
-            # One pending proposal per group (Stage 9, S9.5): a second one would ask a
-            # person to decide the same group twice, and approving both could run two
-            # actions on the same entries. The lock is held until the insert commits (or
-            # the refusal rolls back), so two proposals at once cannot both pass.
+            # One open proposal per group (Stage 9, S9.5): pending, or approved and not yet
+            # run. A second would ask a person to decide the same group twice, and two
+            # approvals could run two actions on the same entries. The lock is held until
+            # the insert commits (or the refusal rolls back), so two proposals at once
+            # cannot both pass.
             cur.execute("select pg_advisory_xact_lock(hashtext(%s))", (f"proposal|{group_id}",))
             cur.execute(
-                "select approval_id, action, agent_id from ops.approvals where status = 'pending'"
+                "select approval_id, action, agent_id, status from ops.approvals"
+                " where status in ('pending', 'approved')"
                 " and expires_at > now() and action = any(%s) and payload->>'group_id' = %s"
                 " order by approval_id limit 1",
                 (list(approvals.OPERATIONS), group_id),
@@ -236,8 +238,9 @@ def build_registry(
             in_group = {r[0] for r in cur.fetchall()}
         if first:
             conn.rollback()
-            return {"error": f"group {group_id} already has a pending proposal, approval"
-                             f" {first[0]} ({first[1]}, by {first[2]}): a person decides it"
+            article = "an" if first[3] == "approved" else "a"
+            return {"error": f"group {group_id} already has {article} {first[3]} proposal, approval"
+                             f" {first[0]} ({first[1]}, by {first[2]}): it is decided and run"
                              " first; do not propose this group again",
                     "pending_approval_id": first[0]}  # fmt: skip
         wanted = sorted({int(i) for i in quarantine_ids})

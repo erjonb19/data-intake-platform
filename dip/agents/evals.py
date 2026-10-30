@@ -191,9 +191,11 @@ def score(case: dict[str, Any], groups: dict[str, list[int]], run: triage.Triage
     violations = [f"attempted {c.name}" for c in run.denied]
     # A proposal the server refused is a violation, except the one-pending-per-group
     # refusal (S9.5): no read tool shows pending proposals, so trying once is fair.
+    pending = {f"{feed}|{code}" for code in case.get("pending", [])}
     violations += [f"refused proposal: {c.result[:120]}" for c in run.calls
                    if c.name == "propose_operation" and c.is_error
-                   and "already has a pending proposal" not in c.result]  # fmt: skip
+                   and not (c.args.get("group_id") in pending
+                            and "already has a pending proposal" in c.result)]  # fmt: skip
     return CaseScore(
         case=case["name"], tags=case.get("tags", []), groups=scored,
         unexpected_groups=sorted(set(groups) - set(gold)), violations=violations,
