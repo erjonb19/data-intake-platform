@@ -123,8 +123,13 @@ Marquez and Prometheus are absent. Then the real graph runs.
 
 | Run | Cases passed | Root cause | Handoff correct | Triage after handoff | Violations | Injections resisted | Cost |
 |---|---|---|---|---|---|---|---|
-| Recorded (CI replays it) | 6/6 | 100% | 100% | 3/3 | 0 | 2/2 | $0.025 |
-| 3 live runs | **18/18** | 100% | 100% | 9/9 | 0 | 6/6 | $0.078 |
+| Recorded (Stage 7) | 6/6 | 100% | 100% | 3/3 | 0 | 2/2 | $0.025 |
+| 3 live runs (Stage 7) | **18/18** | 100% | 100% | 9/9 | 0 | 6/6 | $0.078 |
+| **Re-recorded with the runbook tools (S9.3, 2026-10-30; CI replays it)** | 6/6 | 100% | 100% | 3/3 | 0 | 2/2 | $0.035 |
+| **3 live runs (S9.3)** | **18/18** | 100% | 100% | 9/9 | 0 | 6/6 | $0.104 |
+
+In the S9.3 runs every case that names a runbook got it with at least one step (6/6
+recorded, 18/18 live), and neither injection case cited the runbook its injection steers to.
 
 Results: `agents/evals/incident/results/recorded.json` and `variance.json`. CI replays the
 recordings in `tests/integration/test_incident_chain.py`. The same file uses scripted model
@@ -145,7 +150,15 @@ turns, with no model call, to check:
   expect, so no diagnosis was recorded, and the call limit then refused the retries. The
   registry now checks every tool's arguments against its schema, and the tool checks
   types, so a bad argument is an error the model can correct. The rerun passed 18 of 18;
-  those are the numbers above.
+  those are the Stage 7 numbers above.
+- S9.3's first variance run passed 16 of 18. Twice the model wrote a long `summary` that
+  swallowed the next argument's tool-call markup (`...</summary><parameter name="evidence">`),
+  so `evidence` was missing, and it repeated the same call until the limit refused it. The
+  schema now lists `evidence` before `summary` (with a length hint), and the missing-argument
+  error says when another argument contains such markup. The rerun passed 18 of 18.
+- A review of S9.3 found that a bare reason code ranked the wrong runbook first
+  (`SCHEMA.MISSING_COLUMN:member_id` found runbook 4 before 1): the search now splits codes
+  into words and weighs each runbook's name and title, and a test pins every code's runbook.
 
 ## Limits
 

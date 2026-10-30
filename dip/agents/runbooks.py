@@ -18,7 +18,9 @@ from pathlib import Path
 
 from dip.contracts import REPO_ROOT
 
-_WORD = re.compile(r"[a-z0-9_.]+")
+# Codes split into words (SCHEMA.MISSING_COLUMN -> schema missing column), so a reason
+# code finds the prose about it.
+_WORD = re.compile(r"[a-z0-9]+")
 _STOP = frozenset(
     {
         "a",
@@ -61,7 +63,9 @@ class Section:
 
 
 def _tokens(text: str) -> list[str]:
-    return [w for w in _WORD.findall(text.lower()) if w not in _STOP]
+    # A crude plural fold ("instructions" -> "instruction"), enough for runbook prose.
+    return [w[:-1] if len(w) > 3 and w.endswith("s") and not w.endswith("ss") else w
+            for w in _WORD.findall(text.lower()) if w not in _STOP]  # fmt: skip
 
 
 def _sections_of(f: Path) -> list[Section]:
@@ -95,7 +99,10 @@ def load(path: Path | None = None) -> list[Section]:
 @lru_cache(maxsize=4)
 def _index(root: str) -> tuple[list[Section], list[list[str]], dict[str, int], float]:
     sections = load(Path(root))
-    docs = [_tokens(f"{s.title} {s.heading} {s.text}") for s in sections]
+    # What a runbook is about (its file name and title) counts three times in each of its
+    # sections, so a reason code finds the runbook about it before one that mentions it.
+    docs = [_tokens(f"{s.runbook_id} {s.title} " * 3 + f"{s.heading} {s.text}")
+            for s in sections]  # fmt: skip
     df: dict[str, int] = {}
     for d in docs:
         for w in set(d):

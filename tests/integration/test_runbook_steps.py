@@ -106,3 +106,36 @@ def test_the_triage_agent_does_not_get_the_runbook_tools(setup):
     _, reg, _, _ = setup
     with pytest.raises(Denied, match="search_runbooks"):
         reg.call(Policy.load("triage"), "t1", "search_runbooks", {"query": "late"})
+
+
+def test_a_bare_reason_code_finds_its_own_runbook():
+    """Review of S9.3: the prompt says to search with the reason code; each code must rank
+    the runbook about it first, not one that only mentions it."""
+    first = lambda q: runbooks.search(q)[0]["runbook_id"]  # noqa: E731
+    assert first("SCHEMA.MISSING_COLUMN:member_id") == "01-missing-column"
+    assert first("SCHEMA.UNEXPECTED_COLUMN:preferred_language") == "02-unexpected-column"
+    assert first("VALUE.NOT_ALLOWED:plan_code") == "03-code-values"
+    assert first("FILE.ENCODING") == "04-delimiter-encoding"
+    assert first("FEED.LATE") == "05-late-file"
+    assert first("KEY.DUPLICATE:member_id") == "06-duplicate-keys"
+    assert first("OCR.LOW_CONFIDENCE") == "07-low-confidence-scan"
+
+
+def test_blank_steps_are_refused_and_steps_survive_a_re_diagnosis(setup):
+    from dip.agents.graph import _diagnosis
+
+    wh, reg, policy, iid = setup
+    diag = {"incident_id": iid, "root_cause": "late_delivery", "confidence": 0.9,
+            "summary": "no file", "evidence": ["FEED.LATE"]}  # fmt: skip
+    reg.call(policy, "chain-x/incident", "report_diagnosis", diag)
+    blank = {"incident_id": iid, "runbook_id": "05-late-file", "steps": ["  ", ""]}
+    assert reg.call(policy, "chain-x/incident", "propose_runbook_steps", blank)["error"] == (
+        "steps must not be blank"
+    )
+    ok = {"incident_id": iid, "runbook_id": "05-late-file", "steps": [" Call the vendor ", " "]}
+    assert reg.call(policy, "chain-x/incident", "propose_runbook_steps", ok)["steps"] == 1
+    # the agent reports again after proposing: the graph still sees the steps
+    reg.call(policy, "chain-x/incident", "report_diagnosis", {**diag, "confidence": 0.95})
+    d = _diagnosis(wh.conn, "chain-x/incident")
+    assert d["confidence"] == 0.95
+    assert (d["runbook_id"], d["steps"]) == ("05-late-file", ["Call the vendor"])

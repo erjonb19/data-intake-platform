@@ -173,6 +173,9 @@ def register_incident_tools(reg: Any, Tool: Any, conn: Any, contracts: dict[str,
             steps = [steps]
         if not isinstance(steps, list) or not steps or not all(isinstance(x, str) for x in steps):
             return {"error": "steps must be a non-empty list of strings"}
+        steps = [x.strip()[:300] for x in steps if x.strip()]
+        if not steps:
+            return {"error": "steps must not be blank"}
         if len(steps) > 10:
             return {"error": "at most 10 steps"}
         if runbook_id not in runbooks.ids():
@@ -196,7 +199,7 @@ def register_incident_tools(reg: Any, Tool: Any, conn: Any, contracts: dict[str,
             cur.execute(
                 "update ops.incident_diagnosis set runbook_id = %s, steps = %s::jsonb"
                 " where diagnosis_id = %s",
-                (runbook_id, json.dumps([x.strip()[:300] for x in steps]), row[0]),
+                (runbook_id, json.dumps(steps), row[0]),
             )
         conn.commit()
         return {
@@ -270,8 +273,13 @@ def register_incident_tools(reg: Any, Tool: Any, conn: Any, contracts: dict[str,
                 "properties": {
                     "incident_id": {"type": "integer"},
                     "root_cause": {"type": "string", "enum": list(ROOT_CAUSES)},
-                    "summary": {"type": "string"},
+                    # evidence before summary: a long summary written first sometimes
+                    # swallowed the evidence argument's markup (S9.3 variance runs)
                     "evidence": {"type": "array", "items": {"type": "string"}},
+                    "summary": {
+                        "type": "string",
+                        "description": "Two to four sentences, plain text",
+                    },
                     "confidence": {"type": "number", "minimum": 0, "maximum": 1},
                     "quarantine_ids": {"type": "array", "items": {"type": "integer"}},
                 },
