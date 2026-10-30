@@ -26,6 +26,7 @@ KEYS = {
     "profile": "DIP_PROFILE_KEY",
     "map": "DIP_AUTHOR_KEY",
     "validator": "DIP_VALIDATOR_KEY",
+    "reviewer": "DIP_REVIEWER_KEY",
     "orchestrator": "DIP_ORCHESTRATOR_KEY",
 }
 

@@ -1,0 +1,120 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_016zSdwnDfZMfDvmwnv3E7RC",
+    "input": {
+     "candidate_id": "2f609a0a66c25318"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Es5xrh3vvHCngJsjfW3TVf",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "e69685f9fa229b9aa80829f8fc245fc1ac38c18bd4d4ee1f5609492a562a24e9",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2252
+   },
+   "cache_creation_input_tokens": 2252,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 117,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSkQsKEAgTGAI4AUIIdGhpbmtpbmcSDIajUfn+2n79n6NTHxoMECKGK1ngXl95h51jIjBFji2NG0z2TJrbjvgGHpq2pMAzVIQ0mX2TP3TV/aqdTUodWBCVcIWPMEEpCLLdHG8qrgr/rpuNVdlUYxLeTUyIjRX2psm0kH0xZjxz8i3GDbSnCtDuxGr+sK21DOyzWc7om6llUeiZuB8Tp9Euetb7mJ2O/aL/DbfAlAUGS3MOiJwyrRVQWAVEAn5HCRz9ZQUcw1pV+SGJUQ9lOT+4TnkBfIUvRfw80N0D1rPZ7H8kEZ2oZDhBjaOXo1pCkqUedcZMaSPTRd1a2axbCFb9UyoUeSldXCbwwmlx58Gh+xqisG+QNWGjtEwBxtZ0fCIoYF8zUBQEP07w6SM80Jhsl9jSW2Wq4FVD9me4w38IPXmCK0/unQHZCw0WrvcCwwbmGW8gQRidScGCYDl8OANhaDswpA7zVllUZjlW6EhJtuzbZvLCAepWdE1k6Dp3IVrk6tyi/x4f4e/2qG6MJDwSeq/ZcxiiG85s7agc4AUqAEBUIVCIBHpw269Zvbi5ryZG34QqgfawQ/LOQ4G+0wN7rlQKu/0fDmEarrHk8GftzbyDJTnSKDQLHLhJfhltGg08OsKzkDByU7a5dqhE5vgtn/vI2mtJaSvG0vkcY9HuSz+mhqUgubHPpSzi+8AQCdUXJiV7yPjK7i5XRJWSQzkbF9cYnqAYZZCvqjYBPt5aqC3bW5ZCsBRGJCGiyujQ86hv6n6MOGZMSDHgqkiagsJrD0VO5y5JeudPI0GOH5Unn/aZ6l1EZ7ggj6NTVOQEqh6tp+cK1cxVpnpAt2NeL8MHFRvjZ37QJIu4nc5NWW4FSsYt1mXeV0HFd/r+DqJ/fOsY1krdcvS+ridzBXrApgoaXw+qqCgxrZFkNLX8dyISPme6Nh4l1SnQmJ4CCBlwZx3kTh4dDrjU/5p2KDIL+n8MpNK0c6ypviZcauP+ZbPgaMA+nhl1bYRtDgdL2DXEdujVUyjxbhQvRIIgJiY4YYlZ31QDCLHE0psQxjzoSIHAT1bBfx0ySv8oEiCFArkpgpjpU0DLEPr4BxzDYLmRzaOoWLKjuQoXrHJsEFBBnibxXGH6jaAhZ3HnSXzsacCGnhwbNcqnEiegvjEb1w/0AIPOSnyaUm3Jm2n2PKVCa9pvIgTQiBhCvbbryOjDjXd0E1BkLfGr9MTGV5p0empZvdWTMLvjP+qEl3UsKJj51Fk0/RXSBQvHSaVfGxSCjU7wkhzRCVNmdMXJxKeXyp/uXCTdcNDss+ub5JSKaBc7HmEC7z/1urQmuLFbaQT6nWwQn3qYQEBqrr18jd0lBfftF9gHFgvd3nVh0BEQ2N6LEFSZWAYLLWUjTAj0ZyzdB0kfL/Dmr46b4EcMh1a7WIsvYh+l4WiLbrMREB3aQn3G0yeRvwDAE1NONssXuR93Dp43qHWF7+rh0/kRv3QAa8o+Q+HFpAF46FsS+ZILjHp+MKhAQuAKBdR1yfFVtBGF9cjmhZMUaoom9nelX9SIKFYpycH+ibVuPYCPTaUghkAcjg5Skj2+BKsCwlrxfQSgrvkbXSNvsfnGDWgISxUkaWMUI0Y4qbOSO61JP/al7N1T/AGGyn37wLyOP0ao1hNJwdERLWeazGwNRAVRElsZpkg3F0DA/HYiRgTY1En2w5DT5jXtpO3EIaUyMz2FEjR0/UmzzDKwUSeaYezkh6p+Q7/jfKJZXZqMaKc6qt+xtlwFF+GhJcptAJgchHH/82es5adUeG7D6eZR47HxCxG7RIacS6P373BYB+cdn7mQp/CsWJgwOcPsRKaW5LzyhBkeeYY7lIcm5oDo+JKXbnzuTC+NViqURgW3y0RnsGbDYr+ZYJcLHM54j44YAQ==",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01EAzLkrKwNjdbtgDgNP2sQM",
+    "input": {
+     "candidate_id": "2f609a0a66c25318",
+     "reasons": [
+      {
+       "detail": "Notes only, no action needed. The only change is the added member_phone column: string, required, pattern ^[0-9]{3}-[0-9]{4}$, phi: true. The profile shows it is non-empty in all 24 rows, all in the 999-9999 shape the pattern matches, and labelled phone/PHI. Loosening list is empty, the dry run accepted 24 of 24 rows, dbt affected_hand_written_models is empty, and the version bump 1 to 2 matches the change. The existing rules are unchanged.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "99cb59d230cd2d02851b411021ba5d56daa0a9b311ed370df26a5e5d6c3d0647",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3308
+   },
+   "cache_creation_input_tokens": 3308,
+   "cache_read_input_tokens": 2252,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 601,
+   "output_tokens_details": {
+    "thinking_tokens": 305
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Candidate 2f609a0a66c25318 for `healthcare.eligibility` is reviewed and recorded as **pass**.\n\nThe only change is the new `member_phone` column (string, required, pattern `^[0-9]{3}-[0-9]{4}$`, `phi: true`). The profile shows it is filled in all 24 rows, every value matches the 999-9999 shape, and it is labelled as a phone/PHI column. Nothing is loosened, the dry run accepted 24 of 24 rows, no hand-written dbt models are affected, and the version bump from 1 to 2 matches the change.\n\nVerdict: pass.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "ecab92ae8e86121073f0a78b0d033a27fa80f8150022ab5b2040c1c0792cfeff",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 651
+   },
+   "cache_creation_input_tokens": 651,
+   "cache_read_input_tokens": 5560,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 209,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

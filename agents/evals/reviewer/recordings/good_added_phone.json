@@ -1,0 +1,120 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01NZEaEuVMmskEbJwwJCmFwg",
+    "input": {
+     "candidate_id": "fc336d8c0854c80b"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01VHHSWZ1dUtqhbfQJHx7ef5",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "769dcb38e157aeb2694cae8fd70c1016198ac38f3e16109ff6e2cfec85f5a3b8",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2251
+   },
+   "cache_creation_input_tokens": 2251,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 118,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSwg0KEAgTGAI4AUIIdGhpbmtpbmcSDJLDU6pcXBHNbmS2qBoMamUExh/P4w+U7ZWKIjBIx6B+5Jv6eTfr98LxDXeRQ75+Rf5KQeXXuWjYlZnj4sM7NskCKV7eKWaRztpueXcq3wy3JwzfBEYk4Vd0pGfenXQz+5QrCkchwDk0R9oswVZDNiZWUQkTk6PbNShTFZnSZ2KU1n7+BhWTzNhYirim8uoI/FMy6SqgqoCaKP2PepPAsJnx62fSyrZeP4lDqqNHYO2xGcL7k1CgiL53c0skPKMxT9i3gt9hEHiT0tDzcel92i439xRaSmeXgjeeVflUlNtTbescmoYBEfx5n7RpJ9GA+EHXYb6IRav4SRPcjjDH62x1e0FAqA3TMXpM3caRVlWOcuOuy1NKl+9NbKJ9fg2Tev+xpqyOAmQeN6WvAzRgp6+cnfm/QOKB4joSGrd8+e/3iq1yL+0dHZLTuEa6Vgb9x2AXEulIe7eM07Wbh66tI7NBwnFVJ7QPqwCx+G8WbqAOxAZ7tsf0obfFSVEC9ppuLDwyZ+9h10sMaxfaH6GrAqGLQS9qr0Tvg8GYMz0tpp26QtYgE591MZNAtTt1vM1DioNvfuK9W4hx2AtGCQrZO49ln3jWbgWoKhbuzxGPUcLKiyHTrQDtHSOXCRr5q/iWc6wuQNuD4imPA9o6aA8ExKBXtgu+V+2ALBNeJChVBTRc33FQLGHsuDxqD3Lj+1l0tPlJHREJA9pVsrCm92owaoo+VfRZPkL5y2CNoQKRIu4roCzlykvfAA1OYq6UOKyVmmcJPynL+9lq0meZVXEwfj3G7CK4BphtGAqEUIFxDs/g8OK/D04F8Nm2BU24RJtW4oQ+LXBJNZ/rm8R+HCjwmYsQisRF8cNxuXavDMTSSV8kq7M2GXczj/91DAJB8e7FRDUrsEVpwWjGwfXD5OW4GgU1qqEd52f7bxmTRw1kKyWuvQ/cfv2qgbfYYyHCa38ImB7uhOwFM64XSFgPYOkJCgaZSiJn8KOJiV7zeCiDf4mmYCAVPDopg9BhfAsGQwscmmidO0LYuCuqa4uaeuULOQK3SGVXV2wKbf6x9T77SKkpqhrJqlsggjXp3TI5gn1gf8q8yfx2eKJl6QODlB38AV4TuCedekfdzTfqdyRJNbpJQi23H6NgHLDfUa5RACYlZHPE/8PNkx7e12FGoqXmHvPNSmr+Y+Y/qlQOnGqeMCiuxpoKxCV2GVajobtPbp2an37gMrmTFIw/ipR7SUW9KGkk5RVcubRve1qK6pRi+8JNrjEuNjvYGafeDpMQSjwayCfBZJwlAGC9qR256oeSPZjatcuNtN/tSKXuk/tAZLjxrSsNhkwM/A+hoIt9aBoDrN0akxAMKklMjOZPGtb0JUmrZKAo/FwjwI35vc9K99xAUDMvWySixXvFblHv7UvIT8B6EkNY0vrcmfB2q2cytkhyOglED6ZK4j73VNEi+cLZ6oJkLyEQ+lTRx4lWpEPf/5c+chU3VE2v7FXCdxIBKpAcwI+i+VnikOq87rRfFxzYkGj0YTFt2hnh44WXnD5X3f0fTn7yeGJl9F/Cb+c+g0Lk5ZO1XxhfuOCIOeef/wIy2qBwWfK3p7OST9iHnugsZ02d2RoNojgtp72g6VsYQeCMiQFgtRsKlgxNaRuZ/VrkUZc0aM+MCVPuZi4zL78mYy7HVIJcS4Mf92RMUAEoijyC+MIihZxBpP/YkeC7KSPCslghNKTI6C79OEyouoo/lYePg1BQHZSFTJTIGOs1WDAlqLx9E7nJO8mtjLR5ZjZxPiaQ5jAJKFRvK4UNk0552eGl8jEskDTDvrIrgusBgwzsuvHhPKk0md8AGW7i7to3uccLYLSrkwv/056zS22py/h5ntYoNcdlsll1FNRyP6SwFF2ysUWjJ6oeb4IWAkHUP/73aMmNbmnApPd/wGh9t7RsrMz5u2FH+jkKqqEg/h+MkD8fDkuKJKsKC9kyB13qI1Abj6n5n6mhLxIs2m0H0LLbUF6g/t59LmF1KUGjvN7Oxm7r5up2OBoUYiQFrEBtYuHXxM3B097NA4+rWx3M4XxoLKusmFG/ZRY2Ed4bz2097s6eROsMY1TH/Sikvye6H/+NJWdATV8Lh108UEXcuwCB5NPttGOgOudBylrCMb/V7dJfxS1SbXLLaTPzN1lDiMZnAz9HsC0m0oOt7VG1rI7UBT7ntDeg03glhr6UgsrbNxVkn5YNDtOuJ8epniEJmKMcjF2l1EnSiXg6xnDKQzkhosw3koRNJxrBixhWl25Pd86bZp3tYoRLDTiGnxgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01AZHXn19gs6UjytXVsLNdYW",
+    "input": {
+     "candidate_id": "fc336d8c0854c80b",
+     "reasons": [
+      {
+       "detail": "Non-rule note: the diff drops the two leading header comment lines of the current contract (the synthetic-payer note and the packs/healthcare/generators/eligibility.py generator reference). No effect on validation; a person may want them kept. Not a reason to revise.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "38ad058b686129de4972ae8943ad220bebb0a4649b89eb270d2bc331f70921b2",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3025
+   },
+   "cache_creation_input_tokens": 3025,
+   "cache_read_input_tokens": 2251,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 592,
+   "output_tokens_details": {
+    "thinking_tokens": 384
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate fc336d8c0854c80b (`healthcare.eligibility`, drift): **pass**.\n\nThe candidate adds one column, `member_phone`, as required, string, and `phi: true`. The profile shows it is never empty and every value has the phone shape `999-9999`, and the rule adds no `allowed` list or pattern the profile doesn't support. The loosening list is empty, the dry run accepted all 24 rows, and no hand-written dbt models are affected. The only non-rule note is that the diff drops the two header comments from the YAML; I recorded that as an `other` reason and did not treat it as a blocker.\n\nVerdict: pass.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "1a5796b7bbb9de94f72dbc7173ed965008320081a984631a8b2c05e908dcd2db",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 643
+   },
+   "cache_creation_input_tokens": 643,
+   "cache_read_input_tokens": 5276,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 219,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

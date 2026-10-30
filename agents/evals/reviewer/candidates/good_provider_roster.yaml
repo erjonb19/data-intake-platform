@@ -1,0 +1,21 @@
+feed: healthcare.provider_roster
+version: 1
+owner: vendor-ops@example.com
+description: >
+  A provider network roster, one row per provider. All data is invented.
+classification: internal
+source:
+  channels: [minio]
+  filename_pattern: "provider_roster_*.csv"
+format: { type: csv, delimiter: ",", encoding: utf-8, header: true }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.05
+min_rows: 1
+columns:
+  - { name: npi, type: string, required: true, unique: true, pattern: "^[0-9]{10}$" }
+  - { name: provider_first_name, type: string, required: true, phi: true }
+  - { name: provider_last_name, type: string, required: true, phi: true }
+  - { name: taxonomy_code, type: string, required: true, pattern: "^[0-9]{3}[A-Z0-9]{6}X$" }
+  - { name: practice_state, type: string, required: true, allowed: [NY, NJ, CT] }
+  - { name: accepting_new_patients, type: string, required: true, allowed: [Y, N] }
+  - { name: effective_date, type: date, required: true }

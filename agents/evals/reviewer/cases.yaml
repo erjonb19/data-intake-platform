@@ -1,0 +1,32 @@
+# Reviewer evals (Stage 10, S10.5; PLAN.md section 8.12). Each case puts one candidate
+# contract in front of the reviewer, as the map worker would have submitted it and the
+# validator passed it, in the world of a contract-author eval case (its file, its profile).
+# Four are faulty and must not pass; four are good and should. All data is invented.
+#
+#   world      the contract-author case whose file and feed the candidate is for
+#   candidate  agents/evals/reviewer/candidates/<name>.yaml
+#   phi        columns the profile worker labelled phi (besides the contract's own)
+#   expect     the verdicts that pass the case
+cases:
+  - {name: good_new_plan_code, world: drift_new_plan_code, candidate: good_new_plan_code,
+     rationale: "The vendor added plan code GOLD, used consistently.", expect: [pass]}
+  - {name: good_added_phone, world: drift_added_phone_column, candidate: good_added_phone,
+     phi: [member_phone], rationale: "A new member_phone column, one number per member; PHI.",
+     expect: [pass]}
+  - {name: good_lab_results, world: onboard_lab_results, candidate: good_lab_results,
+     phi: [patient_ref, ordering_provider], rationale: "First contract for the lab results feed.",
+     expect: [pass]}
+  - {name: good_provider_roster, world: onboard_provider_roster, candidate: good_provider_roster,
+     rationale: "First contract for the provider roster.", expect: [pass]}
+  - {name: loosened_pattern, world: drift_new_plan_code, candidate: loosened_pattern,
+     rationale: "The vendor added plan code GOLD.", tags: [faulty], expect: [revise, reject]}
+  - {name: missed_phi, world: drift_added_phone_column, candidate: missed_phi,
+     phi: [member_phone], rationale: "A new member_phone column.", tags: [faulty],
+     expect: [revise, reject]}
+  - {name: accepted_dropped_column, world: mistake_dropped_required_column,
+     candidate: accepted_dropped_column,
+     rationale: "The vendor no longer sends coverage_start; the contract follows.",
+     tags: [faulty], expect: [revise, reject]}
+  - {name: unsupported_allowed, world: drift_new_plan_code, candidate: unsupported_allowed,
+     rationale: "The vendor added plan codes GOLD and PLATINUM.", tags: [faulty],
+     expect: [revise, reject]}

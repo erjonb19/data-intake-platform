@@ -1,0 +1,124 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01XQJ8F8xxLfiKFqpMp9YUJM",
+    "input": {
+     "candidate_id": "e4d8a99990deee94"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01BCScFePQ2Pw6bfdPy6C4rz",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "fec0572a9786188309fc8cf662dfdbb4f5e5d5edce6c6196838d134aaba2e7f4",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2251
+   },
+   "cache_creation_input_tokens": 2251,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 117,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQSrAkKEAgTGAI4AUIIdGhpbmtpbmcSDB8znHjbT8wdJZW5DRoMy4BidaUzixrZrMWiIjClwcvuk2rR+YVKsoxhoMuruyEuC3RTfRaR2gYCTu2iYBZ7cGGymewLGr3x22DxswUqyQhX8fKQoLFbbb90CfFA7wbs+ysv/WhzuaSPzi6BniWdUgF5ENZaIf2oPvyHcpG3oPO/Dbzrh4EgF9mD1hoiK7E4Gp4wEbru3pVO+RUwluzevrcOS4yXFOqbf+d93j429YYrc/S12j8iVH0/ZEnecuTzujWlGflm+vTqom9x0DSTLiFwnHzHlaR50QuG5NWdMQCvpkfHtsGSJM6yUGeld03pTjM9zsBm2Um34NRNCFjIq8VF8gkInpdDBH8Q4SGJHx3wZpVksWhT9d3bFhdhxOSR7n9PihRQnAPKNKFrFqS5bUyBF8O3aLsRKyGIYG2ttPYGA9F9WITBoVAkhWbDbNrBwoHTjYM6klPhxEsdQB9rJsE3o7x3tW+e6/FYOVCsa6fDI/jbGUoYxzig40RDgeS2UirQCDxj9TLUC9PBdLdwdFy3JSpAz7WSWZCRpaJOIfF+JOxg2rvbEOZYz3N5zKEKDX8rW7hsH9wV276JGudgeEEi/E+v3u6SH+FBh2rnI5FlrFXT/ZTrUe4Xs0XO8fCGK61jp3Bv8DNd2Qb/7LGe0NAPB5/E7C8fSqIi8nlhKRDLDiezp+jU429H69nFGNUoDmLuH1Xt/P4CDXMDjSAgoz66w9WTYpkTh40Ee3DEwVXJnDlaJ/FBYjt9GMFUp9C6yhD+On31Z4W9VvpDiVh7koVy/+LxgNk4jPanQ6g2sN7HGfdQxIrlcY1T/4ulhe3yyGwHa7mpZ6o8a84IFEtsslxQYYIIzslYzL7qrJKv5K0v/kgLUtI+01SsosLaQZF9zlsyj3E6Tmw+NOra6g8IJTaEPj2h+FdU5TyLMsFHSUoqhOWgE6Kxd8xumAbj3zAeVJA3UhyaNoxuYD8iWpJ7cYjb+i06NKYL2mg98QhmGLD6MKVwF4peih4Fvc8UToU2jVQiOOSbR9v1ha/iTU+g7Zd7jITAAbu0x+sUgMOSsw88B+Nnwv2NxEBJg/ok/MJ4g2FIMV5gt3VopHEIL2LsjXwtTlyRUyhroiYpuElV9SW+kEkYild4JLeBannqbTepMHQ79h+RarCmByWb6TyWS1+N93gkR7MUwSRaaSTTgPWqx+9BBklaA+dETEdc8yU5XweGdSETHZd6O9+gFpwaMmx6ztD56W/j3VQ0+giF1/NnFXRz3qMrkcAfQCJ7dwt/fOlYBFsC6oG8IMafBaSkz+eWt8HRop+cKG0Xe4SIf9BL2iJO7JXxhu8f5RFbBGW5JuU3LWNWhyqoMP30kogEdg0IiV75ZnvzcsQkU6BSNPrhqVemJ5h7LhKKNvSTcywFzNvmMrZ7Dije0JS4N/4XT1PXSw+rargIX3Uz3kuY5t7EcURid7AQfMuh98DesMJ2H5p/makTi9HrIGrnDBTQdB81O9G2WC2TQnu++oACHLXOqT5TCixgmZfepEdTokhLHjFTDYWsVt9gSCeQwXXtnwOsvnqRVKAykRgB",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01RzWgD4jZjSbDYEHnSM4caP",
+    "input": {
+     "candidate_id": "e4d8a99990deee94",
+     "reasons": [
+      {
+       "detail": "Not changed by this candidate, so not a reason to revise: member_id is labelled phi: true by the profile (role: identifier) but is not marked phi in the current contract. It identifies a member, so a person should consider setting phi: true in a later change.",
+       "issue": "other"
+      },
+      {
+       "detail": "Also not changed by this candidate: patient_ref and member_id both link to a person. patient_ref is already phi: true. No action needed here beyond the note above.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "ae22ee80ce024b71c054a1f8c823dcb7d35c74d4c8b1b023434bcdf91dc3d149",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3418
+   },
+   "cache_creation_input_tokens": 3418,
+   "cache_read_input_tokens": 2251,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 469,
+   "output_tokens_details": {
+    "thinking_tokens": 203
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate e4d8a99990deee94 (healthcare.eligibility, drift): **pass**.\n\nThe candidate adds GOLD to the `plan_code` allowed list, which is the only change. The profile shows GOLD on 8 of 24 rows with a consistent label and no other column problems, so it looks like a real product tier rather than junk. The loosening is supported, and without it the file would be rejected. No new columns were added, so there are no new PHI gaps, and no hand-written models are affected.\n\nI recorded two non-blocking notes: `member_id` is labelled PHI in the profile but not in the contract. That column is existing, so it isn't this candidate's to change, but a person should consider making it `phi: true`.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "53e4466adcd86cc322ae5ac3c9af0463f734c93105f40453757d83031b3fc0f8",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 519
+   },
+   "cache_creation_input_tokens": 519,
+   "cache_read_input_tokens": 5669,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 238,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

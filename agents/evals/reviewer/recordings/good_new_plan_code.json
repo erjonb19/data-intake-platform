@@ -1,0 +1,124 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01QmAon7XquAQu31gi6Xckgs",
+    "input": {
+     "candidate_id": "2b37c64429312cce"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01VgYbRAEmB63hjTf7E7mrw1",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "97343d10e1d863af4e0933653a773f64a4136d4e43d7dafb44d9348119d82bf5",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2250
+   },
+   "cache_creation_input_tokens": 2250,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 116,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01VnEm1L4TCFWG7Uj4jsCaUC",
+    "input": {
+     "candidate_id": "2b37c64429312cce",
+     "reasons": [
+      {
+       "detail": "The only change is plan_code allowed gaining GOLD. The profile supports it: GOLD appears in 8 of 24 rows, and the 8 failures of the current allowed rule are exactly those GOLD rows. The map rationale matches. No other rule was widened, and the dry run accepts all 24 rows.",
+       "issue": "loosening"
+      },
+      {
+       "detail": "Not changed by this candidate, so not a reason to revise: member_id is the member identifier that links to a person, but it is labelled phi: false in the current contract and in the profile. The platform's PHI list says such ids must be phi: true. Suggest a separate fix to the contract for member_id.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "877e7b85f775b960394a2b545b81b211eda394333f090f995f3eaf68070e595a",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3079
+   },
+   "cache_creation_input_tokens": 3079,
+   "cache_read_input_tokens": 2250,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 711,
+   "output_tokens_details": {
+    "thinking_tokens": 379
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate 2b37c64429312cce (healthcare.eligibility, drift): **pass**.\n\nThe only substantive change is adding `GOLD` to the `plan_code` allowed list. The profile supports it: GOLD appears in 8 of 24 rows, and those 8 rows are the only rule failures under the current contract. The dry run accepts all 24 rows, and the version bump and dropped header comments are harmless.\n\nI also flagged one gap that this candidate did not change: `member_id` identifies a person but is `phi: false` in both the current contract and the profile. It is not a reason to revise, but it should be fixed separately.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "cefd4f2282f0f0c1e74e75bdf3db255e54aefa9ee60a70e14f71e6e942510419",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 760
+   },
+   "cache_creation_input_tokens": 760,
+   "cache_read_input_tokens": 5329,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 210,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

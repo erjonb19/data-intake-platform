@@ -1,0 +1,124 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01NnYcwbQHqFACcLwQ6YtBzr",
+    "input": {
+     "candidate_id": "24d6d81a9f207662"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01X543T5EQhsCn5KHmvJyBnq",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "6df518caadbf09e9bc51364b2a33c4eff3ac7df31d8388d53bc6273abb75e67e",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2252
+   },
+   "cache_creation_input_tokens": 2252,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 117,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_011QKtpAJPWTcgtekAAH334q",
+    "input": {
+     "candidate_id": "24d6d81a9f207662",
+     "reasons": [
+      {
+       "detail": "The only loosening item is plan_code 'dropped' as a required column. This is the rename plan_code -> plan, not a relaxation: the profile shows `plan` in the same position (6) with exactly the allowed codes EPO, HDHP, HMO, PPO (shapes AAA x18, AAAA x6, no empties), and the candidate keeps required: true and the allowed list on `plan`. Nothing is widened.",
+       "issue": "loosening"
+      },
+      {
+       "detail": "dbt.affected_hand_written_models is not empty: eligibility_record and member_eligibility are hand-written models that read plan_code, which this rename removes. A person must update them to read `plan` alongside this change.",
+       "issue": "affected_models"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "21f611635b5d5958a57e30f7fb030c6aa2ee8cb0e8795ead63b5d91297fe1647",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3248
+   },
+   "cache_creation_input_tokens": 3248,
+   "cache_read_input_tokens": 2252,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 766,
+   "output_tokens_details": {
+    "thinking_tokens": 418
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate 24d6d81a9f207662 (`healthcare.eligibility`, drift): **pass**, with one affected_models note.\n\n- **Loosening:** The only loosening item is `plan_code` dropped as required. This is a vendor rename to `plan`, not a relaxation. The profile shows `plan` in the same position with exactly the allowed codes (EPO, HDHP, HMO, PPO), no empties, and the candidate keeps `required: true` and the allowed list.\n- **PHI:** `plan` is a code column, not PHI, which is correct. No other columns changed.\n- **Unsupported rules:** None. The allowed list matches the profile's codes.\n- **Affected models:** `eligibility_record` and `member_eligibility` are hand-written models that read `plan_code`. A person needs to update them to read `plan` when this change goes in.\n\nPass: the candidate's own changes are correct, and the affected hand-written models are named above for a person to fix.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "f2e94ee58bdd1d9549adafe28b7d22135eb74028f4ac569eb6b4a4be727ebcb4",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 816
+   },
+   "cache_creation_input_tokens": 816,
+   "cache_read_input_tokens": 5500,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 324,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

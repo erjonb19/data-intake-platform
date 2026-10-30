@@ -163,6 +163,37 @@ new code. Source: the committed reports
 [`gemini.json`](../../agents/evals/contract_author/results/gemini.json) and `recorded.json`;
 [contract-author.md](contract-author.md), "Evals".
 
+## The intake team's reviewer (Stage 10, S10.5)
+
+**Cases** (`agents/evals/reviewer/cases.yaml`, 8, all invented): candidate contracts put in
+front of the reviewer as the map worker would have submitted them and the validator passed
+them, each in the world of a contract-author case (its file, its server-built profile).
+Four are faulty and must get `revise` or `reject`: a dropped `pattern`, a new phone column
+not marked PHI, a contract that accepts a dropped required column, and an `allowed` value
+nothing in the file shows. Four are good and should `pass`. `python -m dip contracts
+review-eval [--record | --live --repeat N | --provider gemini]`.
+
+| Run | Faulty stopped | Good sent back | Violations | Cost |
+|---|---|---|---|---|
+| claude-haiku-5-5, recorded (1× live, replayed in CI) | 4/4 | 1/4 | 0 | $0.016 |
+| claude-haiku-5-5, 3× live | 12/12 | 1/12 | 0 | $0.045 |
+| gemini-3.1-flash-lite, 1× live | 2/4 | 1/4 | 0 | $0 (free tier) |
+
+**A correction.** The first runs of these evals gave the answer away: each candidate file
+began with a comment naming its case ("missed phi", "good added phone"), and the reviewer
+saw it in the candidate and the diff. With those comments removed (the candidates are now
+only contracts, which a test enforces), Claude's figures barely moved (0/12 to 1/12 good
+sent back) but Gemini's fell from 4/4 to 2/4 faulty stopped: it passed a contract that
+accepts a dropped required column and one with an unsupported code. A review on Gemini
+never leads to a proposal (the graph ends the job `revise`), which these results justify.
+
+The first prompt sent good candidates back for rules they did not change (an existing
+column's PHI flag) and for dates outside the platform's PHI list; the prompt now reviews
+only what a candidate changes, and those gaps are noted without changing the verdict.
+Even when Gemini passes a candidate, the graph does not propose it: a review on the free fallback ends the job `revise` for a
+person. Through the whole team (profile, map, validate, review, propose), the 13
+contract-author cases are recorded and replay 13/13.
+
 ## Claude vs Gemini (PLAN.md §7.1)
 
 The comparison runs the same 13 contract-author cases through the same harness, with

@@ -69,8 +69,34 @@ class Profiler:
         return Message([{"type": "text", "text": "Profiled."}], "end_turn")
 
 
-def team(map_worker):
-    return lambda step: Profiler() if step == "profile" else map_worker
+class Reviewer:
+    """The reviewer's turns (S10.5): a verdict on the candidate named in its task."""
+
+    def __init__(self, verdict="pass", reasons=()):
+        self.verdict, self.reasons, self.turn = verdict, list(reasons), 0
+
+    def create(self, *, system, tools, messages):
+        import re
+
+        self.turn += 1
+        if self.turn == 1:
+            cid = re.search(r"candidate ([0-9a-f]{16})", messages[0]["content"])[1]
+            use = {"type": "tool_use", "id": "r1", "name": "report_review",
+                   "input": {"candidate_id": cid, "verdict": self.verdict,
+                             "reasons": self.reasons}}  # fmt: skip
+            return Message([use], "tool_use")
+        return Message([{"type": "text", "text": self.verdict}], "end_turn")
+
+
+def team(map_worker, reviewer=None):
+    def llm_for(step):
+        if step == "profile":
+            return Profiler()
+        if step == "review":
+            return reviewer or Reviewer()
+        return map_worker
+
+    return llm_for
 
 
 def _sha_from(task: str) -> str:

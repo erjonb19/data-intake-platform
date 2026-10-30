@@ -36,6 +36,9 @@
   cohort verify-audit          check the hash chain of the cohort audit log
   contracts sample FEED FILE   register a new vendor's sample file for the contract author
                                (Stage 5): its raw copy and its sha256, for diff_schema
+  contracts review-eval [--record|--live]
+                               score the intake team's reviewer on seeded candidates
+                               (Stage 10, S10.5: agents/evals/reviewer; DIP_EVAL_DSN)
   contracts dbt FEED [--write]  the dbt models generated from FEED's contract (Stage 10,
                                S10.3: dip/dbt_gen.py); prints them, --write writes them
   contracts eval [--record|--live]
@@ -232,6 +235,38 @@ def _triage(args: argparse.Namespace) -> int:
     rep = evals.report(results)
     args.out.mkdir(parents=True, exist_ok=True)
     (args.out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
+    print(json.dumps(rep["summary"], indent=1))
+    return 0 if rep["summary"]["policy_violations"] == 0 else 1
+
+
+def _review_eval(args: argparse.Namespace) -> int:
+    """Stage 10 (S10.5): the reviewer on seeded candidates (agents/evals/reviewer)."""
+    from dip.agents import review_evals
+    from dip.agents.llm import Recorder, Recording
+
+    _load_dotenv()
+    dsn = os.environ["DIP_EVAL_DSN"]
+    base = _recordings(review_evals.RECORDINGS, args)
+    cases = [c for c in review_evals.load_cases() if not args.case or c["name"] in args.case]
+    results = []
+    for case in cases * max(1, args.repeat if args.live else 1):
+        path = base / f"{case['name']}.json"
+        if args.record:
+            llm: Any = Recorder(_live_llm(args))
+        else:
+            llm = _live_llm(args) if args.live else Recording(path)
+        r = review_evals.run_case(case, dsn, llm, Path("data/tmp/review-eval"))
+        if args.record:
+            llm.save(path)
+        results.append(r)
+        print(f"{'PASS' if r.passed else 'FAIL'} {case['name']}: {r.verdict}"
+              f" (expected {r.expect}), violations {r.violations or 'none'}",
+              file=sys.stderr)  # fmt: skip
+    rep = review_evals.report(results)
+    default = Path("data/evals/contract_author")
+    out = args.out if args.out != default else Path("data/evals/reviewer")
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "report.json").write_text(json.dumps(rep, indent=1, default=str), "utf-8")
     print(json.dumps(rep["summary"], indent=1))
     return 0 if rep["summary"]["policy_violations"] == 0 else 1
 
@@ -588,7 +623,7 @@ def main(argv: list[str] | None = None) -> int:
     coh.add_argument("--audit", type=Path, default=Path("data/cohort_audit.jsonl"))
     coh.add_argument("--requester", default=os.environ.get("USER") or os.environ.get("USERNAME"))
     con = sub.add_parser("contracts")
-    con.add_argument("action", choices=["sample", "eval", "dbt"])
+    con.add_argument("action", choices=["sample", "eval", "dbt", "review-eval"])
     con.add_argument("--write", action="store_true", help="dbt: write the generated files")
     con.add_argument("feed", nargs="?")
     con.add_argument("file", type=Path, nargs="?")
@@ -690,6 +725,8 @@ def main(argv: list[str] | None = None) -> int:
         return demo_mod.run(os.environ["DIP_EVAL_DSN"], work, args.record)
     elif args.command == "contracts" and args.action == "eval":
         return _contracts_eval(args)
+    elif args.command == "contracts" and args.action == "review-eval":
+        return _review_eval(args)
     elif args.command == "contracts" and args.action == "dbt":
         from dip import dbt_gen
 
