@@ -83,6 +83,16 @@
         }
       }
     },
+    "model": {
+      "description": "Stage 10 (S10.3): the gold model dip generates for a CSV or Excel feed (dip/dbt_gen.py). latest_per_key keeps the newest row per key; all_rows keeps every row. Without it, only the silver model is generated.",
+      "type": "object",
+      "required": ["grain"],
+      "additionalProperties": false,
+      "properties": {
+        "grain": {"enum": ["latest_per_key", "all_rows"]},
+        "key": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}}
+      }
+    },
     "fhir": {
       "type": "object",
       "required": ["patient_resource", "load", "resources"],

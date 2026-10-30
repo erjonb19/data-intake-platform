@@ -137,6 +137,31 @@ def test_an_approved_proposal_becomes_a_local_branch(work, tmp_path, monkeypatch
         assert REPO_ROOT.exists()  # the real repo was not touched (write_branch got `repo`)
 
 
+def test_a_proposal_carries_the_dbt_models_generated_from_its_contract(work):
+    """Stage 10 (S10.3): an onboarding proposal carries the generated models and their hash
+    (out of the model's sight); a drift proposal for a hand-written feed carries none."""
+    import psycopg
+
+    from dip import dbt_gen
+    from dip.agents import approvals
+
+    name = "onboard_lab_results"
+    author_evals.run_case(CASES[name], DSN, Recording(author_evals.RECORDINGS / f"{name}.json"),
+                          work)  # fmt: skip
+    with psycopg.connect(DSN) as conn:
+        [a] = [x for x in approvals.pending(conn) if x["action"] == "contract_pr"]
+    files = a["payload"]["dbt_files"]
+    assert sorted(files) == [
+        "dbt/models/healthcare/lab_results/_healthcare_lab_results.yml",
+        "dbt/models/healthcare/lab_results/healthcare_lab_results_record.sql",
+    ]
+    assert a["payload"]["dbt_files_sha256"] == dbt_gen.files_sha256(files)
+    author_evals.run_case(CASES["drift_new_plan_code"], DSN, Scripted(_gold_added), work)
+    with psycopg.connect(DSN) as conn:
+        [b] = [x for x in approvals.pending(conn) if x["action"] == "contract_pr"]
+    assert b["payload"]["dbt_files"] == {} and b["payload"]["dbt_affected"] == []
+
+
 RECORDED = sorted(p.stem for p in author_evals.RECORDINGS.glob("*.json"))
 
 

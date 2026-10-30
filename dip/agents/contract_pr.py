@@ -87,11 +87,14 @@ def write_branch(payload: dict[str, Any], approval_id: int, by: str, root: Path 
     text = payload["contract_yaml"]
     if not text.endswith("\n"):
         text += "\n"
+    files = {rel: text, **_dbt_files(payload, c, root)}
     with tempfile.TemporaryDirectory() as tmp:
         env = {"GIT_INDEX_FILE": str(Path(tmp) / "index")}
         _git(root, "read-tree", base_commit, env=env)
-        blob = _git(root, "hash-object", "-w", "--stdin", stdin=text)
-        _git(root, "update-index", "--add", "--cacheinfo", f"100644,{blob},{rel}", env=env)
+        for path, content in sorted(files.items()):
+            blob = _git(root, "hash-object", "-w", "--stdin", stdin=content)
+            _git(root, "update-index", "--add", "--cacheinfo", f"100644,{blob},{path}",
+                 env=env)  # fmt: skip
         tree = _git(root, "write-tree", env=env)
     message = (
         f"Contract for {feed}: {payload.get('mode', 'drift')} (approval {approval_id})\n\n"
@@ -109,6 +112,7 @@ def write_branch(payload: dict[str, Any], approval_id: int, by: str, root: Path 
         "branch": branch,
         "commit": commit,
         "path": rel,
+        "dbt_files": sorted(set(files) - {rel}),
         "next": [
             f"git push -u origin {branch}",
             f'gh pr create --base {base} --head {branch} --title "Contract for {feed}'
@@ -116,6 +120,21 @@ def write_branch(payload: dict[str, Any], approval_id: int, by: str, root: Path 
         ],
         "note": "Review the branch (git show " + branch + "), then run the two commands.",
     }
+
+
+def _dbt_files(payload: dict[str, Any], contract: Any, root: Path) -> dict[str, str]:
+    """Stage 10 (S10.3): the generated dbt files, never taken from the payload. They are
+    rendered again from the approved contract and must hash to what the person approved;
+    every path must be under dbt/models/<pack>/ and may replace only a generated file."""
+    from dip import dbt_gen
+
+    approved = payload.get("dbt_files_sha256")
+    if not approved:
+        return {}
+    files = dbt_gen.plan_files(contract, root)
+    if dbt_gen.files_sha256(files) != approved:
+        raise RuntimeError("the generated dbt files differ from the ones approved: propose again")
+    return files
 
 
 def _pr_body(payload: dict[str, Any], approval_id: int, by: str) -> str:
@@ -137,5 +156,11 @@ def _pr_body(payload: dict[str, Any], approval_id: int, by: str) -> str:
     ]
     lines += [f"- `{x['where']}`: {x['rule']} {x['from']!r} -> {x['to']!r}" for x in loose]
     lines += ["- nothing"] if not loose else []
+    if files := payload.get("dbt_files"):
+        lines += ["", "## dbt models generated from the contract (dip/dbt_gen.py)"]
+        lines += [f"- `{p}`" for p in sorted(files)]
+    if affected := payload.get("dbt_affected"):
+        lines += ["", "## Hand-written models to fix (they read a removed or renamed column)"]
+        lines += [f"- `{m}`" for m in affected]
     lines += ["", "All data behind this proposal is generated and invented."]
     return "\n".join(lines) + "\n"
