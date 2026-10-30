@@ -306,3 +306,77 @@ def test_a_hijacked_model_is_refused_and_scored_as_a_violation(warehouse):
     assert any(v.startswith("refused proposal") for v in result.violations)
     assert scalar(warehouse, "select count(*) from ops.approvals") == 0
     assert scalar(warehouse, "select count(*) from ops.audit_log where decision = 'denied'") == 1
+
+
+def test_one_pending_proposal_per_group(setup):
+    """Stage 9 (S9.5): a second proposal for a group with a pending one is refused, with
+    the first's id; once a person decides the first, the group can be proposed again."""
+    wh, _, reg = setup
+    policy = Policy.load("triage")
+    first, ids = _propose(reg, "request_resend")
+    [g] = reg.call(policy, "r2", "list_quarantine_groups", {})["groups"]
+    again = reg.call(policy, "r2", "propose_operation", {
+        "action": "discard", "group_id": g["group_id"], "quarantine_ids": ids,
+        "root_cause": "schema_drift", "rationale": "second", "confidence": 0.5})  # fmt: skip
+    assert again["pending_approval_id"] == first and "already has a pending" in again["error"]
+    assert scalar(wh, "select count(*) from ops.approvals") == 1
+    assert audit(wh)[-1][1:] == ("propose_operation", "propose", "allowed", None, "error: tool")
+    # a rejected one does not block; an approved one not yet run does
+    approvals.decide(wh.conn, first, False, "human:tester")
+    second, _ = _propose(reg, "discard")
+    assert second != first
+    approvals.decide(wh.conn, second, True, "human:tester")
+    third = reg.call(policy, "r3", "propose_operation", {
+        "action": "request_resend", "group_id": g["group_id"], "quarantine_ids": ids,
+        "root_cause": "schema_drift", "rationale": "third", "confidence": 0.5})  # fmt: skip
+    assert third["pending_approval_id"] == second and "already has a approved" not in third["error"]
+    assert "already has an approved proposal" in third["error"]
+
+
+def test_two_proposals_at_once_for_one_group_make_one_row(setup):
+    import threading
+
+    import psycopg
+
+    wh, store, _ = setup
+    [g] = build_registry(wh.conn, store, load_contracts()).call(
+        Policy.load("triage"), "r", "list_quarantine_groups", {})["groups"]  # fmt: skip
+    results, barrier = [], threading.Barrier(2)
+
+    def propose():
+        with psycopg.connect(DSN) as conn:
+            reg = build_registry(conn, store, load_contracts())
+            barrier.wait()
+            results.append(reg.call(Policy.load("triage"), "r", "propose_operation", {
+                "action": "request_resend", "group_id": g["group_id"],
+                "quarantine_ids": g["quarantine_ids"], "root_cause": "schema_drift",
+                "rationale": "race", "confidence": 0.9}))  # fmt: skip
+
+    threads = [threading.Thread(target=propose) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sorted("approval_id" in r for r in results) == [False, True]
+    assert scalar(wh, "select count(*) from ops.approvals") == 1
+
+
+def test_audit_rows_name_their_approval_chain_and_result(setup):
+    """Stage 9 (S9.6): result_sha256, approval_id and chain_id are filled from the call."""
+    wh, _, reg = setup
+    policy = Policy.load("triage")
+    [g] = reg.call(policy, "chain-c1/triage", "list_quarantine_groups", {})["groups"]
+    out = reg.call(policy, "chain-c1/triage", "propose_operation", {
+        "action": "request_resend", "group_id": g["group_id"],
+        "quarantine_ids": g["quarantine_ids"], "root_cause": "schema_drift",
+        "rationale": "t", "confidence": 0.9})  # fmt: skip
+    aid = out["approval_id"]
+    with pytest.raises(Denied):
+        reg.call(policy, "act-1", "execute_approved_operation", {"approval_id": aid})
+    got = rows(wh, "select tool, decision, approval_id, chain_id, result_sha256 is not null"
+                   " from ops.audit_log order by audit_id")  # fmt: skip
+    assert got == [
+        ("list_quarantine_groups", "allowed", None, "chain-c1", True),
+        ("propose_operation", "allowed", aid, "chain-c1", True),
+        ("execute_approved_operation", "denied", aid, None, False),
+    ]

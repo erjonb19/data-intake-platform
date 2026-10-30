@@ -123,6 +123,10 @@ CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     confidence      numeric(3, 2) NOT NULL CHECK (confidence BETWEEN 0 AND 1),
     created_at      timestamptz NOT NULL DEFAULT now()
 );
+-- Stage 9 (S9.3): the runbook the incident agent matched and the steps it proposes for a
+-- person, beside its diagnosis. Steps are text for people; nothing reads them to act.
+ALTER TABLE ops.incident_diagnosis ADD COLUMN IF NOT EXISTS runbook_id text;
+ALTER TABLE ops.incident_diagnosis ADD COLUMN IF NOT EXISTS steps jsonb;
 
 -- Accepted FHIR resources, as received. The silver dbt models flatten them.
 CREATE TABLE IF NOT EXISTS bronze.fhir_resource (
@@ -265,6 +269,23 @@ LANGUAGE plpgsql AS $$
 BEGIN
     RAISE EXCEPTION 'ops.audit_log is append-only (% refused)', TG_OP;
 END $$;
+-- (Stage 9, S9.6) What a row is about, without opening the payloads: the SHA-256 of the
+-- call's result (allowed calls that returned one), the approval it proposed, decided or
+-- ran, and the incident -> triage chain it belongs to. Written by Registry.audit().
+-- Only when missing: ALTER takes an exclusive lock even when the column exists, and this
+-- file runs on every Warehouse.init().
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'audit_log' AND column_name = 'chain_id') THEN
+        ALTER TABLE ops.audit_log ADD COLUMN IF NOT EXISTS result_sha256 text,
+            ADD COLUMN IF NOT EXISTS approval_id bigint, ADD COLUMN IF NOT EXISTS chain_id text;
+        CREATE INDEX IF NOT EXISTS audit_log_approval_idx ON ops.audit_log (approval_id)
+            WHERE approval_id IS NOT NULL;
+        CREATE INDEX IF NOT EXISTS audit_log_chain_idx ON ops.audit_log (chain_id)
+            WHERE chain_id IS NOT NULL;
+    END IF;
+END $$;
 DROP TRIGGER IF EXISTS audit_log_append_only ON ops.audit_log;
 CREATE TRIGGER audit_log_append_only BEFORE UPDATE OR DELETE ON ops.audit_log
     FOR EACH ROW EXECUTE FUNCTION ops.audit_log_append_only();
@@ -346,6 +367,7 @@ BEGIN
     END IF;
     IF to_regclass('ops.incident_diagnosis') IS NOT NULL THEN
         GRANT SELECT, INSERT ON ops.incident_diagnosis TO dip_mcp;
+        GRANT UPDATE (runbook_id, steps) ON ops.incident_diagnosis TO dip_mcp;
         GRANT USAGE ON SEQUENCE ops.incident_diagnosis_diagnosis_id_seq TO dip_mcp;
     END IF;
     -- The triage agent's proposals (Stage 4, S4.5): a pending row for a person to

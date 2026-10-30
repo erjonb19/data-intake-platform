@@ -101,6 +101,34 @@ def args_sha256(args: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(args, sort_keys=True, default=str).encode()).hexdigest()
 
 
+# The incident -> triage chain's steps (dip/agents/graph.py): their run ids are
+# "<chain id>/<step>", so the audit log can carry the chain id as its own column.
+CHAIN_STEPS = ("incident", "handoff", "triage")
+
+
+def chain_of(run_id: str | None) -> str | None:
+    """The chain a run id belongs to, if it is a chain step's. Like the run id it comes
+    from the client: a label for following a chain, not a security boundary."""
+    chain, sep, step = (run_id or "").rpartition("/")
+    return chain if sep and chain and step in CHAIN_STEPS else None
+
+
+def approval_of(args: dict[str, Any], result: Any) -> int | None:
+    """The approval a call proposed, decided or ran: from its arguments (execute, a
+    person's decision) or its result (a proposal; a refused second proposal names the
+    pending one)."""
+    for source, key in ((args, "approval_id"), (result, "approval_id"),
+                        (result, "pending_approval_id")):  # fmt: skip
+        value = source.get(key) if isinstance(source, dict) else None
+        if isinstance(value, bool):  # True is an int in Python, never an approval id
+            continue
+        if isinstance(value, float) and value.is_integer():  # 12.0 from a model's JSON
+            return int(value)
+        if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
+            return int(value)
+    return None
+
+
 def _argument_error(tool: Tool, args: dict[str, Any]) -> dict[str, str] | None:
     """An argument the tool's schema does not declare, or a required one missing, is an
     error the model can correct (a tool result), never a crash in the tool."""
@@ -108,7 +136,15 @@ def _argument_error(tool: Tool, args: dict[str, Any]) -> dict[str, str] | None:
     unknown = sorted(set(args) - set(props))
     missing = sorted(set(tool.input_schema.get("required", [])) - set(args))
     if unknown or missing:
-        return {"error": f"{tool.name}: unknown arguments {unknown}, missing {missing}"}
+        error = f"{tool.name}: unknown arguments {unknown}, missing {missing}"
+        if missing and any(isinstance(v, str) and "<parameter" in v for v in args.values()):
+            # Seen live (S9.3): a long string argument swallowed the next argument's
+            # markup, and the model repeated the same call. Say what went wrong.
+            error += (
+                "; a string argument contains '<parameter' markup: send each argument"
+                " on its own, with the missing one as its own JSON value"
+            )
+        return {"error": error}
     return None
 
 
@@ -131,13 +167,16 @@ class Registry:
         self.tools[tool.name] = tool
 
     def audit(self, principal: str, run_id: str | None, tool: str, tier: str, args: dict,
-               decision: str, reason: str | None, result_status: str | None,
-               latency_ms: int | None) -> None:  # fmt: skip
+              decision: str, reason: str | None, result_status: str | None,
+              latency_ms: int | None, result: Any = None) -> None:  # fmt: skip
+        """One row per call. `result`, when the call returned one, is stored as its SHA-256
+        only (S9.6), like the arguments."""
+        result_sha = None if result is None else args_sha256({"result": result})
         with self.conn.cursor() as cur:
             cur.execute(
                 "insert into ops.audit_log (principal, run_id, tool, tier, args_sha256,"
-                " decision, reason, result_status, latency_ms)"
-                " values (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                " decision, reason, result_status, latency_ms, result_sha256, approval_id,"
+                " chain_id) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     principal,
                     run_id,
@@ -148,6 +187,9 @@ class Registry:
                     reason,
                     result_status,
                     latency_ms,
+                    result_sha,
+                    approval_of(args, result),
+                    chain_of(run_id),
                 ),  # fmt: skip
             )
         self.conn.commit()
@@ -198,7 +240,7 @@ class Registry:
         self._window(policy.agent, "*").append(now)
         self._window(policy.agent, name).append(now)
         started = time.monotonic()
-        status, decision, reason = "ok", "allowed", None
+        status, decision, reason, result = "ok", "allowed", None, None
         try:
             token = CURRENT_POLICY.set(policy)
             try:
@@ -220,4 +262,5 @@ class Registry:
             raise
         finally:
             ms = int((time.monotonic() - started) * 1000)
-            self.audit(policy.agent, run_id, name, tier, args, decision, reason, status, ms)
+            self.audit(policy.agent, run_id, name, tier, args, decision, reason, status, ms,
+                       result)  # fmt: skip
