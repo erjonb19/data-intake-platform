@@ -1,0 +1,124 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_013e1U5WNYkVu1cetwH5BxJY",
+    "input": {
+     "candidate_id": "4998f5d249cbbed7"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01LQf25ufZNqUkFNiUU1W1gz",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "01997125f6f0f69300612a49261c9eac9361442b4f51c665960762e07834543a",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2119
+   },
+   "cache_creation_input_tokens": 2119,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 118,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01SL3iig5gtC9Ng5xZLpKnvP",
+    "input": {
+     "candidate_id": "4998f5d249cbbed7",
+     "reasons": [
+      {
+       "detail": "Not a change in this candidate, so not a reason to send it back: member_id is labeled phi: true with role identifier in the profile, but the contract has no phi flag on it. It is a member id that links to a person, so it should be phi: true. Worth fixing in a separate change to the current contract.",
+       "issue": "other"
+      },
+      {
+       "detail": "Note for the person deciding: the profile's plan_code code_counts sum to 22 of 24 rows (EPO 4, HMO 6, GOLD 8, HDHP 4), and the profile's empty count is 0. The dry run gives 23 accepted and 1 rejected. The 1 rejected row has a plan_code value the profile does not show, so it is quarantined. The vendor should be asked what that value is. The count gap is not explained by the packet. The loosening itself is supported: GOLD is a consistent business value on 8 rows, and the 4% bad-row share is under max_bad_row_ratio 0.05.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "7ba7f4b18fb898d3c12905ebbf05e4e4a456edcc2a4fe749b80e0564094b492c",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3378
+   },
+   "cache_creation_input_tokens": 3378,
+   "cache_read_input_tokens": 2119,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 1653,
+   "output_tokens_details": {
+    "thinking_tokens": 1220
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate 4998f5d249cbbed7 (healthcare.eligibility, drift): **pass**. The change adds GOLD to `plan_code`, which the profile supports on 8 rows. Two notes went with it: `member_id` is PHI in the profile but not flagged in the contract (an existing gap, not this candidate's to fix), and the profile's plan_code counts sum to 22 of 24 rows, so the one quarantined row's value should be checked with the vendor.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "2aa9890fbc8e442dbac3cfa497a9d49c803a20d0cd4d624d3f5b3c468ea478e0",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 1704
+   },
+   "cache_creation_input_tokens": 1704,
+   "cache_read_input_tokens": 5497,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 162,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

@@ -108,7 +108,9 @@ def map_task(job: dict[str, Any], errors: list[str], by: str = "validator") -> s
         text += (
             f" The {by} sent your last candidate back: "
             + json.dumps(errors)[:3000]
-            + " Fix it, validate it and submit it again."
+            + " Fix what concerns your own changes, validate it and submit it again. Keep the"
+            " current contract's other columns and rules as they are (rule 2), whatever a"
+            " reason says about them."
         )
     return text
 

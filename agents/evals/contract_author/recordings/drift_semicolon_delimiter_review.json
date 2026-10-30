@@ -1,0 +1,120 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01SYRSrfTU9VHy8TxPzuuNK9",
+    "input": {
+     "candidate_id": "f1716e72073dd8ea"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_018PBjuKB65nJmwDNvr1c9Pu",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "1ebb082bc359e243109abf7e486885c0cbdaad9276a56979596785abaf41fbae",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2117
+   },
+   "cache_creation_input_tokens": 2117,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 118,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQS5xAKEAgTGAI4AUIIdGhpbmtpbmcSDCczJn3Gdq8vrNIBZhoMmyVACFyuEvmPiRCnIjBOrVVFraVJhHl9wVkS4/9BOmFYKdMxvrOoMccrctbtezKfcoUDAwyj0gVnZkjdTXwqhBD5AlMJCbPZ5P8livbZbnGYorsNIeP1iO8onBIP4ohxtxGAag+yZP9bKBxF1jhBPB+92+k1LHr+uUWNjf2If15jWIoT98vBJOl3YcXEI34zzC7MzRZLWXWhrFlP1N8CmNPKX20jSo94Chgfcf8ZEUaFoz1XXs0AOrJpQuAkaPrUp6D4dSS9ANBkUPk3EsmZGMuXnF7p5kX0PFSI5mTxwABIC+niYWrhxgALLQpw2pcorgV4aASv3asVeKE0LQbVoDbpux86q6uqBzN4m2md5eyRE08azHqV5gAro4Ji1fD5aQz4X6ZY70g4PGgkjfetqLEi22uSoPVrf93mp3mv8N7fnHNsYJowninTskRLK5tmvFgUtV+8su9c6V1SKIPnrp2nhm8dvyKoMjO2pBKd70uKY0QxgsHQdcbrbM5yadiYn8HLQ7cICHpOkh06+X4HK4D7r3rg9Xen7g3Vunnp7ViaGAbjXEdGYwaUPClokFqlZsUJlGDLo0mU0Rr7NvFWQ3sBUcBwgMciVXJyJZCNJNWmiVztvXwXOPWuqS+UAn3XvIvZVNfuFVWGnnlTtkGi90XhxYMbFG/k6ZpfZ4sPmSjbsXO+eKkm2tz55ROerypQS1IiynT+zA640AtS+vPBX6YN61EB42wq9cxfhDm7It09yZotrPw8TDlt/Ksy6JE5eeWhtXxg2ehVG4q5Vqiq3UP4Q8ltJJKT2JHJeECddBLpwkZMAGHvx4FV9Wgqkl5cwYyevm4OWeENxyJOnkM3hb29lsXoCKJwxqEYRVuwHQzdA7DDsPU4M4pAZkHI3PITNUP/bQwilxLGo0n/gKnox/BDEEiBvw3GO44h596zFrYhwhDFDmE2VZqAS5/74LN528yIVjY8hJ7Sw/Odk8psgJj8d44ispdgkdfJhE9taKblDvYzZxqiK/yrbSaZyBM8IHdKy+FnuI9ICfBIv9bG44nFq2E5oA+DOLCbgkTY9+SYzO9TwfBidMCNhT+Kkh0o/KyzJ2iCyT5rTsKMc1tiEXYW77B6qiFJszoPK3f+1IoOCIO+zYrE2h1+F7ix0+Zq3zUhCIkB0CvpnCUzfbRQW5ZNfVQMC2Oic26abA4FcSKv7//jQMnn4PfS4IAJ48xBhja7CRRPhUt4+t/+Vxo74ZUpFKQvdww6v4fJD/hgiVUomh4mtQWzs00vDROrR/vxmEf6ZVtFdoqS3IibmNaLzs3IK3q8NbQxRTMweBmsNA8gZgz/+xg/tqAbnIqloJG4n9IXfV6keM8v+4h/m7AsuV01QnFskI72nNzJlj2MKbwCQtF+pUwpnSEo4+5D8Gcpcc6pGPUuB4YHPpMiM2Bl63vI/k2fvuVN9iQwg5C8wTe5F+2PeaUpBNOSr0YTY75CrtP8If/w9v1+7Ws8vG4DwunRrXYjY/8nbruunl3fKqiFQZxTUC9UlWXlcnBRNLi0mL4Me5gGKWfDfC9BAI3IMTjJYwr3q0Z0ZdLc5k+FLq+i9ri9huihcxVBYOZG3VjVpTt2dhOEXruejzsM2hluXBw+EYqkWK7Uo7spZgEdrEIBWb0/SF8MesDSk5zv2AqHrP4qKTR+pXvfvj1Sz1nhFs1ilVRMut9p4a9optf3FGI+yVGYLAouU/XT/Dpi0DyG8bSXK2XEj5TD7YyZT1H4sAvkx3IU0hw/tre1EhnTiGrEAhlBSQo89TDQE6r8NzQYWafacDEkVFUYN/o9WDyWesTaxd4D29Z56b6GLEOjT3jT1uZhPLvD4st5jXNKqOnY3K2S2HS+Zc2j+BnqoJ8oK7dTw+Gnjo459MvZJbd4uBqNA4J+qigM93ViP1x6a1hB9QPG9TDg4J+LEZmb7B3h1EnsvRkP9cJ3+f+w4TMC+kyWU6TrN6eAb4dnh/2XqeliLX1OVw4n8PBTfdO+YigAfBQv8lMp6YMrh/WWZUN88ZPnJDde+4ckIFzaIuzwuVWNQJZDM4qnT6JB7r79dNEwDK2nfB1BxXbMOxM0qF6b/krIOO6YaHgNeyNi1dGmYUDCk5EordRsEE7RcxeTmZdTs+newTEQixpA9xA8+E0B+iWm3tCm+AvBYouQkv3nOJg5R9juFy9KthGgUZLnWSheCHpQeJq9wNrQucibsfGNftjpbry1OY8eKeiyOlvQUxATOnJW5EEB2clYlkrTLPOjCuCJKoCQHAR5075JRwZLeMWxOfwxgLkypb1OhNrmsSXYzPwLV8x/qyZQK9qnSoOYitHynTYxh/8XzgJhmxQJrtKj0d1DV2r2QS9713Bmm1NMMPXt9k3sGmkaaguBcvDfnOIzfXiHqP/ymKnUwU8C6he7WS5lJXB0Fv4+xNOJIL2THvG5HgN8i8tvnk+dXDyFKxZj1qxhc2sD5f1cvMQVMriQ9nyyV9wtyKhJH90Fj0S2v0WRDC5SVLLkKbsRnRY6culnelgLfo5nbyW7cgxiRmVzjNXOIhE5cmUtkPkPUjDry9EYqlT3OVTUPgDRtOCv17PepMzVNsT6fcd8BidPxjx97/vJpMWUGcKH3EiZhuMkQgzyQciavFDfZD68CRv6j8HElAaAWAzKc1BUWVvHRKhKq40/muLIY2u7HR0a2SbiReqhftTI6m7KIXFvBPOjuBAaED0OxlQE2vDxpeGsai2+sX1CqN5nI/uOsUAys9QuyHmQPQ/2XzQloo8ZpM6XoSMywoQHu/dNewdUzkImkhhDGRoMzUzbm3r+LR5TNpssLswePqIYAQ==",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Gkrk1svUq74mwzoamyHoWJ",
+    "input": {
+     "candidate_id": "f1716e72073dd8ea",
+     "reasons": [
+      {
+       "detail": "The only substantive change is format.delimiter from ',' to ';' (plus version 1 -> 2). The profile sniffs ';', all 9 declared columns are missing under the comma contract and collapse into an unnamed column_1, and under ';' all 24 rows parse into the existing columns. Loosening list is empty, the PHI flags are unchanged, and no allowed values, codes or patterns were added. This is a format change, not a vendor mistake to resend. Notes for the person deciding: confirm with the vendor that the ';' delimiter is intended and not an export setting error, as the rationale asks. Also, the file's other existing rules were not changed by this candidate and were not reviewed here.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "8e910561bee350eab716800a482c6cb8164cbd5f3bb3892c8224df09669dba14",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2604
+   },
+   "cache_creation_input_tokens": 2604,
+   "cache_read_input_tokens": 2117,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 853,
+   "output_tokens_details": {
+    "thinking_tokens": 505
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate f1716e72073dd8ea (`healthcare.eligibility`, drift): **pass**.\n\nThe candidate changes only the delimiter (comma to semicolon) and the version (1 to 2). The loosening list is empty, the PHI flags and column rules are unchanged, and no allowed values or patterns were added. Under the new delimiter all 24 rows parse into the existing columns, so this is a format change rather than a vendor mistake to resend. I left a note for the person deciding to confirm with the vendor that the semicolon is intended and not an export setting error.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "4543b86794fe7fb31fd0742606d8e18755266a043432a182e8e1910eedb8eef2",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 904
+   },
+   "cache_creation_input_tokens": 904,
+   "cache_read_input_tokens": 4721,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 191,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

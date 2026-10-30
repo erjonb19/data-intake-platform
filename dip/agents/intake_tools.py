@@ -51,8 +51,13 @@ def safe_code(reason: str) -> str:
     )
 
 
-def build_profile(seen: dict[str, Any]) -> dict[str, Any]:
-    """Facts about the file, from observe()'s output, with nothing a vendor wrote as text."""
+FILE_NAME_OK = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
+
+
+def build_profile(seen: dict[str, Any], file_name: str | None = None) -> dict[str, Any]:
+    """Facts about the file, from observe()'s output, with nothing a vendor wrote as text.
+    `file_name`: the file's name, kept only when it is a plain name (letters, digits, `.`,
+    `_`, `-`): the contract's filename_pattern and filename_date are written from it."""
     columns = []
     for i, c in enumerate(seen["columns"]):
         name = safe_name(c["column"], i)
@@ -85,6 +90,8 @@ def build_profile(seen: dict[str, Any]) -> dict[str, Any]:
         facts["sheets"] = [
             s if SHEET_OK.match(s) else f"sheet_{i + 1}" for i, s in enumerate(facts["sheets"])
         ]
+    if file_name is not None:
+        facts["file_name"] = file_name if FILE_NAME_OK.match(file_name) else "<name not shown>"
     return {
         "rows": seen["rows"],
         "file": facts,
@@ -131,7 +138,7 @@ def register_intake_tools(
             return {"error": job}
         full, data, name, _ = file_of(job["feed"], job["file_sha256"])
         profile = build_profile(
-            observe(contracts.get(job["feed"]), data, fmt_of(job["feed"], name))
+            observe(contracts.get(job["feed"]), data, fmt_of(job["feed"], name)), name
         )
         known = {c["column"] for c in profile["columns"]}
         labels: dict[str, dict[str, Any]] = {}

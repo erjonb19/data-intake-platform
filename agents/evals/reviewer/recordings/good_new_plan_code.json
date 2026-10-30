@@ -1,0 +1,124 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01GhCDp5MYMtmju6Pqj7qfED",
+    "input": {
+     "candidate_id": "8a32676639f1caa3"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01V8uPi9N1arqYx1rkKvG4V2",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "abaf6335ad6182683896c49fddeae715ac1303d068bf57a078eddbd7d103ccc1",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2118
+   },
+   "cache_creation_input_tokens": 2118,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 117,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "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",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01RNGY2WawR6ae3yxnyaWHrS",
+    "input": {
+     "candidate_id": "8a32676639f1caa3",
+     "reasons": [
+      {
+       "detail": "The only loosening is plan_code allowed += GOLD. The profile shows GOLD in codes with 8 rows (code_counts GOLD: 8), and the 8 'allowed' rule_failures under the current contract are those GOLD rows. The vendor is using the code consistently, so the widening is supported by the file.",
+       "issue": "loosening"
+      },
+      {
+       "detail": "Notes only, no change needed: the candidate adds a leftover 'Reviewer eval candidate (Stage 10, S10.5)' comment line to the YAML header. It has no effect on the contract, but it should be removed before publishing. Version bumps 1 to 2 with the new code, which is appropriate. Outside this diff, the existing rules were not changed by the candidate and are not reviewed here.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "pass"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "26696fef6bb033fdaf19b23f06cd24ac31b6013999af49c827b7afdd4c62b2de",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3170
+   },
+   "cache_creation_input_tokens": 3170,
+   "cache_read_input_tokens": 2118,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 730,
+   "output_tokens_details": {
+    "thinking_tokens": 358
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate 8a32676639f1caa3 (`healthcare.eligibility`, drift): **pass**.\n\nThe candidate's only substantive change is adding `GOLD` to `plan_code`'s allowed values. The profile shows `GOLD` in 8 rows, and those 8 rows are the current contract's only `allowed` failures, so the widening is supported. No PHI labels changed, no required columns were dropped or relaxed, and no unsupported codes were added. The one note I recorded is a leftover \"Reviewer eval candidate\" comment line in the YAML header; it has no effect on the contract but should be removed before publishing.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "6e03a51e2b42f3653f132998f3fceffd8f608c524718bf1aa049ea34a700dea0",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 780
+   },
+   "cache_creation_input_tokens": 780,
+   "cache_read_input_tokens": 5288,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 212,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]

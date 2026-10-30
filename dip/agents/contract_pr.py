@@ -174,6 +174,10 @@ def _pr_body(payload: dict[str, Any], approval_id: int, by: str) -> str:
     if files := payload.get("dbt_files"):
         lines += ["", "## dbt models generated from the contract (dip/dbt_gen.py)"]
         lines += [f"- `{p}`" for p in sorted(files)]
+    if review := payload.get("review"):
+        lines += ["", f"## The reviewer agent's verdict: {review.get('verdict')}"]
+        lines += [f"- {r['issue']}: {r['detail']}" for r in review.get("reasons", [])]
+        lines += ["", "(Advice from the intake team's reviewer; the decision is yours.)"]
     if err := payload.get("dbt_error"):
         lines += ["", f"**No dbt models were generated:** {err}"]
     if affected := payload.get("dbt_affected"):

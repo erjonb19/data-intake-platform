@@ -1,0 +1,283 @@
+{
+ "summary": {
+  "model": "gemini-3.1-flash-lite",
+  "cases": 8,
+  "cases_passed": 7,
+  "faulty_stopped": "4/4",
+  "good_sent_back": "1/4",
+  "policy_violations": 0,
+  "cost_usd": 0.0
+ },
+ "cases": [
+  {
+   "case": "good_new_plan_code",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "input_tokens": 1246,
+     "output_tokens": 33
+    },
+    {
+     "input_tokens": 3059,
+     "output_tokens": 42
+    },
+    {
+     "input_tokens": 3149,
+     "output_tokens": 48
+    }
+   ],
+   "model": "gemini-3.1-flash-lite",
+   "seconds": 4.5,
+   "passed": true
+  },
+  {
+   "case": "good_added_phone",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "input_tokens": 1248,
+     "output_tokens": 35
+    },
+    {
+     "input_tokens": 3045,
+     "output_tokens": 44
+    },
+    {
+     "input_tokens": 3139,
+     "output_tokens": 47
+    }
+   ],
+   "model": "gemini-3.1-flash-lite",
+   "seconds": 3.1,
+   "passed": true
+  },
+  {
+   "case": "good_lab_results",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "unsupported_rule",
+     "detail": "The result_id pattern ^LR[0-9]{6}$ is not supported by the profile shapes (AA999999). The loinc_code pattern ^[0-9]{1,5}-[0-9]$ is not supported by the profile shapes (999-9, 9999-9)."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "input_tokens": 1246,
+     "output_tokens": 32
+    },
+    {
+     "input_tokens": 2984,
+     "output_tokens": 127
+    },
+    {
+     "input_tokens": 3158,
+     "output_tokens": 124
+    }
+   ],
+   "model": "gemini-3.1-flash-lite",
+   "seconds": 13.8,
+   "passed": false
+  },
+  {
+   "case": "good_provider_roster",
+   "faulty": false,
+   "expect": [
+    "pass"
+   ],
+   "verdict": "pass",
+   "reasons": [
+    {
+     "issue": "other",
+     "detail": "provider_first_name and provider_last_name are identified as PHI by profile, and the candidate has correctly marked them as phi: true. All columns align with the profile."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "input_tokens": 1250,
+     "output_tokens": 34
+    },
+    {
+     "input_tokens": 2869,
+     "output_tokens": 92
+    },
+    {
+     "input_tokens": 3010,
+     "output_tokens": 63
+    }
+   ],
+   "model": "gemini-3.1-flash-lite",
+   "seconds": 2.7,
+   "passed": true
+  },
+  {
+   "case": "loosened_pattern",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "loosening",
+     "detail": "The pattern ^M[0-9]{9}$ was removed from member_id without justification in the profile (which shows distinct member_ids present, but doesn't explicitly justify removing the validation format)."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "input_tokens": 1246,
+     "output_tokens": 34
+    },
+    {
+     "input_tokens": 3166,
+     "output_tokens": 97
+    },
+    {
+     "input_tokens": 3312,
+     "output_tokens": 71
+    }
+   ],
+   "model": "gemini-3.1-flash-lite",
+   "seconds": 6.3,
+   "passed": true
+  },
+  {
+   "case": "missed_phi",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "phi",
+     "detail": "The new column 'member_phone' is marked as PHI by the profile, but it is not marked as phi: true in the candidate contract."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "input_tokens": 1245,
+     "output_tokens": 33
+    },
+    {
+     "input_tokens": 3020,
+     "output_tokens": 84
+    },
+    {
+     "input_tokens": 3152,
+     "output_tokens": 56
+    }
+   ],
+   "model": "gemini-3.1-flash-lite",
+   "seconds": 38.8,
+   "passed": true
+  },
+  {
+   "case": "accepted_dropped_column",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "reject",
+   "reasons": [
+    {
+     "issue": "mistake_taken_for_change",
+     "detail": "Column coverage_start was dropped from the feed. According to the map_worker_rationale, the vendor no longer sends it. This is a mistake by the vendor."
+    }
+   ],
+   "violations": [],
+   "turns": 4,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "input_tokens": 1246,
+     "output_tokens": 33
+    },
+    {
+     "input_tokens": 2872,
+     "output_tokens": 19
+    },
+    {
+     "input_tokens": 3333,
+     "output_tokens": 95
+    },
+    {
+     "input_tokens": 3476,
+     "output_tokens": 87
+    }
+   ],
+   "model": "gemini-3.1-flash-lite",
+   "seconds": 25.0,
+   "passed": true
+  },
+  {
+   "case": "unsupported_allowed",
+   "faulty": true,
+   "expect": [
+    "revise",
+    "reject"
+   ],
+   "verdict": "revise",
+   "reasons": [
+    {
+     "issue": "unsupported_rule",
+     "detail": "The profile shows no evidence of the PLATINUM code in the plan_code column. PLATINUM is missing from the code_counts/codes list in the profile."
+    }
+   ],
+   "violations": [],
+   "turns": 3,
+   "stop": "end_turn",
+   "usage": [
+    {
+     "input_tokens": 1247,
+     "output_tokens": 35
+    },
+    {
+     "input_tokens": 3075,
+     "output_tokens": 93
+    },
+    {
+     "input_tokens": 3218,
+     "output_tokens": 66
+    }
+   ],
+   "model": "gemini-3.1-flash-lite",
+   "seconds": 47.4,
+   "passed": true
+  }
+ ]
+}

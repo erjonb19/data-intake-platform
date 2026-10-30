@@ -1,0 +1,24 @@
+# Reviewer eval candidate (Stage 10, S10.5): good lab results. All data invented.
+# Reference contract for the onboarding eval: a new vendor's lab results (invented).
+feed: healthcare.lab_results
+version: 1
+owner: vendor-ops@example.com
+description: >
+  Lab results from a new reference lab, one row per result. All data is invented.
+classification: restricted
+source:
+  channels: [minio]
+  filename_pattern: "lab_results_*.csv"
+format: { type: csv, delimiter: ",", encoding: utf-8, header: true }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.05
+min_rows: 1
+columns:
+  - { name: result_id, type: string, required: true, unique: true, pattern: "^LR[0-9]{6}$" }
+  - { name: patient_ref, type: string, required: true, phi: true }
+  - { name: collected_date, type: date, required: true }
+  - { name: loinc_code, type: string, required: true, pattern: "^[0-9]{1,5}-[0-9]$" }
+  - { name: result_value, type: decimal, required: true }
+  - { name: unit, type: string, required: true, allowed: ["mg/dL", "%", "g/dL"] }
+  - { name: abnormal_flag, type: string, required: true, allowed: [H, L, N] }
+  - { name: ordering_provider, type: string, required: true, phi: true }

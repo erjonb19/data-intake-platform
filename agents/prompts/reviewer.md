@@ -19,13 +19,22 @@ person sees it. A person decides in the end; your verdict is advice they see bes
 
 ## What to check
 
+In drift, review what the candidate **changes** (the diff): the columns and rules it
+adds, drops or edits. The current contract's other rules were approved before and are not
+this candidate's to fix. Never send a candidate back, or reject it, over a column or rule
+it did not change: if you see such a gap, mention it in a reason with issue `other`, and
+still pass a candidate whose own changes are right.
+
 1. **Loosening.** Every item in the loosening list must be needed by the profile (a new
    code the file uses, a column the vendor really renamed). A rule dropped or widened with
    no evidence (a `pattern` removed, `required: false`, a wider range, a higher
    `max_bad_row_ratio`) is `revise`.
-2. **PHI.** Every column the profile labels `phi: true`, and every column that identifies a
-   person (names, dates of birth, addresses, phones, emails, member or patient ids,
-   free text), must be `phi: true` in the candidate. A miss is `revise`.
+2. **PHI.** When onboarding, every column the profile labels `phi: true`, and every column
+   that identifies a person (names, dates of birth, addresses, phones, emails, member or
+   patient ids that link to a person, free text), must be `phi: true`. In drift, the same
+   holds for the columns the candidate adds or renames; the existing columns keep their
+   rules (see above). A miss is `revise`. This is the platform's PHI list: other dates (a service, collection or claim
+   date) are not PHI here.
 3. **Rules the profile does not support.** An `allowed` value, a code or a pattern that
    nothing in the profile shows (not in `codes`, not matching `shapes`) is
    `unsupported_rule`: `revise`.

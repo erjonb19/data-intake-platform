@@ -1,0 +1,39 @@
+# Reviewer eval candidate (Stage 10, S10.5): unsupported allowed. All data invented.
+# Member eligibility from a (synthetic) payer: one row per member, one file per day.
+# Generated from the Synthea patients by packs/healthcare/generators/eligibility.py.
+feed: healthcare.eligibility
+version: 2
+owner: vendor-ops@example.com
+description: >
+  Daily full eligibility file: every enrolled member with their plan and coverage dates.
+  All data is synthetic.
+classification: restricted
+source:
+  channels: [minio, sftp, api]
+  filename_pattern: "elig_*.csv"
+  # The business date in the name (elig_YYYYMMDD.csv). It must be a real date, not after
+  # the day the file was received, and at most 7 days before it; otherwise the file is
+  # quarantined (FILE.NAME_DATE). A name with no digits takes the date it was received.
+  filename_date:
+    regex: "^elig_([0-9]+)"
+    format: "%Y%m%d"
+    max_days_before_received: 7
+    max_days_after_received: 0
+format: { type: csv, delimiter: ",", encoding: utf-8, header: true }
+expected_arrival: { cron: "0 6 * * *", grace: 2h }
+on_row_violation: quarantine_row
+max_bad_row_ratio: 0.05          # above this, the whole file is rejected
+min_rows: 1
+columns:
+  - { name: member_id, type: string, required: true, unique: true, pattern: "^M[0-9]{9}$" }
+  - { name: first_name, type: string, required: true, phi: true }
+  - { name: last_name, type: string, required: true, phi: true }
+  - { name: dob, type: date, required: true, min: "1900-01-01", max: today, phi: true }
+  - { name: sex, type: string, required: true, allowed: [F, M, U] }
+  - { name: plan_code, type: string, required: true, allowed: [HMO, PPO, EPO, HDHP, GOLD, PLATINUM] }
+  - { name: coverage_start, type: date, required: true, min: "1990-01-01" }
+  - { name: coverage_end, type: date, description: "Empty while coverage is open" }
+  - name: patient_ref
+    type: string
+    description: The payer's link to the clinical record (here the Synthea patient id)
+    phi: true

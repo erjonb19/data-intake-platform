@@ -9,9 +9,9 @@ code and three workers, plus (S10.5) a reviewer:
  an executed propose_contract_change ┴─▶ ops.intake_job (queued)
                                           │  agent_chain DAG, intake_jobs task, every 5 min
                                           ▼
-   profile ──▶ map ──▶ validate ──▶ propose ──▶ ops.approvals (contract_pr, pending)
-                ▲          │                       │ a person approves and executes
-                └──────────┘ once                  ▼
+   profile ──▶ map ──▶ validate ──▶ review ──▶ propose ──▶ ops.approvals (contract_pr)
+                ▲          │           │                      │ a person approves, executes
+                └──────────┴───────────┘ once each            ▼
                                           a local branch: the contract + its dbt models
 ```
 
@@ -20,6 +20,7 @@ code and three workers, plus (S10.5) a reviewer:
 | **profile** | a model | `profile` (`agents/policies/profile.yaml`) | Read the file through `diff_schema` (PHI and undeclared columns masked); `report_profile` labels each column `phi` and `role` from fixed lists. The only member that sees vendor content |
 | **map** | the contract author, a model | `contract_author` | `get_intake_profile`, `get_contract(_text)`, `validate_contract`, `submit_candidate`. It never sees the file, and it cannot propose to a person |
 | **validate** | code | `validator` | `validate_contract` and `check_dbt_models` again on the submitted candidate; the server records the verdicts under the validator's name |
+| **review** (S10.5) | a model | `reviewer` | `get_review_packet` (the candidate, its diff, dry run counts, loosening list, the profile: no vendor values) and `report_review`: `pass`, `revise` (back to map once; a second `revise` ends the job `revise`) or `reject` (nothing proposed). A review that ran on the free fallback can never pass: the job ends `revise` for a person |
 | **propose** | code, the orchestrator | `intake_orchestrator` | `propose_contract_pr` only |
 
 The graph is `dip/agents/intake_graph.py`; jobs are claimed and run by
@@ -52,9 +53,11 @@ accepts a candidate only:
 - if the map worker submitted it (`submit_candidate`) in the same chain;
 - if the validator, under its own key, found it valid, accepting the file, and its
   generated dbt models parsing (`ops.contract_candidate.validator_valid`, `dbt_ok`);
+- if the reviewer, under its own key, recorded `pass` for it (S10.5);
 - while that chain's intake job is `running`, and of the job's mode.
 
-The proposal carries the map worker's rationale, the dry run, the loosening list, the
+The proposal carries the reviewer's verdict and reasons (shown on the approvals page and
+in the branch's PR body, as advice beside the person's decision), the map worker's rationale, the dry run, the loosening list, the
 diff, the generated dbt files and their hash, and the intake job and chain ids. Nothing is
 written (no contract, no model, no branch, no warehouse table) until a person approves it
 and runs `dip approvals execute`.

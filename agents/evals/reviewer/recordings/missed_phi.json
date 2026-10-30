@@ -1,0 +1,124 @@
+[
+ {
+  "content": [
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Gb6ZD2wypF8aZVUFq8gGAg",
+    "input": {
+     "candidate_id": "f281cc895d2aa8d0"
+    },
+    "name": "get_review_packet",
+    "type": "tool_use"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01Xa5Fk6JEZFRrAkibC1K8vV",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "59247b072d1633c46dc3a9f289c79d6679cb1ca673f9e0a4d930b4a85c4018b8",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 2119
+   },
+   "cache_creation_input_tokens": 2119,
+   "cache_read_input_tokens": 0,
+   "inference_geo": "global",
+   "input_tokens": 4,
+   "output_tokens": 119,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "signature": "CAQS8QoKEAgTGAI4AUIIdGhpbmtpbmcSDOI/H+DdG1YxFqf40xoMTtyhRJVIgzFvxxObIjBkVvQ4XBGwznAAziQjMiH07DLc/fPHjyHqP1aQPnzJUKTobFy+jeGks2gTvHkw40gqjgqHe90CcJHpJCbPA3gr+gkjd96CznXyZRSTpYj+YARRkYZog5jLHDtrrD1uzog8/h8JMXrH/67nJahF1b8iD+QfVOS9xSQD5nxLHpzY30SowjA9gmN4HM9Oxev1vuJAPIA3eJXuDobxDa7hXyb4XE/davagi2Sys47o6cauARpDu78iPV+1q8aIzcEjGOoDD3nzyeaBHCD7R7HtdmGD2CQULIZ4eM4Qd+kO+IY9528BBc+dDn11Eyzs5q2mAb5p7lYe3jIp/hfnHhg8MM3JmSgzmihtRsXSGMjzCu7Um5G1P/XlfGXLEXLEWXP4HQATJEBJPHn5EcA+co10laHdPQz4ayTih1YhgvV73JAlJ71pwnDaIihPDY35icKTC4+MlkGSFhfpQC0Au9sqNdVraGC6XENd1CuaXDsq0iUsWXsP/gbwAsF86HadgDT6n/T6hS5vjIzSIjeuwzgD2qBoBrhiMqli3wN/jQN8xHv2wwkKkem1XkMVHVTwE5RRVFUjUXCXPJxRTI1XDqhyO2VJ7uF0nq5Pv+nUMGnMnIfAKtYCGoKRr+iN1NToNkg4HBgPAnQ4oLH8YSA44+LzO/0hdcq2ADcC9J9eZLoFZhuV3KHMKWLoK50rvtBkStbQvmUTIj8qZEP5Xl8Xen4JrwTqbUG45KHbV3uMcQUGrl2UMkjgpPRHrvZShpPn8dO4w1pXGjuK5zMvfR/4BadzN3C83Q73ZEAfjNPqeTSAIWLvqjtA7SD23uTJeZipAkUyCRdW5aEScZfaQ/zRBR3nTCeq20TB16P1VnZRpoKVFzv/VbQOYPyFn6UFgPWezgQGzus6VTQbdXN/rPcBhn/QQPnylwIwMJIw2NOpmW728ozIGX2KuLB1q3pnXJ8DezySDdRKyXKXAdhrGTnqadut7C1h8MYQq1o+p0/W6ZfiwrseO3KVWhTVvv1LCIVrMq6XApip4xhxTBtdmTZVrpJDqu6IcriKA88Kg4v3VLqR8gMbkV7E1tnkpACg2VKX6k4agr+BXtxMmOhgbOILmTwwO6F7iB1Oy7VDPEU6JV+KHJnAKOXMnnAMs5WR95qf3xi9VIeeOw1WA84axd3AlRMRUIV9YPqfoaKh0mWf97D+mcoYdTmzaI7iwfODurUABI92pDDnavUwnhZh9nCvxwtalDgaLS0/95dXaNhotEilcpqdCABs4D0cvkL3wf0cSVFMuFleKjMl3nuN3QQNoKdtQ3H8Xsv07ykeW2sReCEEbn8YHcL1cEyLn5y5dVAd79DBpK4t+yH1QHRxmT3DCUj/U5Kr3RXj6bIr7uF6QQNmvJ0bent+fbnOPKc1cg/G2sWzofNifD665FAwN+x/xdOwP2YCkPZpkwKW/64R7Yr3jIrlVhlLamxXtQSWoi3hzvBH53749JKvwd8BCtyQ5g7xVOAoekWz6cl+80ydf9hVd/kDU/9NomXwxCw/H7vzi9Cw7TPzLZW1GRdSi+elnOwmvVWXOVxjkE6ZcYrTgteV7C4OJ/jKqUH7KPqYO+q6kl+bJu+6tDDPoVzK7N+S8wTEjXfhJeWltj/B/pyylQS0N2jkBYUNLw4Fzymrw3Qe5myUAluy6Q+3AGgKnVBRvgUsslGfl/aTrHMP/26SJmAMzxAZnPCy/SMV8jiGy6+vw+FH12yOsx5160pZGv+Wsv/yQZQ7iNiAj0ApywPU/RoT08bI30Odqqv6nhWtAvfz/8TApq/ZGAE=",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "caller": {
+     "type": "direct"
+    },
+    "id": "toolu_01W8P4LxrALYco2ZoKTJEgfW",
+    "input": {
+     "candidate_id": "f281cc895d2aa8d0",
+     "reasons": [
+      {
+       "detail": "The added column member_phone is not marked phi: true. The profile labels it phi: true (role 'other', declared_phi false, shape 999-9999 in all 24 rows). A member's phone number identifies a person and is PHI under the platform list. Add phi: true to the member_phone line.",
+       "issue": "phi"
+      },
+      {
+       "detail": "The first line of candidate_yaml is a comment reading 'Reviewer eval candidate (Stage 10, S10.5): missed phi. All data invented.' It is not a contract rule and does not affect parsing. It should be removed before the contract is proposed, because it is not a description of the feed.",
+       "issue": "other"
+      }
+     ],
+     "verdict": "revise"
+    },
+    "name": "report_review",
+    "type": "tool_use"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "b80a210ac2d9d981f544a239afe21a6e77747be4bedbc16fdacbb496effd72be",
+  "stop_reason": "tool_use",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 3095
+   },
+   "cache_creation_input_tokens": 3095,
+   "cache_read_input_tokens": 2119,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 599,
+   "output_tokens_details": {
+    "thinking_tokens": 273
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ },
+ {
+  "content": [
+   {
+    "text": "Verdict for candidate f281cc895d2aa8d0 (`healthcare.eligibility`, drift): **revise**. The new `member_phone` column is a phone number that identifies a person, and the candidate leaves it without `phi: true`, even though the profile labels it PHI.\n\nThe report has two reasons:\n- **phi:** add `phi: true` to `member_phone`.\n- **other:** remove the leftover reviewer comment at the top of the YAML.\n\nThe loosening list is empty, the dry run accepted all 24 rows, and the version bump from 1 to 2 is consistent with the added column.",
+    "type": "text"
+   }
+  ],
+  "model": "claude-haiku-5-5",
+  "request_sha256": "00767d7c6a412ae82b431aa278d8f7ef9f839fe65f2b910191d28f6a63df978b",
+  "stop_reason": "end_turn",
+  "usage": {
+   "cache_creation": {
+    "ephemeral_1h_input_tokens": 0,
+    "ephemeral_5m_input_tokens": 651
+   },
+   "cache_creation_input_tokens": 651,
+   "cache_read_input_tokens": 5214,
+   "inference_geo": "global",
+   "input_tokens": 2,
+   "output_tokens": 198,
+   "output_tokens_details": {
+    "thinking_tokens": 0
+   },
+   "service_tier": "standard",
+   "speed": "standard"
+  }
+ }
+]
