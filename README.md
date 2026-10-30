@@ -12,9 +12,13 @@ built in, and AI agents propose fixes and contracts, but a person always approve
 
 ## What it looks like
 
-From one local run on 2026-10-23: a fresh clone of `main`, `scripts/up.sh` with the
-observability profile, the smoke test and the E2E, then these five screens
-(`scripts/screenshots.py`; every value is synthetic or invented).
+From one local run on 2026-10-30 (Stage 9): `scripts/up.sh` with the observability profile
+and a model key, the smoke test and the E2E (which stopped at its `agent_chain` check, written
+for CI's no-key setup and fixed since; the later stages pass in CI), then these six screens
+(`scripts/screenshots.py`; every value is synthetic or invented). With the key, the
+`agent_chain` DAG ran the incident -> triage chain on its own, as pods Airflow launched:
+7 incidents diagnosed, 12 proposals filed, no group twice, all waiting for a
+person ([docs/demos/stage-9.md](docs/demos/stage-9.md)).
 
 **An intake DAG in Airflow.** The eligibility feed's DAG (`intake` then dbt `transform`, one
 pod per task) and its runs from the E2E.
@@ -37,12 +41,19 @@ freshness per feed, late-file incidents, and the open quarantine by reason code.
 
 ![Marquez: lineage from gold back to the landed files](docs/images/marquez-lineage.png)
 
-**Agent proposals waiting for a person.** The triage agent (`claude-haiku-5-5`, live,
-through the in-cluster MCP server with its own key) proposed one action per quarantine
-group; nothing happens until a person approves. The queue has no web UI: it is
-`python -m dip approvals`, shown as printed.
+**Agent proposals waiting for a person.** The approvals page (Stage 9): the triage agent's
+proposals, filed by the unattended chain (`claude-haiku-5-5`, through the in-cluster MCP
+server with its own key), one per group it covered, with the rationale and the message it
+would send the vendor. Nothing happens until a person approves, and the page cannot run
+anything: its database login can only record the decision.
 
-![The approvals queue: the triage agent's pending proposals](docs/images/approvals-queue.png)
+![The approvals page: the triage agent's pending proposals](docs/images/approvals-queue.png)
+
+**Every call, audited.** The same page's audit log: one chain (`chain-...`) from the
+incident agent's diagnosis and runbook search, through the code-checked handoff, to the
+triage agent's proposals.
+
+![The audit log: an incident -> triage chain, call by call](docs/images/approvals-audit.png)
 
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
@@ -58,8 +69,11 @@ breakages, the incident agent, and a LangGraph chain that hands quarantined reco
 triage through a typed edge decided in code); the research-data track R1–R7a and M1–M3.
 Stage 8 in part: nightly evals that replay every agent's recordings, and a recorded
 demo of the whole chain (`bash scripts/demo.sh`: no API key, a throwaway Postgres in
-Docker; [docs/demos/stage-8.md](docs/demos/stage-8.md)); and the screenshots above, from a
-fresh-clone run. Demos: [docs/demos](docs/demos/).
+Docker; [docs/demos/stage-8.md](docs/demos/stage-8.md)). Stage 9: the incident -> triage
+chain as Airflow-launched pods, the approvals page and audit viewer, runbook steps from the
+incident agent, 12 `dip break` scenarios, one open proposal per group, and audit rows that
+name their approval and chain; the screenshots above are from its run
+([docs/demos/stage-9.md](docs/demos/stage-9.md)). Demos: [docs/demos](docs/demos/).
 Agents and their evals: [docs/agents/EVALS.md](docs/agents/EVALS.md). Research track (see
 [docs/research](docs/research/README.md)):
 

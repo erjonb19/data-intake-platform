@@ -11,11 +11,13 @@ E2E already run (so there is data to show), and these port-forwards:
   Grafana     kubectl -n dip-obs port-forward svc/grafana 3000:80
   Marquez UI  kubectl -n dip-obs port-forward svc/marquez-web 3001:3000
 
+  Approvals   kubectl -n dip-data port-forward svc/approvals 8081   (Stage 9, S9.2)
+
 Env: AIRFLOW_PASSWORD, GRAFANA_PASSWORD (scripts/creds.sh prints them), CHROME (default:
 the usual Windows install path), MARQUEZ_NAMESPACE (the warehouse's OpenLineage
 namespace), QUARANTINE_LOG_URL (the Airflow page of an intake task that quarantined files),
-and APPROVALS_TEXT, a file holding `dip approvals list` and `show` output as printed (the
-approvals queue has no web UI: the CLI is the queue, so that frame is a terminal).
+APPROVALS_TOKEN (`terraform output -raw approvals_token`) and APPROVAL_ID (the pending
+proposal to open; default: the newest pending one).
 Needs `websocket-client` (pip). Every value shown is synthetic or invented.
 """
 
@@ -99,17 +101,6 @@ class Page:
         print(f"wrote {path} ({path.stat().st_size // 1024} KB)")
 
 
-def terminal_page(text: str) -> str:
-    """The text as a terminal shows it: monospace, dark, nothing added."""
-    import html
-
-    return (
-        "<!doctype html><meta charset=utf-8><body style='margin:0;background:#1e1e1e'>"
-        "<pre style='margin:0;padding:24px;color:#d4d4d4;font:14px/1.45 Consolas,"
-        "monospace;white-space:pre-wrap'>" + html.escape(text) + "</pre>"
-    )
-
-
 def chrome() -> tuple[subprocess.Popen, Page, str]:
     """A headless Chrome with its own throwaway profile and a DevTools port of its own
     choosing (bound to 127.0.0.1, read back from DevToolsActivePort): never another Chrome
@@ -162,7 +153,6 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     e = os.environ
     proc, p, profile = chrome()
-    scratch = tempfile.mkdtemp(prefix="dip-shots-")
     try:
         # 1. Airflow: the eligibility feed's intake DAG and its runs.
         p.go("http://localhost:8080/auth/login/")
@@ -196,15 +186,26 @@ def main() -> int:
         p.go(e["QUARANTINE_LOG_URL"], settle=8)
         p.shot(out / "quarantine-reason.png")
 
-        # 5. The approvals queue: `dip approvals list` and `show`, as printed.
-        page = Path(scratch) / "approvals.html"
-        page.write_text(terminal_page(Path(e["APPROVALS_TEXT"]).read_text("utf-8")), "utf-8")
-        p.go(page.as_uri(), settle=1)
+        # 5. The approvals queue (S9.2): the page, with a pending proposal open.
+        p.go("http://127.0.0.1:8081/", settle=1)
+        # The page keeps the token for the tab (sessionStorage), as a person's paste would.
+        token = json.dumps(e["APPROVALS_TOKEN"])
+        p.js(f"sessionStorage.setItem('dip.token', {token});"
+             "localStorage.setItem('dip.reviewer', 'reviewer')")  # fmt: skip
+        query = f"?id={e['APPROVAL_ID']}" if e.get("APPROVAL_ID") else ""
+        p.go(f"http://127.0.0.1:8081/{query}", settle=4)
+        if not query:  # the newest pending proposal
+            p.js("document.querySelector('#list tr.row')?.click()")
+            time.sleep(3)
         p.shot(out / "approvals-queue.png")
+
+        # 6. The audit log (S9.2): every call, allowed or denied, by agents and people.
+        p.go("http://127.0.0.1:8081/?tab=audit", settle=4)
+        p.shot(out / "approvals-audit.png")
     finally:
         with contextlib.suppress(Exception):
             p.send("Browser.close")
-        stop(proc, profile, scratch)
+        stop(proc, profile)
     return 0
 
 
