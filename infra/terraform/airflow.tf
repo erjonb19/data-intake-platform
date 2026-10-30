@@ -15,6 +15,18 @@ locals {
       accounts = join(",", local.sftp_accounts)
     }
 
+    # Stage 9 (S9.1): the agent_chain DAG's pod environment (dags/agent_chain.py). The
+    # in-cluster MCP URL, the incident and triage agents' keys, and a model key if one
+    # was passed to Terraform. Only that DAG's pods mount it (env_from in its
+    # pod_override); the chart's `secret` list does not include it.
+    "dip-agent-chain" = {
+      DIP_MCP_URL       = "http://mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local:8765/mcp"
+      DIP_INCIDENT_KEY  = random_password.mcp_incident_key.result
+      DIP_TRIAGE_KEY    = random_password.mcp_triage_key.result
+      ANTHROPIC_API_KEY = var.anthropic_api_key
+      GEMINI_API_KEY    = var.gemini_api_key
+    }
+
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod
     # (including KubernetesExecutor task pods) via the chart's `secret` list.
     "airflow-connections" = {

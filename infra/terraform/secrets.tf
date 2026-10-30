@@ -19,6 +19,7 @@ locals {
     "pg_mcp",             # the MCP server's warehouse login (S3.4)
     "minio_mcp",          # the MCP server's MinIO user: read raw and quarantine (S3.4)
     "airflow_mcp_viewer", # the MCP server's Airflow Viewer login (S3.4)
+    "pg_approver",        # the approvals page's warehouse login (S9.2)
   ])
 }
 

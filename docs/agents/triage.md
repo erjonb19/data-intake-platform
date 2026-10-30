@@ -74,6 +74,17 @@ python -m dip approvals approve 4 --note "..."   # or reject
 python -m dip approvals execute 4
 ```
 
+The same decisions in a browser (Stage 9, S9.2): `python -m dip approvals-serve` (or, in the
+cluster, `kubectl -n dip-data port-forward svc/approvals 8081`) serves http://127.0.0.1:8081,
+a list of proposals with each one's payload (and a contract PR's diff), approve and reject
+buttons, and the audit log with filters. Enter the page's token (`terraform output -raw
+approvals_token`; every API call needs it, so another pod in the cluster cannot approve by
+calling the Service; use 127.0.0.1, not `[::1]`) and your name as reviewer: it is sent as the
+`X-Reviewer` header and recorded as `human:<name>@<database login>`, the CLI's shape, and is
+just as self-asserted. The page calls the CLI's `approvals.decide` and writes the CLI's
+audit row (plus a `denied` row for a refused decision). It cannot execute: its database login,
+`dip_approver`, may set only the decision columns (`dip/agents/gateway.py`).
+
 From a replayed eval case (`mixed_day`), the person's side:
 
 ```
@@ -119,7 +130,9 @@ the deployed stack with a scripted client (`tests/e2e/break_loop.py`).
 Recorded live on 2026-10-23 (`claude-haiku-5-5`; `agents/evals/break_loop/results/recorded.json`):
 **8 of 8 scenarios fixed** in 11 triage runs, 45 model turns, $0.034, no refused call
 (re-recorded with the Stage 6 prompt; the first recording, with the Stage 4 prompt, also
-fixed 8 of 8, in 44 turns).
+fixed 8 of 8, in 44 turns). Stage 9 (S9.4) added `reorder_columns`, `type_change`,
+`truncated_pdf` and `late_file`: 12 of 12 replay (the two that need triage recorded on
+2026-10-30, $0.005; the other two need no model, see docs/agents/EVALS.md).
 
 | Scenario | What breaks | Triage proposed | Fix |
 |---|---|---|---|

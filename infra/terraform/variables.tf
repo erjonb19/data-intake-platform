@@ -140,3 +140,21 @@ variable "mcp_image_tag" {
   type        = string
   default     = "build"
 }
+
+# Stage 9 (S9.1): a model key for the agent_chain DAG's pods. Both default to empty, and
+# with neither set the DAG records every incident as skipped and stays green: the
+# cluster never needs a paid key. Pass one with TF_VAR_anthropic_api_key (never in a
+# tfvars file that is committed).
+variable "anthropic_api_key" {
+  description = "Anthropic key for the agent_chain DAG (empty: the chain is skipped)."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "gemini_api_key" {
+  description = "Gemini key for the agent_chain DAG, used when no Anthropic key is set."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

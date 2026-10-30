@@ -12,6 +12,11 @@ python -m dip break rename_column tests/fixtures/onboarding/elig_base.csv out/el
 python -m dip break drop_column   tests/fixtures/onboarding/elig_base.csv out/elig_20261021.csv --arg column=coverage_start
 ```
 
+**Not this runbook: columns in another order.** The contract matches columns by name, so
+a vendor export that only rearranges them loads as it is, every value under its own column
+(`python -m dip break reorder_columns ...`; the break loop checks the loaded records
+against the good file's). Nothing is quarantined and nothing needs doing.
+
 ## Evidence (MCP Read tier, or the same in SQL)
 
 1. `list_quarantine_groups(feed)`: both codes, and the same file sha in each group, which

@@ -38,11 +38,10 @@ from dataclasses import asdict, dataclass
 from typing import Any, TypedDict
 
 from dip.agents import triage
-from dip.agents.llm import LLM
+from dip.agents.llm import LLM, PROMPT_DIR
 from dip.agents.registry import Registry
-from dip.contracts import REPO_ROOT
 
-INCIDENT_PROMPT = (REPO_ROOT / "agents" / "prompts" / "incident.md").read_text(encoding="utf-8")
+INCIDENT_PROMPT = (PROMPT_DIR / "incident.md").read_text(encoding="utf-8")
 HYPOTHESIS_MAX = 500
 
 
@@ -102,9 +101,15 @@ def _summary(run: triage.TriageRun) -> dict[str, Any]:
 def _diagnosis(conn: Any, run_id: str) -> dict[str, Any] | None:
     with conn.cursor() as cur:
         cur.execute(
-            "select diagnosis_id, incident_id, root_cause, summary, evidence, quarantine_ids,"
-            " confidence from ops.incident_diagnosis where run_id = %s"
-            " order by diagnosis_id desc limit 1",
+            # The run's latest diagnosis, with the steps the run proposed for that incident
+            # even if it reported again after proposing them (they sit on the earlier row).
+            "select d.diagnosis_id, d.incident_id, d.root_cause, d.summary, d.evidence,"
+            " d.quarantine_ids, d.confidence, s.runbook_id, s.steps"
+            " from ops.incident_diagnosis d left join lateral (select runbook_id, steps"
+            "   from ops.incident_diagnosis x where x.run_id = d.run_id"
+            "   and x.incident_id = d.incident_id and x.steps is not null"
+            "   order by x.diagnosis_id desc limit 1) s on true"
+            " where d.run_id = %s order by d.diagnosis_id desc limit 1",
             (run_id,),
         )
         row = cur.fetchone()
@@ -119,6 +124,8 @@ def _diagnosis(conn: Any, run_id: str) -> dict[str, Any] | None:
         "evidence",
         "quarantine_ids",
         "confidence",
+        "runbook_id",  # Stage 9 (S9.3): the runbook the agent matched, and its steps for
+        "steps",  # a person; both None when it proposed none. Nothing reads them to act.
     )
     return dict(zip(keys, row, strict=True)) | {"confidence": float(row[6])}
 

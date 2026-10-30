@@ -7,6 +7,11 @@ when OCR read the page but a label was not found. Related: `OCR.TIMEOUT`, `OCR.F
 pod), and `OCR.UNAVAILABLE` (the task ran without the OCR image: a deployment problem, not
 the vendor's).
 
+**A PDF cut short** in transfer is `PDF.INVALID` (the parser cannot read it at all; the
+cross-reference table is gone): `python -m dip break truncated_pdf <good.pdf> <out.pdf>`
+keeps the first half of the bytes. Nothing on the page can be read, so the only fix is the
+vendor's: `request_resend`.
+
 **See it:** the committed fixture `tests/fixtures/finance/bad/invoice_scan_poor.pdf`
 (70 dpi, blurred and speckled) scores 6.7, and the E2E expects `OCR.LOW_CONFIDENCE`.
 
