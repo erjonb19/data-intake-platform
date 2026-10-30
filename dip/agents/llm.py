@@ -177,7 +177,9 @@ class StepWrote(RuntimeError):
 
 
 class NoProvider(RuntimeError):
-    """Every provider was missing or unavailable."""
+    """Every provider was missing or unavailable, and the step wrote nothing."""
+
+    step: str | None = None  # set by the graph: which step found no provider
 
 
 def is_failover(exc: BaseException) -> bool:
@@ -205,7 +207,9 @@ def is_failover(exc: BaseException) -> bool:
 
 
 def provider_names(env: dict[str, str] | None = None) -> list[str]:
-    """The providers in config order (primary first) whose key is set in `env`."""
+    """The providers in config order (primary first) whose key is set in `env`. Only
+    these are tried: AnthropicLLM with no key would fail at its first call with an error
+    that is not a failover, so a provider without a key must never be in the list."""
     env = os.environ if env is None else env
     with CONFIG.open("rb") as f:
         cfg = tomllib.load(f)
@@ -233,7 +237,11 @@ FACTORIES: dict[str, Any] = {"anthropic": _anthropic, "gemini": _gemini}
 
 class Failover:
     """The providers to try for a step, in order. `run` runs the whole step on the first
-    one and moves on only while the step has written nothing (`wrote()`)."""
+    one and moves on only while the step has written nothing (`wrote(attempt)`).
+
+    Each attempt is told its suffix: "" for the first, "@<provider>" for a restart. The
+    graph adds it to the step's run id, so a restart starts with its own per-run call
+    budget (the registry counts calls per run id) and its own audit trail."""
 
     def __init__(self, providers: list[tuple[str, Any]]):
         self.providers = providers  # (name, factory returning an LLM)
@@ -243,20 +251,24 @@ class Failover:
         return cls([(n, FACTORIES[n]) for n in provider_names(env)])
 
     async def run(self, step: Any, wrote: Any) -> tuple[Any, str]:
-        """`step(llm)` is awaited; returns (its result, the provider that answered)."""
+        """`step(llm, suffix)` is awaited; returns (its result, the provider that answered).
+        `wrote(suffix)` says whether that attempt wrote anything."""
         tried: list[str] = []
+        attempts = 0
         for name, make in self.providers:
             try:
                 llm = make()
             except LookupError as exc:  # no key for this one
                 tried.append(f"{name}: {exc}")
                 continue
+            suffix = f"@{name}" if attempts else ""
+            attempts += 1
             try:
-                return await step(llm), name
+                return await step(llm, suffix), name
             except Exception as exc:
                 if not is_failover(exc):
                     raise
-                if wrote():
+                if wrote(suffix):
                     raise StepWrote(
                         f"{name} failed after the step had written; not restarted on "
                         f"another provider: {type(exc).__name__}: {exc}"

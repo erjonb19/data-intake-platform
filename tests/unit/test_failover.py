@@ -23,11 +23,11 @@ class Fake:
         self.name, self.error = name, error
 
 
-def run(providers, wrote=lambda: False, seen=None):
+def run(providers, wrote=lambda suffix: False, seen=None):
     seen = [] if seen is None else seen
 
-    async def step(llm):
-        seen.append(llm.name)
+    async def step(llm, suffix):
+        seen.append(llm.name + suffix)
         if llm.error:
             raise llm.error
         return f"answered by {llm.name}"
@@ -40,7 +40,8 @@ def test_an_unavailable_claude_finishes_the_step_on_gemini(status):
     (out, provider), seen = run([("anthropic", lambda: Fake("claude", Status(status))),
                                  ("gemini", lambda: Fake("gemini"))])  # fmt: skip
     assert (out, provider) == ("answered by gemini", "gemini")
-    assert seen == ["claude", "gemini"]  # the whole step again, from its task
+    # The whole step again, from its task, under its own run id suffix (its own budget).
+    assert seen == ["claude", "gemini@gemini"]
 
 
 def test_a_missing_key_skips_that_provider():
@@ -48,7 +49,7 @@ def test_a_missing_key_skips_that_provider():
         raise LookupError("ANTHROPIC_API_KEY is not set")
 
     (_, provider), seen = run([("anthropic", no_key), ("gemini", lambda: Fake("gemini"))])
-    assert provider == "gemini" and seen == ["gemini"]
+    assert provider == "gemini" and seen == ["gemini"]  # the first attempt: no suffix
 
 
 def test_our_own_errors_are_not_retried_elsewhere():
@@ -64,7 +65,7 @@ def test_a_step_that_already_wrote_is_not_restarted():
     seen: list[str] = []
     with pytest.raises(StepWrote, match="after the step had written"):
         run([("anthropic", lambda: Fake("claude", Status(529))),
-             ("gemini", lambda: Fake("gemini"))], wrote=lambda: True, seen=seen)  # fmt: skip
+             ("gemini", lambda: Fake("gemini"))], wrote=lambda suffix: True, seen=seen)  # fmt: skip
     assert seen == ["claude"]
 
 

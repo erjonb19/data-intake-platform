@@ -219,7 +219,8 @@ def score(
         len(by_group.get(g, [])) == 1 and by_group[g][0]["action"] in acc
         for g, acc in wanted.items()
     )
-    steps = {r[0].rsplit("/", 1)[-1] for r in trail}
+    # A step restarted on another provider runs as `<chain>/<step>@<provider>` (S10.1).
+    steps = {r[0].rsplit("/", 1)[-1].partition("@")[0] for r in trail}
     # The chain in the audit log: the incident run; a handoff decision exactly when the
     # diagnosis said quarantined records; the triage run when it handed off.
     audited = (

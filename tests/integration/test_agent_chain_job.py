@@ -160,3 +160,36 @@ def test_the_row_says_which_provider_answered_each_step(warehouse):
     assert chain_job.run(warehouse.conn, env=env, runner=runner)["done"] == [a]
     assert rows(warehouse, "select provider from ops.agent_run") == [
         ("incident:anthropic triage:gemini",)]  # fmt: skip
+
+
+def test_when_no_provider_answers_the_incident_waits_and_the_run_stops(warehouse):
+    """S10.1: every provider down before anything was written is an outage, not a failure
+    of the incident: it goes back to `skipped` (claimed again later), and this run stops."""
+    from dip.agents.llm import NoProvider
+
+    a = _open(warehouse, "healthcare.eligibility", "FILE.QUARANTINED", "elig_20261021.csv")
+    _open(warehouse, "finance.invoices")
+    calls = []
+
+    def runner(conn, incident_id, env_, providers):
+        calls.append(incident_id)
+        exc = NoProvider("anthropic: 529; gemini: 503")
+        exc.step = "incident"
+        raise exc
+
+    s = chain_job.run(warehouse.conn, env={**MCP, "GEMINI_API_KEY": "g"}, runner=runner)
+    assert calls == [a] and s["skipped"] == [a] and s["failed"] == []
+    got = rows(warehouse, "select status, reason from ops.agent_run where incident_id = %s", (a,))
+    assert got[0][0] == "skipped" and "no provider answered" in got[0][1]
+
+
+def test_each_steps_provider_is_on_the_row_as_soon_as_it_finishes(warehouse):
+    a = _open(warehouse, "healthcare.eligibility", "FILE.QUARANTINED", "elig_20261021.csv")
+    assert chain_job.claim_one(warehouse.conn)[0] == a
+    chain_job.record_step(warehouse.conn, a, "incident", "gemini")
+    assert rows(warehouse, "select status, provider from ops.agent_run") == [
+        ("running", "incident:gemini")]  # fmt: skip
+    chain_job.record_step(warehouse.conn, a, "triage", "anthropic")
+    chain_job.finish(warehouse.conn, a, "failed", reason="later crash")
+    assert rows(warehouse, "select status, provider from ops.agent_run") == [
+        ("failed", "incident:gemini triage:anthropic")]  # fmt: skip

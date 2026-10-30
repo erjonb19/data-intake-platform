@@ -108,7 +108,10 @@ def _provider(conn: Any, run_id: str | None) -> str | None:
         cur.execute("select provider from ops.agent_run where chain_id = %s", (chain,))
         row = cur.fetchone()
     conn.commit()
-    return row[0] if row else None
+    if row is None:
+        return None
+    # A scheduled chain whose row has no provider yet: say so, never imply Claude.
+    return row[0] or "unknown"
 
 
 def create_app(connect: Callable[[], Any], allowed_hosts: list[str],

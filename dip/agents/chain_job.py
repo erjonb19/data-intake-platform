@@ -28,6 +28,8 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
+from dip.agents.llm import NoProvider
+
 MCP_VARS = ("DIP_MCP_URL", "DIP_INCIDENT_KEY", "DIP_TRIAGE_KEY")
 # A claim older than this is a dead pod's: dags/agent_chain.py's execution timeout is
 # shorter, so a live task never has its claim taken back.
@@ -82,7 +84,7 @@ def claim_one(conn: Any, dag_run_id: str | None = None) -> tuple[int, str, str] 
             select incident_id, 'running', %(run)s from todo
             on conflict (incident_id) do update
                 set status = 'running', started_at = now(), finished_at = null,
-                    reason = null, chain_id = null, root_cause = null,
+                    reason = null, chain_id = null, root_cause = null, provider = null,
                     dag_run_id = excluded.dag_run_id
                 where ops.agent_run.status = 'skipped'
                    or (ops.agent_run.status = 'running'
@@ -125,8 +127,10 @@ def finish(
     triage:gemini` (S10.1), so a fallback run is visible on the row and the approvals page."""
     with conn.cursor() as cur:
         cur.execute(
-            "update ops.agent_run set status = %s, reason = %s, chain_id = %s,"
-            " root_cause = %s, provider = %s, finished_at = now() where incident_id = %s",
+            "update ops.agent_run set status = %s, reason = %s,"
+            " chain_id = coalesce(%s, chain_id),"
+            " root_cause = %s, provider = coalesce(%s, provider), finished_at = now()"
+            " where incident_id = %s",
             (
                 status,
                 (reason or None) and reason[:2000],
@@ -135,6 +139,18 @@ def finish(
                 provider,
                 incident_id,
             ),  # fmt: skip
+        )
+    conn.commit()
+
+
+def record_step(conn: Any, incident_id: int, step: str, provider: str) -> None:
+    """A finished step's provider, on the incident's row at once (S10.1): a proposal made
+    on the fallback is labelled while the chain runs on, and if it later fails."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "update ops.agent_run set provider = concat_ws(' ', provider, %s::text)"
+            " where incident_id = %s",
+            (f"{step}:{provider}", incident_id),
         )
     conn.commit()
 
@@ -151,17 +167,26 @@ def run_chain(conn: Any, incident_id: int, env: dict[str, str], providers: tuple
               ) -> dict[str, Any]:  # fmt: skip
     """The same chain `dip incident run` runs, with the DAG's connection and keys."""
     import asyncio
+    import uuid
 
     from dip.agents import graph, triage
 
+    # The chain id goes on the row before the chain starts, with each step's provider as
+    # it finishes (S10.1): the approvals page finds a running chain's proposals by it.
+    chain_id = f"chain-{uuid.uuid4().hex[:10]}"
+    with conn.cursor() as cur:
+        cur.execute("update ops.agent_run set chain_id = %s where incident_id = %s",
+                    (chain_id, incident_id))  # fmt: skip
+    conn.commit()
     url = env["DIP_MCP_URL"]
     chain = graph.Chain(
         conn=conn,
         incident_client=lambda: triage.mcp_client(url, env["DIP_INCIDENT_KEY"]),
         triage_client=lambda: triage.mcp_client(url, env["DIP_TRIAGE_KEY"]),
         llm_for=_llm_for(providers),
+        on_step=lambda step, provider: record_step(conn, incident_id, step, provider),
     )
-    return asyncio.run(graph.run_chain(chain, incident_id))
+    return asyncio.run(graph.run_chain(chain, incident_id, chain_id))
 
 
 def run(
@@ -193,6 +218,15 @@ def run(
         summary["claimed"] += 1
         try:
             state = (runner or run_chain)(conn, incident_id, env, p.providers)
+        except NoProvider as exc:
+            conn.rollback()
+            if exc.step == "incident":  # nothing written: the incident waits, as with no key
+                finish(conn, incident_id, "skipped", reason=f"no provider answered: {exc}")
+                summary["skipped"] = [*summary.get("skipped", []), incident_id]
+                break  # every provider is down: stop this run; the next one tries again
+            finish(conn, incident_id, "failed", reason=f"NoProvider: {exc}")
+            summary["failed"].append(incident_id)
+            continue
         except Exception as exc:  # the chain's own errors are the record, not a crash
             conn.rollback()  # a failed statement in the chain leaves the transaction aborted
             finish(

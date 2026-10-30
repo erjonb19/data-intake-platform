@@ -86,3 +86,32 @@ def test_a_step_that_wrote_is_not_restarted_on_gemini(warehouse, tmp_path):
         chain_conn.close()
     # The diagnosis was written once, by the first provider's step.
     assert rows(warehouse, "select count(*) from ops.incident_diagnosis") == [(1,)]
+
+
+def test_an_error_in_a_later_turn_restarts_the_step_under_its_own_run_id(tmp_path):
+    """Claude reads (a read-tier call writes nothing), then is overloaded: the step starts
+    again on Gemini from its task, as `<chain>/incident@gemini`, with its own call budget,
+    and both attempts are in the chain's audit trail."""
+    if not DSN:
+        pytest.skip("DIP_TEST_DSN not set")
+    import psycopg
+
+    case = next(c for c in _gemini_cases() if c["name"] == "schema_drift_hands_off")
+    read = Message([{"type": "tool_use", "id": "r1", "name": "list_quarantine_groups",
+                     "input": {}}], "tool_use", {}, "scripted")  # fmt: skip
+
+    def llm_for(step: str):
+        claude = (lambda: Claude([read])) if step == "incident" else Claude
+        path = GEMINI / f"{case['name']}_{step}.json"
+        return Failover([("anthropic", claude), ("gemini", lambda: Recording(path))])
+
+    result = incident_evals.run_case(case, DSN, llm_for, tmp_path)
+    assert result.chain_audited and not result.violations, result
+    with psycopg.connect(DSN) as conn, conn.cursor() as cur:
+        cur.execute("select distinct run_id from ops.audit_log where chain_id = %s"
+                    " and run_id like %s order by 1",
+                    (f"eval-{case['name']}", "%/incident%"))  # fmt: skip
+        assert [r[0] for r in cur.fetchall()] == [
+            f"eval-{case['name']}/incident",
+            f"eval-{case['name']}/incident@gemini",
+        ]

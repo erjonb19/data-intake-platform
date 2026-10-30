@@ -110,6 +110,7 @@ def chain_of(run_id: str | None) -> str | None:
     """The chain a run id belongs to, if it is a chain step's. Like the run id it comes
     from the client: a label for following a chain, not a security boundary."""
     chain, sep, step = (run_id or "").rpartition("/")
+    step = step.partition("@")[0]  # a step restarted on another provider (Stage 10, S10.1)
     return chain if sep and chain and step in CHAIN_STEPS else None
 
 
