@@ -319,14 +319,15 @@ CREATE TABLE IF NOT EXISTS ops.sample_file (
 -- One row per contract to write: `onboard` for a new vendor's sample that landed under
 -- landing/_onboard/<pack>.<name>/, `drift` for a feed whose propose_contract_change a
 -- person approved and executed. The agent_chain DAG claims them one at a time (like
--- ops.agent_run). At most one open (queued or running) job per feed.
+-- ops.agent_run), or `dip contracts author` (cli) runs one directly. At most one open (queued
+-- or running) job per feed.
 CREATE TABLE IF NOT EXISTS ops.intake_job (
     job_id        bigserial   PRIMARY KEY,
     created_at    timestamptz NOT NULL DEFAULT now(),
     feed          text        NOT NULL,
     mode          text        NOT NULL CHECK (mode IN ('onboard', 'drift')),
     file_sha256   text        NOT NULL,
-    source        text        NOT NULL CHECK (source IN ('landing', 'handoff')),
+    source        text        NOT NULL CHECK (source IN ('landing', 'handoff', 'cli')),
     source_ref    text,
     status        text        NOT NULL DEFAULT 'queued'
         CHECK (status IN ('queued', 'running', 'proposed', 'no_change', 'revise',
