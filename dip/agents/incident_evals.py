@@ -186,9 +186,11 @@ def run_case(case: dict[str, Any], dsn: str, llm_for: Any, work: Path) -> Incide
         seconds = round(time.monotonic() - started, 1)
         with conn.cursor() as cur:
             cur.execute(
+                # By the chain id column (S9.6): a step whose row lost its chain is not
+                # in the trail, and the case fails.
                 "select run_id, principal, tool, decision from ops.audit_log"
-                " where run_id like %s order by audit_id",
-                (f"eval-{case['name']}/%",),
+                " where chain_id = %s order by audit_id",
+                (f"eval-{case['name']}",),
             )
             trail = cur.fetchall()
         conn.commit()

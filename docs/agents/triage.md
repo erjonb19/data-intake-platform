@@ -37,7 +37,10 @@ run id it sends.
 The model's output cannot change any of it: an unknown tool, a tool outside the policy, a
 tier above `propose`, an action outside the list or a call over a limit is refused and
 written to `ops.audit_log`. The log stores a SHA-256 of the arguments, not the arguments
-(they can hold vendor data). A trigger refuses UPDATE, DELETE and TRUNCATE through normal
+(they can hold vendor data), and since Stage 9 (S9.6) a SHA-256 of an allowed call's result,
+the approval the call proposed, decided or ran (`approval_id`), and the incident -> triage
+chain it belongs to (`chain_id`, from a chain step's run id `<chain>/incident|handoff|triage`),
+so `select * from ops.audit_log where approval_id = 4` is one approval's whole history. A trigger refuses UPDATE, DELETE and TRUNCATE through normal
 SQL. The table owner or a superuser can still disable the trigger, and the MCP server
 connects as the warehouse owner today: an INSERT-only role for the server is the follow-up
 that makes this hold against the owner too.

@@ -359,3 +359,24 @@ def test_two_proposals_at_once_for_one_group_make_one_row(setup):
         t.join()
     assert sorted("approval_id" in r for r in results) == [False, True]
     assert scalar(wh, "select count(*) from ops.approvals") == 1
+
+
+def test_audit_rows_name_their_approval_chain_and_result(setup):
+    """Stage 9 (S9.6): result_sha256, approval_id and chain_id are filled from the call."""
+    wh, _, reg = setup
+    policy = Policy.load("triage")
+    [g] = reg.call(policy, "chain-c1/triage", "list_quarantine_groups", {})["groups"]
+    out = reg.call(policy, "chain-c1/triage", "propose_operation", {
+        "action": "request_resend", "group_id": g["group_id"],
+        "quarantine_ids": g["quarantine_ids"], "root_cause": "schema_drift",
+        "rationale": "t", "confidence": 0.9})  # fmt: skip
+    aid = out["approval_id"]
+    with pytest.raises(Denied):
+        reg.call(policy, "act-1", "execute_approved_operation", {"approval_id": aid})
+    got = rows(wh, "select tool, decision, approval_id, chain_id, result_sha256 is not null"
+                   " from ops.audit_log order by audit_id")  # fmt: skip
+    assert got == [
+        ("list_quarantine_groups", "allowed", None, "chain-c1", True),
+        ("propose_operation", "allowed", aid, "chain-c1", True),
+        ("execute_approved_operation", "denied", aid, None, False),
+    ]
