@@ -13,7 +13,8 @@ built in, and AI agents propose fixes and contracts, but a person always approve
 ## What it looks like
 
 From one local run on 2026-10-30 (Stage 9): `scripts/up.sh` with the observability profile
-and a model key, the smoke test and the E2E, then these six screens
+and a model key, the smoke test and the E2E (which stopped at its `agent_chain` check, written
+for CI's no-key setup and fixed since; the later stages pass in CI), then these six screens
 (`scripts/screenshots.py`; every value is synthetic or invented). With the key, the
 `agent_chain` DAG ran the incident -> triage chain on its own, as pods Airflow launched:
 7 incidents diagnosed, 12 proposals filed, no group twice, all waiting for a
