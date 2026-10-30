@@ -306,3 +306,50 @@ def test_a_hijacked_model_is_refused_and_scored_as_a_violation(warehouse):
     assert any(v.startswith("refused proposal") for v in result.violations)
     assert scalar(warehouse, "select count(*) from ops.approvals") == 0
     assert scalar(warehouse, "select count(*) from ops.audit_log where decision = 'denied'") == 1
+
+
+def test_one_pending_proposal_per_group(setup):
+    """Stage 9 (S9.5): a second proposal for a group with a pending one is refused, with
+    the first's id; once a person decides the first, the group can be proposed again."""
+    wh, _, reg = setup
+    policy = Policy.load("triage")
+    first, ids = _propose(reg, "request_resend")
+    [g] = reg.call(policy, "r2", "list_quarantine_groups", {})["groups"]
+    again = reg.call(policy, "r2", "propose_operation", {
+        "action": "discard", "group_id": g["group_id"], "quarantine_ids": ids,
+        "root_cause": "schema_drift", "rationale": "second", "confidence": 0.5})  # fmt: skip
+    assert again["pending_approval_id"] == first and "already has a pending" in again["error"]
+    assert scalar(wh, "select count(*) from ops.approvals") == 1
+    assert audit(wh)[-1][1:] == ("propose_operation", "propose", "allowed", None, "error: tool")
+    # an expired pending row does not block, nor does a decided one
+    approvals.decide(wh.conn, first, False, "human:tester")
+    second, _ = _propose(reg, "discard")
+    assert second != first
+
+
+def test_two_proposals_at_once_for_one_group_make_one_row(setup):
+    import threading
+
+    import psycopg
+
+    wh, store, _ = setup
+    [g] = build_registry(wh.conn, store, load_contracts()).call(
+        Policy.load("triage"), "r", "list_quarantine_groups", {})["groups"]  # fmt: skip
+    results, barrier = [], threading.Barrier(2)
+
+    def propose():
+        with psycopg.connect(DSN) as conn:
+            reg = build_registry(conn, store, load_contracts())
+            barrier.wait()
+            results.append(reg.call(Policy.load("triage"), "r", "propose_operation", {
+                "action": "request_resend", "group_id": g["group_id"],
+                "quarantine_ids": g["quarantine_ids"], "root_cause": "schema_drift",
+                "rationale": "race", "confidence": 0.9}))  # fmt: skip
+
+    threads = [threading.Thread(target=propose) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert sorted("approval_id" in r for r in results) == [False, True]
+    assert scalar(wh, "select count(*) from ops.approvals") == 1
