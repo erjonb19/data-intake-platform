@@ -2,9 +2,10 @@
  "summary": {
   "model": "gemini-3.1-flash-lite",
   "cases": 8,
-  "cases_passed": 7,
-  "faulty_stopped": "4/4",
+  "cases_passed": 5,
+  "faulty_stopped": "2/4",
   "good_sent_back": "1/4",
+  "no_verdict": 0,
   "policy_violations": 0,
   "cost_usd": 0.0
  },
@@ -22,20 +23,20 @@
    "stop": "end_turn",
    "usage": [
     {
-     "input_tokens": 1294,
-     "output_tokens": 33
+     "input_tokens": 1401,
+     "output_tokens": 34
     },
     {
-     "input_tokens": 3126,
-     "output_tokens": 42
+     "input_tokens": 3169,
+     "output_tokens": 43
     },
     {
-     "input_tokens": 3216,
-     "output_tokens": 51
+     "input_tokens": 3261,
+     "output_tokens": 54
     }
    ],
    "model": "gemini-3.1-flash-lite",
-   "seconds": 54.0,
+   "seconds": 48.2,
    "passed": true
   },
   {
@@ -51,20 +52,20 @@
    "stop": "end_turn",
    "usage": [
     {
-     "input_tokens": 1296,
-     "output_tokens": 35
+     "input_tokens": 1400,
+     "output_tokens": 34
     },
     {
-     "input_tokens": 3112,
-     "output_tokens": 44
+     "input_tokens": 3150,
+     "output_tokens": 43
     },
     {
-     "input_tokens": 3206,
-     "output_tokens": 54
+     "input_tokens": 3242,
+     "output_tokens": 47
     }
    ],
    "model": "gemini-3.1-flash-lite",
-   "seconds": 17.7,
+   "seconds": 14.7,
    "passed": true
   },
   {
@@ -77,7 +78,11 @@
    "reasons": [
     {
      "issue": "unsupported_rule",
-     "detail": "The candidate defines the pattern for result_id as ^LR[0-9]{6}$, but the profile shapes show AA999999. The profile also shows loinc_code as 9999-9 or 999-9, while the contract expects 9999-9 (length of 1-5 digits). Also, allowed values for abnormal_flag are missing quotes in the YAML."
+     "detail": "The pattern for result_id in the contract is \"^LR[0-9]{6}$\", but the profile shape is \"AA999999\". The prefix does not match."
+    },
+    {
+     "issue": "unsupported_rule",
+     "detail": "The unit allowed list does not match the shapes in the profile (e.g., 'aa/aA', 'a/aA', '%'). The declared values are not supported by the profile evidence."
     }
    ],
    "violations": [],
@@ -85,20 +90,20 @@
    "stop": "end_turn",
    "usage": [
     {
-     "input_tokens": 1294,
+     "input_tokens": 1401,
      "output_tokens": 32
     },
     {
-     "input_tokens": 3053,
-     "output_tokens": 146
+     "input_tokens": 3128,
+     "output_tokens": 151
     },
     {
-     "input_tokens": 3246,
-     "output_tokens": 89
+     "input_tokens": 3326,
+     "output_tokens": 180
     }
    ],
    "model": "gemini-3.1-flash-lite",
-   "seconds": 11.0,
+   "seconds": 60.5,
    "passed": false
   },
   {
@@ -108,26 +113,31 @@
     "pass"
    ],
    "verdict": "pass",
-   "reasons": [],
+   "reasons": [
+    {
+     "issue": "other",
+     "detail": "The provider_first_name and provider_last_name columns are correctly marked as phi: true. However, the NPI (National Provider Identifier) column is a unique identifier for a provider. Depending on the organization's policy, NPIs are often considered sensitive, but in the context of our platform's sp"
+    }
+   ],
    "violations": [],
    "turns": 3,
    "stop": "end_turn",
    "usage": [
     {
-     "input_tokens": 1298,
-     "output_tokens": 34
+     "input_tokens": 1402,
+     "output_tokens": 32
     },
     {
-     "input_tokens": 2939,
-     "output_tokens": 43
+     "input_tokens": 3011,
+     "output_tokens": 145
     },
     {
-     "input_tokens": 3031,
-     "output_tokens": 50
+     "input_tokens": 3203,
+     "output_tokens": 57
     }
    ],
    "model": "gemini-3.1-flash-lite",
-   "seconds": 2.7,
+   "seconds": 24.9,
    "passed": true
   },
   {
@@ -141,7 +151,7 @@
    "reasons": [
     {
      "issue": "loosening",
-     "detail": "The member_id pattern '^M[0-9]{9}$' was removed with no rationale or evidence in the profile suggesting it is no longer required."
+     "detail": "The pattern constraint on 'member_id' was removed, which is a loosening. The profile shows 24 distinct values for 'member_id', but does not confirm if the old pattern is still enforced or why it was removed."
     }
    ],
    "violations": [],
@@ -149,20 +159,20 @@
    "stop": "end_turn",
    "usage": [
     {
-     "input_tokens": 1294,
+     "input_tokens": 1400,
      "output_tokens": 34
     },
     {
-     "input_tokens": 3233,
-     "output_tokens": 87
+     "input_tokens": 3277,
+     "output_tokens": 103
     },
     {
-     "input_tokens": 3369,
-     "output_tokens": 82
+     "input_tokens": 3429,
+     "output_tokens": 67
     }
    ],
    "model": "gemini-3.1-flash-lite",
-   "seconds": 3.0,
+   "seconds": 17.3,
    "passed": true
   },
   {
@@ -176,7 +186,7 @@
    "reasons": [
     {
      "issue": "phi",
-     "detail": "The column 'member_phone' is identified as PHI by the profile worker but is not marked with 'phi: true' in the candidate contract."
+     "detail": "The new member_phone column is PHI (it is a phone number) but is marked as phi: false (default)."
     }
    ],
    "violations": [],
@@ -184,20 +194,20 @@
    "stop": "end_turn",
    "usage": [
     {
-     "input_tokens": 1293,
-     "output_tokens": 33
+     "input_tokens": 1400,
+     "output_tokens": 34
     },
     {
-     "input_tokens": 3087,
-     "output_tokens": 84
+     "input_tokens": 3134,
+     "output_tokens": 80
     },
     {
-     "input_tokens": 3219,
-     "output_tokens": 52
+     "input_tokens": 3263,
+     "output_tokens": 46
     }
    ],
    "model": "gemini-3.1-flash-lite",
-   "seconds": 3.2,
+   "seconds": 20.0,
    "passed": true
   },
   {
@@ -207,11 +217,11 @@
     "revise",
     "reject"
    ],
-   "verdict": "reject",
+   "verdict": "pass",
    "reasons": [
     {
-     "issue": "mistake_taken_for_change",
-     "detail": "The vendor has stopped sending 'coverage_start', but it is a critical field for eligibility files. This should be treated as a vendor error (missing column) rather than a contract change."
+     "issue": "affected_models",
+     "detail": "The vendor stopped sending coverage_start, which breaks hand-written dbt models eligibility_record and member_eligibility."
     }
    ],
    "violations": [],
@@ -219,21 +229,21 @@
    "stop": "end_turn",
    "usage": [
     {
-     "input_tokens": 1294,
+     "input_tokens": 1400,
      "output_tokens": 33
     },
     {
-     "input_tokens": 2939,
-     "output_tokens": 98
+     "input_tokens": 2994,
+     "output_tokens": 80
     },
     {
-     "input_tokens": 3085,
-     "output_tokens": 56
+     "input_tokens": 3122,
+     "output_tokens": 80
     }
    ],
    "model": "gemini-3.1-flash-lite",
-   "seconds": 14.4,
-   "passed": true
+   "seconds": 4.7,
+   "passed": false
   },
   {
    "case": "unsupported_allowed",
@@ -242,33 +252,28 @@
     "revise",
     "reject"
    ],
-   "verdict": "revise",
-   "reasons": [
-    {
-     "issue": "unsupported_rule",
-     "detail": "The candidate's plan_code 'allowed' list includes 'PLATINUM', but the profile only shows evidence for 'GOLD', 'HMO', 'HDHP', 'EPO', and 'PPO'. The code 'PLATINUM' is missing from the code_counts."
-    }
-   ],
+   "verdict": "pass",
+   "reasons": [],
    "violations": [],
    "turns": 3,
    "stop": "end_turn",
    "usage": [
     {
-     "input_tokens": 1295,
-     "output_tokens": 35
+     "input_tokens": 1400,
+     "output_tokens": 33
     },
     {
-     "input_tokens": 3142,
-     "output_tokens": 116
+     "input_tokens": 3181,
+     "output_tokens": 42
     },
     {
-     "input_tokens": 3308,
-     "output_tokens": 40
+     "input_tokens": 3271,
+     "output_tokens": 53
     }
    ],
    "model": "gemini-3.1-flash-lite",
-   "seconds": 18.2,
-   "passed": true
+   "seconds": 3.9,
+   "passed": false
   }
  ]
 }

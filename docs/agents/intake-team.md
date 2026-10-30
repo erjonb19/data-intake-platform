@@ -11,7 +11,7 @@ code and three workers, plus (S10.5) a reviewer:
                                           ▼
    profile ──▶ map ──▶ validate ──▶ review ──▶ propose ──▶ ops.approvals (contract_pr)
                 ▲          │           │                      │ a person approves, executes
-                └──────────┴───────────┘ once each            ▼
+                └──────────┴───────────┘ once in all          ▼
                                           a local branch: the contract + its dbt models
 ```
 
@@ -20,7 +20,7 @@ code and three workers, plus (S10.5) a reviewer:
 | **profile** | a model | `profile` (`agents/policies/profile.yaml`) | Read the file through `diff_schema` (PHI and undeclared columns masked); `report_profile` labels each column `phi` and `role` from fixed lists. The only member that sees vendor content |
 | **map** | the contract author, a model | `contract_author` | `get_intake_profile`, `get_contract(_text)`, `validate_contract`, `submit_candidate`. It never sees the file, and it cannot propose to a person |
 | **validate** | code | `validator` | `validate_contract` and `check_dbt_models` again on the submitted candidate; the server records the verdicts under the validator's name |
-| **review** (S10.5) | a model | `reviewer` | `get_review_packet` (the candidate, its diff, dry run counts, loosening list, the profile: no vendor values) and `report_review`: `pass`, `revise` (back to map once; a second `revise` ends the job `revise`) or `reject` (nothing proposed). A review that ran on the free fallback can never pass: the job ends `revise` for a person |
+| **review** (S10.5) | a model | `reviewer` | `get_review_packet` (the candidate, its diff, dry run counts, loosening list, the profile: no vendor values) and `report_review`: `pass`, `revise` (back to map once; a second `revise` ends the job `revise`) or `reject` (nothing proposed). The graph never proposes a candidate whose review ran on the free fallback: the job ends `revise` for a person (the server checks the reviewer's pass, not the provider) |
 | **propose** | code, the orchestrator | `intake_orchestrator` | `propose_contract_pr` only |
 
 The graph is `dip/agents/intake_graph.py`; jobs are claimed and run by

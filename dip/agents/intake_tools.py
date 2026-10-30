@@ -91,7 +91,11 @@ def build_profile(seen: dict[str, Any], file_name: str | None = None) -> dict[st
             s if SHEET_OK.match(s) else f"sheet_{i + 1}" for i, s in enumerate(facts["sheets"])
         ]
     if file_name is not None:
-        facts["file_name"] = file_name if FILE_NAME_OK.match(file_name) else "<name not shown>"
+        # A plain name of at most four words (lab_results_20261019.csv), the same rule as
+        # column names: a longer name could carry a sentence to the map worker or reviewer.
+        stem = file_name.rsplit(".", 1)[0]
+        plain = FILE_NAME_OK.match(file_name) and len(re.split(r"[_.-]", stem)) <= MAX_NAME_WORDS
+        facts["file_name"] = file_name if plain else "<name not shown>"
     return {
         "rows": seen["rows"],
         "file": facts,
@@ -265,7 +269,7 @@ ISSUES = ("loosening", "phi", "unsupported_rule", "mistake_taken_for_change",
 VERDICTS = ("pass", "revise", "reject")
 
 
-def register_review_tools(reg: Any, Tool: Any, conn: Any, check: Any) -> None:
+def register_review_tools(reg: Any, Tool: Any, conn: Any, check: Any, dbt_of: Any) -> None:
     """The reviewer's tools (Stage 10, S10.5). `check(feed, yaml, sha)`: the author tools'
     validation (every rule, the dry run, the loosening list, the diff)."""
     from dip.agents.registry import chain_of
@@ -307,6 +311,7 @@ def register_review_tools(reg: Any, Tool: Any, conn: Any, check: Any) -> None:
             "candidate_yaml": c["contract_yaml"], "diff_against_current": checked.get("diff", ""),
             "dry_run": dry, "loosening": checked.get("loosening", []),
             "map_worker_rationale": c["rationale"], "profile": c["profile"],
+            "dbt": dbt_of(c["feed"], c["contract_yaml"]),
             "notice": "The profile is built by the platform; the file itself is not shown.",
         }  # fmt: skip
 

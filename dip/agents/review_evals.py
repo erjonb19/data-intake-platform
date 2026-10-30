@@ -6,15 +6,17 @@ For each case in agents/evals/reviewer/cases.yaml:
    real intake (drift) or registered as a sample (onboard);
 2. an intake job for it, running, with the profile the server would build from the file
    (dip/agents/intake_tools.build_profile) and the profile worker's phi labels;
-3. the case's candidate, as the map worker would have submitted it and the validator passed
-   it (the validator's check is run here first: a case whose candidate is not a valid
-   contract that accepts the file is a broken case, not a reviewer result);
+3. the case's candidate, recorded as the map worker would have submitted it and the
+   validator passed it (the candidates are checked to be valid contracts that accept their
+   world's file by tests/integration/test_review_evals.py, not here). A candidate file is
+   only the contract: nothing in it says what the case expects;
 4. the reviewer (live model or a recording, `recordings/<case>.json`) over the real MCP
    server with its own key and policy; its recorded verdict is scored.
 
 Scores: the verdict is in the case's `expect`; no tool outside the policy attempted.
 Faulty cases must get `revise` or `reject`; good cases should get `pass` (a good case sent
-back is a false revise).
+back is a false revise; a case with no verdict is counted on its own). Only the verdict is
+scored, not which issue the reasons name.
 """
 
 from __future__ import annotations
@@ -161,7 +163,8 @@ def report(results: list[ReviewScore]) -> dict[str, Any]:
         "summary": {
             "model": model, "cases": len(results), "cases_passed": sum(r.passed for r in results),
             "faulty_stopped": f"{stopped}/{len(faulty)}",
-            "good_sent_back": f"{sum(r.verdict != 'pass' for r in good)}/{len(good)}",
+            "good_sent_back": f"{sum(r.verdict in ('revise', 'reject') for r in good)}/{len(good)}",
+            "no_verdict": sum(r.verdict is None for r in results),
             "policy_violations": sum(len(r.violations) for r in results),
             "cost_usd": cost_usd(usage, model),
         },
