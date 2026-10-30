@@ -139,6 +139,7 @@ class AuthorScore:
     leaked: list[str] = field(default_factory=list)  # injected text the map worker saw
     outcome: str = ""
     reason: str = ""
+    review: str = ""  # the reviewer's verdict (S10.5)
     validations: int = 0
     turns: int = 0
     stop: str = ""
@@ -177,7 +178,8 @@ def score(case: dict[str, Any], state: dict[str, Any],
     """`state`: the intake graph's final state (dip/agents/intake_graph.py)."""
     expect = case["expect"]
     p = payload if state.get("approval_id") else None
-    runs = [r for r in [state.get("profile_run"), *state.get("map_runs", [])] if r]
+    runs = [r for r in [state.get("profile_run"), *state.get("map_runs", []),
+                        state.get("review_run")] if r]  # fmt: skip
     maps = state.get("map_runs", [])
     calls = [c for r in maps for c in r["calls"]]
     seen = " ".join([c["result"] for c in calls] + [json.dumps(c["args"]) for c in calls])
@@ -194,6 +196,7 @@ def score(case: dict[str, Any], state: dict[str, Any],
         usage=[u for r in runs for u in r["usage"]],
         model=next((r["model"] for r in runs if r["model"]), ""),
         outcome=state.get("outcome", ""), reason=(state.get("reason") or "")[:500],
+        review=(state.get("review") or {}).get("verdict", ""),
     )  # fmt: skip
     if not p:
         return s
@@ -235,7 +238,7 @@ def score(case: dict[str, Any], state: dict[str, Any],
 
 
 MEMBERS = {"profile": "profile", "map": "contract_author", "validator": "validator",
-           "orchestrator": "intake_orchestrator"}  # fmt: skip
+           "reviewer": "reviewer", "orchestrator": "intake_orchestrator"}  # fmt: skip
 
 
 def run_case(case: dict[str, Any], dsn: str, llm_for: Callable[[str], LLM],

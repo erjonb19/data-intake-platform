@@ -1,9 +1,10 @@
 """The intake team (Stage 10, S10.4; PLAN.md section 8.12): an orchestrator in code and three
 workers, as a LangGraph graph with no model routing it (section 4.1).
 
-    profile ──▶ map ──▶ validate ──▶ propose ──▶ end
-                 ▲          │
-                 └──────────┘ once, with the validator's errors
+    profile ──▶ map ──▶ validate ──▶ review ──▶ propose ──▶ end
+                 ▲          │             │
+                 └──────────┴─────────────┘ once each: the validator's errors, the
+                                            reviewer's reasons
 
   profile   a model (key `profile`): reads the job's file through diff_schema and labels
             each column (report_profile). The server builds the profile's facts itself.
@@ -13,9 +14,15 @@ workers, as a LangGraph graph with no model routing it (section 4.1).
   validate  code (key `validator`): validate_contract and check_dbt_models on the submitted
             candidate, recorded by the server under the validator's name. A failure goes
             back to map once with the errors; a second failure ends the job `failed`.
+  review    a model (key `reviewer`, S10.5): reads the candidate, its diff, dry run,
+            loosening list and the profile (no vendor values) and records pass, revise or
+            reject. `revise` goes back to map once; a second `revise` ends the job `revise`
+            for a person; `reject` ends it with nothing proposed. A review that ran on the
+            free fallback can never pass: the job ends `revise` (section 8.12, S10.1).
   propose   code (key `intake_orchestrator`): propose_contract_pr on that candidate. The
-            server proposes only a candidate submitted and passed in this chain while its
-            job runs; the result is an ops.approvals row for a person.
+            server proposes only a candidate submitted, passed by the validator and by the
+            reviewer in this chain while its job runs; the result is an ops.approvals row
+            for a person, with the reviewer's verdict in it.
 
 One chain id ties the steps' run ids together (`<chain>/profile`, `/map`, `/validate`,
 `/propose`), so `ops.audit_log` shows the whole job. Each model step runs on its providers
@@ -37,6 +44,7 @@ from dip.agents.llm import LLM, PROMPT_DIR, Failover
 
 PROFILE_PROMPT = (PROMPT_DIR / "profile.md").read_text(encoding="utf-8")
 MAP_PROMPT = (PROMPT_DIR / "contract_author.md").read_text(encoding="utf-8")
+REVIEW_PROMPT = (PROMPT_DIR / "reviewer.md").read_text(encoding="utf-8")
 STEPS = ("profile", "map")
 
 
@@ -49,6 +57,10 @@ class IntakeState(TypedDict, total=False):
     candidate_id: str | None
     validation: dict[str, Any] | None
     errors: list[str]
+    sent_back_by: str  # "validator" | "reviewer": who sent the last candidate back
+    review_run: dict[str, Any] | None
+    review: dict[str, Any] | None
+    review_rounds: int
     attempts: int
     approval_id: int | None
     outcome: str  # proposed | no_change | failed
@@ -76,7 +88,7 @@ def profile_task(job: dict[str, Any]) -> str:
     )
 
 
-def map_task(job: dict[str, Any], errors: list[str]) -> str:
+def map_task(job: dict[str, Any], errors: list[str], by: str = "validator") -> str:
     if job["mode"] == "onboard":
         what = (
             f"Onboard a new vendor feed, `{job['feed']}`. Write its first contract "
@@ -94,7 +106,7 @@ def map_task(job: dict[str, Any], errors: list[str]) -> str:
     )
     if errors:
         text += (
-            " The validator refused your last candidate: "
+            f" The {by} sent your last candidate back: "
             + json.dumps(errors)[:3000]
             + " Fix it, validate it and submit it again."
         )
@@ -168,7 +180,7 @@ def build_graph(team: IntakeTeam) -> Any:
                     client,
                     llm,
                     MAP_PROMPT,
-                    map_task(job, state.get("errors", [])),
+                    map_task(job, state.get("errors", []), state.get("sent_back_by", "validator")),
                     team.max_turns,
                     attempt,
                 )
@@ -226,7 +238,11 @@ def build_graph(team: IntakeTeam) -> Any:
             errors.append("the validator's candidate differs from the one submitted")
         if not dbt.get("ok"):
             errors.append(f"dbt: {dbt.get('error') or dbt.get('dbt_output') or dbt}")
-        out: dict[str, Any] = {"validation": {"contract": checked, "dbt": dbt}, "errors": errors}
+        out: dict[str, Any] = {
+            "validation": {"contract": checked, "dbt": dbt},
+            "errors": errors,
+            "sent_back_by": "validator",
+        }
         if errors and state.get("attempts", 1) >= 2:
             out |= {
                 "outcome": "failed",
@@ -236,6 +252,61 @@ def build_graph(team: IntakeTeam) -> Any:
         return out
 
     def after_validate(state: IntakeState) -> str:
+        if state.get("outcome"):
+            return "end"
+        return "map" if state.get("errors") else "review"
+
+    async def review(state: IntakeState) -> dict[str, Any]:
+        job, cid = state["job"], state["candidate_id"]
+        rounds = state.get("review_rounds", 0) + 1
+        run_id = f"{state['chain_id']}/review" + (f"#{rounds}" if rounds > 1 else "")
+        task = (
+            f"Intake job {job['job_id']}, feed `{job['feed']}` ({job['mode']}): review "
+            f"candidate {cid} (get_review_packet), then report_review."
+        )
+
+        async def body(llm: LLM, attempt: str) -> triage.TriageRun:
+            async with team.client_for("reviewer") as client:
+                return await triage.run_agent(
+                    client, llm, REVIEW_PROMPT, task, team.max_turns, attempt
+                )
+
+        run, provider = await run_step(team, "review", run_id, body)  # type: ignore[arg-type]
+        with team.conn.cursor() as cur:
+            cur.execute(
+                "select review from ops.contract_candidate where chain_id = %s"
+                " and candidate_id = %s",
+                (state["chain_id"], cid),
+            )
+            (verdict,) = cur.fetchone() or (None,)
+        team.conn.commit()
+        out: dict[str, Any] = {
+            "review_run": _summary(run),
+            "review": verdict,
+            "review_rounds": rounds,
+            "providers": {**state.get("providers", {}), "review": provider},
+        }
+        if not verdict:
+            return out | {"outcome": "failed", "reason": "the reviewer reported no verdict"}
+        reasons = "; ".join(f"{r['issue']}: {r['detail']}" for r in verdict["reasons"])
+        if verdict["verdict"] == "pass" and provider == "gemini":
+            return out | {
+                "outcome": "revise",
+                "reason": "the review ran on the free fallback,"
+                " which can never pass a contract: a person decides",
+            }
+        if verdict["verdict"] == "reject":
+            return out | {"outcome": "rejected", "reason": f"the reviewer rejected it: {reasons}"}
+        if verdict["verdict"] == "revise":
+            if rounds >= 2 or state.get("attempts", 1) >= 2:
+                return out | {
+                    "outcome": "revise",
+                    "reason": f"the reviewer sent it back again: {reasons}"[:2000],
+                }
+            return out | {"errors": [reasons], "sent_back_by": "reviewer"}
+        return out
+
+    def after_review(state: IntakeState) -> str:
         if state.get("outcome"):
             return "end"
         return "map" if state.get("errors") else "propose"
@@ -249,7 +320,7 @@ def build_graph(team: IntakeTeam) -> Any:
                 f"{state['chain_id']}/propose",
                 candidate_id=state["candidate_id"],
                 mode=job["mode"],
-                rationale="Submitted by the map worker; passed by the validator.",
+                rationale="Submitted by the map worker; passed by the validator and the reviewer.",
             )
         if r.get("error") or not r.get("approval_id"):
             return {"outcome": "failed", "reason": f"the proposal was refused: {r}"[:2000]}
@@ -259,6 +330,7 @@ def build_graph(team: IntakeTeam) -> Any:
     g.add_node("profile", profile)
     g.add_node("map", map_)
     g.add_node("validate", validate)
+    g.add_node("review", review)
     g.add_node("propose", propose)
     g.add_edge(START, "profile")
     g.add_conditional_edges(
@@ -266,7 +338,10 @@ def build_graph(team: IntakeTeam) -> Any:
     )
     g.add_conditional_edges("map", after_map, {"validate": "validate", "end": END})
     g.add_conditional_edges(
-        "validate", after_validate, {"map": "map", "propose": "propose", "end": END}
+        "validate", after_validate, {"map": "map", "review": "review", "end": END}
+    )
+    g.add_conditional_edges(
+        "review", after_review, {"map": "map", "propose": "propose", "end": END}
     )
     g.add_edge("propose", END)
     return g.compile()

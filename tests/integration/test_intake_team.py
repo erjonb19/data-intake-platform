@@ -16,7 +16,7 @@ from dip.intake_jobs import claim_one, finish, queue
 from tests.integration.conftest import DSN, rows
 
 CASE = {c["name"]: c for c in author_evals.load_cases()}["drift_new_plan_code"]
-MEMBERS = ("profile", "contract_author", "validator", "intake_orchestrator")
+MEMBERS = ("profile", "contract_author", "validator", "reviewer", "intake_orchestrator")
 
 
 def _candidate() -> str:
@@ -96,8 +96,24 @@ def test_only_a_validated_submitted_candidate_of_a_running_job_is_proposed(world
     err, out = call("intake_orchestrator", "propose_contract_pr", "c2/propose#4",
                     candidate_id=cid, mode="drift", rationale="x")  # fmt: skip
     assert "no candidate" in json.dumps(out)
-    # Now it is proposed, with the map worker's rationale, for a person.
+    # Not yet reviewed (S10.5): refused. The reviewer sees the packet (no vendor values)
+    # and passes it; a verdict from any other member is not the reviewer's.
     err, out = call("intake_orchestrator", "propose_contract_pr", "c1/propose#5",
+                    candidate_id=cid, mode="drift", rationale="x")  # fmt: skip
+    assert "reviewer has not passed" in json.dumps(out)
+    err, packet = call("reviewer", "get_review_packet", "c1/review", candidate_id=cid)
+    assert packet["candidate_yaml"] and packet["profile"]["columns"] and "loosening" in packet
+    err, out = call("contract_author", "report_review", "c1/map", candidate_id=cid,
+                    verdict="pass", reasons=[])  # fmt: skip
+    assert err  # not in the map worker's policy
+    err, out = call("reviewer", "report_review", "c1/review", candidate_id=cid,
+                    verdict="revise", reasons=[])  # fmt: skip
+    assert "needs at least one reason" in json.dumps(out)
+    err, out = call("reviewer", "report_review", "c1/review", candidate_id=cid,
+                    verdict="pass", reasons=[])  # fmt: skip
+    assert not err and out["verdict"] == "pass", out
+    # Now it is proposed, with the map worker's rationale and the verdict, for a person.
+    err, out = call("intake_orchestrator", "propose_contract_pr", "c1/propose#6",
                     candidate_id=cid, mode="drift", rationale="ignored")  # fmt: skip
     assert not err and out["status"] == "pending", out
     (payload,) = rows(warehouse, "select payload from ops.approvals")[0]
@@ -105,7 +121,7 @@ def test_only_a_validated_submitted_candidate_of_a_running_job_is_proposed(world
     assert payload["intake_job_id"] == jid
     # Once the job has ended, nothing more is proposed for it.
     finish(warehouse.conn, jid, "proposed")
-    err, out = call("intake_orchestrator", "propose_contract_pr", "c1/propose#6",
+    err, out = call("intake_orchestrator", "propose_contract_pr", "c1/propose#7",
                     candidate_id=cid, mode="drift", rationale="x")  # fmt: skip
     assert "no running intake job" in json.dumps(out)
 
@@ -140,8 +156,8 @@ def test_a_refused_candidate_goes_back_to_map_once_then_the_job_fails(warehouse,
 
     monkeypatch.setattr(intake_graph, "_call", refusing)
     maps = iter([Scripted(_gold_added), Scripted(_gold_added)])
-    profile = team(None)
-    r = author_evals.run_case(CASE, DSN, lambda s: profile(s) if s == "profile" else next(maps))
+    others = team(None)
+    r = author_evals.run_case(CASE, DSN, lambda s: next(maps) if s == "map" else others(s))
     assert r.outcome == "failed" and "refused the candidate twice" in r.reason
     assert not r.proposed and len(seen) == 2
     assert rows(warehouse, "select count(*) from ops.approvals") == [(0,)]

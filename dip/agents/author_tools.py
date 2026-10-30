@@ -195,6 +195,9 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             return {"error": "no candidate with that id was submitted in this chain"}
         if not cand["validator_valid"] or cand["dbt_ok"] is not True:
             return {"error": "the validator has not passed this candidate (contract and dbt)"}
+        review = cand["review"] or {}
+        if review.get("verdict") != "pass" or review.get("by") != "reviewer":
+            return {"error": "the reviewer has not passed this candidate (S10.5)"}
         with conn.cursor() as cur:
             cur.execute("select job_id, mode from ops.intake_job where chain_id = %s"
                         " and status = 'running' and feed = %s", (chain, cand["feed"]))  # fmt: skip
@@ -217,7 +220,7 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
             "validation": checked["dry_run"], "loosening": checked["loosening"],
             "diff": checked["diff"],
             **_dbt(feed, contract_yaml, checked["path"]),
-            "intake_job_id": job[0], "chain_id": chain,
+            "intake_job_id": job[0], "chain_id": chain, "review": review,
         }  # fmt: skip
         approval_id = approvals.create(conn, principal, run_id, "contract_pr", payload)
         return {"approval_id": approval_id, "status": "pending",
@@ -291,6 +294,10 @@ def register_author_tools(reg: Any, Tool: Any, conn: Any, store: Any,
     from dip.agents.intake_tools import register_intake_tools
 
     register_intake_tools(reg, Tool, conn, _file, _fmt, contracts)
+    # The reviewer's tools (S10.5).
+    from dip.agents.intake_tools import register_review_tools
+
+    register_review_tools(reg, Tool, conn, _check)
     reg.register(Tool("propose_contract_pr", "propose",
         "Propose a submitted candidate the validator passed, for a person to approve (the "
         "intake orchestrator's only tool). Nothing changes until the person approves it; "

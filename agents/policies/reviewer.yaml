@@ -1,0 +1,21 @@
+# Policy for the intake team's reviewer (Stage 10, S10.5; PLAN.md section 8.12). It reads a
+# submitted, validated candidate contract (never the file or any vendor value) and records
+# a verdict. The orchestrator proposes only a candidate the reviewer passed; a person still
+# decides, and the verdict is shown to them, never in their place.
+agent: reviewer
+description: >
+  Reviews a candidate contract against the evidence: unneeded loosening, PHI, rules the
+  profile does not support, a vendor mistake taken for a change, hand-written models
+  affected. Records pass, revise or reject; changes nothing else.
+max_tier: propose
+mask_phi: true
+tools:
+  - get_review_packet
+  - get_contract
+  - report_review
+limits:
+  max_calls_per_run: 15
+  max_calls_per_hour: 300
+  report_review:
+    max_per_run: 2
+    max_per_hour: 60

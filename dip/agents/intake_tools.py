@@ -251,3 +251,97 @@ def register_intake_tools(
             submit_candidate,
         )
     )
+
+
+ISSUES = ("loosening", "phi", "unsupported_rule", "mistake_taken_for_change",
+          "affected_models", "other")  # fmt: skip
+VERDICTS = ("pass", "revise", "reject")
+
+
+def register_review_tools(reg: Any, Tool: Any, conn: Any, check: Any) -> None:
+    """The reviewer's tools (Stage 10, S10.5). `check(feed, yaml, sha)`: the author tools'
+    validation (every rule, the dry run, the loosening list, the diff)."""
+    from dip.agents.registry import chain_of
+
+    obj = {"type": "object", "additionalProperties": False}
+
+    def _candidate(run_id: str | None, cid: str) -> dict[str, Any] | str:
+        chain = chain_of(run_id) or ""
+        with conn.cursor() as cur:
+            cur.execute(
+                "select c.feed, c.file_sha256, c.contract_yaml, c.rationale, c.submitted,"
+                " c.validator_valid, c.dbt_ok, j.job_id, j.mode, j.profile"
+                " from ops.contract_candidate c join ops.intake_job j"
+                "   on j.chain_id = c.chain_id and j.status = 'running'"
+                " where c.chain_id = %s and c.candidate_id = %s",
+                (chain, cid),
+            )
+            row = cur.fetchone()
+        conn.commit()
+        if row is None:
+            return "no candidate with that id in this chain's running job"
+        keys = ("feed", "file_sha256", "contract_yaml", "rationale", "submitted",
+                "validator_valid", "dbt_ok", "job_id", "mode", "profile")  # fmt: skip
+        c = dict(zip(keys, row, strict=True))
+        if not (c["submitted"] and c["validator_valid"] and c["dbt_ok"]):
+            return "the candidate has not been submitted and passed by the validator"
+        return c | {"chain": chain}
+
+    def get_review_packet(principal: str, run_id: str | None, candidate_id: str) -> dict:
+        c = _candidate(run_id, candidate_id)
+        if isinstance(c, str):
+            return {"error": c}
+        checked = check(c["feed"], c["contract_yaml"], c["file_sha256"])
+        dry = checked.get("dry_run") or {}
+        if "reason_codes" in dry:
+            dry = {**dry, "reason_codes": {safe_code(k): v for k, v in dry["reason_codes"].items()}}
+        return {
+            "feed": c["feed"], "mode": c["mode"], "candidate_id": candidate_id,
+            "candidate_yaml": c["contract_yaml"], "diff_against_current": checked.get("diff", ""),
+            "dry_run": dry, "loosening": checked.get("loosening", []),
+            "map_worker_rationale": c["rationale"], "profile": c["profile"],
+            "notice": "The profile is built by the platform; the file itself is not shown.",
+        }  # fmt: skip
+
+    def report_review(principal: str, run_id: str | None, candidate_id: str, verdict: str,
+                      reasons: list[dict[str, Any]]) -> dict:  # fmt: skip
+        c = _candidate(run_id, candidate_id)
+        if isinstance(c, str):
+            return {"error": c}
+        if verdict not in VERDICTS:
+            return {"error": f"verdict must be one of {list(VERDICTS)}"}
+        clean = [{"issue": r.get("issue"), "detail": str(r.get("detail", ""))[:300]}
+                 for r in reasons[:10]]  # fmt: skip
+        if any(r["issue"] not in ISSUES for r in clean):
+            return {"error": f"each reason's issue is one of {list(ISSUES)}"}
+        if verdict != "pass" and not clean:
+            return {"error": "a revise or reject needs at least one reason"}
+        review = {"verdict": verdict, "reasons": clean, "by": principal, "run_id": run_id}
+        with conn.cursor() as cur:
+            cur.execute("update ops.contract_candidate set review = %s"
+                        " where chain_id = %s and candidate_id = %s",
+                        (json.dumps(review), c["chain"], candidate_id))  # fmt: skip
+            cur.execute("update ops.intake_job set review = %s where job_id = %s",
+                        (json.dumps(review), c["job_id"]))  # fmt: skip
+        conn.commit()
+        return {"candidate_id": candidate_id, "verdict": verdict,
+                "note": "Recorded. A person still decides."}  # fmt: skip
+
+    reg.register(Tool("get_review_packet", "read",
+        "Everything about a submitted, validated candidate contract: its YAML, the diff "
+        "against the current contract, the dry run's counts, what it loosens, the map "
+        "worker's rationale, and the file's profile (built by the platform).",
+        {**obj, "properties": {"candidate_id": {"type": "string"}},
+         "required": ["candidate_id"]}, get_review_packet))  # fmt: skip
+    reg.register(Tool("report_review", "propose",
+        "Your verdict on the candidate: pass, revise (send it back with reasons) or reject "
+        "(nothing should be proposed). Each reason names an issue and its evidence.",
+        {**obj, "properties": {
+            "candidate_id": {"type": "string"},
+            "verdict": {"type": "string", "enum": list(VERDICTS)},
+            "reasons": {"type": "array", "maxItems": 10, "items": {
+                "type": "object", "additionalProperties": False,
+                "properties": {"issue": {"type": "string", "enum": list(ISSUES)},
+                               "detail": {"type": "string"}},
+                "required": ["issue", "detail"]}}},
+         "required": ["candidate_id", "verdict", "reasons"]}, report_review))  # fmt: skip
