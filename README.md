@@ -132,6 +132,7 @@ start with at least 4 GB free.
 | `dip-data` | MinIO | Buckets: `landing`, `raw`, `quarantine`, `airflow-logs` |
 | `dip-data` | SFTP server, intake API | Vendor channels (Stage 2) |
 | `dip-data` | MCP server | The Read tier for the `reader` agent (Stage 3) |
+| `dip-data` | Approvals page | Proposals to approve or reject, and the audit log, in a browser (Stage 9, S9.2): `kubectl -n dip-data port-forward svc/approvals 8081`, then http://127.0.0.1:8081. Its own login (`dip_approver`) can decide but never execute |
 | `dip-obs` | Prometheus, Grafana, Marquez | The `observability` profile only (Stage 3) |
 
 ## Repo layout

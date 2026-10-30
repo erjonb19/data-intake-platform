@@ -347,3 +347,27 @@ BEGIN
     END IF;
 END $$;
 SELECT ops.grant_mcp_reader();
+
+-- The approvals page's access (Stage 9, S9.2; the dip_approver login): list and show
+-- proposals, record a person's decision, and read and append to the audit log. Only the
+-- decision columns can be updated, and the trigger above still holds it to the one-way
+-- status machine (pending -> approved | rejected | expired). It cannot record an
+-- execution: executed_by, executed_at and result are not granted.
+CREATE OR REPLACE FUNCTION ops.grant_approver() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_approver') THEN
+        RETURN;
+    END IF;
+    GRANT USAGE ON SCHEMA ops TO dip_approver;
+    IF to_regclass('ops.approvals') IS NOT NULL THEN
+        GRANT SELECT ON ops.approvals TO dip_approver;
+        GRANT UPDATE (status, decided_by, decided_at, decision_note, approved_sha256)
+            ON ops.approvals TO dip_approver;
+    END IF;
+    IF to_regclass('ops.audit_log') IS NOT NULL THEN
+        GRANT SELECT, INSERT ON ops.audit_log TO dip_approver;
+        GRANT USAGE ON SEQUENCE ops.audit_log_audit_id_seq TO dip_approver;
+    END IF;
+END $$;
+SELECT ops.grant_approver();
