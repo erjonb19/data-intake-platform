@@ -187,22 +187,30 @@ def register_sample(conn: Any, store: Any, feed: str, path: Path, by: str,
     `registered_at` is the time the intake would treat as the file's receipt (a candidate
     contract's `filename_date` window is checked against it); it defaults to now. The
     evals pin it, so a dated sample file does not expire out of its window as days pass."""
+    sha = register_sample_bytes(conn, store, feed, Path(path).name, Path(path).read_bytes(),
+                                by, registered_at)  # fmt: skip
+    conn.commit()
+    return sha
+
+
+def register_sample_bytes(conn: Any, store: Any, feed: str, name: str, data: bytes, by: str,
+                          registered_at: datetime | None = None) -> str:  # fmt: skip
+    """register_sample's work on a file's bytes, uncommitted: also how a sample landed under
+    `landing/_onboard/` is registered (Stage 10, S10.2: dip/intake_jobs.py)."""
     import hashlib
 
     from dip.agents.contract_pr import FEED
 
     if not FEED.match(feed):
         raise ValueError(f"{feed!r} must be <pack>.<name> (lower case)")
-    data = Path(path).read_bytes()
     sha = hashlib.sha256(data).hexdigest()
-    key = f"samples/{feed}/{sha[:16]}/{Path(path).name}"
+    key = f"samples/{feed}/{sha[:16]}/{name}"
     store.put(BUCKET_RAW, key, data)
     with conn.cursor() as cur:
         cur.execute(
             "insert into ops.sample_file (feed, file_sha256, raw_key, name, registered_by,"
             " registered_at) values (%s, %s, %s, %s, %s, coalesce(%s, now()))"
             " on conflict do nothing",
-            (feed, sha, key, Path(path).name, by, registered_at),
+            (feed, sha, key, name, by, registered_at),
         )
-    conn.commit()
     return sha

@@ -18,8 +18,9 @@ Actions:
                            copy back into landing under its original name, so the next
                            intake validates it against the current contract (after a
                            contract fix). Their quarantine entries close as released
-  propose_contract_change  hand the group to the contract-author agent (Stage 5); no data
-                           changes here
+  propose_contract_change  hand the group to the intake team: its latest quarantined file
+                           becomes a `drift` job in ops.intake_job (Stage 10, S10.2); no
+                           data changes here
   contract_pr              the contract-author agent's candidate contract (Stage 5): written
                            as a commit on a new local branch, with the `git push` and
                            `gh pr create` for the person to run (dip/agents/contract_pr.py)
@@ -289,7 +290,14 @@ def _run(conn: Any, store: ObjectStore, action: str, payload: dict, landed: list
             return {"vendor_request": payload.get("message") or payload.get("rationale", ""),
                     "quarantine_ids": open_ids}  # fmt: skip
         if action == "propose_contract_change":
-            return {"handoff": "contract-author agent (Stage 5)", "quarantine_ids": open_ids}
+            # Stage 10 (S10.2): the group's latest quarantined file becomes a drift job
+            # for the intake team (dip/intake_jobs.py), which ends in a contract proposal
+            # for a person, never a change on its own.
+            from dip.intake_jobs import drift_from_handoff
+
+            feed = payload["group_id"].partition("|")[0]
+            return {**drift_from_handoff(cur, feed, open_ids, approval_id),
+                    "quarantine_ids": open_ids}  # fmt: skip
         raise ApprovalError(f"unknown action {action!r}")
 
 
