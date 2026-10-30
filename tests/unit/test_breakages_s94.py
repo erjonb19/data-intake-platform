@@ -26,5 +26,10 @@ def test_truncated_pdf_and_late_file_work_on_bytes():
     assert apply(pdf, [{"op": "truncated_pdf"}]) == pdf[:50]
     with pytest.raises(ValueError):
         apply(GOOD, [{"op": "truncated_pdf"}])
+    with pytest.raises(ValueError):
+        apply(pdf, [{"op": "truncated_pdf", "keep": "1"}])
+    odd = b"member_id,dob\nM1,02/14/1980\nM2,1980-02-14\n"
+    out = apply(odd, [{"op": "type_change", "column": "dob"}]).decode()
+    assert out.splitlines()[1:] == ["M1,02/14/1980", "M2,02/14/1980"]
     assert apply(GOOD, [{"op": "late_file"}]) == GOOD  # its timing is what breaks
     assert {SCENARIOS[n].kind for n in ("reorder_columns", "late_file")} == {"tolerated", "timing"}

@@ -97,11 +97,12 @@ def reorder_columns(h, rows, d, order: str = "reverse"):
 def type_change(h, rows, d, column: str, to: str = "%m/%d/%Y"):
     """Every ISO date (YYYY-MM-DD) in `column` rewritten in another format, consistently:
     the vendor's system changed how it writes dates (VALUE.TYPE)."""
+    from contextlib import suppress
     from datetime import date
 
     i = h.index(column)
     for r in rows:
-        if r[i]:
+        with suppress(ValueError):  # a blank, or a value already not ISO, is left as it is
             r[i] = date.fromisoformat(r[i]).strftime(to)
     return h, rows, d
 
@@ -111,6 +112,8 @@ def truncated_pdf(data: bytes, keep: str = "0.5") -> bytes:
     cross-reference table and the end of the file are gone (PDF.INVALID)."""
     if not data.startswith(b"%PDF"):
         raise ValueError("not a PDF")
+    if not 0 < float(keep) < 1:
+        raise ValueError("keep is a fraction between 0 and 1 (the file must be cut short)")
     return data[: max(1, int(len(data) * float(keep)))]
 
 
