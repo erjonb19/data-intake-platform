@@ -209,7 +209,7 @@ async function loadAudit() {
     for (const r of rows) {
       const tr = el("tr");
       tr.append(el("td", r.audit_id), el("td", when(r.at)), el("td", r.principal), el("td", r.tool), el("td", r.tier),
-                el("td", r.decision, r.decision), el("td", r.reason || r.result_status || ""), el("td", r.run_id || "", "muted"));
+                el("td", r.decision, r.decision), el("td", [r.result_status, r.reason].filter(Boolean).join(": ")), el("td", r.run_id || "", "muted"));
       tbody.append(tr);
     }
     if (!rows.length) { const tr = el("tr"); const td = el("td", "No audit rows match.", "muted"); td.colSpan = 8; tr.append(td); tbody.append(tr); }

@@ -254,6 +254,9 @@ class Registry:
                 CURRENT_POLICY.reset(token)
             if isinstance(result, dict) and "error" in result:
                 status = "error: tool"  # the tool refused the arguments
+                # Why, for a person reading the audit log (issue #65): the tool's own message,
+                # cut short. No agent reads the audit log; the approvals page shows it as text.
+                reason = str(result["error"])[:300]
             return result
         except Denied as exc:  # the tool's own refusal: nothing ran
             self.conn.rollback()

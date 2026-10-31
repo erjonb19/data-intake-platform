@@ -320,7 +320,8 @@ def test_one_pending_proposal_per_group(setup):
         "root_cause": "schema_drift", "rationale": "second", "confidence": 0.5})  # fmt: skip
     assert again["pending_approval_id"] == first and "already has a pending" in again["error"]
     assert scalar(wh, "select count(*) from ops.approvals") == 1
-    assert audit(wh)[-1][1:] == ("propose_operation", "propose", "allowed", None, "error: tool")
+    *_, reason, status = audit(wh)[-1]
+    assert status == "error: tool" and "already has a pending proposal, approval" in reason
     # a rejected one does not block; an approved one not yet run does
     approvals.decide(wh.conn, first, False, "human:tester")
     second, _ = _propose(reg, "discard")
@@ -380,3 +381,20 @@ def test_audit_rows_name_their_approval_chain_and_result(setup):
         ("propose_operation", "allowed", aid, "chain-c1", True),
         ("execute_approved_operation", "denied", aid, None, False),
     ]
+
+
+def test_a_tool_error_is_audited_with_its_message(setup):
+    """Issue #65: a tool's own refusal ({"error": ...}) keeps its message in the audit log,
+    and the profile worker no longer has profile_file, which on an onboarding job (no
+    contract, the sample not a received file) could only fail."""
+    wh, _, reg = setup
+    out = reg.call(Policy.load("reader"), "r1", "profile_file",
+                   {"feed": "finance.purchase_orders", "file_sha256": "0" * 64})  # fmt: skip
+    assert out == {"error": "no contract for 'finance.purchase_orders'"}
+    with pytest.raises(Denied):
+        reg.call(Policy.load("profile"), "intake-x/profile", "profile_file",
+                 {"feed": "finance.purchase_orders", "file_sha256": "0" * 64})  # fmt: skip
+    log = audit(wh)
+    assert log[0][1:] == ("profile_file", "read", "allowed",
+                          "no contract for 'finance.purchase_orders'", "error: tool")  # fmt: skip
+    assert log[1][0] == "profile" and log[1][3] == "denied"
