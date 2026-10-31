@@ -2,6 +2,8 @@
 # the intake team that reads vendor content: it sees the file through diff_schema (PHI and
 # undeclared columns masked) and labels each column. Its labels are fixed choices (phi,
 # role); the facts the map worker sees are built by the server, not written by this agent.
+# No profile_file (issue #65): it reads only files received for a feed with a contract, so
+# on an onboarding job it could only fail, and diff_schema already masks what it would show.
 agent: profile
 description: >
   Reads the intake job's file and labels each column (phi, role). Cannot write a contract,
@@ -12,7 +14,6 @@ tools:
   - diff_schema
   - get_contract
   - get_feed_history
-  - profile_file
   - report_profile
 limits:
   max_calls_per_run: 20

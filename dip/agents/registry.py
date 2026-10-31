@@ -21,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import threading
 import time
 from collections import Counter, deque
@@ -130,6 +131,18 @@ def approval_of(args: dict[str, Any], result: Any) -> int | None:
         if isinstance(value, int) or (isinstance(value, str) and value.isdigit()):
             return int(value)
     return None
+
+
+# Issue #65: why a tool refused, for a person reading the audit log. Only the message's
+# fixed lead, up to the first quote, bracket, brace or parenthesis: what follows can quote a
+# vendor's column names or a model's arguments, and the audit log is append-only. No agent
+# reads it; the approvals page shows it as text.
+_QUOTED = re.compile(r"""["'{\[(<]""")
+
+
+def error_lead(error: Any) -> str | None:
+    lead = _QUOTED.split(str(error), maxsplit=1)[0].strip(" :;,.")
+    return lead[:200] or None
 
 
 def _argument_error(tool: Tool, args: dict[str, Any]) -> dict[str, str] | None:
@@ -254,6 +267,7 @@ class Registry:
                 CURRENT_POLICY.reset(token)
             if isinstance(result, dict) and "error" in result:
                 status = "error: tool"  # the tool refused the arguments
+                reason = error_lead(result["error"])
             return result
         except Denied as exc:  # the tool's own refusal: nothing ran
             self.conn.rollback()
