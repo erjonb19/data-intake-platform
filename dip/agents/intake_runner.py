@@ -155,6 +155,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     with psycopg.connect(os.environ["DIP_WAREHOUSE_DSN"]) as conn:
         summary = run(conn, limit=args.limit, dag_run_id=args.dag_run_id)
+    summary["spent_usd"] = round(llm.SPENT["usd"], 6)  # Claude's responses, by their usage
     print(json.dumps(summary))
     return 0
 
