@@ -75,6 +75,18 @@ from dip.storage import LocalStore, ObjectStore, S3Store
 from dip.warehouse import Warehouse
 
 
+def _model_calls(args: argparse.Namespace) -> Any:
+    """Stage 11 (S11.1): a run against the warehouse records its model calls in
+    ops.model_call there; evals (their own throwaway database) do not."""
+    from contextlib import nullcontext
+
+    from dip.agents import model_calls
+
+    if args.action in ("run", "act"):
+        return model_calls.to_warehouse(os.environ.get("DIP_WAREHOUSE_DSN"))
+    return nullcontext()
+
+
 def _store(args: argparse.Namespace) -> ObjectStore:
     if endpoint := os.environ.get("DIP_S3_ENDPOINT"):
         import boto3
@@ -707,11 +719,13 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "approvals-serve":
         return _approvals_serve(args)
     elif args.command == "triage":
-        return _triage(args)
+        with _model_calls(args):
+            return _triage(args)
     elif args.command == "approvals":
         return _approvals(args)
     elif args.command == "incident":
-        return _incident(args)
+        with _model_calls(args):
+            return _incident(args)
     elif args.command == "demo":
         from dip import demo as demo_mod
 
