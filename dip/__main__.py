@@ -49,6 +49,8 @@
                                write a named breakage of a good file (dip/breakages.py:
                                rename_column, add_column, new_code, delimiter, drop_column,
                                junk_values, inject_cell, x12_segment_lost)
+  trace CHAIN_ID               one chain's model and tool calls in time order, with totals
+                               per step (Stage 11, S11.2: ops.trace_span)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
                                read-only dip_metrics login (DIP_METRICS_DSN)
 
@@ -73,6 +75,18 @@ from dip.contracts import load_contracts
 from dip.intake import feed_of, process_landing
 from dip.storage import LocalStore, ObjectStore, S3Store
 from dip.warehouse import Warehouse
+
+
+def _trace(args: argparse.Namespace) -> int:
+    """Stage 11 (S11.2): one chain's model and tool spans, from ops.trace_span."""
+    import psycopg
+
+    from dip.agents import trace
+
+    _load_dotenv()
+    with psycopg.connect(os.environ["DIP_WAREHOUSE_DSN"]) as conn:
+        print(trace.render(args.chain_id, trace.spans(conn, args.chain_id)))
+    return 0
 
 
 def _model_calls(args: argparse.Namespace) -> Any:
@@ -654,6 +668,8 @@ def main(argv: list[str] | None = None) -> int:
     brk.add_argument("good", type=Path)
     brk.add_argument("out", type=Path)
     brk.add_argument("--arg", action="append", default=[], help="k=v, e.g. column=plan_code")
+    trc = sub.add_parser("trace")
+    trc.add_argument("chain_id")
     met = sub.add_parser("metrics-serve")
     met.add_argument("--port", type=int, default=9187)
     args = parser.parse_args(argv)
@@ -790,6 +806,8 @@ def main(argv: list[str] | None = None) -> int:
         s = SCENARIOS[args.scenario]
         print(f"wrote {args.out}: {s.describe} ({s.kind}; intake: {s.reason_code or 'n/a'})")
         return 0
+    elif args.command == "trace":
+        return _trace(args)
     elif args.command == "metrics-serve":
         from dip.metrics import serve
 

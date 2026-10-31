@@ -360,6 +360,33 @@ SELECT chain_id, run_id, step, provider, source, max(model) AS model,
 FROM ops.model_call
 GROUP BY chain_id, run_id, step, provider, source;
 
+-- Stage 11 (S11.2): one chain's trace. Tool spans from the audit log (a call ends when its
+-- row is written, `at`, and lasted `latency_ms`) and model spans from ops.model_call, under
+-- the same chain id, in time order. A view, not a pipeline (section 8.13, choice 4): an
+-- OpenTelemetry exporter could read it later without any change here. Ids, names, times,
+-- status, tokens and cost only, like the two tables it reads.
+-- CREATE OR REPLACE: the grant survives and readers are not locked out on every init
+-- (a column change later would need a DROP first).
+CREATE OR REPLACE VIEW ops.trace_span AS
+SELECT a.chain_id, a.run_id,
+       regexp_replace(regexp_replace(a.run_id, '^.*/', ''), '[@#].*$', '') AS step,
+       'tool'::text AS kind, a.tool AS name, a.principal AS actor,
+       a.at - make_interval(secs => coalesce(a.latency_ms, 0) / 1000.0) AS started_at,
+       a.at AS finished_at, coalesce(a.latency_ms, 0) AS duration_ms,
+       CASE WHEN a.decision = 'denied' THEN 'denied' ELSE coalesce(a.result_status, 'ok') END
+           AS status,
+       NULL::integer AS input_tokens, NULL::integer AS output_tokens,
+       NULL::numeric AS cost_usd, a.audit_id AS span_id
+FROM ops.audit_log a
+WHERE a.chain_id IS NOT NULL
+UNION ALL
+SELECT m.chain_id, m.run_id, m.step, 'model', coalesce(m.model, m.provider), m.provider,
+       m.started_at, m.finished_at, m.latency_ms, m.status,
+       m.input_tokens + m.cache_read_tokens + m.cache_creation_tokens, m.output_tokens,
+       m.cost_usd, m.call_id
+FROM ops.model_call m
+WHERE m.chain_id IS NOT NULL;
+
 -- Sample files for the contract-author agent (Stage 5): a new vendor's file, registered by
 -- a person (`dip contracts sample`) before any contract exists. Its raw copy is in raw/.
 CREATE TABLE IF NOT EXISTS ops.sample_file (
@@ -557,6 +584,10 @@ BEGIN
     -- (S10.1) Which provider a chain ran on, to label a proposal made on the fallback.
     IF to_regclass('ops.agent_run') IS NOT NULL THEN
         GRANT SELECT (chain_id, provider) ON ops.agent_run TO dip_approver;
+    END IF;
+    -- (S11.2) A chain's trace: the view only (ids, times, status, tokens, cost).
+    IF to_regclass('ops.trace_span') IS NOT NULL THEN
+        GRANT SELECT ON ops.trace_span TO dip_approver;
     END IF;
 END $$;
 SELECT ops.grant_approver();
