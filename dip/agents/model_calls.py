@@ -41,7 +41,10 @@ PROVIDERS = {"AnthropicLLM": "anthropic", "GeminiLLM": "gemini"}
 
 # Stage 11 (S11.3): each agent step and its prompt file. A run records the SHA-256 of the
 # system prompt as sent, which is the file's text as read (UTF-8, universal newlines), so
-# `dip agents versions` shows the hash a new run of that step will record.
+# `dip agents versions` shows the hash a new run of that step will record. Two caveats: on
+# a checkout with CRLF line ends this is not `sha256sum` of the file (CRLF is read as a
+# plain newline), and a long-running process keeps recording the prompt it loaded at import
+# until it restarts, even after the file is edited.
 PROMPTS = {
     "incident": "incident.md",
     "triage": "triage.md",
@@ -66,8 +69,11 @@ def versions() -> list[dict[str, str]]:
         cfg = tomllib.load(f)
     models = [f"{p['provider']}:{p.get('model', '?')}" for p in [cfg["primary"],
               *cfg.get("fallback", [])]]  # fmt: skip
-    if os.environ.get("DIP_LLM_MODEL"):  # the primary's model, as settings() reads it
-        models[0] = f"{cfg['primary']['provider']}:{os.environ['DIP_LLM_MODEL']}"
+    # The overrides a run applies: DIP_LLM_MODEL (settings()) and DIP_GEMINI_MODEL (gemini.py).
+    overrides = {"anthropic": "DIP_LLM_MODEL", "gemini": "DIP_GEMINI_MODEL"}
+    for i, p in enumerate([cfg["primary"], *cfg.get("fallback", [])]):
+        if os.environ.get(overrides.get(p["provider"], "")):
+            models[i] = f"{p['provider']}:{os.environ[overrides[p['provider']]]}"
     return [{"step": step, "prompt": name,
              "prompt_sha256": prompt_sha256((PROMPT_DIR / name).read_text(encoding="utf-8")),
              "models": " > ".join(models)} for step, name in PROMPTS.items()]  # fmt: skip

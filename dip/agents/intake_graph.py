@@ -81,6 +81,7 @@ class IntakeTeam:
     llm_for: Callable[[str], LLM | Failover]  # "profile" | "map"
     max_turns: int = 30
     on_step: Callable[[str, str], None] | None = None
+    on_version: Callable[[str, dict[str, str]], None] | None = None  # S11.3
 
 
 def profile_task(job: dict[str, Any]) -> str:

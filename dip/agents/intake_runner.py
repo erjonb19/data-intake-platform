@@ -19,7 +19,7 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
-from dip.agents.chain_job import _llm_for, set_versions
+from dip.agents.chain_job import _llm_for, merge_version, set_versions
 from dip.agents.llm import NoProvider, provider_names
 
 KEYS = {
@@ -68,8 +68,8 @@ def run_job(
         cur.execute(
             # A new chain, and no profile from an earlier run of the job: this run's profile
             # worker must report its own.
-            "update ops.intake_job set chain_id = %s, profile = null, review = null"
-            " where job_id = %s",
+            "update ops.intake_job set chain_id = %s, profile = null, review = null,"
+            " versions = null where job_id = %s",
             (chain_id, job["job_id"]),
         )
     conn.commit()
@@ -78,6 +78,9 @@ def run_job(
         conn=conn,
         client_for=lambda member: triage.mcp_client(url, env[KEYS[member]]),
         llm_for=_llm_for(providers),
+        on_version=lambda step, v: merge_version(
+            conn, "intake_job", "job_id", job["job_id"], step, v
+        ),  # fmt: skip
     )
     return dict(asyncio.run(intake_graph.run_intake(team, job, chain_id)))
 
