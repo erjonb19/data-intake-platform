@@ -57,6 +57,29 @@ class ApiKeyVerifier:
         return AccessToken(token=token, client_id=found, scopes=[]) if found else None
 
 
+def agent_version(raw: Any) -> dict[str, Any] | None:
+    """Stage 11 (S11.3): the client's `_agent_version`, kept only in its known shape (short
+    strings; for the intake orchestrator, a few steps of the same) so nothing else rides
+    into a payload."""
+
+    def one(v: Any) -> dict[str, str] | None:
+        if not isinstance(v, dict):
+            return None
+        out = {k: str(v[k])[:100] for k in ("provider", "model", "prompt_sha256")
+               if isinstance(v.get(k), str) and v.get(k)}  # fmt: skip
+        return out or None
+
+    base = one(raw)
+    if base is None:
+        return None
+    steps = raw.get("steps")
+    if isinstance(steps, dict):
+        kept = {str(k)[:40]: s for k, v in list(steps.items())[:10] if (s := one(v))}
+        if kept:
+            base["steps"] = kept
+    return base
+
+
 def _authenticated_policy(policies: dict[str, Policy]) -> Policy | None:
     token = get_access_token()
     return policies.get(token.client_id) if token else None
@@ -93,10 +116,19 @@ def build_server(
             return _error("not authenticated")
         args = dict(params.arguments or {})
         run_id = str(args.pop("_run_id", "") or "") or None
+        version = agent_version(args.pop("_agent_version", None))
+
+        def call() -> Any:
+            from dip.agents.approvals import AGENT_VERSION
+
+            token = AGENT_VERSION.set(version)
+            try:
+                return registry.call(policy, run_id, params.name, args)
+            finally:
+                AGENT_VERSION.reset(token)
+
         try:
-            result = await anyio.to_thread.run_sync(
-                lambda: registry.call(policy, run_id, params.name, args)
-            )
+            result = await anyio.to_thread.run_sync(call)
         except Denied as exc:
             return _error(f"denied by policy: {exc}")
         except Exception as exc:  # a tool error is a result for the model, not a crash

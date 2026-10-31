@@ -221,4 +221,15 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
         conn.commit()
         return rows
 
+    @app.get("/api/trace", dependencies=API)
+    def trace(conn: Conn, chain: str = Query(..., min_length=1, max_length=100)
+              ) -> dict[str, Any]:  # fmt: skip
+        """Stage 11 (S11.2): one chain's model and tool spans in time order, and totals
+        per step."""
+        from dip.agents import trace as tr
+
+        with unavailable():
+            spans = tr.spans(conn, chain)
+        return {"chain": chain, "spans": spans, "steps": tr.totals(spans)}
+
     return app

@@ -85,11 +85,20 @@
       <select id="f-decision"><option value="">any decision</option><option>allowed</option><option>denied</option></select>
       <label>since <input id="f-since" type="datetime-local"></label>
       <button id="f-go">Filter</button>
+      <button id="f-trace" title="Model and tool calls of the chain id above, in time order">Trace</button>
     </div>
     <div class="table-wrap"><table>
       <thead><tr><th>#</th><th>At</th><th>Principal</th><th>Tool</th><th>Tier</th><th>Decision</th><th>Result / reason</th><th>Run</th></tr></thead>
       <tbody id="audit-rows"></tbody>
     </table></div>
+    <div id="trace" hidden>
+      <h3 id="trace-title">Trace</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>+ms</th><th>ms</th><th>Kind</th><th>Step</th><th>Name</th><th>Status</th><th>Tokens in / out</th><th>Cost $</th></tr></thead>
+        <tbody id="trace-rows"></tbody>
+      </table></div>
+      <div id="trace-steps" class="muted"></div>
+    </div>
   </section>
 </main>
 <script>
@@ -124,6 +133,7 @@ $("tab-proposals").onclick = () => tab("proposals");
 $("tab-audit").onclick = () => tab("audit");
 $("status").onchange = () => loadList();
 $("f-go").onclick = () => loadAudit();
+$("f-trace").onclick = () => loadTrace();
 
 let selected = null;
 async function loadList() {
@@ -167,7 +177,7 @@ async function show(id) {
   const fields = [["Group", p.group_id || p.feed], ["Root cause", p.root_cause], ["Confidence", p.confidence],
                   ["Quarantine entries", (p.quarantine_ids || []).length || null], ["Rationale", p.rationale],
                   ["Message to the vendor", p.message],
-                  ["Reviewer (advice, not a decision)", p.review && `${p.review.verdict}${(p.review.reasons || []).length ? ": " + p.review.reasons.map(r => r.issue + ": " + r.detail).join("; ") : ""}`], ["Decided by", a.decided_by && `${a.decided_by} at ${when(a.decided_at)}`],
+                  ["Agent version", p.agent_version && (`${p.agent_version.agent || ""} · ${p.agent_version.model || "?"} · prompt ${(p.agent_version.prompt_sha256 || "").slice(0, 12)}` + (p.agent_version.steps ? " (the map worker's; every step: " + Object.entries(p.agent_version.steps).map(([k, v]) => `${k} ${v.provider || ""} ${v.model || "?"} ${(v.prompt_sha256 || "").slice(0, 12)}`).join("; ") + ")" : ""))], ["Reviewer (advice, not a decision)", p.review && `${p.review.verdict}${(p.review.reasons || []).length ? ": " + p.review.reasons.map(r => r.issue + ": " + r.detail).join("; ") : ""}`], ["Decided by", a.decided_by && `${a.decided_by} at ${when(a.decided_at)}`],
                   ["Note", a.decision_note], ["Executed by", a.executed_by && `${a.executed_by} at ${when(a.executed_at)}`]];
   for (const [k, v] of fields) if (v != null && v !== "") { const r = el("p"); r.append(el("strong", k + ": "), String(v)); r.style.margin = "4px 0"; d.append(r); }
   if (a.diff) { d.append(el("strong", "Diff against the current contract")); d.append(el("pre", a.diff)); }
@@ -216,9 +226,32 @@ async function loadAudit() {
   } catch (e) { tbody.replaceChildren(); const tr = el("tr"); const td = el("td", "error: " + e.message, "denied"); td.colSpan = 8; tr.append(td); tbody.append(tr); }
 }
 
+// Stage 11 (S11.2): one chain's model calls (ops.model_call) and tool calls (the audit
+// log) in time order, with totals per step. Every value is set as text.
+async function loadTrace() {
+  const chain = $("f-chain").value.trim(), box = $("trace"), tbody = $("trace-rows");
+  box.hidden = false; tbody.replaceChildren(); $("trace-steps").replaceChildren();
+  if (!chain) { $("trace-title").textContent = "Trace: enter a chain id first."; return; }
+  $("trace-title").textContent = "Trace of " + chain;
+  try {
+    const t = await api("/api/trace?" + new URLSearchParams({chain}));
+    const t0 = t.spans.length ? Date.parse(t.spans[0].started_at) : 0;
+    for (const s of t.spans) {
+      const tr = el("tr", null, s.kind === "model" ? "model" : "");
+      tr.append(el("td", Date.parse(s.started_at) - t0), el("td", s.duration_ms), el("td", s.kind), el("td", s.step || ""),
+                el("td", s.name), el("td", s.status, s.status === "denied" ? "denied" : ""),
+                el("td", s.kind === "model" ? `${s.input_tokens} / ${s.output_tokens}` : ""), el("td", s.cost_usd == null ? "" : s.cost_usd.toFixed(6)));
+      tbody.append(tr);
+    }
+    if (!t.spans.length) { const tr = el("tr"); const td = el("td", "No spans for this chain.", "muted"); td.colSpan = 8; tr.append(td); tbody.append(tr); }
+    for (const s of t.steps) $("trace-steps").append(el("div", `${s.step}: ${s.model_calls} model calls, ${s.tool_calls} tool calls, ${s.input_tokens} in / ${s.output_tokens} out tokens, $${s.cost_usd.toFixed(6)}, ${s.wall_ms} ms`));
+  } catch (e) { $("trace-title").textContent = "Trace: error: " + e.message; }
+}
+
 const params = new URLSearchParams(location.search);
 for (const k of ["principal", "tool", "chain"]) if (params.get(k)) $("f-" + k).value = params.get(k);
 if (params.get("tab") === "audit") tab("audit"); else loadList();
+if (params.get("tab") === "audit" && params.get("trace") && params.get("chain")) loadTrace();
 if (params.get("id")) show(Number(params.get("id")));
 </script>
 </body>
