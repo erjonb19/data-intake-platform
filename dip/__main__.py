@@ -30,6 +30,8 @@
                                triage, approval, Act and resend (DIP_EVAL_DSN; scripts/demo.sh)
   approvals list|show|approve|reject|execute [ID]
                                the human side of agent proposals (audited as human:<you>)
+                               (reject needs --reason: wrong_root_cause, wrong_action,
+                               incomplete, unsafe or other; S11.5)
   cohort list                  the cohort library (packs/healthcare/cohorts), latest versions
   cohort run NAME...           run library cohorts as the read-only cohort reader
                                (DIP_COHORT_DSN; Synthea tier only), suppressed counts as JSON
@@ -49,6 +51,19 @@
                                write a named breakage of a good file (dip/breakages.py:
                                rename_column, add_column, new_code, delimiter, drop_column,
                                junk_values, inject_cell, x12_segment_lost)
+  agents feedback              approved, rejected and expired proposals per agent, action
+                               and week, with rejection reasons (Stage 11, S11.5)
+  evals from-rejection ID [--out DIR]
+                               a rejected proposal as a candidate eval case for its agent,
+                               every value scrubbed to a synthetic one (S11.5)
+  agents versions              each agent step's prompt file, its SHA-256 (what a new run
+                               records) and the models a run uses (Stage 11, S11.3)
+  drill NAME [--undo]          break the platform on purpose, on the kind cluster only,
+                               and undo it (Stage 11: scheduler_down; dip/drills.py)
+  platform-check               the scheduler's heartbeat (and from S11.7 the pods), as
+                               platform incidents (Stage 11, S11.6; the CronJob runs it)
+  trace CHAIN_ID               one chain's model and tool calls in time order, with totals
+                               per step (Stage 11, S11.2: ops.trace_span)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
                                read-only dip_metrics login (DIP_METRICS_DSN)
 
@@ -73,6 +88,61 @@ from dip.contracts import load_contracts
 from dip.intake import feed_of, process_landing
 from dip.storage import LocalStore, ObjectStore, S3Store
 from dip.warehouse import Warehouse
+
+
+def _agents(args: argparse.Namespace) -> int:
+    from dip.agents import model_calls
+
+    if args.action == "versions":
+        for v in model_calls.versions():
+            print(f"{v['step']:11} {v['prompt']:20} {v['prompt_sha256']}  {v['models']}")
+        return 0
+    # feedback (S11.5): what people decided about each agent's proposals, by week
+    import psycopg
+
+    from dip.agents import feedback
+
+    _load_dotenv()
+    with psycopg.connect(os.environ["DIP_WAREHOUSE_DSN"]) as conn:
+        rows = feedback.feedback(conn)
+    print(f"{'agent':20} {'action':24} {'week':10} {'approved':>8} {'rejected':>8}"
+          f" {'expired':>7}  rejected because")  # fmt: skip
+    for r in rows:
+        why = ", ".join(f"{k} {r[k]}" for k in ("wrong_root_cause", "wrong_action",
+                        "incomplete", "unsafe", "other_reason") if r[k])  # fmt: skip
+        print(f"{r['agent']:20} {r['action']:24} {r['week']:%Y-%m-%d} {r['approved']:>8}"
+              f" {r['rejected']:>8} {r['expired']:>7}  {why}")  # fmt: skip
+    return 0
+
+
+def _evals(args: argparse.Namespace) -> int:
+    """S11.5: a rejected proposal as a candidate eval case, every value scrubbed."""
+    import psycopg
+
+    from dip.agents import feedback
+
+    _load_dotenv()
+    with psycopg.connect(os.environ["DIP_WAREHOUSE_DSN"]) as conn:
+        try:
+            path = feedback.from_rejection(conn, _store(args), load_contracts(),
+                                           args.approval_id, args.out)  # fmt: skip
+        except feedback.FeedbackError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 1
+    print(f"wrote {path}: check its gold and TODO fields, record it once, then commit it")
+    return 0
+
+
+def _trace(args: argparse.Namespace) -> int:
+    """Stage 11 (S11.2): one chain's model and tool spans, from ops.trace_span."""
+    import psycopg
+
+    from dip.agents import trace
+
+    _load_dotenv()
+    with psycopg.connect(os.environ["DIP_WAREHOUSE_DSN"]) as conn:
+        print(trace.render(args.chain_id, trace.spans(conn, args.chain_id)))
+    return 0
 
 
 def _model_calls(args: argparse.Namespace) -> Any:
@@ -506,9 +576,13 @@ def _approvals(args: argparse.Namespace) -> int:
     me = human_policy(f"{getpass.getuser()}@{db_user}")
     registry = build_registry(conn, _store(args), load_contracts())
     if args.action in ("approve", "reject"):
+        if args.action == "reject" and not args.reason:
+            print(f"a rejection needs --reason: one of {list(approvals.REJECT_REASONS)}",
+                  file=sys.stderr)  # fmt: skip
+            return 2
         try:
             status = approvals.decide(conn, args.approval_id, args.action == "approve",
-                                      me.agent, args.note)  # fmt: skip
+                                      me.agent, args.note, args.reason)  # fmt: skip
         except approvals.ApprovalError as exc:
             print(f"refused: {exc}", file=sys.stderr)
             return 1
@@ -627,7 +701,16 @@ def main(argv: list[str] | None = None) -> int:
     appr.add_argument("action", choices=["list", "show", "approve", "reject", "execute"])
     appr.add_argument("approval_id", type=int, nargs="?")
     appr.add_argument("--note", default="")
+    # Stage 11 (S11.5): why a proposal is rejected (approvals.REJECT_REASONS)
+    appr.add_argument("--reason", choices=["wrong_root_cause", "wrong_action", "incomplete",
+                                           "unsafe", "other"])  # fmt: skip
     appr.add_argument("--all", action="store_true", help="list every status, not only pending")
+    agt = sub.add_parser("agents")
+    agt.add_argument("action", choices=["versions", "feedback"])
+    evl = sub.add_parser("evals")
+    evl.add_argument("action", choices=["from-rejection"])
+    evl.add_argument("approval_id", type=int)
+    evl.add_argument("--out", type=Path, default=None)
     coh = sub.add_parser("cohort")
     coh.add_argument("action", choices=["list", "run", "verify-audit"])
     coh.add_argument("names", nargs="*")
@@ -654,6 +737,12 @@ def main(argv: list[str] | None = None) -> int:
     brk.add_argument("good", type=Path)
     brk.add_argument("out", type=Path)
     brk.add_argument("--arg", action="append", default=[], help="k=v, e.g. column=plan_code")
+    sub.add_parser("platform-check")
+    drl = sub.add_parser("drill")
+    drl.add_argument("name")
+    drl.add_argument("--undo", action="store_true")
+    trc = sub.add_parser("trace")
+    trc.add_argument("chain_id")
     met = sub.add_parser("metrics-serve")
     met.add_argument("--port", type=int, default=9187)
     args = parser.parse_args(argv)
@@ -790,6 +879,25 @@ def main(argv: list[str] | None = None) -> int:
         s = SCENARIOS[args.scenario]
         print(f"wrote {args.out}: {s.describe} ({s.kind}; intake: {s.reason_code or 'n/a'})")
         return 0
+    elif args.command == "trace":
+        return _trace(args)
+    elif args.command == "drill":
+        from dip import drills
+
+        try:
+            print(drills.drill(args.name, args.undo))
+        except drills.DrillError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 1
+        return 0
+    elif args.command == "platform-check":
+        from dip import platform_check
+
+        return platform_check.main()
+    elif args.command == "agents":
+        return _agents(args)
+    elif args.command == "evals":
+        return _evals(args)
     elif args.command == "metrics-serve":
         from dip.metrics import serve
 

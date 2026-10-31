@@ -24,7 +24,9 @@ def fake(results: dict[str, list[tuple]]):
 def test_every_query_has_labels_for_all_but_its_value_column():
     assert set(QUERIES) == set(LABELS)
     for name, (_, _, sql) in QUERIES.items():
-        assert sql.lower().startswith("select"), name
+        # a read: a select, or (S11.4) a select after a WITH of selects
+        assert sql.lower().startswith(("select", "with")), name
+        assert not any(w in sql.lower() for w in ("insert ", "update ", "delete ", " drop ")), name
 
 
 def test_series_are_well_formed_and_values_numeric():

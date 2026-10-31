@@ -84,8 +84,19 @@ def fake_airflow(case: dict[str, Any]) -> ReadServices:
         task = next((t for t in run["tasks"] if t["task_id"] == parts[5]), {"log": []})
         return {"content": [{"event": line} for line in task.get("log", [])]}
 
+    from dip.k8s import K8s
+
+    k8s = case.get("k8s") or {}
+
+    def kube(url: str, headers: dict[str, str]) -> Any:  # S11.6: the case's pods and events
+        return {"items": k8s.get("events" if url.endswith("/events") else "pods", [])}
+
     return ReadServices(
-        airflow_url="http://airflow.eval", airflow_user="eval", airflow_password="eval", http=http
+        airflow_url="http://airflow.eval",
+        airflow_user="eval",
+        airflow_password="eval",
+        http=http,
+        k8s=K8s(base="https://k8s.eval", http=kube),
     )
 
 
@@ -150,7 +161,7 @@ def build_world(conn: Any, store: LocalStore, case: dict[str, Any]) -> int:
     process_landing(store, Warehouse(conn), evals.eval_contracts(), evals.INGEST_AT)
     with conn.cursor() as cur:
         for inc in case.get("incidents") or []:
-            open_incident(cur, inc["feed"], inc["kind"], inc["detail"])
+            open_incident(cur, inc["feed"], inc["kind"], inc["detail"], target=inc.get("target"))
         want = case["incident"]
         cur.execute(
             "select incident_id from ops.incident where feed = %s and kind = %s"

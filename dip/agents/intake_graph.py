@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from typing import Any, TypedDict
 
 from dip.agents import triage
-from dip.agents.graph import run_step
+from dip.agents.graph import run_step, version_of
 from dip.agents.llm import LLM, PROMPT_DIR, Failover
 
 PROFILE_PROMPT = (PROMPT_DIR / "profile.md").read_text(encoding="utf-8")
@@ -68,6 +68,7 @@ class IntakeState(TypedDict, total=False):
     outcome: str  # proposed | no_change | revise | rejected | failed
     reason: str | None
     providers: dict[str, str]
+    versions: dict[str, dict[str, str]]  # step -> provider, model, prompt hash (S11.3)
 
 
 @dataclass
@@ -80,6 +81,7 @@ class IntakeTeam:
     llm_for: Callable[[str], LLM | Failover]  # "profile" | "map"
     max_turns: int = 30
     on_step: Callable[[str, str], None] | None = None
+    on_version: Callable[[str, dict[str, str]], None] | None = None  # S11.3
 
 
 def profile_task(job: dict[str, Any]) -> str:
@@ -134,8 +136,10 @@ def _summary(run: triage.TriageRun, task: str = "") -> dict[str, Any]:
     }
 
 
-async def _call(client: Any, tool: str, run_id: str, **args: Any) -> dict[str, Any]:
-    r = await client.call_tool(tool, {**args, "_run_id": run_id})
+async def _call(client: Any, tool: str, run_id: str, agent_version: dict | None = None,
+                **args: Any) -> dict[str, Any]:  # fmt: skip
+    meta = {"_run_id": run_id} | ({"_agent_version": agent_version} if agent_version else {})
+    r = await client.call_tool(tool, {**args, **meta})
     text = "\n".join(getattr(c, "text", "") for c in r.content)
     try:
         out = json.loads(text)
@@ -171,6 +175,7 @@ def build_graph(team: IntakeTeam) -> Any:
         out: dict[str, Any] = {
             "profile_run": _summary(run),
             "providers": {**state.get("providers", {}), "profile": provider},
+            "versions": {**state.get("versions", {}), "profile": version_of(run, provider)},
         }
         if not has:
             out |= {"outcome": "failed", "reason": "the profile worker reported no profile"}
@@ -203,6 +208,7 @@ def build_graph(team: IntakeTeam) -> Any:
             "attempts": attempts,
             "errors": [],
             "providers": {**state.get("providers", {}), "map": provider},
+            "versions": {**state.get("versions", {}), "map": version_of(run, provider)},
         }
         if not submitted:
             # Declining is a decision; declining after a refusal leaves a refused candidate
@@ -296,6 +302,7 @@ def build_graph(team: IntakeTeam) -> Any:
             "review": verdict,
             "review_rounds": rounds,
             "providers": {**state.get("providers", {}), "review": provider},
+            "versions": {**state.get("versions", {}), "review": version_of(run, provider)},
         }
         if verdict and not str(verdict.get("run_id") or "").startswith(run_id):
             verdict = None  # an earlier round's verdict: this round reported nothing
@@ -334,6 +341,12 @@ def build_graph(team: IntakeTeam) -> Any:
                 candidate_id=state["candidate_id"],
                 mode=job["mode"],
                 rationale="Submitted by the map worker; passed by the validator and the reviewer.",
+                # S11.3: the orchestrator is code; its proposal carries the map worker's model
+                # and prompt (it wrote the contract) and every model step's version.
+                agent_version={
+                    **state.get("versions", {}).get("map", {}),
+                    "steps": state.get("versions", {}),
+                },  # fmt: skip
             )
         if r.get("error") or not r.get("approval_id"):
             return {"outcome": "failed", "reason": f"the proposal was refused: {r}"[:2000]}
@@ -371,6 +384,7 @@ async def run_intake(
             "attempts": 0,
             "errors": [],
             "providers": {},
+            "versions": {},
             "map_runs": [],
         }
     )

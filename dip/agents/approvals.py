@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from typing import Any
@@ -53,9 +54,19 @@ def payload_sha256(payload: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
+# Stage 11 (S11.3): the model id and prompt hash of the agent run making the call, set by the
+# MCP server from the call's `_agent_version` for the length of one tool call. A proposal
+# carries it in its payload as `agent_version: {agent, model, prompt_sha256[, steps]}`,
+# written at proposal time because a payload never changes afterwards (S9.2's trigger).
+AGENT_VERSION: ContextVar[dict[str, Any] | None] = ContextVar("dip_agent_version", default=None)
+
+
 def create(conn: Any, agent_id: str, run_id: str | None, action: str, payload: dict) -> int:
     if action not in ACTIONS:
         raise ApprovalError(f"unknown action {action!r}")
+    version = AGENT_VERSION.get()
+    if version and "agent_version" not in payload:
+        payload = {**payload, "agent_version": {"agent": agent_id, **version}}
     with conn.cursor() as cur:
         cur.execute(
             "insert into ops.approvals (agent_id, run_id, action, payload, payload_sha256,"
@@ -91,9 +102,19 @@ def _get(conn: Any, approval_id: int, lock: bool = False) -> dict[str, Any]:
     return dict(zip(keys, row, strict=True))
 
 
-def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "") -> str:
+# Stage 11 (S11.5): why a person rejects a proposal (ops.approvals.decision_reason).
+REJECT_REASONS = ("wrong_root_cause", "wrong_action", "incomplete", "unsafe", "other")
+
+
+def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "",
+           reason: str | None = None) -> str:  # fmt: skip
     """Approve or reject a pending proposal. An approval records the hash of the payload the
-    person approved, so the row that runs must still be that payload."""
+    person approved, so the row that runs must still be that payload. A rejection records
+    why, from REJECT_REASONS (S11.5; the CLI and the approvals page ask for one)."""
+    if approve and reason:
+        raise ApprovalError("a reason is for a rejection")
+    if reason is not None and reason not in REJECT_REASONS:
+        raise ApprovalError(f"reason must be one of {list(REJECT_REASONS)}")
     a = _get(conn, approval_id, lock=True)
     if a["status"] != "pending":
         conn.rollback()
@@ -104,12 +125,14 @@ def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "") 
     with conn.cursor() as cur:
         cur.execute(
             "update ops.approvals set status = %s, decided_by = %s, decided_at = now(),"
-            " decision_note = %s, approved_sha256 = %s where approval_id = %s",
+            " decision_note = %s, approved_sha256 = %s, decision_reason = %s"
+            " where approval_id = %s",
             (
                 status,
                 by,
                 note,
                 payload_sha256(a["payload"]) if status == "approved" else None,
+                reason if status == "rejected" else None,
                 approval_id,
             ),  # fmt: skip
         )

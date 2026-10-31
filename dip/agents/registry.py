@@ -190,9 +190,12 @@ class Registry:
         result_sha = None if result is None else args_sha256({"result": result})
         with self.conn.cursor() as cur:
             cur.execute(
-                "insert into ops.audit_log (principal, run_id, tool, tier, args_sha256,"
+                # `at` is when the row is written (clock_timestamp), not when the
+                # connection's transaction began (now()): a trace's tool span ends here.
+                "insert into ops.audit_log (at, principal, run_id, tool, tier, args_sha256,"
                 " decision, reason, result_status, latency_ms, result_sha256, approval_id,"
-                " chain_id) values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                " chain_id) values (clock_timestamp(), %s, %s, %s, %s, %s, %s, %s, %s, %s,"
+                " %s, %s, %s)",
                 (
                     principal,
                     run_id,

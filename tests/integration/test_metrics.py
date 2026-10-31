@@ -100,3 +100,60 @@ def test_the_login_is_read_only(scraped):
 
     with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
         runner("create temp table t (x int)")
+
+
+def test_the_agents_metrics(scraped, module_warehouse):
+    """Stage 11 (S11.4): agent runs, fallback, decisions, spend and latency, from seeded
+    rows, scraped as dip_metrics (whose grants cover exactly these columns)."""
+    from datetime import timedelta
+
+    from dip.agents import approvals, model_calls
+
+    runner, _ = scraped
+    wh = module_warehouse
+    now = datetime.now(UTC)
+
+    def call(run_id, provider="anthropic", status="ok", cost=0.01, ms=1000, source="live",
+             later=0):  # fmt: skip
+        r = {c: None for c in model_calls.COLUMNS}
+        r.update(chain_id=run_id.rpartition("/")[0], run_id=run_id,
+                 step=model_calls.step_of(run_id), provider=provider, source=source,
+                 model="m", prompt_sha256="0" * 64, turn=1, status=status, input_tokens=1,
+                 output_tokens=1, cache_read_tokens=0, cache_creation_tokens=0, cost_usd=cost,
+                 started_at=now + timedelta(seconds=later), latency_ms=ms)  # fmt: skip
+        r["finished_at"] = now + timedelta(milliseconds=ms)
+        return r
+
+    sink = model_calls.WarehouseSink(DSN)
+    for r in (call("c1/triage"), call("c1/triage", ms=3000), call("c2/triage", status="error: X"),
+              # a real restart: Claude failed (overloaded), then Gemini answered
+              call("c3/map", status="error: APIStatusError"),
+              call("c3/map@gemini", provider="gemini", cost=0, later=2),
+              call("c5/map"),
+              call("c4/map", source="recorded", cost=5.0)):  # fmt: skip
+        sink(r)
+    sink.close()
+    a = approvals.create(wh.conn, "triage", "c1/triage", "discard", {"group_id": "g1"})
+    approvals.decide(wh.conn, a, False, "human:tester")
+    with wh.conn.cursor() as cur:
+        cur.execute("insert into ops.intake_job (feed, mode, file_sha256, source, status)"
+                    " values ('finance.x', 'onboard', %s, 'landing', 'failed')",
+                    ("f" * 64,))  # fmt: skip
+    wh.conn.commit()
+    text = render(runner)
+    for line in (
+        'dip_agent_runs_24h{agent="triage",status="ok"} 1.0',
+        'dip_agent_runs_24h{agent="triage",status="failed"} 1.0',
+        'dip_agent_runs_24h{agent="map",status="ok"} 2.0',  # c3 (its restart won) and c5
+        'dip_agent_runs_24h{agent="intake_team",status="failed"} 1.0',
+        'dip_agent_fallback_runs_24h{agent="map"} 1.0',
+        'dip_approvals_decided_7d{agent="triage",decision="rejected"} 1.0',
+        # five live calls at $0.01; the replayed recording's $5 is not spend
+        'dip_model_spend_usd_today{provider="anthropic"} 0.05',
+        'dip_model_calls_24h{agent="triage",provider="anthropic"} 3.0',
+        'dip_model_latency_p95_seconds_24h{agent="triage"} 2.8',
+    ):
+        assert line in text, line
+    assert 'dip_metrics_query_ok{query="dip_agent_runs_24h"} 1' in text
+    # the restart is one run that ended ok on the fallback, not a failure
+    assert 'dip_agent_runs_24h{agent="map",status="failed"}' not in text

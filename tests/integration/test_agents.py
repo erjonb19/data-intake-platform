@@ -243,8 +243,10 @@ def test_mcp_server_requires_a_key_and_enforces_the_policy(setup, tmp_path):
 
 
 ALL_CASES = [(evals.CASES, c) for c in evals.load_cases()] + [
-    (evals.CASES.parent / "holdout.yaml", c)
-    for c in evals.load_cases(evals.CASES.parent / "holdout.yaml")
+    (evals.CASES.parent / name, c)
+    # holdout, and (Stage 11, S11.5) the cases made from rejected proposals
+    for name in ("holdout.yaml", "from_rejections.yaml")
+    for c in evals.load_cases(evals.CASES.parent / name)
 ]
 
 

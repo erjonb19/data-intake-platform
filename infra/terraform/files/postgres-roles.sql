@@ -81,3 +81,20 @@ ALTER ROLE dip_approver WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICA
 ALTER ROLE dip_approver SET statement_timeout = '15s';
 ALTER ROLE dip_approver SET idle_in_transaction_session_timeout = '60s';
 ALTER ROLE dip_approver SET search_path = ops;
+
+-- The platform check's login (Stage 11, S11.6; dip/platform_check.py, a CronJob in
+-- dip-airflow). It opens and closes platform incidents and records what it saw: insert and
+-- update on ops.incident (the decision columns only) and insert on ops.platform_check, by
+-- ops.grant_platform_check() (dip/sql/warehouse.sql). Nothing else.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_platform_check') THEN
+        CREATE ROLE dip_platform_check LOGIN;
+    END IF;
+END
+$$;
+ALTER ROLE dip_platform_check WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+    NOBYPASSRLS NOINHERIT CONNECTION LIMIT 3;
+ALTER ROLE dip_platform_check SET statement_timeout = '15s';
+ALTER ROLE dip_platform_check SET idle_in_transaction_session_timeout = '60s';
+ALTER ROLE dip_platform_check SET search_path = ops;

@@ -12,6 +12,15 @@ codes and test names, all from contracts and the dbt project), so the series sta
   dip_dq_test_status{test_name,dq_category,status}  1 for each test's latest result
   dip_dq_test_failures{test_name}              failing rows in that latest result
   dip_incidents_open{feed,kind}                open incidents (FEED.LATE)
+  dip_agent_runs_24h{agent,status}             agent runs, last 24 h (Stage 11, S11.4): a
+                                               model step's (ok / failed) or a chain's
+  dip_agent_fallback_runs_24h{agent}           step runs answered by the free fallback
+  dip_approvals_decided_7d{agent,decision}     proposals approved, rejected or expired
+  dip_model_spend_usd_today{provider}          metered spend today (UTC), live calls
+  dip_model_calls_24h{agent,provider}          live model calls, last 24 h
+  dip_model_latency_p95_seconds_24h{agent}     p95 model call latency, last 24 h
+  dip_airflow_scheduler_heartbeat_age_seconds  the scheduler's last heartbeat, as the
+                                               platform check saw it (S11.6)
   dip_metrics_query_ok{query}                  1, or 0 when a query failed (a table not
                                                created yet, a missing grant)
 
@@ -27,6 +36,20 @@ import os
 from collections.abc import Callable, Iterable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
+
+# Stage 11 (S11.4): a model step's logical runs (an attempt and its restarts on the
+# fallback, `<run id>@<provider>`), live calls of the last 24 hours. An attempt failed if a
+# call in it errored (a failed call ends the attempt); the run failed if its last attempt
+# did, and ran on the fallback if any attempt was answered by Gemini.
+STEP_RUNS = (
+    "attempts as (select step, split_part(run_id, '@', 1) as run, bool_or(status <> 'ok')"
+    " as failed, bool_or(provider = 'gemini') as gemini, min(started_at) as t, run_id"
+    " from ops.model_call where source = 'live' and step is not null"
+    " and started_at > now() - interval '24 hours' group by step, run_id),"
+    # on a tie in time, `<run>@<provider>` (the restart) sorts after `<run>`
+    " step_runs as (select step, (array_agg(failed order by t desc, run_id desc))[1] as failed,"
+    " bool_or(gemini) as on_fallback from attempts group by step, run)"
+)
 
 # name -> (help, type, sql). Each query returns label columns then one value column.
 QUERIES: dict[str, tuple[str, str, str]] = {
@@ -81,6 +104,70 @@ QUERIES: dict[str, tuple[str, str, str]] = {
         "gauge",
         "select feed, kind, count(*) from ops.incident where closed_at is null group by 1, 2",
     ),
+    # Stage 11 (S11.4): the agents. `agent` is a model step (incident, triage, profile, map,
+    # review: its runs from ops.model_call, live calls only) or a whole chain (incident_chain
+    # from ops.agent_run, intake_team from ops.intake_job, by their own finished statuses;
+    # running, queued and skipped are not outcomes yet). A step's run is one logical run with
+    # its restarts on the fallback (`<run id>@gemini`): it failed if its last attempt did, and
+    # it ran on the fallback if any attempt was answered by Gemini. Labels come from fixed
+    # lists, never free text.
+    "dip_agent_runs_24h": (
+        "Agent runs started in the last 24 hours, by agent and outcome.",
+        "gauge",
+        f"with {STEP_RUNS} select agent, status, count(*) from ("
+        " select step as agent, case when failed then 'failed' else 'ok' end as status"
+        " from step_runs"
+        " union all select 'incident_chain', status from ops.agent_run"
+        " where started_at > now() - interval '24 hours'"
+        " and status not in ('running', 'skipped')"
+        " union all select 'intake_team', status from ops.intake_job"
+        " where created_at > now() - interval '24 hours'"
+        " and status not in ('queued', 'running')) runs group by 1, 2",
+    ),
+    "dip_agent_fallback_runs_24h": (
+        "Agent step runs in the last 24 hours answered by the free fallback provider.",
+        "gauge",
+        f"with {STEP_RUNS} select step, count(*) from step_runs where on_fallback group by 1",
+    ),
+    "dip_approvals_decided_7d": (
+        "Proposals decided (or expired) in the last 7 days, by agent and decision.",
+        "gauge",
+        # executed and failed (an execution that failed) were both approved by a person
+        "select agent_id, case when status in ('executed', 'failed') then 'approved'"
+        " else status end,"
+        " count(*) from ops.approvals where status in ('approved', 'executed', 'rejected',"
+        " 'expired', 'failed') and coalesce(decided_at, expires_at) > now() - interval '7 days'"
+        " group by 1, 2",
+    ),
+    "dip_model_spend_usd_today": (
+        "Metered model spend today (UTC), live calls, by provider (dip.agents.llm.cost_usd).",
+        "gauge",
+        "select provider, sum(cost_usd) from ops.model_call where source = 'live'"
+        " and started_at >= date_trunc('day', now() at time zone 'UTC') at time zone 'UTC'"
+        " group by 1",
+    ),
+    "dip_model_calls_24h": (
+        "Live model calls in the last 24 hours, by agent step and provider.",
+        "gauge",
+        "select step, provider, count(*) from ops.model_call where source = 'live'"
+        " and step is not null and started_at > now() - interval '24 hours' group by 1, 2",
+    ),
+    "dip_model_latency_p95_seconds_24h": (
+        "95th percentile latency of live model calls in the last 24 hours, by agent step.",
+        "gauge",
+        "select step, percentile_cont(0.95) within group (order by latency_ms) / 1000.0"
+        " from ops.model_call where source = 'live' and step is not null"
+        " and started_at > now() - interval '24 hours' group by 1",
+    ),
+    # Stage 11 (S11.6): the scheduler's heartbeat as the platform check last saw it, aged
+    # to now (it keeps growing while the scheduler, or the check itself, is down).
+    "dip_airflow_scheduler_heartbeat_age_seconds": (
+        "Seconds since the Airflow scheduler's last heartbeat seen by the platform check.",
+        "gauge",
+        "select extract(epoch from now() - observed) from ops.platform_check"
+        " where check_name = 'scheduler_heartbeat' and observed is not null"
+        " order by at desc limit 1",
+    ),
 }
 LABELS: dict[str, tuple[str, ...]] = {
     "dip_intake_files": ("feed", "status"),
@@ -91,6 +178,13 @@ LABELS: dict[str, tuple[str, ...]] = {
     "dip_dq_test_status": ("test_name", "dq_category", "status"),
     "dip_dq_test_failures": ("test_name",),
     "dip_incidents_open": ("feed", "kind"),
+    "dip_agent_runs_24h": ("agent", "status"),
+    "dip_agent_fallback_runs_24h": ("agent",),
+    "dip_approvals_decided_7d": ("agent", "decision"),
+    "dip_model_spend_usd_today": ("provider",),
+    "dip_model_calls_24h": ("agent", "provider"),
+    "dip_model_latency_p95_seconds_24h": ("agent",),
+    "dip_airflow_scheduler_heartbeat_age_seconds": (),
 }
 
 
