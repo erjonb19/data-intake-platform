@@ -5,6 +5,10 @@ as spans in time order, from the `ops.trace_span` view, with totals per step.
 
 The approvals page shows the same (its audit tab, `/api/trace?chain=`). Ids, names, times,
 status, tokens and cost only: the view reads nothing else.
+
+Model spans are timed by the agent's process and tool spans by the database (each audit
+row's insert time, `clock_timestamp()`). On one machine or one kind node they share a
+clock; across hosts whose clocks differ, spans close together can show out of order.
 """
 
 from __future__ import annotations
@@ -19,9 +23,9 @@ def spans(conn: Any, chain_id: str) -> list[dict[str, Any]]:
     with conn.cursor() as cur:
         cur.execute(
             f"select {', '.join(COLUMNS)} from ops.trace_span where chain_id = %s"
-            # a tool call made during a model turn cannot start before it, so on a tie the
-            # model span comes first
-            " order by started_at, kind desc, span_id",
+            # on a tie the model span comes first ('model' < 'tool'): the agent asks the
+            # model before it calls the tool the model chose
+            " order by started_at, kind, span_id",
             (chain_id,),
         )
         out = [dict(zip(COLUMNS, r, strict=True)) for r in cur.fetchall()]

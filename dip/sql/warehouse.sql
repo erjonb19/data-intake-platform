@@ -365,8 +365,9 @@ GROUP BY chain_id, run_id, step, provider, source;
 -- the same chain id, in time order. A view, not a pipeline (section 8.13, choice 4): an
 -- OpenTelemetry exporter could read it later without any change here. Ids, names, times,
 -- status, tokens and cost only, like the two tables it reads.
-DROP VIEW IF EXISTS ops.trace_span;
-CREATE VIEW ops.trace_span AS
+-- CREATE OR REPLACE: the grant survives and readers are not locked out on every init
+-- (a column change later would need a DROP first).
+CREATE OR REPLACE VIEW ops.trace_span AS
 SELECT a.chain_id, a.run_id,
        regexp_replace(regexp_replace(a.run_id, '^.*/', ''), '[@#].*$', '') AS step,
        'tool'::text AS kind, a.tool AS name, a.principal AS actor,
