@@ -119,6 +119,12 @@ BEGIN
                    AND table_name = 'agent_run' AND column_name = 'provider') THEN
         ALTER TABLE ops.agent_run ADD COLUMN provider text;
     END IF;
+    -- (Stage 11, S11.3) Each step's provider, model id and prompt SHA-256, e.g.
+    -- {"incident": {"provider": "anthropic", "model": "...", "prompt_sha256": "..."}}.
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'agent_run' AND column_name = 'versions') THEN
+        ALTER TABLE ops.agent_run ADD COLUMN versions jsonb;
+    END IF;
 END $$;
 CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     diagnosis_id    bigserial   PRIMARY KEY,
@@ -209,6 +215,16 @@ CREATE TABLE IF NOT EXISTS ops.approvals (
     result            jsonb
 );
 ALTER TABLE ops.approvals ADD COLUMN IF NOT EXISTS approved_sha256 text;
+-- Stage 11 (S11.5): why a person rejected a proposal, from a fixed list (the note says the
+-- rest). Frozen with the rest of the decision by the trigger below.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'approvals' AND column_name = 'decision_reason') THEN
+        ALTER TABLE ops.approvals ADD COLUMN decision_reason text CHECK (decision_reason IN
+            ('wrong_root_cause', 'wrong_action', 'incomplete', 'unsafe', 'other'));
+    END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS approvals_status_idx ON ops.approvals (status, created_at);
 -- What was proposed cannot change afterwards; only the decision and execution columns can.
 CREATE OR REPLACE FUNCTION ops.approvals_payload_fixed() RETURNS trigger
@@ -244,7 +260,8 @@ BEGIN
     -- note stay too, and an approved hash is set only by the approval itself.
     IF (OLD.decided_by IS NOT NULL AND (NEW.decided_by IS DISTINCT FROM OLD.decided_by
                                         OR NEW.decided_at IS DISTINCT FROM OLD.decided_at
-                                        OR NEW.decision_note IS DISTINCT FROM OLD.decision_note))
+                                        OR NEW.decision_note IS DISTINCT FROM OLD.decision_note
+                                        OR NEW.decision_reason IS DISTINCT FROM OLD.decision_reason))
         OR (NEW.approved_sha256 IS DISTINCT FROM OLD.approved_sha256
             AND NOT (OLD.status = 'pending' AND NEW.status = 'approved'))
         OR (OLD.executed_by IS NOT NULL AND NEW.executed_by IS DISTINCT FROM OLD.executed_by)
@@ -360,6 +377,53 @@ SELECT chain_id, run_id, step, provider, source, max(model) AS model,
 FROM ops.model_call
 GROUP BY chain_id, run_id, step, provider, source;
 
+-- Stage 11 (S11.5): feedback. Each agent's proposals by action and week (of the decision,
+-- or of the expiry), with what people decided and why they rejected: the rate panel on the
+-- Agents dashboard and the trend `dip agents feedback` prints.
+CREATE OR REPLACE VIEW ops.agent_feedback AS
+SELECT agent_id AS agent, action,
+       date_trunc('week', coalesce(decided_at, expires_at)) AS week,
+       count(*) FILTER (WHERE status IN ('approved', 'executed', 'failed')) AS approved,
+       count(*) FILTER (WHERE status = 'rejected') AS rejected,
+       -- a pending row past its expiry expired unseen (nothing marks it until a person
+       -- or `dip approvals` touches it)
+       count(*) FILTER (WHERE status = 'expired' OR status = 'pending') AS expired,
+       count(*) FILTER (WHERE decision_reason = 'wrong_root_cause') AS wrong_root_cause,
+       count(*) FILTER (WHERE decision_reason = 'wrong_action') AS wrong_action,
+       count(*) FILTER (WHERE decision_reason = 'incomplete') AS incomplete,
+       count(*) FILTER (WHERE decision_reason = 'unsafe') AS unsafe,
+       count(*) FILTER (WHERE decision_reason = 'other') AS other_reason
+FROM ops.approvals
+WHERE status <> 'pending' OR expires_at < now()
+GROUP BY 1, 2, 3;
+
+-- Stage 11 (S11.2): one chain's trace. Tool spans from the audit log (a call ends when its
+-- row is written, `at`, and lasted `latency_ms`) and model spans from ops.model_call, under
+-- the same chain id, in time order. A view, not a pipeline (section 8.13, choice 4): an
+-- OpenTelemetry exporter could read it later without any change here. Ids, names, times,
+-- status, tokens and cost only, like the two tables it reads.
+-- CREATE OR REPLACE: the grant survives and readers are not locked out on every init
+-- (a column change later would need a DROP first).
+CREATE OR REPLACE VIEW ops.trace_span AS
+SELECT a.chain_id, a.run_id,
+       regexp_replace(regexp_replace(a.run_id, '^.*/', ''), '[@#].*$', '') AS step,
+       'tool'::text AS kind, a.tool AS name, a.principal AS actor,
+       a.at - make_interval(secs => coalesce(a.latency_ms, 0) / 1000.0) AS started_at,
+       a.at AS finished_at, coalesce(a.latency_ms, 0) AS duration_ms,
+       CASE WHEN a.decision = 'denied' THEN 'denied' ELSE coalesce(a.result_status, 'ok') END
+           AS status,
+       NULL::integer AS input_tokens, NULL::integer AS output_tokens,
+       NULL::numeric AS cost_usd, a.audit_id AS span_id
+FROM ops.audit_log a
+WHERE a.chain_id IS NOT NULL
+UNION ALL
+SELECT m.chain_id, m.run_id, m.step, 'model', coalesce(m.model, m.provider), m.provider,
+       m.started_at, m.finished_at, m.latency_ms, m.status,
+       m.input_tokens + m.cache_read_tokens + m.cache_creation_tokens, m.output_tokens,
+       m.cost_usd, m.call_id
+FROM ops.model_call m
+WHERE m.chain_id IS NOT NULL;
+
 -- Sample files for the contract-author agent (Stage 5): a new vendor's file, registered by
 -- a person (`dip contracts sample`) before any contract exists. Its raw copy is in raw/.
 CREATE TABLE IF NOT EXISTS ops.sample_file (
@@ -407,6 +471,11 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
                    AND table_name = 'intake_job' AND column_name = 'profile') THEN
         ALTER TABLE ops.intake_job ADD COLUMN profile jsonb, ADD COLUMN review jsonb;
+    END IF;
+    -- (Stage 11, S11.3) Each model step's provider, model id and prompt SHA-256.
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'intake_job' AND column_name = 'versions') THEN
+        ALTER TABLE ops.intake_job ADD COLUMN versions jsonb;
     END IF;
 END $$;
 
@@ -458,6 +527,20 @@ BEGIN
     END IF;
     IF to_regclass('ops.incident') IS NOT NULL THEN
         GRANT SELECT (feed, kind, closed_at) ON ops.incident TO dip_metrics;
+    END IF;
+    -- Stage 11 (S11.4): the agents' runs, model calls and decisions; counts and times only.
+    IF to_regclass('ops.model_call') IS NOT NULL THEN
+        GRANT SELECT (step, run_id, provider, source, status, cost_usd, latency_ms, started_at)
+            ON ops.model_call TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.agent_run') IS NOT NULL THEN
+        GRANT SELECT (status, started_at) ON ops.agent_run TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.intake_job') IS NOT NULL THEN
+        GRANT SELECT (status, created_at) ON ops.intake_job TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.approvals') IS NOT NULL THEN
+        GRANT SELECT (agent_id, status, decided_at, expires_at) ON ops.approvals TO dip_metrics;
     END IF;
 END $$;
 SELECT ops.grant_metrics_reader();
@@ -549,6 +632,10 @@ BEGIN
         GRANT SELECT ON ops.approvals TO dip_approver;
         GRANT UPDATE (status, decided_by, decided_at, decision_note, approved_sha256)
             ON ops.approvals TO dip_approver;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'approvals' AND column_name = 'decision_reason') THEN
+            GRANT UPDATE (decision_reason) ON ops.approvals TO dip_approver;
+        END IF;
     END IF;
     IF to_regclass('ops.audit_log') IS NOT NULL THEN
         GRANT SELECT, INSERT ON ops.audit_log TO dip_approver;
@@ -557,6 +644,10 @@ BEGIN
     -- (S10.1) Which provider a chain ran on, to label a proposal made on the fallback.
     IF to_regclass('ops.agent_run') IS NOT NULL THEN
         GRANT SELECT (chain_id, provider) ON ops.agent_run TO dip_approver;
+    END IF;
+    -- (S11.2) A chain's trace: the view only (ids, times, status, tokens, cost).
+    IF to_regclass('ops.trace_span') IS NOT NULL THEN
+        GRANT SELECT ON ops.trace_span TO dip_approver;
     END IF;
 END $$;
 SELECT ops.grant_approver();

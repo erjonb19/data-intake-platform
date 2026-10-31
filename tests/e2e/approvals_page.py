@@ -66,7 +66,10 @@ def main() -> int:
             f"show #{aid}: a person decided, triage ran it",
         )
         status, body = call(
-            "POST", f"/api/approvals/{aid}/decision", {"decision": "reject"}, {"X-Reviewer": "e2e"}
+            "POST",
+            f"/api/approvals/{aid}/decision",
+            {"decision": "reject", "reason": "other"},
+            {"X-Reviewer": "e2e"},
         )
         check(status == 409 and "not pending" in body, f"deciding an executed row: {status}")
     status, denied = call("GET", "/api/audit?decision=denied&tool=execute_approved_operation")
@@ -79,6 +82,14 @@ def main() -> int:
         status == 200 and any(r["principal"] == "human:e2e@dip_approver" for r in refused),
         "the page's refused decision is audited as dip_approver",
     )
+    # Stage 11 (S11.2): a chain's trace. intake_jobs.py ran the validator's check_dbt_models
+    # under the chain e2e-dbt (run id e2e-dbt/validate), so its tool span is there.
+    status, t = call("GET", "/api/trace?chain=e2e-dbt")
+    check(
+        status == 200 and any(s["kind"] == "tool" and s["name"] == "check_dbt_models"
+                              for s in t.get("spans", [])),
+        f"a chain's trace: {status} {str(t)[:200]}",
+    )  # fmt: skip
     status, _ = call("GET", "/api/approvals", headers={"Authorization": "Bearer wrong"})
     check(status == 401, f"a wrong token is refused ({status})")
     status, _ = call("GET", "/api/approvals", headers={"Host": "evil.example:8081"})

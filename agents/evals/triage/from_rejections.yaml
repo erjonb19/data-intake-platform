@@ -1,0 +1,24 @@
+# Triage cases made from rejected proposals (Stage 11, S11.5): `dip evals from-rejection`
+# wrote each as a candidate from a person's rejection, every cell scrubbed to a synthetic
+# value, and a person finished its gold (the format is cases.yaml's). Recorded live once;
+# CI replays them with the rest.
+cases:
+  - name: from_rejection_sex_codes
+    # A person rejected `discard` for these rows (wrong_action: "resend, do not discard").
+    feed: healthcare.eligibility
+    files:
+      elig_20261020.csv: |
+        member_id,first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref
+        M291417776,Zgdpa,Mntyyawoix,1941-01-18,F,HMO,2016-07-08,,
+        M150008063,Nxaq,Hyoprhlhv,1939-04-05,Y,PPO,2010-08-14,,
+        M406812415,Xwqnqv,Gjjspqmsbph,1972-07-17,N,EPO,2019-10-27,,
+    gold:
+      "VALUE.NOT_ALLOWED:sex":
+        {root_cause: invalid_values, acceptable: [request_resend], preferred: request_resend}
+      # 2 bad rows of 3 is over the contract's 5%: the file is rejected whole too.
+      "FILE.BAD_ROW_RATIO":
+        {root_cause: invalid_values, acceptable: [request_resend], preferred: request_resend}
+    from_rejection:
+      rejected_action: discard
+      reason: wrong_action
+      note: resend, do not discard

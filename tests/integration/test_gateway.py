@@ -94,7 +94,7 @@ def test_approve_records_the_person_and_audits_it(page, warehouse):
 
 def test_reject_then_execute_is_refused(page, warehouse, tmp_path):
     a = _propose(warehouse)
-    assert _decide(page, a, "reject").json()["status"] == "rejected"
+    assert _decide(page, a, "reject", reason="wrong_action").json()["status"] == "rejected"
     with pytest.raises(approvals.ApprovalError, match="is rejected, not approved"):
         approvals.execute(warehouse.conn, LocalStore(tmp_path), a, "human:bob@warehouse")
     # a second decision is refused, and the refusal is audited
@@ -170,7 +170,7 @@ def test_a_decision_record_cannot_be_rewritten(page, warehouse):
     a = _propose(warehouse)
     b = _propose(warehouse, action="request_resend")
     assert _decide(page, a, "approve", note="ok").status_code == 200
-    assert _decide(page, b, "reject").status_code == 200
+    assert _decide(page, b, "reject", reason="other").status_code == 200
     edits = [
         ("update ops.approvals set decision_note = 'edited' where approval_id = %s", a),
         ("update ops.approvals set decided_at = now() where approval_id = %s", a),
@@ -223,3 +223,40 @@ def test_the_audit_log_filters_by_chain(page, warehouse):
               "ok", 3)  # fmt: skip
     got = page.get("/api/audit", params={"chain": "intake-x"}).json()
     assert [r["principal"] for r in got] == ["profile"]
+
+
+def test_a_chains_trace(page, warehouse):
+    """Stage 11 (S11.2): /api/trace gives one chain's model and tool spans in time order,
+    with totals per step; the approver login reads it through the view only."""
+    from datetime import UTC, datetime, timedelta
+
+    from dip.agents import model_calls
+    from dip.agents.registry import Registry
+
+    t0 = datetime.now(UTC) - timedelta(seconds=10)
+    r = {c: None for c in model_calls.COLUMNS}
+    r.update(chain_id="chain-t1", run_id="chain-t1/incident", step="incident",
+             provider="anthropic", source="live", model="claude-haiku-5-5",
+             prompt_sha256="0" * 64, turn=1, status="ok", stop_reason="tool_use",
+             input_tokens=100, output_tokens=20, cache_read_tokens=0, cache_creation_tokens=0,
+             cost_usd=0.00002, started_at=t0, finished_at=t0 + timedelta(seconds=1),
+             latency_ms=1000)  # fmt: skip
+    sink = model_calls.WarehouseSink(DSN)
+    sink(r)
+    sink.close()
+    Registry(warehouse.conn).audit("incident", "chain-t1/incident", "get_incident", "read", {},
+                                   "allowed", None, "ok", 3)  # fmt: skip
+    Registry(warehouse.conn).audit("triage", "other/triage", "list_quarantine_groups", "read",
+                                   {}, "allowed", None, "ok", 3)  # fmt: skip
+    got = page.get("/api/trace", params={"chain": "chain-t1"}).json()
+    assert [(s["kind"], s["name"]) for s in got["spans"]] == [
+        ("model", "claude-haiku-5-5"), ("tool", "get_incident")]  # fmt: skip
+    [step] = got["steps"]
+    assert (step["step"], step["model_calls"], step["tool_calls"]) == ("incident", 1, 1)
+    assert step["cost_usd"] == pytest.approx(0.00002)
+    assert page.get("/api/trace").status_code == 422  # a chain id is required
+    assert page.get("/api/trace", params={"chain": "x"},
+                    headers={"Authorization": "Bearer wrong"}).status_code == 401  # fmt: skip
+    with approver_conn() as conn, conn.cursor() as cur:  # the view, never the tables
+        cur.execute("select has_table_privilege('dip_approver', 'ops.model_call', 'select')")
+        assert cur.fetchone() == (False,)

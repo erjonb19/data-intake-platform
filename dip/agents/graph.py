@@ -65,6 +65,7 @@ class ChainState(TypedDict, total=False):
     handoff_refused: str | None
     triage_run: dict[str, Any] | None
     providers: dict[str, str]  # step -> the provider that answered (Stage 10, S10.1)
+    versions: dict[str, dict[str, str]]  # step -> provider, model, prompt hash (S11.3)
 
 
 def incident_task(incident_id: int) -> str:
@@ -200,6 +201,13 @@ class Chain:
     # agent_chain job records it on ops.agent_run at once, so a proposal made on the
     # fallback is labelled even while the chain runs on, or if it later fails.
     on_step: Callable[[str, str], None] | None = None
+    # S11.3: the same moment, with the step's provider, model and prompt hash.
+    on_version: Callable[[str, dict[str, str]], None] | None = None
+
+
+def version_of(run: triage.TriageRun, provider: str) -> dict[str, str]:
+    """Stage 11 (S11.3): what made a step's choices: its provider, model and prompt hash."""
+    return {"provider": provider, **run.version}
 
 
 def provider_of(llm: Any) -> str:
@@ -241,6 +249,8 @@ async def run_step(chain: Chain, step: str, run_id: str, body: Callable[[Any, st
         out, provider = await body(llm, run_id), provider_of(llm)
     if chain.on_step:
         chain.on_step(step, provider)
+    if getattr(chain, "on_version", None) and isinstance(out, triage.TriageRun):
+        chain.on_version(step, version_of(out, provider))
     return out, provider
 
 
@@ -263,6 +273,7 @@ def build_graph(chain: Chain) -> Any:
             "incident_run": _summary(run),
             "diagnosis": _diagnosis(chain.conn, run.run_id),
             "providers": {**state.get("providers", {}), "incident": provider},
+            "versions": {**state.get("versions", {}), "incident": version_of(run, provider)},
         }
 
     def route_after_incident(state: ChainState) -> str:
@@ -310,6 +321,7 @@ def build_graph(chain: Chain) -> Any:
         return {
             "triage_run": _summary(run),
             "providers": {**state.get("providers", {}), "triage": provider},
+            "versions": {**state.get("versions", {}), "triage": version_of(run, provider)},
         }
 
     g = StateGraph(ChainState)
@@ -334,5 +346,6 @@ async def run_chain(chain: Chain, incident_id: int, chain_id: str | None = None)
             "handoff_refused": None,
             "triage_run": None,
             "providers": {},
+            "versions": {},
         }
     )

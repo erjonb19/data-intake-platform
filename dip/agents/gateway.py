@@ -47,7 +47,8 @@ STATUSES = ("pending", "approved", "rejected", "expired", "executed", "failed")
 STATUS_PATTERN = f"^(all|{'|'.join(STATUSES)})$"
 DETAIL = ("approval_id", "created_at", "agent_id", "run_id", "action", "payload",
           "payload_sha256", "status", "expires_at", "decided_by", "decided_at",
-          "decision_note", "approved_sha256", "executed_by", "executed_at", "result")  # fmt: skip
+          "decision_note", "approved_sha256", "executed_by", "executed_at", "result",
+          "decision_reason")  # fmt: skip
 AUDIT = ("audit_id", "at", "principal", "run_id", "tool", "tier", "decision", "reason",
          "result_status", "latency_ms")  # fmt: skip
 
@@ -79,6 +80,8 @@ API = [Depends(_authorized)]
 class Decision(BaseModel):
     decision: str = Field(pattern="^(approve|reject)$")
     note: str = Field(default="", max_length=2000)
+    # Stage 11 (S11.5): required for a rejection, from a fixed list.
+    reason: str | None = Field(default=None, pattern=f"^({'|'.join(approvals.REJECT_REASONS)})$")
 
 
 def _summary(a: dict[str, Any]) -> dict[str, Any]:
@@ -180,9 +183,12 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
             tool = f"approvals.{body.decision}"
             args = {"approval_id": approval_id}
             started = time.monotonic()
+            if body.decision == "reject" and not body.reason:
+                raise HTTPException(422, f"a rejection needs a reason: one of"
+                                         f" {list(approvals.REJECT_REASONS)}")  # fmt: skip
             try:
                 status = approvals.decide(conn, approval_id, body.decision == "approve",
-                                          me.agent, body.note)  # fmt: skip
+                                          me.agent, body.note, body.reason)  # fmt: skip
             except approvals.ApprovalError as exc:
                 # A refused decision is audited too (the CLI only prints it).
                 Registry(conn).audit(me.agent, None, tool, "act", args, "denied", str(exc),
@@ -220,5 +226,16 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
             rows = [dict(zip(AUDIT, r, strict=True)) for r in cur.fetchall()]
         conn.commit()
         return rows
+
+    @app.get("/api/trace", dependencies=API)
+    def trace(conn: Conn, chain: str = Query(..., min_length=1, max_length=100)
+              ) -> dict[str, Any]:  # fmt: skip
+        """Stage 11 (S11.2): one chain's model and tool spans in time order, and totals
+        per step."""
+        from dip.agents import trace as tr
+
+        with unavailable():
+            spans = tr.spans(conn, chain)
+        return {"chain": chain, "spans": spans, "steps": tr.totals(spans)}
 
     return app
