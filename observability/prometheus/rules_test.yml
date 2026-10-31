@@ -87,3 +87,57 @@ tests:
             exp_annotations:
               summary: "dip-metrics is down"
               description: Prometheus cannot scrape dip-metrics.
+  # Stage 11 (S11.4): the agents. triage: 2 of 6 runs failed (fires); map: 1 of 2 failed
+  # (under 4 runs: does not); profile: 1 of 10 (does not). map: 2 of 3 runs on the fallback
+  # (fires); triage: 1 of 6 (does not). Spend: $0.40 (no), then $0.60 (fires).
+  - interval: 30s
+    input_series:
+      - series: 'dip_agent_runs_24h{agent="triage",status="ok"}'
+        values: "4x20"
+      - series: 'dip_agent_runs_24h{agent="triage",status="failed"}'
+        values: "2x20"
+      - series: 'dip_agent_runs_24h{agent="map",status="ok"}'
+        values: "3x20"
+      - series: 'dip_agent_runs_24h{agent="profile",status="ok"}'
+        values: "9x20"
+      - series: 'dip_agent_runs_24h{agent="profile",status="failed"}'
+        values: "1x20"
+      - series: 'dip_agent_fallback_runs_24h{agent="map"}'
+        values: "2x20"
+      - series: 'dip_agent_fallback_runs_24h{agent="triage"}'
+        values: "1x20"
+      - series: 'dip_model_spend_usd_today{provider="anthropic"}'
+        values: "0.4x4 0.6x16"
+      - series: 'dip_model_spend_usd_today{provider="gemini"}'
+        values: "0x20"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: AgentFailureRateHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, agent: triage}
+            exp_annotations:
+              summary: "triage: 33.33% of runs failed"
+              description: >-
+                More than 25% of the agent's runs in the last 24 hours failed (a model step:
+                a call that errored; a chain: its ops.agent_run or ops.intake_job status).
+      - eval_time: 1m
+        alertname: AgentFallbackRateHigh
+        exp_alerts:
+          - exp_labels: {severity: warning, agent: map}
+            exp_annotations:
+              summary: "map: 66.67% of runs on the fallback"
+              description: >-
+                More than half the step's runs in the last 24 hours were answered by the free
+                fallback provider: Claude is unavailable, or the key is missing or out of credit.
+      - eval_time: 1m
+        alertname: ModelSpendDailyHigh
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: ModelSpendDailyHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "Model spend today is $0.60"
+              description: >-
+                Metered spend on live model calls today (UTC) is over $0.50 (ops.model_call,
+                dip.agents.llm.cost_usd, which errs high).

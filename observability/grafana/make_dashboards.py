@@ -1,8 +1,9 @@
 """Writes the Grafana dashboards (python observability/grafana/make_dashboards.py).
 
-Two dashboards over Prometheus: feeds (files, quarantine and rejection rates, freshness,
-open quarantine, DQ results, late incidents) and DAG runs (Airflow's StatsD metrics). The
-JSON is generated so the panels stay consistent; edit this file, not the JSON.
+Three dashboards over Prometheus: feeds (files, quarantine and rejection rates, freshness,
+open quarantine, DQ results, late incidents), DAG runs (Airflow's StatsD metrics) and
+agents (Stage 11, S11.4: runs, failures, fallback, decisions, spend, latency). The JSON is
+generated so the panels stay consistent; edit this file, not the JSON.
 """
 
 from __future__ import annotations
@@ -14,6 +15,10 @@ HERE = Path(__file__).parent
 DS = {"type": "prometheus", "uid": "prometheus"}
 FEEDS_DESC = "Files, quarantine, freshness and data quality per feed (ops tables via dip-metrics)."
 DAGS_DESC = "Airflow DAG and task metrics from StatsD (the Airflow chart's statsd-exporter)."
+AGENTS_DESC = (
+    "Agent runs, failures, fallback, approvals and metered model spend"
+    " (ops.model_call, ops.agent_run, ops.intake_job, ops.approvals via dip-metrics)."
+)
 
 
 def panel(pid, title, kind, exprs, x, y, w=12, h=8, unit=None, legend=None, desc=""):
@@ -101,7 +106,41 @@ def dag_runs():
     ], DAGS_DESC)  # fmt: skip
 
 
+def agents():
+    runs = "sum by (agent) (dip_agent_runs_24h)"
+    decided = 'sum by (agent) (dip_approvals_decided_7d{decision=~"approved|rejected|expired"})'
+    return dashboard("dip-agents", "Agents", [
+        panel(1, "Runs (24 h) by agent and outcome", "timeseries",
+              ["sum by (agent, status) (dip_agent_runs_24h)"], 0, 0,
+              legend=["{{agent}} {{status}}"],
+              desc="A model step's runs (ok or failed) and each chain's by its status."),
+        panel(2, "Failure rate (24 h)", "timeseries",
+              [f'sum by (agent) (dip_agent_runs_24h{{status="failed"}}) / {runs}'], 12, 0,
+              unit="percentunit", legend=["{{agent}}"],
+              desc="Alert AgentFailureRateHigh fires above 25% with at least 4 runs."),
+        panel(3, "Fallback rate (24 h)", "timeseries",
+              ['sum by (agent) (dip_agent_fallback_runs_24h)'
+               ' / sum by (agent) (dip_agent_runs_24h{status=~"ok|failed"})'], 0, 8,
+              unit="percentunit", legend=["{{agent}}"],
+              desc="Step runs answered by the free fallback. Alert AgentFallbackRateHigh: 50%."),
+        panel(4, "Approval and rejection rate (7 d)", "timeseries",
+              [f'sum by (agent) (dip_approvals_decided_7d{{decision="approved"}}) / {decided}',
+               f'sum by (agent) (dip_approvals_decided_7d{{decision="rejected"}}) / {decided}'],
+              12, 8, unit="percentunit",
+              legend=["{{agent}} approved", "{{agent}} rejected"],
+              desc="Of the agent's proposals a person decided (or let expire) in 7 days."),
+        panel(5, "Model spend today (UTC)", "timeseries",
+              ["sum by (provider) (dip_model_spend_usd_today)"], 0, 16, unit="currencyUSD",
+              legend=["{{provider}}"],
+              desc="Metered (errs high). Alert ModelSpendDailyHigh fires above $0.50."),
+        panel(6, "Model calls (24 h) and p95 latency", "timeseries",
+              ["sum by (agent) (dip_model_calls_24h)", "dip_model_latency_p95_seconds_24h"],
+              12, 16, legend=["{{agent}} calls", "{{agent}} p95 s"]),
+    ], AGENTS_DESC)  # fmt: skip
+
+
 if __name__ == "__main__":
-    for name, d in (("feeds.json", feeds()), ("dag-runs.json", dag_runs())):
+    for name, d in (("feeds.json", feeds()), ("dag-runs.json", dag_runs()),
+                    ("agents.json", agents())):  # fmt: skip
         (HERE / name).write_text(json.dumps(d, indent=2) + "\n", encoding="utf-8", newline="\n")
         print(f"wrote {name}")

@@ -497,6 +497,20 @@ BEGIN
     IF to_regclass('ops.incident') IS NOT NULL THEN
         GRANT SELECT (feed, kind, closed_at) ON ops.incident TO dip_metrics;
     END IF;
+    -- Stage 11 (S11.4): the agents' runs, model calls and decisions; counts and times only.
+    IF to_regclass('ops.model_call') IS NOT NULL THEN
+        GRANT SELECT (step, run_id, provider, source, status, cost_usd, latency_ms, started_at)
+            ON ops.model_call TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.agent_run') IS NOT NULL THEN
+        GRANT SELECT (status, started_at) ON ops.agent_run TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.intake_job') IS NOT NULL THEN
+        GRANT SELECT (status, created_at) ON ops.intake_job TO dip_metrics;
+    END IF;
+    IF to_regclass('ops.approvals') IS NOT NULL THEN
+        GRANT SELECT (agent_id, status, decided_at, expires_at) ON ops.approvals TO dip_metrics;
+    END IF;
 END $$;
 SELECT ops.grant_metrics_reader();
 
