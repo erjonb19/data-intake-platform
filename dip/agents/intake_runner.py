@@ -19,7 +19,7 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
-from dip.agents.chain_job import _llm_for
+from dip.agents.chain_job import _llm_for, set_versions
 from dip.agents.llm import NoProvider, provider_names
 
 KEYS = {
@@ -137,6 +137,7 @@ def run(
             approval_id=state.get("approval_id"),
             dag_run_id=dag_run_id,
         )
+        set_versions(conn, "intake_job", "job_id", job["job_id"], state.get("versions"))
         summary["done"][job["job_id"]] = status
     return summary
 

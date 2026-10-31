@@ -143,6 +143,19 @@ def finish(
     conn.commit()
 
 
+def set_versions(conn: Any, table: str, key: str, value: int, versions: dict | None) -> None:
+    """Stage 11 (S11.3): each step's provider, model and prompt hash on the run's row."""
+    import json
+
+    if not versions or table not in ("agent_run", "intake_job") or key not in (
+            "incident_id", "job_id"):  # fmt: skip
+        return
+    with conn.cursor() as cur:
+        cur.execute(f"update ops.{table} set versions = %s::jsonb where {key} = %s",
+                    (json.dumps(versions, sort_keys=True), value))  # fmt: skip
+    conn.commit()
+
+
 def record_step(conn: Any, incident_id: int, step: str, provider: str) -> None:
     """A finished step's provider, on the incident's row at once (S10.1): a proposal made
     on the fallback is labelled while the chain runs on, and if it later fails."""
@@ -248,6 +261,7 @@ def run(
             provider=" ".join(f"{k}:{v}" for k, v in (state.get("providers") or {}).items())
             or None,
         )
+        set_versions(conn, "agent_run", "incident_id", incident_id, state.get("versions"))
         summary["done"].append(incident_id)
     return summary
 

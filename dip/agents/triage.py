@@ -44,6 +44,12 @@ class TriageRun:
     summary: str = ""
     usage: list[dict[str, int]] = field(default_factory=list)
     model: str = ""
+    prompt_sha256: str = ""  # S11.3: of the system prompt as sent
+
+    @property
+    def version(self) -> dict[str, str]:
+        """S11.3: what made this run's choices: the model id and the prompt's hash."""
+        return {"model": self.model, "prompt_sha256": self.prompt_sha256}
 
     @property
     def proposals(self) -> list[dict[str, Any]]:
@@ -104,6 +110,7 @@ async def run_agent(client: Any, llm: LLM, system: str, task: str, max_turns: in
         for t in listed.tools
     ]
     out = TriageRun(run_id or uuid.uuid4().hex[:12])
+    out.prompt_sha256 = model_calls.prompt_sha256(system)
     messages: list[dict[str, Any]] = [{"role": "user", "content": task}]
     while out.turns < max_turns:
         # S11.1: each request is recorded (ids, tokens, cost, timing; no text), even one
@@ -128,7 +135,10 @@ async def run_agent(client: Any, llm: LLM, system: str, task: str, max_turns: in
         results = []
         for use in m.tool_uses:
             args = dict(use.get("input") or {})
-            r = await client.call_tool(use["name"], {**args, "_run_id": out.run_id})
+            # The run id and (S11.3) the version ride with the call, outside the model's
+            # arguments: the server records the version on any proposal the call makes.
+            r = await client.call_tool(use["name"], {**args, "_run_id": out.run_id,
+                                                     "_agent_version": out.version})  # fmt: skip
             text = "\n".join(getattr(c, "text", "") for c in r.content)
             out.calls.append(ToolCall(use["name"], args, bool(r.is_error), text))
             results.append({"type": "tool_result", "tool_use_id": use["id"], "content": text,

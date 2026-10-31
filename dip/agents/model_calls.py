@@ -16,6 +16,7 @@ written is reported on stderr and never fails the agent's run.
 from __future__ import annotations
 
 import hashlib
+import os
 import sys
 import time
 from collections.abc import Callable, Iterator
@@ -37,6 +38,39 @@ SINK: ContextVar[Callable[[dict[str, Any]], None] | None] = ContextVar(
 )
 
 PROVIDERS = {"AnthropicLLM": "anthropic", "GeminiLLM": "gemini"}
+
+# Stage 11 (S11.3): each agent step and its prompt file. A run records the SHA-256 of the
+# system prompt as sent, which is the file's text as read (UTF-8, universal newlines), so
+# `dip agents versions` shows the hash a new run of that step will record.
+PROMPTS = {
+    "incident": "incident.md",
+    "triage": "triage.md",
+    "triage act": "triage_act.md",
+    "profile": "profile.md",
+    "map": "contract_author.md",
+    "review": "reviewer.md",
+}
+
+
+def prompt_sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def versions() -> list[dict[str, str]]:
+    """Each agent step's current prompt hash, and the models a run would use, in order."""
+    import tomllib
+
+    from dip.agents.llm import CONFIG, PROMPT_DIR
+
+    with CONFIG.open("rb") as f:
+        cfg = tomllib.load(f)
+    models = [f"{p['provider']}:{p.get('model', '?')}" for p in [cfg["primary"],
+              *cfg.get("fallback", [])]]  # fmt: skip
+    if os.environ.get("DIP_LLM_MODEL"):  # the primary's model, as settings() reads it
+        models[0] = f"{cfg['primary']['provider']}:{os.environ['DIP_LLM_MODEL']}"
+    return [{"step": step, "prompt": name,
+             "prompt_sha256": prompt_sha256((PROMPT_DIR / name).read_text(encoding="utf-8")),
+             "models": " > ".join(models)} for step, name in PROMPTS.items()]  # fmt: skip
 
 
 def step_of(run_id: str | None) -> str | None:
@@ -89,7 +123,7 @@ def row(llm: Any, run_id: str | None, system: str, turn: int, timer: Timer,
         "provider": provider,
         "source": source,
         "model": model,
-        "prompt_sha256": hashlib.sha256(system.encode("utf-8")).hexdigest(),
+        "prompt_sha256": prompt_sha256(system),
         "turn": turn,
         "status": "ok" if error is None else f"error: {type(error).__name__}",
         "stop_reason": getattr(message, "stop_reason", None),

@@ -49,6 +49,8 @@
                                write a named breakage of a good file (dip/breakages.py:
                                rename_column, add_column, new_code, delimiter, drop_column,
                                junk_values, inject_cell, x12_segment_lost)
+  agents versions              each agent step's prompt file, its SHA-256 (what a new run
+                               records) and the models a run uses (Stage 11, S11.3)
   trace CHAIN_ID               one chain's model and tool calls in time order, with totals
                                per step (Stage 11, S11.2: ops.trace_span)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
@@ -642,6 +644,8 @@ def main(argv: list[str] | None = None) -> int:
     appr.add_argument("approval_id", type=int, nargs="?")
     appr.add_argument("--note", default="")
     appr.add_argument("--all", action="store_true", help="list every status, not only pending")
+    agt = sub.add_parser("agents")
+    agt.add_argument("action", choices=["versions"])
     coh = sub.add_parser("cohort")
     coh.add_argument("action", choices=["list", "run", "verify-audit"])
     coh.add_argument("names", nargs="*")
@@ -808,6 +812,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     elif args.command == "trace":
         return _trace(args)
+    elif args.command == "agents":
+        from dip.agents import model_calls
+
+        for v in model_calls.versions():
+            print(f"{v['step']:11} {v['prompt']:20} {v['prompt_sha256']}  {v['models']}")
+        return 0
     elif args.command == "metrics-serve":
         from dip.metrics import serve
 

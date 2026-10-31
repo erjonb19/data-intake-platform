@@ -65,6 +65,7 @@ class ChainState(TypedDict, total=False):
     handoff_refused: str | None
     triage_run: dict[str, Any] | None
     providers: dict[str, str]  # step -> the provider that answered (Stage 10, S10.1)
+    versions: dict[str, dict[str, str]]  # step -> provider, model, prompt hash (S11.3)
 
 
 def incident_task(incident_id: int) -> str:
@@ -202,6 +203,11 @@ class Chain:
     on_step: Callable[[str, str], None] | None = None
 
 
+def version_of(run: triage.TriageRun, provider: str) -> dict[str, str]:
+    """Stage 11 (S11.3): what made a step's choices: its provider, model and prompt hash."""
+    return {"provider": provider, **run.version}
+
+
 def provider_of(llm: Any) -> str:
     name = type(llm).__name__
     return {"AnthropicLLM": "anthropic", "GeminiLLM": "gemini"}.get(name, name.lower())
@@ -263,6 +269,7 @@ def build_graph(chain: Chain) -> Any:
             "incident_run": _summary(run),
             "diagnosis": _diagnosis(chain.conn, run.run_id),
             "providers": {**state.get("providers", {}), "incident": provider},
+            "versions": {**state.get("versions", {}), "incident": version_of(run, provider)},
         }
 
     def route_after_incident(state: ChainState) -> str:
@@ -310,6 +317,7 @@ def build_graph(chain: Chain) -> Any:
         return {
             "triage_run": _summary(run),
             "providers": {**state.get("providers", {}), "triage": provider},
+            "versions": {**state.get("versions", {}), "triage": version_of(run, provider)},
         }
 
     g = StateGraph(ChainState)
@@ -334,5 +342,6 @@ async def run_chain(chain: Chain, incident_id: int, chain_id: str | None = None)
             "handoff_refused": None,
             "triage_run": None,
             "providers": {},
+            "versions": {},
         }
     )
