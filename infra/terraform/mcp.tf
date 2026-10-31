@@ -49,6 +49,13 @@ resource "random_password" "mcp_incident_key" {
   special = false
 }
 
+# Stage 10 (S10.6): the intake team's keys (dags/agent_chain.py, the intake_jobs task).
+resource "random_password" "mcp_team_key" {
+  for_each = toset(["profile", "contract_author", "validator", "reviewer", "intake_orchestrator"])
+  length   = 40
+  special  = false
+}
+
 resource "kubernetes_config_map_v1" "mcp_minio_policy" {
   metadata {
     name      = "mcp-minio-policy"
@@ -222,11 +229,11 @@ resource "kubernetes_secret_v1" "mcp" {
     namespace = kubernetes_namespace_v1.data.metadata[0].name
   }
   data = {
-    DIP_AGENT_KEYS = jsonencode({
+    DIP_AGENT_KEYS = jsonencode(merge({
       reader   = sha256(random_password.mcp_reader_key.result)
       triage   = sha256(random_password.mcp_triage_key.result)
       incident = sha256(random_password.mcp_incident_key.result)
-    })
+    }, { for a, k in random_password.mcp_team_key : a => sha256(k.result) }))
     DIP_WAREHOUSE_DSN    = "postgresql://dip_mcp:${local.pw["pg_mcp"]}@${local.postgres_host}:5432/warehouse"
     DIP_S3_ENDPOINT      = "http://${local.minio_host}:9000"
     DIP_S3_ACCESS_KEY    = local.mcp_minio_user
@@ -290,7 +297,20 @@ resource "kubernetes_deployment_v1" "mcp" {
           }
           resources {
             requests = { cpu = "20m", memory = "96Mi" }
-            limits   = { memory = "256Mi" }
+            # 768Mi (Stage 10, S10.6): check_dbt_models runs `dbt parse` in the pod.
+            limits = { memory = "768Mi" }
+          }
+          # The root filesystem is read-only; `dbt parse` works on a copy of the project
+          # in a temporary directory (Stage 10, S10.6).
+          volume_mount {
+            name       = "tmp"
+            mount_path = "/tmp"
+          }
+        }
+        volume {
+          name = "tmp"
+          empty_dir {
+            size_limit = "256Mi"
           }
         }
       }

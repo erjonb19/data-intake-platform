@@ -20,11 +20,17 @@ locals {
     # was passed to Terraform. Only that DAG's pods mount it (env_from in its
     # pod_override); the chart's `secret` list does not include it.
     "dip-agent-chain" = {
-      DIP_MCP_URL       = "http://mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local:8765/mcp"
-      DIP_INCIDENT_KEY  = random_password.mcp_incident_key.result
-      DIP_TRIAGE_KEY    = random_password.mcp_triage_key.result
-      ANTHROPIC_API_KEY = var.anthropic_api_key
-      GEMINI_API_KEY    = var.gemini_api_key
+      DIP_MCP_URL      = "http://mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local:8765/mcp"
+      DIP_INCIDENT_KEY = random_password.mcp_incident_key.result
+      DIP_TRIAGE_KEY   = random_password.mcp_triage_key.result
+      # Stage 10 (S10.6): the intake team (dip/agents/intake_runner.py).
+      DIP_PROFILE_KEY      = random_password.mcp_team_key["profile"].result
+      DIP_AUTHOR_KEY       = random_password.mcp_team_key["contract_author"].result
+      DIP_VALIDATOR_KEY    = random_password.mcp_team_key["validator"].result
+      DIP_REVIEWER_KEY     = random_password.mcp_team_key["reviewer"].result
+      DIP_ORCHESTRATOR_KEY = random_password.mcp_team_key["intake_orchestrator"].result
+      ANTHROPIC_API_KEY    = var.anthropic_api_key
+      GEMINI_API_KEY       = var.gemini_api_key
     }
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod

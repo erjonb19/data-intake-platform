@@ -35,7 +35,8 @@ class Session:
     def __init__(self, key: str | None):
         self.key, self.sid, self.n = key, None, 0
 
-    def post(self, method: str, params: dict | None = None, notify: bool = False):
+    def post(self, method: str, params: dict | None = None, notify: bool = False,
+             timeout: float = 30):  # fmt: skip
         msg: dict = {"jsonrpc": "2.0", "method": method, "params": params or {}}
         if not notify:
             self.n += 1
@@ -48,7 +49,7 @@ class Session:
         if self.sid:
             headers["Mcp-Session-Id"] = self.sid
         req = urllib.request.Request(MCP, json.dumps(msg).encode(), headers, method="POST")
-        with urllib.request.urlopen(req, timeout=30) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             self.sid = r.headers.get("Mcp-Session-Id") or self.sid
             body = r.read().decode()
         if notify or not body.strip():

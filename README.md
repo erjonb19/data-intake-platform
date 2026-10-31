@@ -55,6 +55,17 @@ triage agent's proposals.
 
 ![The audit log: an incident -> triage chain, call by call](docs/images/approvals-audit.png)
 
+**A new vendor's feed, proposed by the intake team (Stage 10).** From the S10.6 proof (the
+manual `proof` workflow on a GitHub runner, 2026-10-31): a sample of an unknown
+`finance.purchase_orders` feed was dropped under `landing/_onboard/`. The profile, map
+(contract author), validate and review steps ran under one chain id, and the
+orchestrator proposed the contract with the reviewer's verdict beside it as advice. A
+person approved, `dip approvals execute` wrote the branch with the contract and its
+generated dbt models, and `dbt build` passed on them (11 of 11). Model spend: $0.0074
+([docs/demos/stage-10.md](docs/demos/stage-10.md)).
+
+![The approvals page: the intake team's contract proposal for a new feed](docs/images/intake-proposal.png)
+
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
 **Status (PLAN.md §8.9 has the item-by-item check).** Built and merged: Stage 0

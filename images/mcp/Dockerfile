@@ -11,15 +11,25 @@ RUN pip install --no-cache-dir "mcp==2.3.0" "fastapi==0.142.4" "mcp-types==2.3.0
       "jsonschema==4.26.0" "openpyxl==3.1.5" "et-xmlfile==2.0.0" \
  && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin mcp
 
+# Stage 10 (S10.6): dbt for check_dbt_models (`dbt parse` of the models generated from a
+# candidate contract; no database connection), in its own venv as in the Airflow image so
+# its dependencies never touch the server's. Same pinned versions as the Airflow image.
+RUN python -m venv /opt/dbt-venv \
+ && /opt/dbt-venv/bin/pip install --no-cache-dir "dbt-core==1.12.6" "dbt-postgres==1.11.0"
+
 COPY pyproject.toml /tmp/dip/pyproject.toml
 COPY dip/ /tmp/dip/dip/
 RUN pip install --no-cache-dir --no-deps /tmp/dip && rm -rf /tmp/dip
 COPY packs/ /app/packs/
 COPY agents/policies/ /app/agents/policies/
 COPY docs/runbooks/ /app/docs/runbooks/
+COPY dbt/ /app/dbt/
 ENV DIP_CONTRACT_DIRS=/app/packs/healthcare/contracts:/app/packs/finance/contracts \
     DIP_POLICY_DIR=/app/agents/policies \
-    DIP_RUNBOOK_DIR=/app/docs/runbooks
+    DIP_RUNBOOK_DIR=/app/docs/runbooks \
+    DIP_REPO_ROOT=/app \
+    DIP_DBT_BIN=/opt/dbt-venv/bin/dbt \
+    HOME=/tmp
 
 USER 10001
 EXPOSE 8765
