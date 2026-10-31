@@ -194,7 +194,7 @@
     },
     {
       "id": 6,
-      "title": "Model calls (24 h) and p95 latency",
+      "title": "Model calls (24 h)",
       "description": "",
       "type": "timeseries",
       "datasource": {
@@ -215,20 +215,45 @@
             "uid": "prometheus"
           },
           "expr": "sum by (agent) (dip_model_calls_24h)",
-          "legendFormat": "{{agent}} calls"
-        },
+          "legendFormat": "{{agent}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 7,
+      "title": "Model call latency p95 (24 h)",
+      "description": "",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
         {
-          "refId": "B",
+          "refId": "A",
           "datasource": {
             "type": "prometheus",
             "uid": "prometheus"
           },
           "expr": "dip_model_latency_p95_seconds_24h",
-          "legendFormat": "{{agent}} p95 s"
+          "legendFormat": "{{agent}}"
         }
       ],
       "fieldConfig": {
-        "defaults": {},
+        "defaults": {
+          "unit": "s"
+        },
         "overrides": []
       },
       "options": {}

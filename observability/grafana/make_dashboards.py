@@ -133,9 +133,10 @@ def agents():
               ["sum by (provider) (dip_model_spend_usd_today)"], 0, 16, unit="currencyUSD",
               legend=["{{provider}}"],
               desc="Metered (errs high). Alert ModelSpendDailyHigh fires above $0.50."),
-        panel(6, "Model calls (24 h) and p95 latency", "timeseries",
-              ["sum by (agent) (dip_model_calls_24h)", "dip_model_latency_p95_seconds_24h"],
-              12, 16, legend=["{{agent}} calls", "{{agent}} p95 s"]),
+        panel(6, "Model calls (24 h)", "timeseries",
+              ["sum by (agent) (dip_model_calls_24h)"], 12, 16, legend=["{{agent}}"]),
+        panel(7, "Model call latency p95 (24 h)", "timeseries",
+              ["dip_model_latency_p95_seconds_24h"], 0, 24, unit="s", legend=["{{agent}}"]),
     ], AGENTS_DESC)  # fmt: skip
 
 

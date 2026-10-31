@@ -35,6 +35,20 @@ from collections.abc import Callable, Iterable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
 
+# Stage 11 (S11.4): a model step's logical runs (an attempt and its restarts on the
+# fallback, `<run id>@<provider>`), live calls of the last 24 hours. An attempt failed if a
+# call in it errored (a failed call ends the attempt); the run failed if its last attempt
+# did, and ran on the fallback if any attempt was answered by Gemini.
+STEP_RUNS = (
+    "attempts as (select step, split_part(run_id, '@', 1) as run, bool_or(status <> 'ok')"
+    " as failed, bool_or(provider = 'gemini') as gemini, min(started_at) as t, run_id"
+    " from ops.model_call where source = 'live' and step is not null"
+    " and started_at > now() - interval '24 hours' group by step, run_id),"
+    # on a tie in time, `<run>@<provider>` (the restart) sorts after `<run>`
+    " step_runs as (select step, (array_agg(failed order by t desc, run_id desc))[1] as failed,"
+    " bool_or(gemini) as on_fallback from attempts group by step, run)"
+)
+
 # name -> (help, type, sql). Each query returns label columns then one value column.
 QUERIES: dict[str, tuple[str, str, str]] = {
     "dip_intake_files": (
@@ -89,33 +103,36 @@ QUERIES: dict[str, tuple[str, str, str]] = {
         "select feed, kind, count(*) from ops.incident where closed_at is null group by 1, 2",
     ),
     # Stage 11 (S11.4): the agents. `agent` is a model step (incident, triage, profile, map,
-    # review: its runs from ops.model_call, live calls only; a run failed if any of its calls
-    # did) or a whole chain (incident_chain from ops.agent_run, intake_team from
-    # ops.intake_job, by their own statuses). A step restarted on the fallback is one run
-    # per provider (`<run id>@gemini`). Labels come from fixed lists, never free text.
+    # review: its runs from ops.model_call, live calls only) or a whole chain (incident_chain
+    # from ops.agent_run, intake_team from ops.intake_job, by their own finished statuses;
+    # running, queued and skipped are not outcomes yet). A step's run is one logical run with
+    # its restarts on the fallback (`<run id>@gemini`): it failed if its last attempt did, and
+    # it ran on the fallback if any attempt was answered by Gemini. Labels come from fixed
+    # lists, never free text.
     "dip_agent_runs_24h": (
         "Agent runs started in the last 24 hours, by agent and outcome.",
         "gauge",
-        "select agent, status, count(*) from ("
-        " select step as agent, case when bool_or(status <> 'ok') then 'failed' else 'ok'"
-        " end as status from ops.model_call where source = 'live' and step is not null"
-        " and started_at > now() - interval '24 hours' group by step, run_id"
+        f"with {STEP_RUNS} select agent, status, count(*) from ("
+        " select step as agent, case when failed then 'failed' else 'ok' end as status"
+        " from step_runs"
         " union all select 'incident_chain', status from ops.agent_run"
         " where started_at > now() - interval '24 hours'"
+        " and status not in ('running', 'skipped')"
         " union all select 'intake_team', status from ops.intake_job"
-        " where created_at > now() - interval '24 hours') runs group by 1, 2",
+        " where created_at > now() - interval '24 hours'"
+        " and status not in ('queued', 'running')) runs group by 1, 2",
     ),
     "dip_agent_fallback_runs_24h": (
         "Agent step runs in the last 24 hours answered by the free fallback provider.",
         "gauge",
-        "select step, count(distinct run_id) from ops.model_call where source = 'live'"
-        " and provider = 'gemini' and step is not null"
-        " and started_at > now() - interval '24 hours' group by step",
+        f"with {STEP_RUNS} select step, count(*) from step_runs where on_fallback group by 1",
     ),
     "dip_approvals_decided_7d": (
         "Proposals decided (or expired) in the last 7 days, by agent and decision.",
         "gauge",
-        "select agent_id, case when status = 'executed' then 'approved' else status end,"
+        # executed and failed (an execution that failed) were both approved by a person
+        "select agent_id, case when status in ('executed', 'failed') then 'approved'"
+        " else status end,"
         " count(*) from ops.approvals where status in ('approved', 'executed', 'rejected',"
         " 'expired', 'failed') and coalesce(decided_at, expires_at) > now() - interval '7 days'"
         " group by 1, 2",
