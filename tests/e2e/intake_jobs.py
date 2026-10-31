@@ -96,6 +96,7 @@ def main() -> int:
                     (feed,))  # fmt: skip
         check(cur.fetchone()[0] >= 1, f"drift: a drift job for {feed} is queued")
     team_checks(check)
+    model_call_checks(check)
     return report(failures)
 
 
@@ -149,6 +150,18 @@ def team_checks(check) -> None:
         and len(out.get("generated", [])) == 3,
         f"check_dbt_models parses the generated models in the MCP pod: {str(out)[:300]}",
     )
+
+
+def model_call_checks(check) -> None:
+    """Stage 11 (S11.1): ops.model_call exists in the deployed warehouse, no live call was
+    recorded (CI has no model key), and the MCP server's login cannot read it."""
+    import psycopg
+
+    with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute("select count(*) filter (where source = 'live') from ops.model_call")
+        check(cur.fetchone() == (0,), "ops.model_call: no live model call without a key")
+        cur.execute("select has_table_privilege('dip_mcp', 'ops.model_call', 'select')")
+        check(cur.fetchone() == (False,), "ops.model_call: the MCP server's login cannot read it")
 
 
 def report(failures: list[str]) -> int:

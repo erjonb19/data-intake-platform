@@ -75,6 +75,17 @@ from dip.storage import LocalStore, ObjectStore, S3Store
 from dip.warehouse import Warehouse
 
 
+def _model_calls(args: argparse.Namespace) -> Any:
+    """Stage 11 (S11.1): where the command's model calls are recorded: a run in the
+    warehouse's ops.model_call, an eval (replayed or live) in its own throwaway database
+    (DIP_EVAL_DSN), which each case resets."""
+    from dip.agents import model_calls
+
+    _load_dotenv()
+    run = getattr(args, "action", None) in ("run", "act")
+    return model_calls.to_warehouse(os.environ.get("DIP_WAREHOUSE_DSN" if run else "DIP_EVAL_DSN"))
+
+
 def _store(args: argparse.Namespace) -> ObjectStore:
     if endpoint := os.environ.get("DIP_S3_ENDPOINT"):
         import boto3
@@ -707,11 +718,13 @@ def main(argv: list[str] | None = None) -> int:
     elif args.command == "approvals-serve":
         return _approvals_serve(args)
     elif args.command == "triage":
-        return _triage(args)
+        with _model_calls(args):
+            return _triage(args)
     elif args.command == "approvals":
         return _approvals(args)
     elif args.command == "incident":
-        return _incident(args)
+        with _model_calls(args):
+            return _incident(args)
     elif args.command == "demo":
         from dip import demo as demo_mod
 
@@ -724,9 +737,11 @@ def main(argv: list[str] | None = None) -> int:
         work = REPO_ROOT / "data" / "tmp" / "demo"
         return demo_mod.run(os.environ["DIP_EVAL_DSN"], work, args.record)
     elif args.command == "contracts" and args.action == "eval":
-        return _contracts_eval(args)
+        with _model_calls(args):
+            return _contracts_eval(args)
     elif args.command == "contracts" and args.action == "review-eval":
-        return _review_eval(args)
+        with _model_calls(args):
+            return _review_eval(args)
     elif args.command == "contracts" and args.action == "dbt":
         from dip import dbt_gen
 

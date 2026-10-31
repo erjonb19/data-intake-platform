@@ -17,7 +17,8 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
-from dip.agents.llm import LLM, PROMPT_DIR, Message
+from dip.agents import model_calls
+from dip.agents.llm import LLM, PROMPT_DIR, Message, SpendCap
 
 PROMPT = (PROMPT_DIR / "triage.md").read_text(encoding="utf-8")
 TASK = (
@@ -105,7 +106,18 @@ async def run_agent(client: Any, llm: LLM, system: str, task: str, max_turns: in
     out = TriageRun(run_id or uuid.uuid4().hex[:12])
     messages: list[dict[str, Any]] = [{"role": "user", "content": task}]
     while out.turns < max_turns:
-        m: Message = llm.create(system=system, tools=tools, messages=messages)
+        # S11.1: each request is recorded (ids, tokens, cost, timing; no text), even one
+        # that fails.
+        timer = model_calls.Timer()
+        try:
+            m: Message = llm.create(system=system, tools=tools, messages=messages)
+        except SpendCap:
+            raise  # refused before anything was sent: no request, no row
+        except BaseException as exc:
+            model_calls.record(model_calls.row(llm, out.run_id, system, out.turns + 1, timer,
+                                               error=exc))  # fmt: skip
+            raise
+        model_calls.record(model_calls.row(llm, out.run_id, system, out.turns + 1, timer, m))
         out.turns += 1
         out.usage.append(m.usage)
         out.model = m.model or out.model

@@ -303,6 +303,63 @@ DROP TRIGGER IF EXISTS audit_log_no_truncate ON ops.audit_log;
 CREATE TRIGGER audit_log_no_truncate BEFORE TRUNCATE ON ops.audit_log
     FOR EACH STATEMENT EXECUTE FUNCTION ops.audit_log_append_only();
 
+-- Stage 11 (S11.1; PLAN.md section 8.13): one row per model request an agent made, beside
+-- the audit log's tool calls under the same chain id and run id. Token counts, cost (from
+-- dip.agents.llm.cost_usd, the meter the spend caps use), timing and ids only: never the
+-- prompt or the response text. Written by the process that runs the agents (its own
+-- connection, dip/agents/model_calls.py), never by the MCP server: dip_mcp has no grant.
+-- `source` is `recorded` for a replayed recording (CI), `live` for a call to a provider.
+-- Append-only, like the audit log.
+CREATE TABLE IF NOT EXISTS ops.model_call (
+    call_id                bigserial   PRIMARY KEY,
+    chain_id               text,
+    run_id                 text,
+    step                   text,
+    provider               text        NOT NULL,
+    source                 text        NOT NULL CHECK (source IN ('live', 'recorded')),
+    model                  text,
+    prompt_sha256          text        NOT NULL,
+    turn                   integer     NOT NULL,
+    status                 text        NOT NULL,
+    stop_reason            text,
+    input_tokens           integer     NOT NULL DEFAULT 0,
+    output_tokens          integer     NOT NULL DEFAULT 0,
+    cache_read_tokens      integer     NOT NULL DEFAULT 0,
+    cache_creation_tokens  integer     NOT NULL DEFAULT 0,
+    cost_usd               numeric(12, 6) NOT NULL DEFAULT 0,
+    started_at             timestamptz NOT NULL,
+    finished_at            timestamptz NOT NULL,
+    latency_ms             integer     NOT NULL
+);
+CREATE INDEX IF NOT EXISTS model_call_chain_idx ON ops.model_call (chain_id)
+    WHERE chain_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS model_call_run_idx ON ops.model_call (run_id);
+CREATE INDEX IF NOT EXISTS model_call_started_idx ON ops.model_call (started_at);
+CREATE OR REPLACE FUNCTION ops.model_call_append_only() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION 'ops.model_call is append-only (% refused)', TG_OP;
+END $$;
+DROP TRIGGER IF EXISTS model_call_append_only ON ops.model_call;
+CREATE TRIGGER model_call_append_only BEFORE UPDATE OR DELETE ON ops.model_call
+    FOR EACH ROW EXECUTE FUNCTION ops.model_call_append_only();
+DROP TRIGGER IF EXISTS model_call_no_truncate ON ops.model_call;
+CREATE TRIGGER model_call_no_truncate BEFORE TRUNCATE ON ops.model_call
+    FOR EACH STATEMENT EXECUTE FUNCTION ops.model_call_append_only();
+-- Per agent run (and so per chain: sum over its run ids): calls, tokens, cost, latency.
+-- Dropped and made again on every init, so a later column can go anywhere in it.
+DROP VIEW IF EXISTS ops.agent_run_cost;
+CREATE VIEW ops.agent_run_cost AS
+SELECT chain_id, run_id, step, provider, source, max(model) AS model,
+       count(*) AS calls, count(*) FILTER (WHERE status <> 'ok') AS failed_calls,
+       sum(input_tokens) AS input_tokens, sum(output_tokens) AS output_tokens,
+       sum(cache_read_tokens) AS cache_read_tokens,
+       sum(cache_creation_tokens) AS cache_creation_tokens,
+       sum(cost_usd) AS cost_usd, sum(latency_ms) AS model_ms,
+       min(started_at) AS started_at, max(finished_at) AS finished_at
+FROM ops.model_call
+GROUP BY chain_id, run_id, step, provider, source;
+
 -- Sample files for the contract-author agent (Stage 5): a new vendor's file, registered by
 -- a person (`dip contracts sample`) before any contract exists. Its raw copy is in raw/.
 CREATE TABLE IF NOT EXISTS ops.sample_file (

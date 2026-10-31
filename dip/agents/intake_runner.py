@@ -153,7 +153,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--limit", type=int, default=1)
     ap.add_argument("--dag-run-id")
     args = ap.parse_args(argv)
-    with psycopg.connect(os.environ["DIP_WAREHOUSE_DSN"]) as conn:
+    from dip.agents import model_calls
+
+    dsn = os.environ["DIP_WAREHOUSE_DSN"]
+    with psycopg.connect(dsn) as conn, model_calls.to_warehouse(dsn):  # S11.1
         summary = run(conn, limit=args.limit, dag_run_id=args.dag_run_id)
     summary["spent_usd"] = round(llm.SPENT["usd"], 6)  # Claude's responses, by their usage
     print(json.dumps(summary))
