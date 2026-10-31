@@ -40,8 +40,9 @@ PROVIDERS = {"AnthropicLLM": "anthropic", "GeminiLLM": "gemini"}
 
 
 def step_of(run_id: str | None) -> str | None:
-    """`chain-x/triage@gemini` and `intake-y/map#2` are steps `triage` and `map`."""
-    if not run_id:
+    """`chain-x/triage@gemini` and `intake-y/map#2` are steps `triage` and `map`; a run id
+    with no chain (a standalone `dip triage run`) has none, as `chain_of` has no chain."""
+    if not run_id or "/" not in run_id:
         return None
     return run_id.rpartition("/")[2].partition("@")[0].partition("#")[0] or None
 
@@ -57,7 +58,7 @@ def source_and_provider(llm: Any, model: str | None) -> tuple[str, str]:
     if provider is None:
         m = (model or "").lower()
         provider = "gemini" if "gemini" in m else "anthropic" if "claude" in m else (
-            type(inner).__name__.lower())  # fmt: skip
+            "unknown" if source == "recorded" else type(inner).__name__.lower())  # fmt: skip
     return source, provider
 
 
@@ -77,8 +78,9 @@ def row(llm: Any, run_id: str | None, system: str, turn: int, timer: Timer,
 
     started, finished, ms = timer.stop()
     usage = dict(getattr(message, "usage", None) or {})
-    model = getattr(message, "model", None) or getattr(llm, "model", None) or getattr(
-        getattr(llm, "inner", None), "model", None)  # fmt: skip
+    model = (getattr(message, "model", None) or getattr(llm, "model", None)
+             or getattr(getattr(llm, "inner", None), "model", None)
+             or next((m.model for m in getattr(llm, "messages", []) if m.model), None))  # fmt: skip
     source, provider = source_and_provider(llm, model)
     return {
         "chain_id": chain_of(run_id),
@@ -118,23 +120,37 @@ INSERT = f"insert into ops.model_call ({', '.join(COLUMNS)}) values ({PLACEHOLDE
 
 
 class WarehouseSink:
-    """Writes each row on its own autocommit connection, opened at the first row."""
+    """Writes each row on its own autocommit connection, opened at the first row (with a
+    5-second connect timeout, so an unreachable warehouse cannot stall the agent for long)
+    and opened again after an error. After 3 failures in a row it stops trying."""
+
+    GIVE_UP_AFTER = 3
 
     def __init__(self, dsn: str):
-        self.dsn, self.conn = dsn, None
+        self.dsn, self.conn, self.failures = dsn, None, 0
 
     def __call__(self, r: dict[str, Any]) -> None:
-        if self.conn is None:
-            import psycopg
+        if self.failures >= self.GIVE_UP_AFTER:
+            return
+        try:
+            if self.conn is None:
+                import psycopg
 
-            self.conn = psycopg.connect(self.dsn, autocommit=True)
-        with self.conn.cursor() as cur:
-            cur.execute(INSERT, tuple(r[c] for c in COLUMNS))
+                self.conn = psycopg.connect(self.dsn, autocommit=True, connect_timeout=5)
+            with self.conn.cursor() as cur:
+                cur.execute(INSERT, tuple(r[c] for c in COLUMNS))
+            self.failures = 0
+        except Exception:
+            self.failures += 1
+            self.close()
+            raise
 
     def close(self) -> None:
         if self.conn is not None:
-            self.conn.close()
-            self.conn = None
+            try:
+                self.conn.close()
+            finally:
+                self.conn = None
 
 
 @contextmanager

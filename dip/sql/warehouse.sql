@@ -347,7 +347,9 @@ DROP TRIGGER IF EXISTS model_call_no_truncate ON ops.model_call;
 CREATE TRIGGER model_call_no_truncate BEFORE TRUNCATE ON ops.model_call
     FOR EACH STATEMENT EXECUTE FUNCTION ops.model_call_append_only();
 -- Per agent run (and so per chain: sum over its run ids): calls, tokens, cost, latency.
-CREATE OR REPLACE VIEW ops.agent_run_cost AS
+-- Dropped and made again on every init, so a later column can go anywhere in it.
+DROP VIEW IF EXISTS ops.agent_run_cost;
+CREATE VIEW ops.agent_run_cost AS
 SELECT chain_id, run_id, step, provider, source, max(model) AS model,
        count(*) AS calls, count(*) FILTER (WHERE status <> 'ok') AS failed_calls,
        sum(input_tokens) AS input_tokens, sum(output_tokens) AS output_tokens,

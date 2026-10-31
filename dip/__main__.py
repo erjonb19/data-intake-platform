@@ -76,15 +76,14 @@ from dip.warehouse import Warehouse
 
 
 def _model_calls(args: argparse.Namespace) -> Any:
-    """Stage 11 (S11.1): a run against the warehouse records its model calls in
-    ops.model_call there; evals (their own throwaway database) do not."""
-    from contextlib import nullcontext
-
+    """Stage 11 (S11.1): where the command's model calls are recorded: a run in the
+    warehouse's ops.model_call, an eval (replayed or live) in its own throwaway database
+    (DIP_EVAL_DSN), which each case resets."""
     from dip.agents import model_calls
 
-    if args.action in ("run", "act"):
-        return model_calls.to_warehouse(os.environ.get("DIP_WAREHOUSE_DSN"))
-    return nullcontext()
+    _load_dotenv()
+    run = getattr(args, "action", None) in ("run", "act")
+    return model_calls.to_warehouse(os.environ.get("DIP_WAREHOUSE_DSN" if run else "DIP_EVAL_DSN"))
 
 
 def _store(args: argparse.Namespace) -> ObjectStore:
@@ -738,9 +737,11 @@ def main(argv: list[str] | None = None) -> int:
         work = REPO_ROOT / "data" / "tmp" / "demo"
         return demo_mod.run(os.environ["DIP_EVAL_DSN"], work, args.record)
     elif args.command == "contracts" and args.action == "eval":
-        return _contracts_eval(args)
+        with _model_calls(args):
+            return _contracts_eval(args)
     elif args.command == "contracts" and args.action == "review-eval":
-        return _review_eval(args)
+        with _model_calls(args):
+            return _review_eval(args)
     elif args.command == "contracts" and args.action == "dbt":
         from dip import dbt_gen
 

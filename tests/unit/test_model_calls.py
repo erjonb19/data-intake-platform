@@ -117,8 +117,29 @@ def test_a_replayed_recording_is_marked_recorded(rows, tmp_path):
 
 
 @pytest.mark.parametrize("run_id, step", [
-    ("chain-x/triage@gemini", "triage"), ("intake-y/map#2", "map"), ("abc123", "abc123"),
+    ("chain-x/triage@gemini", "triage"), ("intake-y/map#2", "map"), ("abc123", None),
     (None, None),
 ])  # fmt: skip
 def test_step_of(run_id, step):
     assert model_calls.step_of(run_id) == step
+
+
+def test_a_spend_cap_refusal_sent_nothing_and_writes_no_row(rows):
+    from dip.agents.llm import SpendCap
+
+    class Capped(AnthropicLLM):
+        def create(self, **kwargs):
+            raise SpendCap("over the cap")
+
+    with pytest.raises(SpendCap):
+        run(Capped())
+    assert rows == []
+
+
+def test_the_warehouse_sink_stops_after_three_failures_in_a_row():
+    sink = model_calls.WarehouseSink("postgresql://nobody@127.0.0.1:1/none")
+    for _ in range(3):
+        with pytest.raises(Exception):  # noqa: B017 - whatever the driver raises
+            sink({c: None for c in model_calls.COLUMNS})
+    assert sink.failures == 3 and sink.conn is None
+    sink({c: None for c in model_calls.COLUMNS})  # given up: no attempt, no error
