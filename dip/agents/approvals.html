@@ -177,7 +177,7 @@ async function show(id) {
   const fields = [["Group", p.group_id || p.feed], ["Root cause", p.root_cause], ["Confidence", p.confidence],
                   ["Quarantine entries", (p.quarantine_ids || []).length || null], ["Rationale", p.rationale],
                   ["Message to the vendor", p.message],
-                  ["Agent version", p.agent_version && (`${p.agent_version.agent || ""} · ${p.agent_version.model || "?"} · prompt ${(p.agent_version.prompt_sha256 || "").slice(0, 12)}` + (p.agent_version.steps ? " (the map worker's; every step: " + Object.entries(p.agent_version.steps).map(([k, v]) => `${k} ${v.provider || ""} ${v.model || "?"} ${(v.prompt_sha256 || "").slice(0, 12)}`).join("; ") + ")" : ""))], ["Reviewer (advice, not a decision)", p.review && `${p.review.verdict}${(p.review.reasons || []).length ? ": " + p.review.reasons.map(r => r.issue + ": " + r.detail).join("; ") : ""}`], ["Decided by", a.decided_by && `${a.decided_by} at ${when(a.decided_at)}`],
+                  ["Agent version", p.agent_version && (`${p.agent_version.agent || ""} · ${p.agent_version.model || "?"} · prompt ${(p.agent_version.prompt_sha256 || "").slice(0, 12)}` + (p.agent_version.steps ? " (the map worker's; every step: " + Object.entries(p.agent_version.steps).map(([k, v]) => `${k} ${v.provider || ""} ${v.model || "?"} ${(v.prompt_sha256 || "").slice(0, 12)}`).join("; ") + ")" : ""))], ["Reviewer (advice, not a decision)", p.review && `${p.review.verdict}${(p.review.reasons || []).length ? ": " + p.review.reasons.map(r => r.issue + ": " + r.detail).join("; ") : ""}`], ["Decided by", a.decided_by && `${a.decided_by} at ${when(a.decided_at)}`], ["Reason", a.decision_reason],
                   ["Note", a.decision_note], ["Executed by", a.executed_by && `${a.executed_by} at ${when(a.executed_at)}`]];
   for (const [k, v] of fields) if (v != null && v !== "") { const r = el("p"); r.append(el("strong", k + ": "), String(v)); r.style.margin = "4px 0"; d.append(r); }
   if (a.diff) { d.append(el("strong", "Diff against the current contract")); d.append(el("pre", a.diff)); }
@@ -188,21 +188,28 @@ async function show(id) {
     const box = el("div", null, "actions");
     const note = el("textarea"); note.rows = 2; note.cols = 40; note.placeholder = "note (optional)";
     const ok = el("button", "Approve", "act approve"), no = el("button", "Reject", "act reject");
+    // Stage 11 (S11.5): a rejection says why, from a fixed list.
+    const why = el("select"); why.title = "Why reject (required to reject)";
+    for (const [v, t] of [["", "reason to reject…"], ["wrong_root_cause", "wrong root cause"], ["wrong_action", "wrong action"],
+                          ["incomplete", "incomplete"], ["unsafe", "unsafe"], ["other", "other (say in the note)"]]) {
+      const o = el("option", t); o.value = v; why.append(o);
+    }
     const msg = el("span", "", "muted"); msg.id = "msg";
     const decide = async (decision) => {
       const who = $("reviewer").value.trim();
       if (!who) { msg.textContent = "Enter your name as reviewer first."; $("reviewer").focus(); return; }
+      if (decision === "reject" && !why.value) { msg.textContent = "Choose a reason to reject."; why.focus(); return; }
       ok.disabled = no.disabled = true;
       try {
         const r = await api(`/api/approvals/${id}/decision`, { method: "POST",
           headers: { "Content-Type": "application/json", "X-Reviewer": who },
-          body: JSON.stringify({ decision, note: note.value }) });
+          body: JSON.stringify({ decision, note: note.value, ...(decision === "reject" ? { reason: why.value } : {}) }) });
         msg.textContent = `${r.status} by ${r.decided_by}`;
         await loadList(); await show(id);
       } catch (e) { msg.textContent = "refused: " + e.message; ok.disabled = no.disabled = false; }
     };
     ok.onclick = () => decide("approve"); no.onclick = () => decide("reject");
-    box.append(note, ok, no, msg);
+    box.append(note, why, ok, no, msg);
     d.append(box);
     d.append(el("p", "Approving does not run anything: a person runs it with `dip approvals execute`, or the proposing agent's Act tier does.", "muted"));
   }

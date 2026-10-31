@@ -215,6 +215,16 @@ CREATE TABLE IF NOT EXISTS ops.approvals (
     result            jsonb
 );
 ALTER TABLE ops.approvals ADD COLUMN IF NOT EXISTS approved_sha256 text;
+-- Stage 11 (S11.5): why a person rejected a proposal, from a fixed list (the note says the
+-- rest). Frozen with the rest of the decision by the trigger below.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'approvals' AND column_name = 'decision_reason') THEN
+        ALTER TABLE ops.approvals ADD COLUMN decision_reason text CHECK (decision_reason IN
+            ('wrong_root_cause', 'wrong_action', 'incomplete', 'unsafe', 'other'));
+    END IF;
+END $$;
 CREATE INDEX IF NOT EXISTS approvals_status_idx ON ops.approvals (status, created_at);
 -- What was proposed cannot change afterwards; only the decision and execution columns can.
 CREATE OR REPLACE FUNCTION ops.approvals_payload_fixed() RETURNS trigger
@@ -250,7 +260,8 @@ BEGIN
     -- note stay too, and an approved hash is set only by the approval itself.
     IF (OLD.decided_by IS NOT NULL AND (NEW.decided_by IS DISTINCT FROM OLD.decided_by
                                         OR NEW.decided_at IS DISTINCT FROM OLD.decided_at
-                                        OR NEW.decision_note IS DISTINCT FROM OLD.decision_note))
+                                        OR NEW.decision_note IS DISTINCT FROM OLD.decision_note
+                                        OR NEW.decision_reason IS DISTINCT FROM OLD.decision_reason))
         OR (NEW.approved_sha256 IS DISTINCT FROM OLD.approved_sha256
             AND NOT (OLD.status = 'pending' AND NEW.status = 'approved'))
         OR (OLD.executed_by IS NOT NULL AND NEW.executed_by IS DISTINCT FROM OLD.executed_by)
@@ -365,6 +376,24 @@ SELECT chain_id, run_id, step, provider, source, max(model) AS model,
        min(started_at) AS started_at, max(finished_at) AS finished_at
 FROM ops.model_call
 GROUP BY chain_id, run_id, step, provider, source;
+
+-- Stage 11 (S11.5): feedback. Each agent's proposals by action and week (of the decision,
+-- or of the expiry), with what people decided and why they rejected: the rate panel on the
+-- Agents dashboard and the trend `dip agents feedback` prints.
+CREATE OR REPLACE VIEW ops.agent_feedback AS
+SELECT agent_id AS agent, action,
+       date_trunc('week', coalesce(decided_at, expires_at)) AS week,
+       count(*) FILTER (WHERE status IN ('approved', 'executed', 'failed')) AS approved,
+       count(*) FILTER (WHERE status = 'rejected') AS rejected,
+       count(*) FILTER (WHERE status = 'expired') AS expired,
+       count(*) FILTER (WHERE decision_reason = 'wrong_root_cause') AS wrong_root_cause,
+       count(*) FILTER (WHERE decision_reason = 'wrong_action') AS wrong_action,
+       count(*) FILTER (WHERE decision_reason = 'incomplete') AS incomplete,
+       count(*) FILTER (WHERE decision_reason = 'unsafe') AS unsafe,
+       count(*) FILTER (WHERE decision_reason = 'other') AS other_reason
+FROM ops.approvals
+WHERE status <> 'pending'
+GROUP BY 1, 2, 3;
 
 -- Stage 11 (S11.2): one chain's trace. Tool spans from the audit log (a call ends when its
 -- row is written, `at`, and lasted `latency_ms`) and model spans from ops.model_call, under
@@ -601,6 +630,10 @@ BEGIN
         GRANT SELECT ON ops.approvals TO dip_approver;
         GRANT UPDATE (status, decided_by, decided_at, decision_note, approved_sha256)
             ON ops.approvals TO dip_approver;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'approvals' AND column_name = 'decision_reason') THEN
+            GRANT UPDATE (decision_reason) ON ops.approvals TO dip_approver;
+        END IF;
     END IF;
     IF to_regclass('ops.audit_log') IS NOT NULL THEN
         GRANT SELECT, INSERT ON ops.audit_log TO dip_approver;

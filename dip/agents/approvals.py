@@ -102,9 +102,19 @@ def _get(conn: Any, approval_id: int, lock: bool = False) -> dict[str, Any]:
     return dict(zip(keys, row, strict=True))
 
 
-def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "") -> str:
+# Stage 11 (S11.5): why a person rejects a proposal (ops.approvals.decision_reason).
+REJECT_REASONS = ("wrong_root_cause", "wrong_action", "incomplete", "unsafe", "other")
+
+
+def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "",
+           reason: str | None = None) -> str:  # fmt: skip
     """Approve or reject a pending proposal. An approval records the hash of the payload the
-    person approved, so the row that runs must still be that payload."""
+    person approved, so the row that runs must still be that payload. A rejection records
+    why, from REJECT_REASONS (S11.5; the CLI and the approvals page ask for one)."""
+    if approve and reason:
+        raise ApprovalError("a reason is for a rejection")
+    if reason is not None and reason not in REJECT_REASONS:
+        raise ApprovalError(f"reason must be one of {list(REJECT_REASONS)}")
     a = _get(conn, approval_id, lock=True)
     if a["status"] != "pending":
         conn.rollback()
@@ -115,12 +125,14 @@ def decide(conn: Any, approval_id: int, approve: bool, by: str, note: str = "") 
     with conn.cursor() as cur:
         cur.execute(
             "update ops.approvals set status = %s, decided_by = %s, decided_at = now(),"
-            " decision_note = %s, approved_sha256 = %s where approval_id = %s",
+            " decision_note = %s, approved_sha256 = %s, decision_reason = %s"
+            " where approval_id = %s",
             (
                 status,
                 by,
                 note,
                 payload_sha256(a["payload"]) if status == "approved" else None,
+                reason if status == "rejected" else None,
                 approval_id,
             ),  # fmt: skip
         )
