@@ -1,0 +1,113 @@
+name: proof
+
+# Stage 10 (S10.6): the stage's one proof with a model key, on a GitHub runner instead of
+# the laptop (16 GB was not enough for the kind node next to everything else). Manual only:
+# no push, pull_request or schedule trigger, so the key is never used unless a person with
+# write access starts it. The stack comes up with the core profile and no model key, the
+# E2E runs as in e2e.yml (spending nothing), then scripts/proof_intake.py runs the intake
+# team once, in the cluster, on the E2E's onboarding sample, with DIP_SPEND_CAP_USD set.
+# The screenshots and results.md are uploaded; the cluster is torn down.
+
+on:
+  workflow_dispatch:
+    inputs:
+      spend_cap_usd:
+        description: "Stop before a request could take the run's model spend past this"
+        default: "0.25"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proof
+  cancel-in-progress: false
+
+env:
+  KIND_VERSION: v0.33.0
+  TF_VAR_profiles: '["core"]'
+
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # `dip approvals execute` cuts the contract branch from main
+
+      - name: A local main for the contract branch
+        run: git branch -f main origin/main 2>/dev/null || true
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.6"
+          terraform_wrapper: false
+
+      - name: Install kind
+        run: |
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          curl -fsSL "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64.sha256sum" \
+            | awk '{print $1"  kind"}' | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+
+      - name: Prerequisites
+        run: bash scripts/prereqs.sh || true
+
+      - name: Bring up stack (no model key)
+        run: bash scripts/up.sh
+
+      - name: Smoke test
+        run: bash scripts/smoke.sh
+
+      - name: E2E
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q -e ".[dev]"  # boto3, PyYAML, openpyxl, websocket-client, dbt
+          bash scripts/e2e.sh
+
+      - name: The intake team, once, with the key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIP_SPEND_CAP_USD: ${{ inputs.spend_cap_usd }}
+        run: |
+          test -n "$ANTHROPIC_API_KEY" || { echo "the ANTHROPIC_API_KEY secret is not set"; exit 1; }
+          tf() { terraform -chdir=infra/terraform "$@"; }
+          export KUBECONFIG="$(tf output -raw kubeconfig_path)"
+          export WAREHOUSE_DSN="$(tf output -raw warehouse_dsn)"
+          export APPROVALS_TOKEN="$(tf output -raw approvals_token)"
+          export AIRFLOW_IMAGE="dip-airflow:$(jq -r .airflow_image_tag infra/terraform/image.auto.tfvars.json)"
+          # `dip approvals execute` commits the contract branch: a runner has no git identity.
+          export GIT_AUTHOR_NAME="S10.6 proof" GIT_AUTHOR_EMAIL="proof@localhost"
+          export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          export CHROME="$(command -v google-chrome)" DBT="$PWD/.venv/bin/dbt"
+          kubectl -n dip-data port-forward svc/approvals 8081 >/dev/null 2>&1 &
+          trap 'kill %1' EXIT
+          for _ in $(seq 1 30); do (exec 3<>/dev/tcp/127.0.0.1/8081) 2>/dev/null && break; sleep 1; done
+          .venv/bin/python scripts/proof_intake.py artifacts/proof
+
+      - name: Upload the proof
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: s10-6-proof
+          path: |
+            artifacts/proof/*.png
+            artifacts/proof/results.md
+            artifacts/proof/audit.json
+          retention-days: 30
+
+      - name: Collect diagnostics
+        if: failure()
+        run: bash scripts/diagnostics.sh
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: proof-diagnostics
+          path: artifacts/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: bash scripts/down.sh
