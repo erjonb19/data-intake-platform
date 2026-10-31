@@ -62,3 +62,58 @@ def test_values_without_letters_or_digits_are_kept():
     s = Scrubber(1)
     assert s.value("") == "" and s.value("--") == "--"
     assert s.value("Ünïcødé") != "Ünïcødé"
+
+
+def test_a_loose_pattern_keeps_no_original_letters():
+    """A value matching a loose pattern is replaced whole, not only in its digits."""
+    from dip.agents.feedback import Rule
+
+    rule = Rule.of({"name": "procedure_code", "pattern": "^[A-Za-z0-9.-]{1,20}$"})
+    s = Scrubber(5)
+    new = s.value("OAKST-12", rule)
+    assert rule.pattern.fullmatch(new) and new != "OAKST-12"
+    assert "OAKST" not in new
+
+
+def test_a_value_is_memoised_per_column_and_never_lands_on_an_allowed_one():
+    from dip.agents.feedback import Rule
+
+    s = Scrubber(1)
+    free, sex = Rule.of({"name": "note"}), Rule.of({"name": "sex", "allowed": ["F", "M", "U"]})
+    for _ in range(50):  # whatever "X" became in a free column, in `sex` it stays not allowed
+        s.value("X", free)
+    assert s.value("X", sex) not in {"F", "M", "U"}
+
+
+def test_numbers_keep_their_side_of_min_and_max():
+    from dip.agents.feedback import Rule
+
+    rule = Rule.of({"name": "line_number", "type": "integer", "min": 1, "max": 99})
+    s = Scrubber(2)
+    assert float(s.value("0", rule)) < 1  # below the minimum stays below
+    assert 1 <= float(s.value("42", rule)) <= 99
+
+
+def test_a_unique_column_never_gets_two_values_the_same():
+    from dip.agents.feedback import Rule
+
+    rule = Rule.of({"name": "code", "unique": True})
+    s = Scrubber(3)
+    got = {s.value(str(d), rule) for d in range(10)}  # one digit each: few choices
+    assert len(got) == 10
+
+
+def test_without_a_header_or_contract_the_first_row_is_data():
+    text = "Alex,Hallett,1980-02-14\nSam,Okafor,1975-07-30\n"
+    out = scrub_csv(text, None, seed=1)
+    assert "Alex" not in out and "Hallett" not in out
+
+
+def test_file_names_keep_only_the_pattern_and_a_valid_date():
+    from dip.agents.feedback import scrub_name
+
+    c = SimpleNamespace(spec={"source": {"filename_pattern": "elig_*.csv"}})
+    assert scrub_name("elig_20261020_DanaWhitfield.csv", c, 1) == "elig_20261020.csv"
+    name = scrub_name("elig_M000000012.csv", c, 1)
+    assert name.startswith("elig_") and "M000000012" not in name
+    assert scrub_name("Robin Achterberg.csv", None, 1).startswith("sample_")

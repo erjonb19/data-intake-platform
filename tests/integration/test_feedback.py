@@ -83,6 +83,11 @@ def test_a_rejected_triage_proposal_becomes_a_scrubbed_case(rejected, tmp_path):
     gold = case["gold"]["VALUE.NOT_ALLOWED:sex"]
     assert gold["root_cause"] == "invalid_values" and "discard" not in gold["acceptable"]
     assert case["from_rejection"]["reason"] == "wrong_action"
+    # the person's note may name a member: never copied
+    assert "resend, do not discard" not in text and case["from_rejection"]["note"].startswith(
+        "TODO"
+    )
+    assert list(case["files"]) == ["elig_20261020.csv"]  # the pattern and the valid date only
     [content] = case["files"].values()
     assert content.splitlines()[0] == BAD.splitlines()[0]  # the header: the schema
     allowed = {"F", "M", "U", "HMO", "PPO", "EPO", "HDHP"}

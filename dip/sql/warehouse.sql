@@ -385,14 +385,16 @@ SELECT agent_id AS agent, action,
        date_trunc('week', coalesce(decided_at, expires_at)) AS week,
        count(*) FILTER (WHERE status IN ('approved', 'executed', 'failed')) AS approved,
        count(*) FILTER (WHERE status = 'rejected') AS rejected,
-       count(*) FILTER (WHERE status = 'expired') AS expired,
+       -- a pending row past its expiry expired unseen (nothing marks it until a person
+       -- or `dip approvals` touches it)
+       count(*) FILTER (WHERE status = 'expired' OR status = 'pending') AS expired,
        count(*) FILTER (WHERE decision_reason = 'wrong_root_cause') AS wrong_root_cause,
        count(*) FILTER (WHERE decision_reason = 'wrong_action') AS wrong_action,
        count(*) FILTER (WHERE decision_reason = 'incomplete') AS incomplete,
        count(*) FILTER (WHERE decision_reason = 'unsafe') AS unsafe,
        count(*) FILTER (WHERE decision_reason = 'other') AS other_reason
 FROM ops.approvals
-WHERE status <> 'pending'
+WHERE status <> 'pending' OR expires_at < now()
 GROUP BY 1, 2, 3;
 
 -- Stage 11 (S11.2): one chain's trace. Tool spans from the audit log (a call ends when its
