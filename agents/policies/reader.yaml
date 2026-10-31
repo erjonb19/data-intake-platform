@@ -18,6 +18,7 @@ tools:
   - get_dq_results
   - get_dag_run
   - get_task_log
+  - get_k8s_events     # Stage 11 (S11.6): dip-airflow pods and events, read only
   - get_lineage
   - query_metrics
   - profile_file

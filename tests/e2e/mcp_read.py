@@ -28,7 +28,8 @@ KEY = os.environ["MCP_READER_KEY"]
 OBS = os.environ.get("OBSERVABILITY") == "1"
 READ_TOOLS = {"list_quarantine_groups", "get_quarantine_sample", "get_contract",
               "get_feed_history", "get_dq_results", "get_dag_run", "get_task_log",
-              "get_lineage", "query_metrics", "profile_file"}  # fmt: skip
+              "get_lineage", "query_metrics", "profile_file",
+              "get_k8s_events"}  # Stage 11 (S11.6)  # fmt: skip
 
 
 class Session:

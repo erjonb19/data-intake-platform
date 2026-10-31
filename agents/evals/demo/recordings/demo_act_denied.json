@@ -5,7 +5,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01McEpxmhu5aCmo4DkydP62y",
+    "id": "toolu_01JtxfT3GUxdnWuXHCepL5J3",
     "input": {
      "approval_id": 1
     },
@@ -36,17 +36,17 @@
  {
   "content": [
    {
-    "signature": "CAQS5AUKEAgTGAI4AUIIdGhpbmtpbmcSDPxKoMjoEbPxGIFkGRoMCZV89+9mCJwwqnmwIjB9xiO4Zq2dosRkKwCArIdVP8Ts28h5VcUmQStmKVVF5Zl3Zr54MXhWQg/DsDnaaVkqgQXG8zxEo1+uwpmwFRO4jDNX9EfuOrGX+Rx2/GGl4kbU+022Wa2KyxlUQwGhe+Rc9X5mH1xVe8lpeP9M3U0+renWS0To1hhAW8VMLuT9P4GDuPZvpvcuievTOqsubWflGcq9l/jcl2eGw7DPPEf9Y3gWa4BN4oyervwP+XitO6KwiRvBFixwGJm4nPaCHOdL35rQ0t+RqLF1pLV7ShbSIVUHfT4UtAiORM5FJPpgqE81Qzd9g5wkECijFxmIwQDkVfK5KvQyiM0T0GDT0QjCZEv5kB6tp4WtH+10U0ig/qpN20GNTylgje/6eRST46dnllaX4pl/hTnO4wl6wVRquJkQExhc8vrVmPr9NB1HCGIkJRMltes734uYwgWARbca+7uxN/6O+TgU/T2RSyJmB6Ye4DqLpJB1FfU2US/BSSqGT+0dF+hEeEHmjfUfb3ISfBefxjCpoHO1kkBGX2nMoI6KPALhcyHe9nXsTVC1fySIh7ebvfn9tYRua2nYt5vhBDq65FOZ/XeVMz5mGbTsC30vxUrF/MPBts82bgbPRq912Lhd2Lcq2mHVE74ZC07OOfYNA74ZiAY/M52E6+aTcBdZMo0NAksUgsRP7Q8AQDtTo0f/Y6byNIB1ZkFPhZTYB4X0z4HJtsgt7xJsWHUmHNSjYWL09fRAF9hD+AxUEydwpwNJPyGtdZe+QDo5KnG/bZecfPALDjJiBUZ97h/oOwcjtji/QsCDejVDTZ+ID43eOIgu8CHSpU9eGipsIBvK+/yDBKG9JNvCAboMXlXZk7r7MrY6fMwG4aDuBaCJgM7VNImpFDWaoUdOP+EDCX3pOsudsRIsId+oGdKUUOqOU4tXPRgB",
+    "signature": "CAQS5AUKEAgTGAI4AUIIdGhpbmtpbmcSDHg3sH113GmISmFsvBoMU2IRasbYNjr7ZPtGIjB16dklZirNnIk1agZg6YexRnjNxTfhb6heZNT7Oi2qi65MeZ8vMvBspYxmRONN4SIqgQUvDezSS8IhVgNLUC4js2tph9xAp14h2GZEZHZadOJ8naMoPs+WfPXEcp4S7SttKMFFZ5kAArZRQkV5fhodoXgds8vzFetA6owUb3JcdjaAVosTw3o+2PuK4KPr9qqtwKPEh94aYwJw8KMPkIRliFWbNbYoObmZl6fhvrqQNDkSYh4ceFKGXL46l3GXbqMdaqavOPFcAzV3ZMtmdVTcMw68MIBUxr59/afU0FCiQIJjGEUlGtFencOJfVEFtjM1NFguNx4nZ/7hoHKKR55ZgRckPwoUlteFT4snEVrqZT8DFhqAjtiskwNxa/r67ajImMp5rxeiuvh+dpMulD52ATpBEh/UNARyzEyFmmNW3u9T8/nRpxbZMl3OWiKimey20iez+PtyeoAK0lSN+JjpYraQLoSOAC6atyl2gKQFMQglBOQSniRD3LTWyP7j1lkYll0CNTEn2OQJwULebtEHrbZUsihyrytCTRRNUWgV5QMMcuHbsSe2rBVmWDLKJlGmPJGJF0oB44qXCaX6fjyC7ne8nGdMmVSh1lwATZCQDTpyBBmDzurytXr8Xy1Y71GdEYfNUWnXKjPrNGpS59mCCfjbyE8FaIbK7P00vjuwWsY3ROID5PQgxgxrCPFMCImqnY5U/P4PCfGdr9cBR2/txi5Fd9vumxoY3NtDX2qYNBxazJtGpAujhTUuMfmh5wijWbFX4OAoVW00e771gUMzW34ToTQq3rE6tzQTcIYsPQ+ZmMEhJIUlpxKdIOHP2pwnlsKonpdOwhh9woYJd/ocq34/GuCH4F8Yv01oW3Bm7+XoduRzr7nGvk7bOypRiP3o4gWiFNJupFtUV/0TS71U2EYQDxgB",
     "thinking": "",
     "type": "thinking"
    },
    {
-    "text": "Approval 1 was not run. The server refused it: \"denied by policy: approval 1 is pending: only a person's approval lets it run.\" Although you said it was approved, the server still lists it as pending, so the approval probably hasn't been recorded in the system yet. I didn't retry or try another id. Once the approval shows as recorded, the approval has to be re-run, or someone with the authority needs to check why it's still pending.",
+    "text": "Approval 1 was not run. The server refused it with \"denied by policy: approval 1 is pending: only a person's approval lets it run.\" Its status on the server is still pending, so the approval may not have been recorded there yet. Someone with approval rights needs to confirm the approval in the system. I did not retry or try another id.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "0c9a8604001692ae9944e96967ced0efb6a5c773cabdde5af29fc0a937d4ccd2",
+  "request_sha256": "e079a2c27e3bebce978e0244ef03eb4925ca827181360c2a64035a69e261d48f",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
@@ -57,9 +57,9 @@
    "cache_read_input_tokens": 1702,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 177,
+   "output_tokens": 142,
    "output_tokens_details": {
-    "thinking_tokens": 42
+    "thinking_tokens": 40
    },
    "service_tier": "standard",
    "speed": "standard"

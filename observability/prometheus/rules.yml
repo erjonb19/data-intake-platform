@@ -57,6 +57,15 @@ groups:
         annotations:
           summary: "DAG {{ $labels.dag_id }} failed in the last hour"
           description: A run of {{ $labels.dag_id }} ended failed (Airflow statsd, dagrun.duration.failed).
+      # Stage 11 (S11.6): the platform check's view of the scheduler (dip/platform_check.py).
+      - alert: AirflowSchedulerDown
+        expr: dip_airflow_scheduler_heartbeat_age_seconds > 180
+        labels: {severity: critical}
+        annotations:
+          summary: "The Airflow scheduler has not heartbeat for {{ $value | humanizeDuration }}"
+          description: >-
+            No DAG runs or tasks are scheduled. Runbook docs/runbooks/09-scheduler-down.md
+            (incident PLATFORM.SCHEDULER_DOWN, opened by the platform-check CronJob).
       - alert: TargetDown
         expr: up == 0
         for: 5m

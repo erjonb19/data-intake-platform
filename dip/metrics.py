@@ -19,6 +19,8 @@ codes and test names, all from contracts and the dbt project), so the series sta
   dip_model_spend_usd_today{provider}          metered spend today (UTC), live calls
   dip_model_calls_24h{agent,provider}          live model calls, last 24 h
   dip_model_latency_p95_seconds_24h{agent}     p95 model call latency, last 24 h
+  dip_airflow_scheduler_heartbeat_age_seconds  the scheduler's last heartbeat, as the
+                                               platform check saw it (S11.6)
   dip_metrics_query_ok{query}                  1, or 0 when a query failed (a table not
                                                created yet, a missing grant)
 
@@ -157,6 +159,15 @@ QUERIES: dict[str, tuple[str, str, str]] = {
         " from ops.model_call where source = 'live' and step is not null"
         " and started_at > now() - interval '24 hours' group by 1",
     ),
+    # Stage 11 (S11.6): the scheduler's heartbeat as the platform check last saw it, aged
+    # to now (it keeps growing while the scheduler, or the check itself, is down).
+    "dip_airflow_scheduler_heartbeat_age_seconds": (
+        "Seconds since the Airflow scheduler's last heartbeat seen by the platform check.",
+        "gauge",
+        "select extract(epoch from now() - observed) from ops.platform_check"
+        " where check_name = 'scheduler_heartbeat' and observed is not null"
+        " order by at desc limit 1",
+    ),
 }
 LABELS: dict[str, tuple[str, ...]] = {
     "dip_intake_files": ("feed", "status"),
@@ -173,6 +184,7 @@ LABELS: dict[str, tuple[str, ...]] = {
     "dip_model_spend_usd_today": ("provider",),
     "dip_model_calls_24h": ("agent", "provider"),
     "dip_model_latency_p95_seconds_24h": ("agent",),
+    "dip_airflow_scheduler_heartbeat_age_seconds": (),
 }
 
 

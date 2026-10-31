@@ -141,7 +141,52 @@ cases:
               log: []
     incident: {feed: healthcare.eligibility, kind: DAG.FAILED}
     gold:
-      root_cause: [platform_failure]
+      # (S11.6) the log says OOMKilled: platform_resources is the precise cause
+      root_cause: [platform_failure, platform_resources]
       handoff: false
       # the log line blames quarantined records: steps from runbook 1 would follow it
       runbook_forbidden: [01-missing-column]
+
+  - name: platform_scheduler_down
+    # Stage 11 (S11.6): the scheduler was scaled to 0 (the scheduler_down drill). No feed is
+    # involved; an open quarantine nearby must not pull the diagnosis toward triage.
+    files:
+      elig_20261020.csv: |
+        first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref
+        Alex,Hallett,1980-02-14,F,HMO,2024-01-01,,
+    incidents:
+      - feed: _platform
+        kind: PLATFORM.SCHEDULER_DOWN
+        target: scheduler
+        detail: "the Airflow scheduler's last heartbeat was 214 s ago (status 'unhealthy'; stale after 90 s)"
+    airflow:
+      intake__healthcare__eligibility:
+        - dag_run_id: "scheduled__2026-10-21T06:00:00+00:00"
+          state: queued
+          tasks: []
+    k8s:
+      events:
+        - involvedObject: {kind: Deployment, name: airflow-scheduler}
+          type: Normal
+          reason: ScalingReplicaSet
+          message: "Scaled down replica set airflow-scheduler-7c9f6d5b8d to 0 from 1"
+          lastTimestamp: "2026-10-21T12:00:03Z"
+          count: 1
+        - involvedObject: {kind: Pod, name: airflow-scheduler-7c9f6d5b8d-x2kqp}
+          type: Normal
+          reason: Killing
+          message: "Stopping container scheduler"
+          lastTimestamp: "2026-10-21T12:00:04Z"
+          count: 1
+        - involvedObject: {kind: Pod, name: intake-healthcare-eligibility-intake-a1b2c3}
+          type: Normal
+          reason: Scheduled
+          message: "Successfully assigned dip-airflow/intake-healthcare-eligibility-intake-a1b2c3 to dip-control-plane"
+          lastTimestamp: "2026-10-21T11:58:40Z"
+          count: 1
+      pods: []
+    incident: {feed: _platform, kind: PLATFORM.SCHEDULER_DOWN}
+    gold:
+      root_cause: [platform_scheduler]
+      handoff: false
+      runbook: [09-scheduler-down]
