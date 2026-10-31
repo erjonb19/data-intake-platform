@@ -77,6 +77,7 @@ class AnthropicLLM:
         self.client = anthropic.Anthropic(api_key=os.environ.get(cfg["api_key_env"]))
 
     def create(self, *, system: str, tools: list[dict], messages: list[dict]) -> Message:
+        check_spend(self.model, self.max_tokens, system, tools, messages)
         response = self.client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
@@ -89,7 +90,37 @@ class AnthropicLLM:
             cache_control={"type": "ephemeral"},
         )
         d = response.to_dict()
+        SPENT["usd"] += cost_usd([d.get("usage", {})], self.model)
         return Message(d["content"], d["stop_reason"], d.get("usage", {}), d.get("model", ""))
+
+
+# --- A spend cap (Stage 10, S10.6's proof workflow) --------------------------------------
+#
+# With DIP_SPEND_CAP_USD set, this process never sends a request that could take what it
+# has spent past the cap: before each call, the worst case (the request's size at about 3
+# characters a token, plus max_tokens of output) is added to what the responses so far
+# cost. Not a failover error, so the step fails and no other provider takes over.
+
+SPENT = {"usd": 0.0}
+
+
+class SpendCap(RuntimeError):
+    """The next request could pass DIP_SPEND_CAP_USD."""
+
+
+def check_spend(model: str, max_tokens: int, system: str, tools: list[dict],
+                messages: list[dict]) -> None:  # fmt: skip
+    cap = os.environ.get("DIP_SPEND_CAP_USD")
+    if not cap:
+        return
+    pin, pout = PRICES.get(model, (0.10, 0.50))
+    size = len(system) + len(json.dumps(tools)) + len(json.dumps(messages))
+    worst = size / 3 * pin / 1e6 + max_tokens * pout / 1e6
+    if SPENT["usd"] + worst > float(cap):
+        raise SpendCap(
+            f"spent ${SPENT['usd']:.4f}; the next request could cost ${worst:.4f}, "
+            f"past the ${float(cap):.2f} cap (DIP_SPEND_CAP_USD)"
+        )
 
 
 _DATES = re.compile(r"\d{4}-\d{2}-\d{2}(T[0-9:.+-]+Z?)?")
