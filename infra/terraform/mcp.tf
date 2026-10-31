@@ -300,6 +300,18 @@ resource "kubernetes_deployment_v1" "mcp" {
             # 768Mi (Stage 10, S10.6): check_dbt_models runs `dbt parse` in the pod.
             limits = { memory = "768Mi" }
           }
+          # The root filesystem is read-only; `dbt parse` works on a copy of the project
+          # in a temporary directory (Stage 10, S10.6).
+          volume_mount {
+            name       = "tmp"
+            mount_path = "/tmp"
+          }
+        }
+        volume {
+          name = "tmp"
+          empty_dir {
+            size_limit = "256Mi"
+          }
         }
       }
     }

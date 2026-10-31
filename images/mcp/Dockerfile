@@ -23,12 +23,13 @@ RUN pip install --no-cache-dir --no-deps /tmp/dip && rm -rf /tmp/dip
 COPY packs/ /app/packs/
 COPY agents/policies/ /app/agents/policies/
 COPY docs/runbooks/ /app/docs/runbooks/
-COPY --chown=10001:0 dbt/ /app/dbt/
+COPY dbt/ /app/dbt/
 ENV DIP_CONTRACT_DIRS=/app/packs/healthcare/contracts:/app/packs/finance/contracts \
     DIP_POLICY_DIR=/app/agents/policies \
     DIP_RUNBOOK_DIR=/app/docs/runbooks \
     DIP_REPO_ROOT=/app \
-    DIP_DBT_BIN=/opt/dbt-venv/bin/dbt
+    DIP_DBT_BIN=/opt/dbt-venv/bin/dbt \
+    HOME=/tmp
 
 USER 10001
 EXPOSE 8765

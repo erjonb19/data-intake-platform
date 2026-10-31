@@ -12,7 +12,8 @@ stack. Runs after the break loop (tests/e2e/break_loop.py).
 The upgrade job runs the E2E twice on one cluster, so both checks accept a job queued by
 the first run.
 
-Env: MCP_URL, MCP_TRIAGE_KEY, WAREHOUSE_DSN, and the MinIO and Airflow settings run.py uses.
+Env: MCP_URL, MCP_TRIAGE_KEY, MCP_TEAM_KEYS (Terraform's mcp_team_keys, JSON),
+WAREHOUSE_DSN, and the MinIO and Airflow settings run.py uses.
 """
 
 from __future__ import annotations
@@ -108,8 +109,6 @@ def team_checks(check) -> None:
     listed its own tool (and not the orchestrator's, unless it is the orchestrator); and
     the validator's check_dbt_models runs `dbt parse` inside the MCP pod, on the models
     generated from a new feed's contract (dbt and the project are in the image)."""
-    import hashlib
-
     import psycopg
 
     keys = json.loads(os.environ.get("MCP_TEAM_KEYS") or "{}")
@@ -133,10 +132,17 @@ def team_checks(check) -> None:
             (cid, "0" * 64, text),
         )
     s = mcp_read.Session(keys.get("validator")).open()
+    # A cold `dbt parse` of the whole project can take a while in the pod (the server
+    # allows 120 s).
     result = s.post("tools/call", {"name": "check_dbt_models",
                                    "arguments": {"candidate_id": cid,
-                                                 "_run_id": "e2e-dbt/validate"}})  # fmt: skip
-    out = json.loads(result["content"][0]["text"])
+                                                 "_run_id": "e2e-dbt/validate"}},
+                    timeout=150)  # fmt: skip
+    text = result["content"][0]["text"]
+    try:
+        out = json.loads(text)
+    except ValueError:  # a tool error is plain text
+        out = {"error": text[:300]}
     check(
         out.get("ok") is True
         and out.get("dbt_parse") is True
