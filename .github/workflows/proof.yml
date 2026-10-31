@@ -29,7 +29,7 @@ env:
 jobs:
   proof:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
         with:
@@ -62,7 +62,7 @@ jobs:
       - name: E2E
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q -e ".[dev]" "boto3==1.43.*" "pyyaml==6.*" "openpyxl==3.1.5" "jsonschema==4.*" "websocket-client==1.9.0"
+          .venv/bin/pip install -q -e ".[dev]"  # boto3, PyYAML, openpyxl, websocket-client, dbt
           bash scripts/e2e.sh
 
       - name: The intake team, once, with the key
@@ -76,6 +76,9 @@ jobs:
           export WAREHOUSE_DSN="$(tf output -raw warehouse_dsn)"
           export APPROVALS_TOKEN="$(tf output -raw approvals_token)"
           export AIRFLOW_IMAGE="dip-airflow:$(jq -r .airflow_image_tag infra/terraform/image.auto.tfvars.json)"
+          # `dip approvals execute` commits the contract branch: a runner has no git identity.
+          export GIT_AUTHOR_NAME="S10.6 proof" GIT_AUTHOR_EMAIL="proof@localhost"
+          export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
           export CHROME="$(command -v google-chrome)" DBT="$PWD/.venv/bin/dbt"
           kubectl -n dip-data port-forward svc/approvals 8081 >/dev/null 2>&1 &
           trap 'kill %1' EXIT

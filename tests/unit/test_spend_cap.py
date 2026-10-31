@@ -76,3 +76,18 @@ def test_the_cap_counts_the_request_size(monkeypatch):
 
 def test_the_cap_is_not_a_failover():
     assert not is_failover(SpendCap("over"))
+
+
+def test_a_long_request_is_priced_at_the_long_context_rate(monkeypatch):
+    monkeypatch.setenv("DIP_SPEND_CAP_USD", "0.05")
+    m = model({"input_tokens": 10, "output_tokens": 10}, max_tokens=0)
+    # ~150K tokens, with 1.25x for the cache write: $0.019 at the base rate (under the
+    # cap), $0.094 at the long-context rate (over it)
+    with pytest.raises(SpendCap):
+        m.create(system="s" * 450_000, tools=[], messages=[])
+
+
+def test_a_cache_write_costs_more_than_a_read():
+    write = llm.cost_usd([{"cache_creation_input_tokens": 1_000_000}], "claude-haiku-5-5")
+    read = llm.cost_usd([{"cache_read_input_tokens": 1_000_000}], "claude-haiku-5-5")
+    assert write == pytest.approx(0.125) and read == pytest.approx(0.10)

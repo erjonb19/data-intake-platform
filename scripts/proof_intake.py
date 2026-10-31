@@ -129,28 +129,40 @@ def main() -> int:
         rows.append((what, ok, detail))
         return ok
 
+    check.rows = rows
+
     def q(sql: str, *params):
         with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
             cur.execute(sql, params)
             return cur.fetchall()
 
+    info: dict = {}
+    try:
+        return steps(out, cap, check, q, info)
+    except Exception as exc:  # a crash is a failed check, and results.md is still written
+        check(False, "the proof ran to the end", f"{type(exc).__name__}: {exc}")
+        return finish(out, rows, info)
+
+
+def steps(out: Path, cap: str, check, q, info: dict) -> int:
+    rows = check.rows
     first = q("select job_id, feed, mode from ops.intake_job where status = 'queued'"
               " order by created_at, job_id limit 1")  # fmt: skip
     job = first[0] if first else None
     if not check(bool(job) and job[1:] == (FEED, "onboard"),
                  "the oldest queued job is the E2E's onboarding job", str(job)):  # fmt: skip
-        return finish(out, rows, {})
+        return finish(out, rows, info)
     job_id = job[0]
 
     summary = run_team(cap)
     spent = float(summary.get("spent_usd", 0))
-    check(summary.get("done", {}).get(str(job_id)) == "proposed" and summary["claimed"] == 1,
+    check(summary.get("done", {}).get(str(job_id)) == "proposed" and summary.get("claimed") == 1,
           "the team claimed that one job and proposed", json.dumps(summary))  # fmt: skip
     check(spent <= float(cap), f"spend within the ${float(cap):.2f} cap", f"${spent:.4f}")
 
     status, chain, approval = q("select status, chain_id, approval_id from ops.intake_job"
                                 " where job_id = %s", job_id)[0]  # fmt: skip
-    info = {
+    info |= {
         "job_id": job_id,
         "chain_id": chain,
         "approval_id": approval,
