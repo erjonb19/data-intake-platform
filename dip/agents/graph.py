@@ -201,6 +201,8 @@ class Chain:
     # agent_chain job records it on ops.agent_run at once, so a proposal made on the
     # fallback is labelled even while the chain runs on, or if it later fails.
     on_step: Callable[[str, str], None] | None = None
+    # S11.3: the same moment, with the step's provider, model and prompt hash.
+    on_version: Callable[[str, dict[str, str]], None] | None = None
 
 
 def version_of(run: triage.TriageRun, provider: str) -> dict[str, str]:
@@ -247,6 +249,8 @@ async def run_step(chain: Chain, step: str, run_id: str, body: Callable[[Any, st
         out, provider = await body(llm, run_id), provider_of(llm)
     if chain.on_step:
         chain.on_step(step, provider)
+    if getattr(chain, "on_version", None) and isinstance(out, triage.TriageRun):
+        chain.on_version(step, version_of(out, provider))
     return out, provider
 
 

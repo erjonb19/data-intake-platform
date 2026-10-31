@@ -91,3 +91,21 @@ def test_runs_record_each_steps_version(warehouse):
                                      "versions": versions})  # fmt: skip
     assert rows(warehouse, "select versions from ops.agent_run where incident_id = %s",
                 (iid,)) == [(versions,)]  # fmt: skip
+
+
+def test_each_steps_version_is_written_when_the_step_finishes(warehouse):
+    """As soon as a step ends, like its provider (S10.1): a chain that fails later keeps
+    the versions of the steps that ran."""
+    from tests.integration.test_agent_chain_job import _open
+
+    iid = _open(warehouse, "healthcare.eligibility")
+    with warehouse.conn.cursor() as cur:
+        cur.execute("insert into ops.agent_run (incident_id) values (%s)", (iid,))
+    warehouse.conn.commit()
+    a = {"provider": "anthropic", "model": "m", "prompt_sha256": "h1"}
+    b = {"provider": "gemini", "model": "g", "prompt_sha256": "h2"}
+    chain_job.merge_version(warehouse.conn, "agent_run", "incident_id", iid, "incident", a)
+    chain_job.merge_version(warehouse.conn, "agent_run", "incident_id", iid, "triage", b)
+    assert rows(warehouse, "select versions from ops.agent_run where incident_id = %s",
+                (iid,)) == [({"incident": a, "triage": b},)]  # fmt: skip
+    chain_job.merge_version(warehouse.conn, "ops.x; drop", "incident_id", iid, "x", a)  # ignored
