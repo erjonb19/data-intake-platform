@@ -14,6 +14,12 @@ on:
       spend_cap_usd:
         description: "Stop before a request could take the run's model spend past this"
         default: "0.25"
+      job:
+        # Stage 11 (S11.7): record the incident cases on Gemini here, not on the laptop.
+        description: "proof (the S10.6 proof) or gemini-recordings"
+        type: choice
+        options: [proof, gemini-recordings]
+        default: proof
 
 permissions:
   contents: read
@@ -28,6 +34,7 @@ env:
 
 jobs:
   proof:
+    if: inputs.job == 'proof'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -111,3 +118,49 @@ jobs:
       - name: Tear down
         if: always()
         run: bash scripts/down.sh
+
+  # Stage 11 (S11.7): the incident eval cases recorded on Gemini (the free fallback), one
+  # at a time, against a Postgres service. No kind cluster and no Anthropic key: only the
+  # GEMINI_API_KEY secret. The recordings are scrubbed of the key and checked, then
+  # uploaded as an artifact for a person to pull and commit.
+  gemini-recordings:
+    if: inputs.job == 'gemini-recordings'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dip
+          POSTGRES_PASSWORD: dip
+          POSTGRES_DB: dip_eval
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: pip install -q -e ".[dev]"
+
+      - name: Record the incident cases on Gemini, one at a time
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_eval
+          PYTHONUTF8: "1"
+        run: |
+          test -n "$GEMINI_API_KEY" || { echo "the GEMINI_API_KEY secret is not set"; exit 1; }
+          bash scripts/record_gemini_incidents.sh
+
+      # Only when every step succeeded: a recording that still holds the key (the script
+      # fails then) is never uploaded.
+      - name: Upload the recordings
+        uses: actions/upload-artifact@v7
+        with:
+          name: gemini-incident-recordings
+          path: agents/evals/incident/recordings/gemini/*.json
+          retention-days: 7

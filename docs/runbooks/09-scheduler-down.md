@@ -23,6 +23,9 @@ laptop.
 
 ## Decide
 
+The scheduler down, its heartbeat stale: what to do, by what the scheduler pod's
+events show.
+
 | What you see | Action |
 |---|---|
 | The Deployment was scaled to 0 (events: `ScalingReplicaSet`, the pod `Killing`) | Scale it back: `kubectl -n dip-airflow scale deployment airflow-scheduler --replicas=1` (or `dip drill scheduler_down --undo` after a drill) |

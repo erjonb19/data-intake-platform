@@ -253,8 +253,11 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
 
         if svc.k8s is None:
             raise LookupError("Kubernetes is not configured for this server")
+        # a DAG or task id as an agent writes it (drill_oom) matches its pods (drill-oom-...)
+        # the incident's target (drill_oom.eat_memory) as the pod name spells it
+        pod = str(pod or "").lower().replace("_", "-").replace(".", "-")
         if pod and not re.fullmatch(r"[a-z0-9.-]{1,120}", pod):
-            raise ValueError("pod must be part of a pod name (lowercase letters, digits, . -)")
+            raise ValueError("pod must be part of a pod name (lowercase letters, digits, . - _)")
         events = []
         for ev in svc.k8s.events():
             obj = ev.get("involvedObject") or {}

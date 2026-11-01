@@ -68,6 +68,46 @@ def dip(*args: str) -> str:
     return out.stdout.strip()
 
 
+def open_incidents(kind: str) -> list[tuple]:
+    import psycopg
+
+    with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute("select target from ops.incident where kind = %s and closed_at is null",
+                    (kind,))  # fmt: skip
+        return cur.fetchall()
+
+
+def oom_drill(check) -> None:
+    """Stage 11 (S11.7): drill_oom's task is OOMKilled; the check opens TASK.OOMKILLED for
+    drill_oom.eat_memory, TaskPodOOMKilled fires, and after --undo the check closes it."""
+    print(dip("drill", "oom_task"))
+    started, opened = time.monotonic(), False
+    try:
+        while not opened and time.monotonic() - started < 300:  # the run starts, the pod dies
+            time.sleep(20)
+            run_check("oom")
+            opened = ("drill_oom.eat_memory",) in open_incidents("TASK.OOMKILLED")
+        check(opened, f"the drill opened TASK.OOMKILLED: {open_incidents('TASK.OOMKILLED')}")
+        prom = os.environ.get("PROMETHEUS_URL", "")
+        if prom and opened:
+            seen = False
+            while not seen and time.monotonic() - started < 420:
+                seen = firing(prom, "TaskPodOOMKilled")
+                if not seen:
+                    time.sleep(15)
+            check(seen, "the TaskPodOOMKilled alert fires")
+    finally:
+        print(dip("drill", "oom_task", "--undo"))
+    undone, closed = time.monotonic(), False
+    while not closed and time.monotonic() - undone < 180:
+        time.sleep(15)
+        # a task queued before the pause can still start a pod after the first delete
+        dip("drill", "oom_task", "--undo")
+        run_check("oom-after")
+        closed = not open_incidents("TASK.OOMKILLED")
+    check(closed, "after --undo the check closed TASK.OOMKILLED")
+
+
 def main() -> int:
     failures: list[str] = []
 
@@ -109,11 +149,12 @@ def main() -> int:
         run_check("after")
         closed = not any(open_ for _, _, open_ in scheduler_incidents())
     check(closed, "after --undo the check closed the incident")
+    oom_drill(check)
     for f in failures:
         print(f"FAIL: {f}", file=sys.stderr)
     if failures:
         return 1
-    print("PASS: the scheduler_down drill opened and closed its incident")
+    print("PASS: the scheduler_down and oom_task drills opened and closed their incidents")
     return 0
 
 

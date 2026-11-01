@@ -153,3 +153,33 @@ def test_the_diagnosis_table_takes_the_platform_causes(warehouse):
             )
             cur.execute(sql, (iid, cause))
     warehouse.conn.commit()
+
+
+def oom_pods(present: bool):
+    pod = {"metadata": {"name": "drill-oom-eat-memory-4c1d2",
+                        "labels": {"dag_id": "drill_oom", "task_id": "eat_memory"}},
+           "spec": {"containers": [{"name": "base", "resources": {"limits": {"memory": "128Mi"}}}]},
+           "status": {"containerStatuses": [{"name": "base", "state": {"terminated": {
+               "reason": "OOMKilled", "exitCode": 137,
+               "finishedAt": "2026-11-04T10:00:21Z"}}}]}}  # fmt: skip
+
+    def http(url, headers):
+        return {"items": [pod] if present and url.endswith("/pods") else []}
+
+    return K8s(base="https://k8s", http=http)
+
+
+def test_an_oomkilled_pod_opens_its_tasks_incident_until_it_is_gone(warehouse):
+    def open_oom():
+        return rows(warehouse, "select target from ops.incident where kind = 'TASK.OOMKILLED'"
+                               " and closed_at is null")  # fmt: skip
+
+    out = platform_check.run(warehouse.conn, health(), oom_pods(True), now=NOW, env={})
+    assert out["oomkilled"] == ["drill_oom.eat_memory"]
+    assert open_oom() == [("drill_oom.eat_memory",)]
+    [(detail,)] = rows(warehouse, "select detail from ops.incident where kind = 'TASK.OOMKILLED'")
+    assert "exit 137" in detail and "128Mi" in detail
+    platform_check.run(warehouse.conn, health(), oom_pods(True), now=NOW, env={})  # still one
+    assert len(open_oom()) == 1
+    platform_check.run(warehouse.conn, health(), oom_pods(False), now=NOW, env={})
+    assert open_oom() == []

@@ -18,6 +18,13 @@ opens or closes a platform incident (dip/incidents.py, feed `_platform`):
               If the API itself does not answer, the check records that and decides
               nothing (the API server is down, not necessarily the scheduler)
 
+  oomkilled   (S11.7) pods in dip-airflow whose container ended OOMKilled, by the Airflow
+              task they ran (KubernetesExecutor labels them with dag_id and task_id; a
+              failed task's pod is kept, delete_worker_pods_on_failure is False): each
+              opens TASK.OOMKILLED (target `<dag_id>.<task_id>`). A failed pod is kept
+              until a person deletes it (runbook 10's Check), so the incident stays open
+              until then; a target with no such pod left closes
+
 The exporter turns the latest heartbeat into dip_airflow_scheduler_heartbeat_age_seconds,
 and the AirflowSchedulerDown alert fires above 180 s.
 """
@@ -47,6 +54,15 @@ def record(cur: Any, check: str, target: str, ok: bool, observed: datetime | Non
     )
 
 
+def _open_platform(cur: Any, kind: str, target: str, detail: str) -> None:
+    """Open the incident unless one is already open for this kind and target, on any day: a
+    fault that lasts past midnight (UTC) stays one incident, not one per day."""
+    cur.execute("select 1 from ops.incident where feed = %s and kind = %s and target = %s"
+                " and closed_at is null", (PLATFORM_FEED, kind, target))  # fmt: skip
+    if cur.fetchone() is None:
+        open_incident(cur, PLATFORM_FEED, kind, detail, target=target)
+
+
 def check_scheduler(cur: Any, services: Any, now: datetime, stale_after: float) -> dict:
     try:
         health = services.get(services.airflow_url, "Airflow", "/api/v2/monitor/health")
@@ -66,11 +82,37 @@ def check_scheduler(cur: Any, services: Any, now: datetime, stale_after: float) 
         close_platform(cur, "PLATFORM.SCHEDULER_DOWN", "scheduler")
         return {"scheduler": "healthy"}
     seen = f"{age:.0f} s ago" if age is not None else "never"
-    open_incident(cur, PLATFORM_FEED, "PLATFORM.SCHEDULER_DOWN",
-                  f"the Airflow scheduler's last heartbeat was {seen}"
-                  f" (status {s.get('status')!r}; stale after {stale_after:.0f} s)",
-                  target="scheduler")  # fmt: skip
+    _open_platform(cur, "PLATFORM.SCHEDULER_DOWN", "scheduler",
+                   f"the Airflow scheduler's last heartbeat was {seen}"
+                   f" (status {s.get('status')!r}; stale after {stale_after:.0f} s)")  # fmt: skip
     return {"scheduler": f"down (last heartbeat {seen})"}
+
+
+def check_oomkilled(cur: Any, k8s: Any) -> dict:
+    from dip.k8s import terminations
+
+    try:
+        ended = terminations(k8s.pods())
+    except Exception as exc:  # noqa: BLE001 - recorded; no incident is decided on it
+        record(cur, "k8s_api", "dip-airflow", False, detail=f"{type(exc).__name__}: {exc}")
+        return {"oomkilled": "unknown (the Kubernetes API did not answer)"}
+    killed: dict[str, dict] = {}
+    for t in ended:
+        if t["reason"] == "OOMKilled":
+            target = f"{t['dag_id'] or '?'}.{t['task_id'] or t['pod']}"
+            killed.setdefault(target, t)
+    for target, t in sorted(killed.items()):
+        record(cur, "oomkilled", target, False, _time(t["finished_at"]),
+               detail=f"pod {t['pod']} exit {t['exit_code']} limits {t['limits']}")  # fmt: skip
+        _open_platform(cur, "TASK.OOMKILLED", target,
+                       f"task {target}: pod {t['pod']} was OOMKilled (exit {t['exit_code']},"
+                       f" limits {t['limits']})")  # fmt: skip
+    cur.execute("select target from ops.incident where feed = %s and kind = 'TASK.OOMKILLED'"
+                " and closed_at is null", (PLATFORM_FEED,))  # fmt: skip
+    for (target,) in cur.fetchall():
+        if target not in killed:
+            close_platform(cur, "TASK.OOMKILLED", target)
+    return {"oomkilled": sorted(killed)}
 
 
 def run(conn: Any, services: Any, k8s: Any = None, now: datetime | None = None,
@@ -81,6 +123,8 @@ def run(conn: Any, services: Any, k8s: Any = None, now: datetime | None = None,
     with conn.cursor() as cur:
         out |= check_scheduler(cur, services, now,
                                float(env.get("DIP_SCHEDULER_STALE_SECONDS", "90")))  # fmt: skip
+        if k8s is not None and (k8s.base or k8s.http):
+            out |= check_oomkilled(cur, k8s)
     conn.commit()
     return out
 

@@ -9,6 +9,7 @@ The command refuses to run unless kubectl's current context is the kind cluster 
 workflow, never on the laptop (decisions log, 2026-10-30).
 
   scheduler_down   scale the Airflow scheduler Deployment to 0      (runbook 09, S11.6)
+  oom_task         run the drill_oom DAG, whose task is OOMKilled   (runbook 10, S11.7)
 """
 
 from __future__ import annotations
@@ -49,8 +50,27 @@ def scheduler_down_undo(run: Callable[..., str] = kubectl) -> str:
     return "the scheduler is back: the next platform check closes the incident"
 
 
+def airflow(run: Callable[..., str], *args: str) -> str:
+    """The Airflow CLI in the scheduler's pod (the API server would need a login)."""
+    return run("-n", NS, "exec", "deploy/airflow-scheduler", "--", "airflow", *args)
+
+
+def oom_task(run: Callable[..., str] = kubectl) -> str:
+    airflow(run, "dags", "unpause", "drill_oom")
+    airflow(run, "dags", "trigger", "drill_oom")
+    return "drill_oom runs: its task is OOMKilled, and the next check opens TASK.OOMKILLED"
+
+
+def oom_task_undo(run: Callable[..., str] = kubectl) -> str:
+    airflow(run, "dags", "pause", "drill_oom")
+    run("-n", NS, "delete", "pod", "-l", "dag_id=drill_oom", "--ignore-not-found",
+        "--wait=false")  # fmt: skip
+    return "drill_oom is paused and its pods are gone: the next check closes the incident"
+
+
 DRILLS: dict[str, tuple[Callable[..., str], Callable[..., str]]] = {
     "scheduler_down": (scheduler_down, scheduler_down_undo),
+    "oom_task": (oom_task, oom_task_undo),
 }
 
 

@@ -159,3 +159,21 @@ tests:
               description: >-
                 No DAG runs or tasks are scheduled. Runbook docs/runbooks/09-scheduler-down.md
                 (incident PLATFORM.SCHEDULER_DOWN, opened by the platform-check CronJob).
+  # Stage 11 (S11.7): an open TASK.OOMKILLED incident fires; none, no alert.
+  - interval: 30s
+    input_series:
+      - series: 'dip_incidents_open{feed="_platform",kind="TASK.OOMKILLED"}'
+        values: "_ _ 1x10"
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: TaskPodOOMKilled
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: TaskPodOOMKilled
+        exp_alerts:
+          - exp_labels: {severity: warning, kind: TASK.OOMKILLED}
+            exp_annotations:
+              summary: "A task's pod ran out of memory (1 task(s))"
+              description: >-
+                A task's container was OOMKilled (incident TASK.OOMKILLED, opened by the
+                platform-check CronJob). Runbook docs/runbooks/10-oomkilled.md.
