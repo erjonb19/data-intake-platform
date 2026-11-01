@@ -1,0 +1,124 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id"
+      },
+      "id": "call_531931",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TT80Fmx1dAwRh0QnCNkVjymDW1CRWJdN+AKjGUAcLCxf9biW6OkdWwXUe+OZLrMuObkcnSTDJAGKe/O5vOb7DzZaSGatjiIev6ExkXUOedKbxB81AMM6gcHwcgOBaOcbI2FIJ38etrnkHX32d"
+    },
+    "id": "g-dd34eecf6aa5",
+    "input": {
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "7177dc15091d15b77d1df137ffd4fccd0716cdbbd32162ea3eedc761d2415e33",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 1813,
+   "output_tokens": 35
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.eligibility"
+      },
+      "id": "call_715354",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TtMoIvqwh059o0e6iJLYb1y/gFjiuQ4T298iHZwoLRxEscTjqbAg6/dPH0x71tmZe9sOUWzoZKrhDbGgWTbAXbTCDHhPxK9OECbYHFAxvOiVZ1K2Tcojwaqo7V4MDwSilggu6UevYmpWyUKRR"
+    },
+    "id": "g-0e4ff12431b8",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "2f91d49c4b95eaa6cf844247013057f43ba0761a0cf2e1b2a60e5111c20765d6",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2105,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "action": "request_resend",
+       "confidence": 1,
+       "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
+       "message_to_vendor": "The file submitted, ee56e5c6e0cf5631dbed76ec357fcdb605f256288cfc4ad1aba852065bd772c5.csv, is missing the 'member_id' column required by our data contract. Please include this column in your next submission.",
+       "quarantine_ids": [
+        1
+       ],
+       "rationale": "The file header is 'first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref', which confirms the absence of the 'member_id' column required by the feed's data contract.",
+       "root_cause": "schema_drift"
+      },
+      "id": "call_954871",
+      "name": "propose_operation"
+     },
+     "thoughtSignature": "EnMKcQFpFH0Tdvrl316ilFBmTm7l3cPtu28wvf89iePnjrH56QczxuqU/6Qo6+AnbIzOKowxVhaMmgSoWiyvUnNWRlEyxIWCf6s5BgknPwkV7XhnUOEeheKDaBReC+nhqONqYSQoZH/8DgnMgDXLimZWtp5z"
+    },
+    "id": "g-6a260ccd3368",
+    "input": {
+     "action": "request_resend",
+     "confidence": 1,
+     "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
+     "message_to_vendor": "The file submitted, ee56e5c6e0cf5631dbed76ec357fcdb605f256288cfc4ad1aba852065bd772c5.csv, is missing the 'member_id' column required by our data contract. Please include this column in your next submission.",
+     "quarantine_ids": [
+      1
+     ],
+     "rationale": "The file header is 'first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref', which confirms the absence of the 'member_id' column required by the feed's data contract.",
+     "root_cause": "schema_drift"
+    },
+    "name": "propose_operation",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "c47aa5f831b6b92dcff8a720c82d7bba99eec16eca4b3db0dc733ec7359099d6",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2557,
+   "output_tokens": 216
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The triage for the healthcare.eligibility feed is complete:\n\n*   **healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id**: Proposed `request_resend` because the submitted file is missing the mandatory 'member_id' column required by the contract.",
+     "thoughtSignature": "EnMKcQFpFH0T2tPdUC3HcjwDWkf0IXrzrTKuHFlsL5p/hP0FyPcZqMbWJH5iIWMgijUigQwZJYr8B+YKD0F8WBGwBycpBLGQrrS7AwNLPG3IVGUf5brEAr2nNSjhew6u4zg/cBr5S3ALgGnkPUAUFzDZCzZx"
+    },
+    "text": "The triage for the healthcare.eligibility feed is complete:\n\n*   **healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id**: Proposed `request_resend` because the submitted file is missing the mandatory 'member_id' column required by the contract.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "3925277caf59bf8d420f211678a2d44c545c9967510fae30e90714c6f34c0eb0",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 2808,
+   "output_tokens": 58
+  }
+ }
+]

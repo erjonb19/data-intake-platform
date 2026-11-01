@@ -1,0 +1,161 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 2
+      },
+      "id": "call_652501",
+      "name": "get_incident"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TdctNyuo4y3bDFHa8r1Tt/i9XEya5PrSjWpsHMypy++ybdk2oNjcvNerjmmyeiiM6q/CSSRGU3V+fz4Ha10zr0b0Y0IzZTETXAL2HGIfjV0jxps9W9KV2BltVXBXMPZo+ukyFyrc6vxQhCqaM"
+    },
+    "id": "g-999d624c5c5e",
+    "input": {
+     "incident_id": 2
+    },
+    "name": "get_incident",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "be8fa33a37881c76253e31666e65f00789979368f966b9668a8ae365a818acef",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2797,
+   "output_tokens": 16
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "confidence": 1,
+       "evidence": [
+        "The platform health check reports the Airflow scheduler's last heartbeat was 214 s ago, which exceeds the 90 s threshold for a healthy state."
+       ],
+       "incident_id": 2,
+       "root_cause": "platform_scheduler",
+       "summary": "The Airflow scheduler is unresponsive. Its last heartbeat occurred 214 seconds ago, indicating it is down and failing to schedule any tasks."
+      },
+      "id": "call_532423",
+      "name": "report_diagnosis"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TtCuyIRnZfzfEWc1QobaT/DntfwoYdZ6bgkEDdtiM1/jwjuuBwsI6b5yRK+aMkNM0LgI625eql6He07gKVAaomEHBXEa4LAXPnOISfKr+yD4gWTn/xJ34ZgbLdkCjvlUtTQVdK2k8rMJF8GwM"
+    },
+    "id": "g-de9853014d15",
+    "input": {
+     "confidence": 1,
+     "evidence": [
+      "The platform health check reports the Airflow scheduler's last heartbeat was 214 s ago, which exceeds the 90 s threshold for a healthy state."
+     ],
+     "incident_id": 2,
+     "root_cause": "platform_scheduler",
+     "summary": "The Airflow scheduler is unresponsive. Its last heartbeat occurred 214 seconds ago, indicating it is down and failing to schedule any tasks."
+    },
+    "name": "report_diagnosis",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "828a86ed9f61595a402b05def5605d4858878a46d666855b2c32ed158f0705f5",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3032,
+   "output_tokens": 103
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "query": "scheduler down"
+      },
+      "id": "call_472348",
+      "name": "search_runbooks"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TuKA7iZXofpdZm1at635ZDz0lCWE8EF2jyjpAsCmjCaD+t5Wbdbbu/BLqatGpC4Jw/JetBaSH78TCZxbFl6AyPfANvtJnGIBFnUB7Y/jrpYXj2+svMXEB3pDfO7gIVivIrfUyZ2D9IWx1lyGM"
+    },
+    "id": "g-a83292e729f8",
+    "input": {
+     "query": "scheduler down"
+    },
+    "name": "search_runbooks",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "a21b6045d7d97e370cdf837e6394574a79c36e539b2281c4da00cfb8a852b093",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3172,
+   "output_tokens": 18
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 2,
+       "runbook_id": "09-scheduler-down",
+       "steps": [
+        "Investigate the Airflow scheduler pod events to determine why it stopped heartbeating, using `get_k8s_events(pod=\"scheduler\")`.",
+        "Check if the deployment was scaled down or if the container crashed (e.g., OOMKilled or CrashLoopBackOff).",
+        "Based on the failure reason, take the corrective action specified in the Decison table: scale back if scaled to 0, or increase resource limits/fix image tags if it crashed."
+       ]
+      },
+      "id": "call_955547",
+      "name": "propose_runbook_steps"
+     },
+     "thoughtSignature": "EnMKcQFpFH0Tmjp+koydDYoQfaPMMbRNy7laVhEmknr7NWQVIDlK9VxI3h5r1PD/U2Y5Hko4P0On8NpuROj4CEdNa2fawy1q7+45HF97IWFIbz7PQ3Czq9+zsqUf/5qJxw8xeI3llBzAMCWmyC1f7g+BLZT1"
+    },
+    "id": "g-a1c19d51b9ab",
+    "input": {
+     "incident_id": 2,
+     "runbook_id": "09-scheduler-down",
+     "steps": [
+      "Investigate the Airflow scheduler pod events to determine why it stopped heartbeating, using `get_k8s_events(pod=\"scheduler\")`.",
+      "Check if the deployment was scaled down or if the container crashed (e.g., OOMKilled or CrashLoopBackOff).",
+      "Based on the failure reason, take the corrective action specified in the Decison table: scale back if scaled to 0, or increase resource limits/fix image tags if it crashed."
+     ]
+    },
+    "name": "propose_runbook_steps",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "6f4c69c4c1791f81ac10703967e9a5b22bfcbc8b3a8ec7085fda8206cc20e7ee",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3775,
+   "output_tokens": 141
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The incident 2, identifying a `PLATFORM.SCHEDULER_DOWN` status, was diagnosed as a `platform_scheduler` failure. The evidence showed that the Airflow scheduler's last heartbeat occurred 214 seconds ago, well beyond the 90-second threshold for an unhealthy status. I have recorded this diagnosis and proposed steps from runbook 09-scheduler-down to guide the investigation into the scheduler pod's events, which will determine if it requires scaling, resource adjustments, or other interventions.",
+     "thoughtSignature": "EnMKcQFpFH0TL4iJrLNn7PQ6pa8S/iXf+SN3t3WwWqaxki3RX9hhXNNsGoHDGflI56QUKdC5eG3D7q3FAr/Sd6+TTmBgMEMAOFX41v3MC+7uQc5mPktf3wx27YwNYq/1e24epE/HOEVX51CBd/xPu3iNh8Em"
+    },
+    "text": "The incident 2, identifying a `PLATFORM.SCHEDULER_DOWN` status, was diagnosed as a `platform_scheduler` failure. The evidence showed that the Airflow scheduler's last heartbeat occurred 214 seconds ago, well beyond the 90-second threshold for an unhealthy status. I have recorded this diagnosis and proposed steps from runbook 09-scheduler-down to guide the investigation into the scheduler pod's events, which will determine if it requires scaling, resource adjustments, or other interventions.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "22d2ddad2bf4337db7c2960b41ac7e3d803c8f20ddf84d613adfe7a89d2687f5",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 3973,
+   "output_tokens": 110
+  }
+ }
+]

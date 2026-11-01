@@ -1,0 +1,262 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1
+      },
+      "id": "call_900054",
+      "name": "get_incident"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TJu0I4CddBAfO+c/fokX95I6exi0p+zUPMEdXu+rlpPIQjW7NRpyUae6YaX0sVLVjglNiMutxStSGO9BWuNnaeQ7IwH5m1+wgBoSfqK0C56jawD2TOyWGed1JpoXgbq/HmC0u6qCMxPL1NfFs"
+    },
+    "id": "g-cf39137e7de3",
+    "input": {
+     "incident_id": 1
+    },
+    "name": "get_incident",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "398417fbbbdf726fcd7fefb84ca49ed13bfa602d270947033d64cd887a452242",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2797,
+   "output_tokens": 16
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|FILE.BAD_ROW_RATIO"
+      },
+      "id": "call_1007156",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TSVxOu0KANdryL/VIqeSAp5vqfPz4LDKmxzZe37Mq4iDAGzaHrmMLojLq1D0EeXISsx0FFfpK0+oSjHndRwIu0U/P6wxdX4zkOWAQio5w9wlY/lkGg5Ome7LTna8IGQO33CzmsfAWjAbwPstH"
+    },
+    "id": "g-cd4528fa5d57",
+    "input": {
+     "group_id": "healthcare.eligibility|FILE.BAD_ROW_RATIO"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "e3efca85d8880544865b0bb33f41e90682f9df58d17d684395bb0a37f3558888",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3163,
+   "output_tokens": 33
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code"
+      },
+      "id": "call_665710",
+      "name": "get_quarantine_sample"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TXKV7GfTg5vXnanafHoo9Ov6A/gCztHHNj0cuS7DoZ8l808vR1CfAHCzMeMJgNNZJ5PkqS1RvTN7dx67ayH5BSugqXTFc149H5vMwI1rx7pIrsrpZ7ZBa7mqqx4zpIPE7G9JXJHcgZh/V/h03"
+    },
+    "id": "g-ba1021ee0298",
+    "input": {
+     "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code"
+    },
+    "name": "get_quarantine_sample",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "b486b65247741d231da3c94edbf300da5d8f39ad78317e326cf0a36a821cf610",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3409,
+   "output_tokens": 34
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "feed": "healthcare.eligibility"
+      },
+      "id": "call_544962",
+      "name": "get_contract"
+     },
+     "thoughtSignature": "EnMKcQFpFH0Ta6684RIJ+nAHkbk+cEF2xDeNsxvGb3mOKCqtH6/D1zdWpasSb0UgME6p2pcJapKabFVooUcjdDK8/ROU3NnDGMqRkQNNLZ+SrkjIfTQd7LX/WcTB074WRfv1sgfvile21owMd/YYsspZ/PTw"
+    },
+    "id": "g-473994790f36",
+    "input": {
+     "feed": "healthcare.eligibility"
+    },
+    "name": "get_contract",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "9e79200abb07a2fb8a13d3f6cf29cbd868d4e082fff54da3a666c04e42c02a18",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3699,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "confidence": 1,
+       "evidence": [
+        "The file 'ba45d4b07cf199e46f778bb9560e9a485e6eca5091b5f318795e6681e6fe3f76.csv' was quarantined whole due to 'FILE.BAD_ROW_RATIO' (2 of 4 rows failed), violating the 0.05 limit.",
+        "Two individual records were also quarantined (ids 2 and 3) due to 'VALUE.NOT_ALLOWED:plan_code', as the 'plan_code' values are not in ['HMO', 'PPO', 'EPO', 'HDHP'].",
+        "The contract confirms the 'plan_code' must be one of the allowed values."
+       ],
+       "incident_id": 1,
+       "quarantine_ids": [
+        1,
+        2,
+        3
+       ],
+       "root_cause": "quarantined_records",
+       "summary": "The file 'elig_20261021.csv' was quarantined because it failed the 'max_bad_row_ratio' check (2 of 4 rows invalid) and contained records with invalid 'plan_code' values not defined in the data contract."
+      },
+      "id": "call_579058",
+      "name": "report_diagnosis"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TCq0dovYnhBeUnFDjta2jno9ca+l8GfVkdfgB1xK0KQTzefcQOWEyb6gflnDgT7o163HTQIsqf6qqVn3hsecQ2u3f2DaQUMFocZ45l9sfERlws7tiM4ieHpmhCePvB1vZYRnmG8chCRsB+sxE"
+    },
+    "id": "g-bdbae22d2749",
+    "input": {
+     "confidence": 1,
+     "evidence": [
+      "The file 'ba45d4b07cf199e46f778bb9560e9a485e6eca5091b5f318795e6681e6fe3f76.csv' was quarantined whole due to 'FILE.BAD_ROW_RATIO' (2 of 4 rows failed), violating the 0.05 limit.",
+      "Two individual records were also quarantined (ids 2 and 3) due to 'VALUE.NOT_ALLOWED:plan_code', as the 'plan_code' values are not in ['HMO', 'PPO', 'EPO', 'HDHP'].",
+      "The contract confirms the 'plan_code' must be one of the allowed values."
+     ],
+     "incident_id": 1,
+     "quarantine_ids": [
+      1,
+      2,
+      3
+     ],
+     "root_cause": "quarantined_records",
+     "summary": "The file 'elig_20261021.csv' was quarantined because it failed the 'max_bad_row_ratio' check (2 of 4 rows invalid) and contained records with invalid 'plan_code' values not defined in the data contract."
+    },
+    "name": "report_diagnosis",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "1e8154e36c47b5201e7cc75e8624c8316abc32525d7330e5d97f59267309b345",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 4151,
+   "output_tokens": 283
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "query": "quarantined_records"
+      },
+      "id": "call_937164",
+      "name": "search_runbooks"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T6632ooND+WG/EO4aQxYwPOSUxb6f0tqTwjRqka+xkYrIwr7pUioPbraA0eoFsIdW7fQDe0hK7YhkcyKuwQZ8eIVzrbgD+tzX3dXmSHX3bWvX46MNyMj6rJUK5qmNW/txc0WMklK7JnmQ2X3E"
+    },
+    "id": "g-036dcdb528a8",
+    "input": {
+     "query": "quarantined_records"
+    },
+    "name": "search_runbooks",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "bec03aa6b2ac2eb9769f51c2aa57651920a93585a303a7997398f9dc6b9b1b33",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 4471,
+   "output_tokens": 21
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1,
+       "runbook_id": "03-code-values",
+       "steps": [
+        "Confirm with the vendor whether the unrecognized 'plan_code' values are new valid codes or data errors.",
+        "If they are new valid codes, propose a contract change to add them to the 'allowed' list in the data contract.",
+        "If they are typos or errors, request that the vendor send a corrected file."
+       ]
+      },
+      "id": "call_1015051",
+      "name": "propose_runbook_steps"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TteNlmbRc9TZ0URbTwG8oigbgz9V8VW/zpSFX22WuGN1NHkHRNWOgxCmeggkS/PWgTViMO6GwKbhYVErqn2181r5HHeg8olxzpuBWcvFvlCiP560Tlr3nRreEt5ntazF/zPL3rLzDiR8F41im"
+    },
+    "id": "g-e75242c0862c",
+    "input": {
+     "incident_id": 1,
+     "runbook_id": "03-code-values",
+     "steps": [
+      "Confirm with the vendor whether the unrecognized 'plan_code' values are new valid codes or data errors.",
+      "If they are new valid codes, propose a contract change to add them to the 'allowed' list in the data contract.",
+      "If they are typos or errors, request that the vendor send a corrected file."
+     ]
+    },
+    "name": "propose_runbook_steps",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "5e90a4e491a467c9612ae70658dbf5f90c9c0de61a64d687d504e890f67f8419",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 5135,
+   "output_tokens": 107
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The incident has been diagnosed. The file `elig_20261021.csv` was quarantined for two reasons: failing the `max_bad_row_ratio` check (2 of 4 rows were invalid) and containing individual records with `plan_code` values not present in the allowed list defined in the data contract (`HMO`, `PPO`, `EPO`, `HDHP`). I have recorded the diagnosis and proposed steps for a person to follow based on Runbook 3.",
+     "thoughtSignature": "EnMKcQFpFH0TXcBCZ4hAIEhvAPuiB3wwJMjsdRnLeTDpHPGJ+wXhSAhuOg0uWnfNdER3sTGWKSsL4yByhjxtPlPglilD/rBTqidNIyuP6x8TSrmpDiOqCKq+Ggq0SF1borf40cUyn0F9Eky6du/dYDCPjGCf"
+    },
+    "text": "The incident has been diagnosed. The file `elig_20261021.csv` was quarantined for two reasons: failing the `max_bad_row_ratio` check (2 of 4 rows were invalid) and containing individual records with `plan_code` values not present in the allowed list defined in the data contract (`HMO`, `PPO`, `EPO`, `HDHP`). I have recorded the diagnosis and proposed steps for a person to follow based on Runbook 3.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "a104b82c33b33b6391b4186ad146d2b13d53d1d6c81ea19899e42f154ae09d25",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 5299,
+   "output_tokens": 106
+  }
+ }
+]
