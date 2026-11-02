@@ -66,7 +66,10 @@ def main() -> int:
             f"show #{aid}: a person decided, triage ran it",
         )
         status, body = call(
-            "POST", f"/api/approvals/{aid}/decision", {"decision": "reject"}, {"X-Reviewer": "e2e"}
+            "POST",
+            f"/api/approvals/{aid}/decision",
+            {"decision": "reject", "reason": "other"},
+            {"X-Reviewer": "e2e"},
         )
         check(status == 409 and "not pending" in body, f"deciding an executed row: {status}")
     status, denied = call("GET", "/api/audit?decision=denied&tool=execute_approved_operation")

@@ -70,6 +70,7 @@ jobs:
           }
           run triage triage eval
           run triage-held-out triage eval --cases-file agents/evals/triage/holdout.yaml
+          run triage-from-rejections triage eval --cases-file agents/evals/triage/from_rejections.yaml
           run triage-act triage act-eval
           run break-loop triage loop
           run incident incident eval

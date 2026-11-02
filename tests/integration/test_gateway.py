@@ -94,7 +94,7 @@ def test_approve_records_the_person_and_audits_it(page, warehouse):
 
 def test_reject_then_execute_is_refused(page, warehouse, tmp_path):
     a = _propose(warehouse)
-    assert _decide(page, a, "reject").json()["status"] == "rejected"
+    assert _decide(page, a, "reject", reason="wrong_action").json()["status"] == "rejected"
     with pytest.raises(approvals.ApprovalError, match="is rejected, not approved"):
         approvals.execute(warehouse.conn, LocalStore(tmp_path), a, "human:bob@warehouse")
     # a second decision is refused, and the refusal is audited
@@ -170,7 +170,7 @@ def test_a_decision_record_cannot_be_rewritten(page, warehouse):
     a = _propose(warehouse)
     b = _propose(warehouse, action="request_resend")
     assert _decide(page, a, "approve", note="ok").status_code == 200
-    assert _decide(page, b, "reject").status_code == 200
+    assert _decide(page, b, "reject", reason="other").status_code == 200
     edits = [
         ("update ops.approvals set decision_note = 'edited' where approval_id = %s", a),
         ("update ops.approvals set decided_at = now() where approval_id = %s", a),
