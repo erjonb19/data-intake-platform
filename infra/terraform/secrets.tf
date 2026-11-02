@@ -20,6 +20,7 @@ locals {
     "minio_mcp",          # the MCP server's MinIO user: read raw and quarantine (S3.4)
     "airflow_mcp_viewer", # the MCP server's Airflow Viewer login (S3.4)
     "pg_approver",        # the approvals page's warehouse login (S9.2)
+    "pg_platform_check",  # the platform-check CronJob's warehouse login (S11.6)
   ])
 }
 

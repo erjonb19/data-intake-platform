@@ -30,8 +30,9 @@ def test_the_index_covers_every_runbook_and_ranks_the_right_one():
     assert runbooks.ids() == {
         "01-missing-column", "02-unexpected-column", "03-code-values",
         "04-delimiter-encoding", "05-late-file", "06-duplicate-keys",
-        "07-low-confidence-scan", "08-prompt-injection",
+        "07-low-confidence-scan", "08-prompt-injection", "09-scheduler-down",
     }  # fmt: skip
+    assert runbooks.search("scheduler heartbeat down")[0]["runbook_id"] == "09-scheduler-down"
     assert runbooks.search("FEED.LATE late delivery")[0]["runbook_id"] == "05-late-file"
     first = lambda q: runbooks.search(q)[0]["runbook_id"]  # noqa: E731
     assert first("SCHEMA.MISSING_COLUMN renamed") == "01-missing-column"

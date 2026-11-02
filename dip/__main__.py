@@ -58,6 +58,10 @@
                                every value scrubbed to a synthetic one (S11.5)
   agents versions              each agent step's prompt file, its SHA-256 (what a new run
                                records) and the models a run uses (Stage 11, S11.3)
+  drill NAME [--undo]          break the platform on purpose, on the kind cluster only,
+                               and undo it (Stage 11: scheduler_down; dip/drills.py)
+  platform-check               the scheduler's heartbeat (and from S11.7 the pods), as
+                               platform incidents (Stage 11, S11.6; the CronJob runs it)
   trace CHAIN_ID               one chain's model and tool calls in time order, with totals
                                per step (Stage 11, S11.2: ops.trace_span)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
@@ -733,6 +737,10 @@ def main(argv: list[str] | None = None) -> int:
     brk.add_argument("good", type=Path)
     brk.add_argument("out", type=Path)
     brk.add_argument("--arg", action="append", default=[], help="k=v, e.g. column=plan_code")
+    sub.add_parser("platform-check")
+    drl = sub.add_parser("drill")
+    drl.add_argument("name")
+    drl.add_argument("--undo", action="store_true")
     trc = sub.add_parser("trace")
     trc.add_argument("chain_id")
     met = sub.add_parser("metrics-serve")
@@ -873,6 +881,19 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     elif args.command == "trace":
         return _trace(args)
+    elif args.command == "drill":
+        from dip import drills
+
+        try:
+            print(drills.drill(args.name, args.undo))
+        except drills.DrillError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 1
+        return 0
+    elif args.command == "platform-check":
+        from dip import platform_check
+
+        return platform_check.main()
     elif args.command == "agents":
         return _agents(args)
     elif args.command == "evals":

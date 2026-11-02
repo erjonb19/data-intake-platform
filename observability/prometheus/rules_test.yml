@@ -141,3 +141,21 @@ tests:
               description: >-
                 Metered spend on live model calls today (UTC) is over $0.50 (ops.model_call,
                 dip.agents.llm.cost_usd, which errs high).
+  # Stage 11 (S11.6): the scheduler's heartbeat age, 60 s (no alert), then 240 s (alert).
+  - interval: 30s
+    input_series:
+      - series: 'dip_airflow_scheduler_heartbeat_age_seconds'
+        values: "60x4 240x10"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: AirflowSchedulerDown
+        exp_alerts: []
+      - eval_time: 3m
+        alertname: AirflowSchedulerDown
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: "The Airflow scheduler has not heartbeat for 4m 0s"
+              description: >-
+                No DAG runs or tasks are scheduled. Runbook docs/runbooks/09-scheduler-down.md
+                (incident PLATFORM.SCHEDULER_DOWN, opened by the platform-check CronJob).

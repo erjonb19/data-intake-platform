@@ -243,6 +243,7 @@ resource "kubernetes_secret_v1" "mcp" {
     DIP_AIRFLOW_PASSWORD = local.pw["airflow_mcp_viewer"]
     DIP_MARQUEZ_URL      = local.observability ? local.marquez_url : ""
     DIP_PROMETHEUS_URL   = local.observability ? "http://prometheus-server.${local.obs_ns}.svc.cluster.local" : ""
+    DIP_K8S_NAMESPACE    = local.airflow_ns # S11.6: get_k8s_events reads this namespace
   }
 }
 
@@ -265,6 +266,9 @@ resource "kubernetes_deployment_v1" "mcp" {
         }
       }
       spec {
+        # Stage 11 (S11.6): its own account, bound to a read-only Role on dip-airflow's pods
+        # and events (platform_check.tf), for get_k8s_events.
+        service_account_name = kubernetes_service_account_v1.mcp.metadata[0].name
         container {
           name  = "mcp"
           image = "${var.mcp_image_repository}:${var.mcp_image_tag}"

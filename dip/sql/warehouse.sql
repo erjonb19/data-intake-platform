@@ -85,9 +85,26 @@ CREATE TABLE IF NOT EXISTS ops.incident (
     since         timestamptz NOT NULL,   -- an arrival after this closes a FEED.LATE
     opened_at     timestamptz NOT NULL DEFAULT now(),
     closed_at     timestamptz,
-    detail        text,
-    UNIQUE (feed, kind, window_start)
+    detail        text
 );
+-- Stage 11 (S11.6): platform incidents (PLATFORM.SCHEDULER_DOWN, TASK.OOMKILLED,
+-- TASK.STUCK_QUEUED) belong to no feed: their feed is the reserved `_platform` and their
+-- `target` names what broke (the scheduler, a DAG's task). One incident per feed, kind,
+-- window and target: the old (feed, kind, window_start) key becomes a unique index that
+-- includes the target, so two tasks killed the same day are two incidents.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'incident' AND column_name = 'target') THEN
+        ALTER TABLE ops.incident ADD COLUMN target text;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'incident_feed_kind_window_start_key'
+               AND conrelid = 'ops.incident'::regclass) THEN
+        ALTER TABLE ops.incident DROP CONSTRAINT incident_feed_kind_window_start_key;
+    END IF;
+END $$;
+CREATE UNIQUE INDEX IF NOT EXISTS incident_one_per_window
+    ON ops.incident (feed, kind, window_start, (coalesce(target, '')));
 -- The files a FILE.QUARANTINED incident is about: it closes when none of them has an open
 -- file-level quarantine entry, and its handoff to triage is those files' entries.
 CREATE TABLE IF NOT EXISTS ops.incident_file (
@@ -131,14 +148,31 @@ CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     incident_id     bigint      NOT NULL REFERENCES ops.incident (incident_id),
     agent_id        text        NOT NULL,
     run_id          text,
-    root_cause      text        NOT NULL CHECK (root_cause IN ('late_delivery',
-        'quarantined_records', 'transform_failure', 'platform_failure', 'unknown')),
+    root_cause      text        NOT NULL CONSTRAINT incident_diagnosis_root_cause_check
+        CHECK (root_cause IN ('late_delivery', 'quarantined_records', 'transform_failure',
+        'platform_failure', 'platform_scheduler', 'platform_resources', 'platform_credentials',
+        'platform_capacity', 'unknown')),
     summary         text        NOT NULL,
     evidence        jsonb       NOT NULL,
     quarantine_ids  jsonb       NOT NULL,
     confidence      numeric(3, 2) NOT NULL CHECK (confidence BETWEEN 0 AND 1),
     created_at      timestamptz NOT NULL DEFAULT now()
 );
+-- Stage 11 (S11.6): the platform causes (dip/agents/incident_tools.py ROOT_CAUSES), on a
+-- warehouse whose check predates them: replaced in place when it lacks one.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'ops.incident_diagnosis'::regclass
+                   AND conname = 'incident_diagnosis_root_cause_check'
+                   AND pg_get_constraintdef(oid) LIKE '%platform_capacity%') THEN
+        ALTER TABLE ops.incident_diagnosis
+            DROP CONSTRAINT IF EXISTS incident_diagnosis_root_cause_check;
+        ALTER TABLE ops.incident_diagnosis ADD CONSTRAINT incident_diagnosis_root_cause_check
+            CHECK (root_cause IN ('late_delivery', 'quarantined_records', 'transform_failure',
+            'platform_failure', 'platform_scheduler', 'platform_resources',
+            'platform_credentials', 'platform_capacity', 'unknown'));
+    END IF;
+END $$;
 -- Stage 9 (S9.3): the runbook the incident agent matched and the steps it proposes for a
 -- person, beside its diagnosis. Steps are text for people; nothing reads them to act.
 ALTER TABLE ops.incident_diagnosis ADD COLUMN IF NOT EXISTS runbook_id text;
@@ -377,6 +411,35 @@ SELECT chain_id, run_id, step, provider, source, max(model) AS model,
 FROM ops.model_call
 GROUP BY chain_id, run_id, step, provider, source;
 
+-- Stage 11 (S11.6): what the platform check (dip/platform_check.py, a CronJob) saw on each
+-- run: one row per check, numbers and times only. The exporter reads the latest.
+CREATE TABLE IF NOT EXISTS ops.platform_check (
+    check_id    bigserial   PRIMARY KEY,
+    at          timestamptz NOT NULL DEFAULT now(),
+    check_name  text        NOT NULL,
+    target      text        NOT NULL,
+    ok          boolean     NOT NULL,
+    observed    timestamptz,
+    value       double precision,
+    detail      text
+);
+CREATE INDEX IF NOT EXISTS platform_check_latest ON ops.platform_check (check_name, at DESC);
+-- Its login: incidents and this table, nothing else.
+CREATE OR REPLACE FUNCTION ops.grant_platform_check() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_platform_check') THEN
+        RETURN;
+    END IF;
+    GRANT USAGE ON SCHEMA ops TO dip_platform_check;
+    GRANT SELECT, INSERT ON ops.incident TO dip_platform_check;
+    GRANT UPDATE (closed_at, since, opened_at, detail) ON ops.incident TO dip_platform_check;
+    GRANT USAGE ON SEQUENCE ops.incident_incident_id_seq TO dip_platform_check;
+    GRANT SELECT, INSERT ON ops.platform_check TO dip_platform_check;
+    GRANT USAGE ON SEQUENCE ops.platform_check_check_id_seq TO dip_platform_check;
+END $$;
+SELECT ops.grant_platform_check();
+
 -- Stage 11 (S11.5): feedback. Each agent's proposals by action and week (of the decision,
 -- or of the expiry), with what people decided and why they rejected: the rate panel on the
 -- Agents dashboard and the trend `dip agents feedback` prints.
@@ -541,6 +604,10 @@ BEGIN
     END IF;
     IF to_regclass('ops.approvals') IS NOT NULL THEN
         GRANT SELECT (agent_id, status, decided_at, expires_at) ON ops.approvals TO dip_metrics;
+    END IF;
+    -- (S11.6) the platform check's latest findings
+    IF to_regclass('ops.platform_check') IS NOT NULL THEN
+        GRANT SELECT (check_name, target, ok, observed, at) ON ops.platform_check TO dip_metrics;
     END IF;
 END $$;
 SELECT ops.grant_metrics_reader();
