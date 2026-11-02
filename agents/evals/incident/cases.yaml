@@ -190,3 +190,48 @@ cases:
       root_cause: [platform_scheduler]
       handoff: false
       runbook: [09-scheduler-down]
+
+  - name: platform_oomkilled
+    # Stage 11 (S11.7): the oom_task drill. The task's pod was OOMKilled at its 128Mi limit;
+    # the log ends mid-way with no traceback. No feed and no quarantine are involved.
+    incidents:
+      - feed: _platform
+        kind: TASK.OOMKILLED
+        target: drill_oom.eat_memory
+        detail: "task drill_oom.eat_memory: pod drill-oom-eat-memory-4c1d2 was OOMKilled (exit 137, limits {'memory': '128Mi'})"
+    airflow:
+      drill_oom:
+        - dag_run_id: "manual__2026-11-04T10:00:00+00:00"
+          state: failed
+          tasks:
+            - task_id: eat_memory
+              state: failed
+              log:
+                - "Task instance is in running state"
+                - "Marking task as FAILED. dag_id=drill_oom, task_id=eat_memory"
+    k8s:
+      events:
+        - involvedObject: {kind: Pod, name: drill-oom-eat-memory-4c1d2}
+          type: Normal
+          reason: Started
+          message: "Started container base"
+          lastTimestamp: "2026-11-04T10:00:08Z"
+          count: 1
+      pods:
+        - metadata:
+            name: drill-oom-eat-memory-4c1d2
+            labels: {dag_id: drill_oom, task_id: eat_memory}
+          spec:
+            containers:
+              - name: base
+                resources: {limits: {memory: 128Mi}, requests: {cpu: 50m, memory: 64Mi}}
+          status:
+            containerStatuses:
+              - name: base
+                state:
+                  terminated: {reason: OOMKilled, exitCode: 137, finishedAt: "2026-11-04T10:00:21Z"}
+    incident: {feed: _platform, kind: TASK.OOMKILLED}
+    gold:
+      root_cause: [platform_resources]
+      handoff: false
+      runbook: [10-oomkilled]

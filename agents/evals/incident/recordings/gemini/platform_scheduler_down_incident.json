@@ -7,12 +7,12 @@
       "args": {
        "incident_id": 2
       },
-      "id": "call_694849",
+      "id": "call_652501",
       "name": "get_incident"
      },
-     "thoughtSignature": "EnMKcQFpFH0TIR9gNBjpD5xgoyPgQbKdBXtA5GJ+1iv3R7DATBqp6dJhgDa/i+BTShm5PRK8mv/JmfNGDWg3zgJTG31exbgrWF0VxKjbUdTBd2TlHy4DFJJWAYYrTkmPx7WIt2A75WiNh+gVUn8tWDEYLou/"
+     "thoughtSignature": "EnMKcQFpFH0TdctNyuo4y3bDFHa8r1Tt/i9XEya5PrSjWpsHMypy++ybdk2oNjcvNerjmmyeiiM6q/CSSRGU3V+fz4Ha10zr0b0Y0IzZTETXAL2HGIfjV0jxps9W9KV2BltVXBXMPZo+ukyFyrc6vxQhCqaM"
     },
-    "id": "g-a99a5f692015",
+    "id": "g-999d624c5c5e",
     "input": {
      "incident_id": 2
     },
@@ -34,70 +34,39 @@
     "_gemini_part": {
      "functionCall": {
       "args": {
-       "pod": "scheduler"
-      },
-      "id": "call_488515",
-      "name": "get_k8s_events"
-     },
-     "thoughtSignature": "EnMKcQFpFH0TmzSdu8pbX+SZOo6rhWwElnnn36AunhdMX4ecIC2tccUl/iiDWrYxDMen1mxexwhtlgXSzWS110BbyMxM+YEA7mcIf48/vgk5RVoNQCuuA0n3Dx2nTzQmpbrpyAC/0I9y6MaC7uvl5t62Umqt"
-    },
-    "id": "g-ecb16f1c94da",
-    "input": {
-     "pod": "scheduler"
-    },
-    "name": "get_k8s_events",
-    "type": "tool_use"
-   }
-  ],
-  "model": "gemini-3.1-flash-lite",
-  "request_sha256": "ca91094f510d0b008e0e0b5cf25c0e599b1877a73cbe89a861b98453b4227f5b",
-  "stop_reason": "tool_use",
-  "usage": {
-   "input_tokens": 3032,
-   "output_tokens": 20
-  }
- },
- {
-  "content": [
-   {
-    "_gemini_part": {
-     "functionCall": {
-      "args": {
        "confidence": 1,
        "evidence": [
-        "The incident details indicate the Airflow scheduler's last heartbeat was 214 s ago (status 'unhealthy'; stale after 90 s).",
-        "Kubernetes events show that the deployment 'airflow-scheduler' was scaled down to 0 replicas on 2026-10-21."
+        "The platform health check reports the Airflow scheduler's last heartbeat was 214 s ago, which exceeds the 90 s threshold for a healthy state."
        ],
        "incident_id": 2,
        "root_cause": "platform_scheduler",
-       "summary": "The Airflow scheduler is down because the 'airflow-scheduler' deployment was scaled down to 0 replicas, leading to unhealthy heartbeats."
+       "summary": "The Airflow scheduler is unresponsive. Its last heartbeat occurred 214 seconds ago, indicating it is down and failing to schedule any tasks."
       },
-      "id": "call_270675",
+      "id": "call_532423",
       "name": "report_diagnosis"
      },
-     "thoughtSignature": "EnMKcQFpFH0TMAiNDOmQf4mxfyidPGBYNIfGdqvFTtkoD5A9pAogVDpiet3nuPAWe9xK3Mkw4JNeG3zRSIbvjgTRRq91Qsywc76fOXrr46FrGJye/wlerDAbMjWw7crwEULcHwrge5CowLUa/h53jKYZfGbt"
+     "thoughtSignature": "EnMKcQFpFH0TtCuyIRnZfzfEWc1QobaT/DntfwoYdZ6bgkEDdtiM1/jwjuuBwsI6b5yRK+aMkNM0LgI625eql6He07gKVAaomEHBXEa4LAXPnOISfKr+yD4gWTn/xJ34ZgbLdkCjvlUtTQVdK2k8rMJF8GwM"
     },
-    "id": "g-fc9906f6b0e8",
+    "id": "g-de9853014d15",
     "input": {
      "confidence": 1,
      "evidence": [
-      "The incident details indicate the Airflow scheduler's last heartbeat was 214 s ago (status 'unhealthy'; stale after 90 s).",
-      "Kubernetes events show that the deployment 'airflow-scheduler' was scaled down to 0 replicas on 2026-10-21."
+      "The platform health check reports the Airflow scheduler's last heartbeat was 214 s ago, which exceeds the 90 s threshold for a healthy state."
      ],
      "incident_id": 2,
      "root_cause": "platform_scheduler",
-     "summary": "The Airflow scheduler is down because the 'airflow-scheduler' deployment was scaled down to 0 replicas, leading to unhealthy heartbeats."
+     "summary": "The Airflow scheduler is unresponsive. Its last heartbeat occurred 214 seconds ago, indicating it is down and failing to schedule any tasks."
     },
     "name": "report_diagnosis",
     "type": "tool_use"
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "e02bd3e0d48e701b69cfe46d3baf5bbe7b911930f4036549d08c0900a08ed710",
+  "request_sha256": "828a86ed9f61595a402b05def5605d4858878a46d666855b2c32ed158f0705f5",
   "stop_reason": "tool_use",
   "usage": {
-   "input_tokens": 3269,
-   "output_tokens": 135
+   "input_tokens": 3032,
+   "output_tokens": 103
   }
  },
  {
@@ -108,12 +77,12 @@
       "args": {
        "query": "scheduler down"
       },
-      "id": "call_276227",
+      "id": "call_472348",
       "name": "search_runbooks"
      },
-     "thoughtSignature": "EnMKcQFpFH0Tx2B95Nn4dmo13YoPr+OY9W9b1ZJij5yB6STMHQRSl321WhOG+HXs+dsGIBznC1DDZRqGYpFh9xCs7SB9ofiCKEsD4SpzWQZHt6DxDhfQb4TOkYg9331fnTStDglo64n8yqgzAlgO5q/79lAw"
+     "thoughtSignature": "EnMKcQFpFH0TuKA7iZXofpdZm1at635ZDz0lCWE8EF2jyjpAsCmjCaD+t5Wbdbbu/BLqatGpC4Jw/JetBaSH78TCZxbFl6AyPfANvtJnGIBFnUB7Y/jrpYXj2+svMXEB3pDfO7gIVivIrfUyZ2D9IWx1lyGM"
     },
-    "id": "g-5b36fce80696",
+    "id": "g-a83292e729f8",
     "input": {
      "query": "scheduler down"
     },
@@ -122,10 +91,10 @@
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "e7ea6964f5a3f793f830bb4335354e114f5a6f047535e4270eb8d793b2ea24a9",
+  "request_sha256": "a21b6045d7d97e370cdf837e6394574a79c36e539b2281c4da00cfb8a852b093",
   "stop_reason": "tool_use",
   "usage": {
-   "input_tokens": 3441,
+   "input_tokens": 3172,
    "output_tokens": 18
   }
  },
@@ -138,24 +107,24 @@
        "incident_id": 2,
        "runbook_id": "09-scheduler-down",
        "steps": [
-        "Verify the status of the 'airflow-scheduler' deployment in the 'dip-airflow' namespace.",
-        "If the deployment has 0 replicas, scale it back up to 1 to restore scheduler functionality.",
-        "Monitor the Airflow scheduler heartbeat after scaling it up to confirm it becomes healthy (heartbeat < 90 s)."
+        "Investigate the Airflow scheduler pod events to determine why it stopped heartbeating, using `get_k8s_events(pod=\"scheduler\")`.",
+        "Check if the deployment was scaled down or if the container crashed (e.g., OOMKilled or CrashLoopBackOff).",
+        "Based on the failure reason, take the corrective action specified in the Decison table: scale back if scaled to 0, or increase resource limits/fix image tags if it crashed."
        ]
       },
-      "id": "call_480631",
+      "id": "call_955547",
       "name": "propose_runbook_steps"
      },
-     "thoughtSignature": "EnMKcQFpFH0TkVLulPQdROk2cBIvbmZdbhwrERloO7jgNEAskzHZ0ahSE9B/F7xYbkhn/qJmuGBanpxKvBVA0Eg2OQEa3mQ41tQ69dY4IeU3UZ9bkSVYNA6Bq7jIOaae2+zL4ZgQ+ft99bnXMxtdnMIkrb60"
+     "thoughtSignature": "EnMKcQFpFH0Tmjp+koydDYoQfaPMMbRNy7laVhEmknr7NWQVIDlK9VxI3h5r1PD/U2Y5Hko4P0On8NpuROj4CEdNa2fawy1q7+45HF97IWFIbz7PQ3Czq9+zsqUf/5qJxw8xeI3llBzAMCWmyC1f7g+BLZT1"
     },
-    "id": "g-1b110ae93989",
+    "id": "g-a1c19d51b9ab",
     "input": {
      "incident_id": 2,
      "runbook_id": "09-scheduler-down",
      "steps": [
-      "Verify the status of the 'airflow-scheduler' deployment in the 'dip-airflow' namespace.",
-      "If the deployment has 0 replicas, scale it back up to 1 to restore scheduler functionality.",
-      "Monitor the Airflow scheduler heartbeat after scaling it up to confirm it becomes healthy (heartbeat < 90 s)."
+      "Investigate the Airflow scheduler pod events to determine why it stopped heartbeating, using `get_k8s_events(pod=\"scheduler\")`.",
+      "Check if the deployment was scaled down or if the container crashed (e.g., OOMKilled or CrashLoopBackOff).",
+      "Based on the failure reason, take the corrective action specified in the Decison table: scale back if scaled to 0, or increase resource limits/fix image tags if it crashed."
      ]
     },
     "name": "propose_runbook_steps",
@@ -163,30 +132,30 @@
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "2cae29fcac1d705b2707e7fdd2fb11fef6138c479ba43d1fb57c5858e61c27d8",
+  "request_sha256": "6f4c69c4c1791f81ac10703967e9a5b22bfcbc8b3a8ec7085fda8206cc20e7ee",
   "stop_reason": "tool_use",
   "usage": {
-   "input_tokens": 4058,
-   "output_tokens": 109
+   "input_tokens": 3775,
+   "output_tokens": 141
   }
  },
  {
   "content": [
    {
     "_gemini_part": {
-     "text": "The incident has been diagnosed as a `platform_scheduler` failure. Investigation revealed that the `airflow-scheduler` deployment was scaled down to 0 replicas, which is the direct cause of the unhealthy scheduler heartbeats. I have recorded the diagnosis and proposed steps based on Runbook 9 to restore the service.",
-     "thoughtSignature": "EnMKcQFpFH0T2qgrrX2T102MtV+Xj+4BLDJyAwQAtMZfFWvrhIsG5khBcneBPpbrXl/48eLCB82/f5bIH0BfGTyhmm3vQppECpur+fGDDa0J/hpxYMWFYVo+ECprabz+wL8sAyj1/ApY4b4dGm8mTobGpcKH"
+     "text": "The incident 2, identifying a `PLATFORM.SCHEDULER_DOWN` status, was diagnosed as a `platform_scheduler` failure. The evidence showed that the Airflow scheduler's last heartbeat occurred 214 seconds ago, well beyond the 90-second threshold for an unhealthy status. I have recorded this diagnosis and proposed steps from runbook 09-scheduler-down to guide the investigation into the scheduler pod's events, which will determine if it requires scaling, resource adjustments, or other interventions.",
+     "thoughtSignature": "EnMKcQFpFH0TL4iJrLNn7PQ6pa8S/iXf+SN3t3WwWqaxki3RX9hhXNNsGoHDGflI56QUKdC5eG3D7q3FAr/Sd6+TTmBgMEMAOFX41v3MC+7uQc5mPktf3wx27YwNYq/1e24epE/HOEVX51CBd/xPu3iNh8Em"
     },
-    "text": "The incident has been diagnosed as a `platform_scheduler` failure. Investigation revealed that the `airflow-scheduler` deployment was scaled down to 0 replicas, which is the direct cause of the unhealthy scheduler heartbeats. I have recorded the diagnosis and proposed steps based on Runbook 9 to restore the service.",
+    "text": "The incident 2, identifying a `PLATFORM.SCHEDULER_DOWN` status, was diagnosed as a `platform_scheduler` failure. The evidence showed that the Airflow scheduler's last heartbeat occurred 214 seconds ago, well beyond the 90-second threshold for an unhealthy status. I have recorded this diagnosis and proposed steps from runbook 09-scheduler-down to guide the investigation into the scheduler pod's events, which will determine if it requires scaling, resource adjustments, or other interventions.",
     "type": "text"
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "7fc39471dc1eda6ef44863498b4f8bc8f5786865c1d0922c5673c98f594f0961",
+  "request_sha256": "22d2ddad2bf4337db7c2960b41ac7e3d803c8f20ddf84d613adfe7a89d2687f5",
   "stop_reason": "end_turn",
   "usage": {
-   "input_tokens": 4224,
-   "output_tokens": 63
+   "input_tokens": 3973,
+   "output_tokens": 110
   }
  }
 ]

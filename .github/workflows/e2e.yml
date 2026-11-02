@@ -22,7 +22,7 @@ env:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 45  # Stage 11: the platform drill adds about 6 minutes
+    timeout-minutes: 55  # Stage 11: the platform drills add up to 15 minutes
     steps:
       - uses: actions/checkout@v7
 

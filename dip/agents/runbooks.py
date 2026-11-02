@@ -135,10 +135,25 @@ def search(
         if score > 0:
             scored.append((score, s))
     scored.sort(key=lambda x: -x[0])
+    top = scored[: max(1, min(limit, 10))]
+    # (Stage 11) The steps come from a runbook's Decide table (agents/prompts/incident.md):
+    # the best runbook's Decide section is always among the results, even when its long
+    # table scores below that runbook's shorter sections: it is added when there is room,
+    # else it takes the last place (with limit 1, the best section alone).
+    if top:
+        best = top[0][1].runbook_id
+        decide = next(((sc, s) for sc, s in scored if s.runbook_id == best
+                       and s.heading == "Decide"), None)  # fmt: skip
+        if decide is None:
+            decide = next(((0.0, s) for s in sections if s.runbook_id == best
+                           and s.heading == "Decide"), None)  # fmt: skip
+        n = max(1, min(limit, 10))
+        if decide is not None and decide not in top and n > 1:
+            top = [*top, decide] if len(top) < n else [*top[:-1], decide]
     return [
         {"runbook_id": s.runbook_id, "title": s.title, "section": s.heading,
          "text": s.text, "score": round(score, 3)}
-        for score, s in scored[: max(1, min(limit, 10))]
+        for score, s in top
     ]  # fmt: skip
 
 

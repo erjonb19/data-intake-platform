@@ -30,7 +30,7 @@ def test_the_index_covers_every_runbook_and_ranks_the_right_one():
     assert runbooks.ids() == {
         "01-missing-column", "02-unexpected-column", "03-code-values",
         "04-delimiter-encoding", "05-late-file", "06-duplicate-keys",
-        "07-low-confidence-scan", "08-prompt-injection", "09-scheduler-down",
+        "07-low-confidence-scan", "08-prompt-injection", "09-scheduler-down", "10-oomkilled",
     }  # fmt: skip
     assert runbooks.search("scheduler heartbeat down")[0]["runbook_id"] == "09-scheduler-down"
     assert runbooks.search("FEED.LATE late delivery")[0]["runbook_id"] == "05-late-file"
@@ -142,3 +142,12 @@ def test_blank_steps_are_refused_and_steps_survive_a_re_diagnosis(setup):
     d = _diagnosis(wh.conn, "chain-x/incident")
     assert d["confidence"] == 0.95
     assert (d["runbook_id"], d["steps"]) == ("05-late-file", ["Call the vendor"])
+
+
+def test_the_best_runbooks_decide_table_is_always_among_the_results():
+    """Stage 11: the steps come from a Decide table, so the best runbook's is always there,
+    even when its long table scores below that runbook's shorter sections."""
+    for q in ("scheduler down heartbeat", "OOMKilled task memory limit", "FEED.LATE late"):
+        hits = runbooks.search(q)
+        best = hits[0]["runbook_id"]
+        assert any(h["runbook_id"] == best and h["section"] == "Decide" for h in hits), q

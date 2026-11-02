@@ -5,7 +5,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01JtxfT3GUxdnWuXHCepL5J3",
+    "id": "toolu_01Muyjgg5Xic7zYFavHtk8zo",
     "input": {
      "approval_id": 1
     },
@@ -36,17 +36,12 @@
  {
   "content": [
    {
-    "signature": "CAQS5AUKEAgTGAI4AUIIdGhpbmtpbmcSDHg3sH113GmISmFsvBoMU2IRasbYNjr7ZPtGIjB16dklZirNnIk1agZg6YexRnjNxTfhb6heZNT7Oi2qi65MeZ8vMvBspYxmRONN4SIqgQUvDezSS8IhVgNLUC4js2tph9xAp14h2GZEZHZadOJ8naMoPs+WfPXEcp4S7SttKMFFZ5kAArZRQkV5fhodoXgds8vzFetA6owUb3JcdjaAVosTw3o+2PuK4KPr9qqtwKPEh94aYwJw8KMPkIRliFWbNbYoObmZl6fhvrqQNDkSYh4ceFKGXL46l3GXbqMdaqavOPFcAzV3ZMtmdVTcMw68MIBUxr59/afU0FCiQIJjGEUlGtFencOJfVEFtjM1NFguNx4nZ/7hoHKKR55ZgRckPwoUlteFT4snEVrqZT8DFhqAjtiskwNxa/r67ajImMp5rxeiuvh+dpMulD52ATpBEh/UNARyzEyFmmNW3u9T8/nRpxbZMl3OWiKimey20iez+PtyeoAK0lSN+JjpYraQLoSOAC6atyl2gKQFMQglBOQSniRD3LTWyP7j1lkYll0CNTEn2OQJwULebtEHrbZUsihyrytCTRRNUWgV5QMMcuHbsSe2rBVmWDLKJlGmPJGJF0oB44qXCaX6fjyC7ne8nGdMmVSh1lwATZCQDTpyBBmDzurytXr8Xy1Y71GdEYfNUWnXKjPrNGpS59mCCfjbyE8FaIbK7P00vjuwWsY3ROID5PQgxgxrCPFMCImqnY5U/P4PCfGdr9cBR2/txi5Fd9vumxoY3NtDX2qYNBxazJtGpAujhTUuMfmh5wijWbFX4OAoVW00e771gUMzW34ToTQq3rE6tzQTcIYsPQ+ZmMEhJIUlpxKdIOHP2pwnlsKonpdOwhh9woYJd/ocq34/GuCH4F8Yv01oW3Bm7+XoduRzr7nGvk7bOypRiP3o4gWiFNJupFtUV/0TS71U2EYQDxgB",
-    "thinking": "",
-    "type": "thinking"
-   },
-   {
-    "text": "Approval 1 was not run. The server refused it with \"denied by policy: approval 1 is pending: only a person's approval lets it run.\" Its status on the server is still pending, so the approval may not have been recorded there yet. Someone with approval rights needs to confirm the approval in the system. I did not retry or try another id.",
+    "text": "Approval 1 was not run: the server refused it because it is still pending, and only a person's approval lets it run. Someone needs to approve it before it can be executed. I have not retried or touched any other approval.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "e079a2c27e3bebce978e0244ef03eb4925ca827181360c2a64035a69e261d48f",
+  "request_sha256": "7060e3fb22472f126ce5a1cbbcae63c10893a2342a3d0627c350b7566762b08b",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
@@ -57,9 +52,9 @@
    "cache_read_input_tokens": 1702,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 142,
+   "output_tokens": 65,
    "output_tokens_details": {
-    "thinking_tokens": 40
+    "thinking_tokens": 0
    },
    "service_tier": "standard",
    "speed": "standard"

@@ -52,3 +52,15 @@ def test_terminations_name_the_task_and_why():
     assert (t["reason"], t["exit_code"], t["dag_id"], t["task_id"]) == (
         "OOMKilled", 137, "drill_oom", "eat")  # fmt: skip
     assert t["limits"] == {"memory": "128Mi"}
+
+
+def test_oom_task_runs_the_drill_dag_and_its_undo_pauses_it():
+    k = Kubectl()
+    drills.drill("oom_task", run=k)
+    airflow_calls = [c[c.index("airflow") + 1 :] for c in k.calls if "airflow" in c]
+    assert ("dags", "unpause", "drill_oom") in airflow_calls
+    assert ("dags", "trigger", "drill_oom") in airflow_calls
+    drills.drill("oom_task", undo=True, run=k)
+    assert ("dags", "pause", "drill_oom") in [c[c.index("airflow") + 1:] for c in k.calls
+                                               if "airflow" in c]  # fmt: skip
+    assert any("delete" in c and "dag_id=drill_oom" in c for c in k.calls)
