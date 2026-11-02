@@ -158,22 +158,34 @@ STALE_SAVED = "dip.drill/queued-stale-seconds"
 DRILL_STALE = "120"
 
 
-def stuck_queued(run: Callable[..., str] = kubectl) -> str:
+def _saved_threshold(run: Callable[..., str]) -> str | None:
     annotations = json.loads(run("-n", NS, "get", CHECK, "-o",
                                  "jsonpath={.metadata.annotations}") or "{}")  # fmt: skip
-    if STALE_SAVED in annotations:
+    return annotations.get(STALE_SAVED)
+
+
+def stuck_queued(run: Callable[..., str] = kubectl) -> str:
+    if _saved_threshold(run) is not None:
         raise DrillError("stuck_queued is already on: run it with --undo first")
+    # The DAG first: if drill_queue is not parsed yet (a fresh deploy, or just after an
+    # undo deleted it), this fails before the check's threshold is touched.
+    airflow(run, "dags", "unpause", "drill_queue")
+    airflow(run, "dags", "trigger", "drill_queue")
     was = run("-n", NS, "get", CHECK, "-o", "jsonpath={.spec.jobTemplate.spec.template.spec"
               f".containers[0].env[?(@.name==\"{STALE_ENV}\")].value}}")  # fmt: skip
     run("-n", NS, "annotate", CHECK, f"{STALE_SAVED}={was or '300'}", "--overwrite")
     run("-n", NS, "set", "env", CHECK, f"{STALE_ENV}={DRILL_STALE}")
-    airflow(run, "dags", "unpause", "drill_queue")
-    airflow(run, "dags", "trigger", "drill_queue")
     return ("drill_queue runs: its pod stays Pending and its task queued; after"
             f" {DRILL_STALE} s the next check opens TASK.STUCK_QUEUED")  # fmt: skip
 
 
 def stuck_queued_undo(run: Callable[..., str] = kubectl) -> str:
+    # The check's threshold first: it depends on nothing below, and a slow scheduler
+    # restart must not leave every later check at the drill's 120 s.
+    saved = _saved_threshold(run)
+    if saved is not None:
+        run("-n", NS, "set", "env", CHECK, f"{STALE_ENV}={saved}")
+        run("-n", NS, "annotate", CHECK, f"{STALE_SAVED}-")
     # Safe to run twice: between `dags delete` and the DAG processor's next parse there is
     # no drill_queue to pause or delete (and nothing left to undo there).
     airflow(run, "dags", "pause", "drill_queue", check=False)
@@ -184,13 +196,11 @@ def stuck_queued_undo(run: Callable[..., str] = kubectl) -> str:
     # task_queued_timeout. Instead: delete the drill DAG's runs (the DAG processor adds the
     # DAG back, paused), and restart the scheduler, whose executor then forgets the slot.
     airflow(run, "dags", "delete", "drill_queue", "--yes", check=False)
+    left = airflow(run, "dags", "list-runs", "drill_queue", "-o", "json", check=False)
+    if left.startswith("[") and json.loads(left):  # the DAG is there and still has runs
+        raise DrillError("drill_queue's runs were not deleted: run --undo again")
     run("-n", NS, "rollout", "restart", "deployment/airflow-scheduler")
     run("-n", NS, "rollout", "status", "deployment/airflow-scheduler", "--timeout=180s")
-    annotations = json.loads(run("-n", NS, "get", CHECK, "-o",
-                                 "jsonpath={.metadata.annotations}") or "{}")  # fmt: skip
-    if STALE_SAVED in annotations:
-        run("-n", NS, "set", "env", CHECK, f"{STALE_ENV}={annotations[STALE_SAVED]}")
-        run("-n", NS, "annotate", CHECK, f"{STALE_SAVED}-")
     return ("drill_queue is paused, its run and pod are gone and the scheduler restarted:"
             " the next check closes TASK.STUCK_QUEUED")  # fmt: skip
 

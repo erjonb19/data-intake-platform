@@ -175,3 +175,55 @@ def test_stuck_queued_lowers_the_threshold_runs_the_dag_and_its_undo_restores_bo
     assert ("-n", "dip-airflow", "rollout", "restart", "deployment/airflow-scheduler") in k.calls
     drills.drill("stuck_queued", undo=True, run=k)  # twice: nothing left to restore
     assert k.env == "300"
+
+
+class _Flaky(Kubectl):
+    """kubectl that fails on one kind of call."""
+
+    def __init__(self, fail_on):
+        super().__init__()
+        self.fail_on, self.env, self.annotations = fail_on, "300", {}
+
+    def __call__(self, *args, check=True):
+        out = super().__call__(*args, check=check)
+        if args[:2] == ("config", "current-context"):
+            return out
+        if self.fail_on in args and check:
+            raise drills.DrillError(f"kubectl {self.fail_on}: failed")
+        if "jsonpath={.metadata.annotations}" in args:
+            return json.dumps(self.annotations) if self.annotations else ""
+        if "annotate" in args:
+            k, _, v = args[-2 if args[-1] == "--overwrite" else -1].partition("=")
+            if k.endswith("-"):
+                self.annotations.pop(k[:-1], None)
+            else:
+                self.annotations[k] = v
+        if "set" in args and "env" in args:
+            self.env = args[-1].split("=", 1)[1]
+        return ""
+
+
+def test_stuck_queued_leaves_the_check_alone_when_the_dag_is_not_there():
+    k = _Flaky("unpause")  # drill_queue not parsed yet
+    with pytest.raises(drills.DrillError):
+        drills.drill("stuck_queued", run=k)
+    assert k.env == "300" and k.annotations == {}
+
+
+def test_stuck_queued_undo_restores_the_threshold_even_if_the_restart_fails():
+    k = _Flaky("restart")
+    drills.drill("stuck_queued", run=k)
+    assert k.env == "120"
+    with pytest.raises(drills.DrillError):
+        drills.drill("stuck_queued", undo=True, run=k)
+    assert k.env == "300" and k.annotations == {}
+
+
+def test_stuck_queued_undo_fails_when_the_runs_survive():
+    class Runs(_Flaky):
+        def __call__(self, *args, check=True):
+            out = super().__call__(*args, check=check)
+            return '[{"run_id": "manual__1"}]' if "list-runs" in args else out
+
+    with pytest.raises(drills.DrillError, match="not deleted"):
+        drills.drill("stuck_queued", undo=True, run=Runs("nothing"))

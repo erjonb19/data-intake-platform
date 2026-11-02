@@ -24,7 +24,7 @@ from tests.integration.conftest import rows
 NOW = datetime(2026, 11, 3, 12, 0, tzinfo=UTC)
 
 
-def health(status="healthy", age=10, down=False, now=NOW, runs=(), waiting=None):
+def health(status="healthy", age=10, down=False, now=NOW, runs=(), waiting=None, paused=()):
     def http(method, url, body, headers):
         if down:
             raise ConnectionError("api-server unreachable")
@@ -33,6 +33,8 @@ def health(status="healthy", age=10, down=False, now=NOW, runs=(), waiting=None)
         if "/dags/~/dagRuns?" in url:  # newest first
             assert headers.get("Authorization") == "Bearer viewer"
             return {"dag_runs": list(runs)}
+        if "/dags?paused=true" in url:  # S11.9: a paused DAG's scheduled tasks are held
+            return {"dags": [{"dag_id": d} for d in paused]}
         if "/dags/~/dagRuns/~/taskInstances?" in url:  # S11.9: tasks still waiting
             assert "state=scheduled&state=queued" in url
             tis = list(waiting or ())
@@ -335,3 +337,18 @@ def test_task_instances_the_api_cannot_list_decide_nothing(warehouse):
     out = platform_check.run(warehouse.conn, svc, now=NOW, env={})
     assert out["stuck_queued"].startswith("unknown")
     assert open_stuck(warehouse) == [("drill_queue.wait_for_room",)]
+
+
+def test_a_paused_dags_scheduled_task_is_held_not_stuck(warehouse):
+    """Review of S11.9: the scheduler never queues a paused DAG's scheduled task, so it is
+    not stuck (it would never close); a queued one of a paused DAG still is (the executor
+    has it). A scheduled retry is timed from scheduled_when, not an earlier try's
+    queued_when."""
+    held = waiting("scheduled", 900, dag="intake__x", task="intake")
+    queued = waiting("queued", 900)
+    retry = waiting("scheduled", 30, dag="intake__y", task="intake") | {
+        "queued_when": (NOW - timedelta(seconds=3600)).isoformat()
+    }
+    out = platform_check.run(warehouse.conn, health(waiting=[held, queued, retry],
+                             paused=["intake__x", "drill_queue"]), now=NOW, env={})  # fmt: skip
+    assert out["stuck_queued"] == ["drill_queue.wait_for_room"]

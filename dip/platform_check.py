@@ -36,7 +36,10 @@ opens or closes a platform incident (dip/incidents.py, feed `_platform`):
               Viewer login) longer than DIP_QUEUED_STALE_SECONDS (default 300, under
               Airflow's own scheduler.task_queued_timeout of 600 s, so the check sees a
               stuck task before Airflow fails it): each opens TASK.STUCK_QUEUED (target
-              `<dag_id>.<task_id>`); a target with no such task left closes
+              `<dag_id>.<task_id>`); a target with no such task left closes. A paused
+              DAG's `scheduled` tasks are not stuck (the scheduler holds them on purpose).
+              The API cannot order by waiting time, so with more than 100 waiting tasks
+              some may go unseen, and the check then closes nothing
 
 The exporter turns the latest heartbeat into dip_airflow_scheduler_heartbeat_age_seconds,
 and the AirflowSchedulerDown alert fires above 180 s. TaskPodOOMKilled and TaskQueuedTooLong
@@ -170,11 +173,19 @@ def check_stuck_queued(cur: Any, services: Any, now: datetime, stale_after: floa
     except Exception as exc:  # noqa: BLE001 - recorded; no incident is decided on it
         record(cur, "airflow_api", "task-instances", False, detail=f"{type(exc).__name__}: {exc}")
         return {"stuck_queued": "unknown (the Airflow API did not answer)"}
+    try:
+        paused = {d.get("dag_id") for d in (services.airflow("/dags?paused=true&limit=100")
+                                             or {}).get("dags") or []}  # fmt: skip
+    except Exception as exc:  # noqa: BLE001 - recorded; no incident is decided on it
+        record(cur, "airflow_api", "dags", False, detail=f"{type(exc).__name__}: {exc}")
+        return {"stuck_queued": "unknown (the Airflow API did not answer)"}
     stuck: dict[str, tuple[float, datetime, dict]] = {}
     for ti in (got or {}).get("task_instances") or []:
         state = ti.get("state")
         if state not in ("scheduled", "queued"):
             continue
+        if state == "scheduled" and ti.get("dag_id") in paused:
+            continue  # held by the pause, not stuck
         since = _time(ti.get("queued_when") if state == "queued" else ti.get("scheduled_when"))
         waited = (now - since).total_seconds() if since else 0.0
         target = f"{ti.get('dag_id')}.{ti.get('task_id')}"
