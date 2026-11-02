@@ -119,6 +119,12 @@ BEGIN
                    AND table_name = 'agent_run' AND column_name = 'provider') THEN
         ALTER TABLE ops.agent_run ADD COLUMN provider text;
     END IF;
+    -- (Stage 11, S11.3) Each step's provider, model id and prompt SHA-256, e.g.
+    -- {"incident": {"provider": "anthropic", "model": "...", "prompt_sha256": "..."}}.
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'agent_run' AND column_name = 'versions') THEN
+        ALTER TABLE ops.agent_run ADD COLUMN versions jsonb;
+    END IF;
 END $$;
 CREATE TABLE IF NOT EXISTS ops.incident_diagnosis (
     diagnosis_id    bigserial   PRIMARY KEY,
@@ -434,6 +440,11 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
                    AND table_name = 'intake_job' AND column_name = 'profile') THEN
         ALTER TABLE ops.intake_job ADD COLUMN profile jsonb, ADD COLUMN review jsonb;
+    END IF;
+    -- (Stage 11, S11.3) Each model step's provider, model id and prompt SHA-256.
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'ops'
+                   AND table_name = 'intake_job' AND column_name = 'versions') THEN
+        ALTER TABLE ops.intake_job ADD COLUMN versions jsonb;
     END IF;
 END $$;
 

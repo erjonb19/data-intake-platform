@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from typing import Any
@@ -53,9 +54,19 @@ def payload_sha256(payload: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
 
 
+# Stage 11 (S11.3): the model id and prompt hash of the agent run making the call, set by the
+# MCP server from the call's `_agent_version` for the length of one tool call. A proposal
+# carries it in its payload as `agent_version: {agent, model, prompt_sha256[, steps]}`,
+# written at proposal time because a payload never changes afterwards (S9.2's trigger).
+AGENT_VERSION: ContextVar[dict[str, Any] | None] = ContextVar("dip_agent_version", default=None)
+
+
 def create(conn: Any, agent_id: str, run_id: str | None, action: str, payload: dict) -> int:
     if action not in ACTIONS:
         raise ApprovalError(f"unknown action {action!r}")
+    version = AGENT_VERSION.get()
+    if version and "agent_version" not in payload:
+        payload = {**payload, "agent_version": {"agent": agent_id, **version}}
     with conn.cursor() as cur:
         cur.execute(
             "insert into ops.approvals (agent_id, run_id, action, payload, payload_sha256,"

@@ -143,6 +143,34 @@ def finish(
     conn.commit()
 
 
+def set_versions(conn: Any, table: str, key: str, value: int, versions: dict | None) -> None:
+    """Stage 11 (S11.3): each step's provider, model and prompt hash on the run's row."""
+    import json
+
+    if not versions or table not in ("agent_run", "intake_job") or key not in (
+            "incident_id", "job_id"):  # fmt: skip
+        return
+    with conn.cursor() as cur:
+        cur.execute(f"update ops.{table} set versions = %s::jsonb where {key} = %s",
+                    (json.dumps(versions, sort_keys=True), value))  # fmt: skip
+    conn.commit()
+
+
+def merge_version(conn: Any, table: str, key: str, value: int, step: str,
+                  version: dict[str, str]) -> None:  # fmt: skip
+    """Stage 11 (S11.3): one finished step's version, on the run's row at once, like its
+    provider: a chain that fails later keeps the versions of the steps that ran."""
+    import json
+
+    if table not in ("agent_run", "intake_job") or key not in ("incident_id", "job_id"):
+        return
+    with conn.cursor() as cur:
+        cur.execute(f"update ops.{table} set versions = coalesce(versions, '{{}}'::jsonb)"
+                    f" || jsonb_build_object(%s::text, %s::jsonb) where {key} = %s",
+                    (step, json.dumps(version, sort_keys=True), value))  # fmt: skip
+    conn.commit()
+
+
 def record_step(conn: Any, incident_id: int, step: str, provider: str) -> None:
     """A finished step's provider, on the incident's row at once (S10.1): a proposal made
     on the fallback is labelled while the chain runs on, and if it later fails."""
@@ -185,6 +213,9 @@ def run_chain(conn: Any, incident_id: int, env: dict[str, str], providers: tuple
         triage_client=lambda: triage.mcp_client(url, env["DIP_TRIAGE_KEY"]),
         llm_for=_llm_for(providers),
         on_step=lambda step, provider: record_step(conn, incident_id, step, provider),
+        on_version=lambda step, v: merge_version(
+            conn, "agent_run", "incident_id", incident_id, step, v
+        ),  # fmt: skip
     )
     return asyncio.run(graph.run_chain(chain, incident_id, chain_id))
 
@@ -248,6 +279,7 @@ def run(
             provider=" ".join(f"{k}:{v}" for k, v in (state.get("providers") or {}).items())
             or None,
         )
+        set_versions(conn, "agent_run", "incident_id", incident_id, state.get("versions"))
         summary["done"].append(incident_id)
     return summary
 
