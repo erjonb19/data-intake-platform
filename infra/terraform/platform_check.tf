@@ -124,6 +124,13 @@ resource "kubernetes_cron_job_v1" "platform_check" {
                 name  = "DIP_SCHEDULER_STALE_SECONDS"
                 value = "90"
               }
+              # S11.9: a task scheduled or queued longer opens TASK.STUCK_QUEUED, before
+              # Airflow's task_queued_timeout (600 s) fails it. The stuck_queued drill lowers
+              # it to 120 on the CronJob and restores this value on --undo.
+              env {
+                name  = "DIP_QUEUED_STALE_SECONDS"
+                value = "300"
+              }
               resources {
                 requests = { cpu = "50m", memory = "96Mi" }
                 limits   = { memory = "256Mi" }

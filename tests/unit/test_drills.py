@@ -130,3 +130,48 @@ def test_no_kubectl_argument_carries_a_password_even_encoded():
     held = [SecretKubectl.REAL, "real-pw-1", bad_pw]
     held += [base64.b64encode(s.encode()).decode() for s in held]
     assert not any(h in a for c in k.calls for a in c for h in held)
+
+
+def test_stuck_queued_lowers_the_threshold_runs_the_dag_and_its_undo_restores_both():
+    """S11.9: the drill saves the check's threshold on the CronJob, lowers it, and runs
+    drill_queue; the undo pauses it, deletes its run and pods, restarts the scheduler (its
+    executor would otherwise keep the Pending task's slot) and puts the threshold back."""
+
+    class Cron(Kubectl):
+        def __init__(self):
+            super().__init__()
+            self.annotations, self.env = {}, "300"
+
+        def __call__(self, *args, check=True):
+            out = super().__call__(*args, check=check)
+            if "jsonpath={.metadata.annotations}" in args:
+                return json.dumps(self.annotations) if self.annotations else ""
+            if any(a.startswith("jsonpath={.spec.jobTemplate") for a in args):
+                return self.env
+            if "annotate" in args:
+                k, _, v = args[-2 if args[-1] == "--overwrite" else -1].partition("=")
+                if k.endswith("-"):
+                    self.annotations.pop(k[:-1], None)
+                else:
+                    self.annotations[k] = v
+            if "set" in args and "env" in args:
+                self.env = args[-1].split("=", 1)[1]
+            return out
+
+    k = Cron()
+    drills.drill("stuck_queued", run=k)
+    assert k.env == "120" and k.annotations == {"dip.drill/queued-stale-seconds": "300"}
+    airflow = [c[c.index("airflow") + 1 :] for c in k.calls if "airflow" in c]
+    assert ("dags", "unpause", "drill_queue") in airflow
+    assert ("dags", "trigger", "drill_queue") in airflow
+    with pytest.raises(drills.DrillError, match="already on"):
+        drills.drill("stuck_queued", run=k)
+    drills.drill("stuck_queued", undo=True, run=k)
+    assert k.env == "300" and k.annotations == {}
+    airflow = [c[c.index("airflow") + 1 :] for c in k.calls if "airflow" in c]
+    assert ("dags", "pause", "drill_queue") in airflow
+    assert ("dags", "delete", "drill_queue", "--yes") in airflow
+    assert any("delete" in c and "dag_id=drill_queue" in c for c in k.calls)
+    assert ("-n", "dip-airflow", "rollout", "restart", "deployment/airflow-scheduler") in k.calls
+    drills.drill("stuck_queued", undo=True, run=k)  # twice: nothing left to restore
+    assert k.env == "300"

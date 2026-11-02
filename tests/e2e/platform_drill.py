@@ -1,5 +1,6 @@
 """Stage 11 (S11.6): the scheduler_down drill through the deployed stack, last in the E2E
-(it stops scheduling for a few minutes); then oom_task (S11.7) and bad_secret (S11.8).
+(it stops scheduling for a few minutes); then oom_task (S11.7), bad_secret (S11.8) and
+stuck_queued (S11.9).
 
   1. the platform check (the CronJob, run now as a Job) sees a healthy scheduler;
   2. `dip drill scheduler_down` scales the scheduler to 0; once its heartbeat is older than
@@ -221,6 +222,54 @@ def bad_secret_drill(check) -> None:
     check(closed, "after --undo the feed's next run closed DAG.FAILED")
 
 
+def stuck_threshold() -> str:
+    path = ('jsonpath={.spec.jobTemplate.spec.template.spec.containers[0]'
+            '.env[?(@.name=="DIP_QUEUED_STALE_SECONDS")].value}')  # fmt: skip
+    return kubectl("-n", NS, "get", "cronjob/platform-check", "-o", path)
+
+
+def stuck_queued_drill(check) -> None:
+    """Stage 11 (S11.9): drill_queue's pod can never be scheduled, so its task stays queued;
+    with the threshold lowered to 120 s the check opens TASK.STUCK_QUEUED for
+    drill_queue.wait_for_room (before Airflow's 600 s task_queued_timeout), the pod's events
+    say FailedScheduling, TaskQueuedTooLong fires, and after --undo the check closes it and
+    the threshold is back."""
+    target = ("drill_queue.wait_for_room",)
+    before = stuck_threshold()
+    started, opened = time.monotonic(), False
+    try:  # the undo runs even when the drill itself fails half-way
+        print(dip("drill", "stuck_queued"))
+        check(stuck_threshold() == "120", "the drill lowered the check's threshold to 120 s")
+        time.sleep(120)
+        while not opened and time.monotonic() - started < 360:
+            run_check("queue")
+            opened = target in open_incidents("TASK.STUCK_QUEUED")
+            if not opened:
+                time.sleep(20)
+        check(opened, f"the drill opened TASK.STUCK_QUEUED: {open_incidents('TASK.STUCK_QUEUED')}")
+        names = "jsonpath={.items[*].involvedObject.name}"
+        events = kubectl("-n", NS, "get", "events", "--field-selector",
+                         "reason=FailedScheduling", "-o", names)  # fmt: skip
+        check("drill-queue" in events, f"the drill's pod is FailedScheduling: {events[-200:]}")
+        prom = os.environ.get("PROMETHEUS_URL", "")
+        if prom and opened:
+            seen = False
+            while not seen and time.monotonic() - started < 540:
+                seen = firing(prom, "TaskQueuedTooLong")
+                if not seen:
+                    time.sleep(15)
+            check(seen, "the TaskQueuedTooLong alert fires")
+    finally:
+        print(dip("drill", "stuck_queued", "--undo"))
+    check(stuck_threshold() == (before or "300"), "--undo restored the check's threshold")
+    undone, closed = time.monotonic(), False
+    while not closed and time.monotonic() - undone < 240:
+        time.sleep(15)
+        run_check("queue-after")
+        closed = target not in open_incidents("TASK.STUCK_QUEUED")
+    check(closed, "after --undo the check closed TASK.STUCK_QUEUED")
+
+
 def main() -> int:
     failures: list[str] = []
 
@@ -264,12 +313,13 @@ def main() -> int:
     check(closed, "after --undo the check closed the incident")
     oom_drill(check)
     bad_secret_drill(check)
+    stuck_queued_drill(check)
     for f in failures:
         print(f"FAIL: {f}", file=sys.stderr)
     if failures:
         return 1
-    print("PASS: the scheduler_down, oom_task and bad_secret drills opened and closed"
-          " their incidents")  # fmt: skip
+    print("PASS: the scheduler_down, oom_task, bad_secret and stuck_queued drills opened and"
+          " closed their incidents")  # fmt: skip
     return 0
 
 

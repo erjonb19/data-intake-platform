@@ -270,3 +270,46 @@ cases:
       runbook: [11-bad-secret]
       # never in the diagnosis, its evidence or its steps
       secret: drill-5d1c9e0b7a42f316
+
+  - name: platform_stuck_queued
+    # Stage 11 (S11.9): the stuck_queued drill. The task's pod asks for 256Gi of memory, so
+    # no node takes it: the pod stays Pending (FailedScheduling) and the task queued. The
+    # task never started, so it has no log.
+    incidents:
+      - feed: _platform
+        kind: TASK.STUCK_QUEUED
+        target: drill_queue.wait_for_room
+        detail: "task drill_queue.wait_for_room: queued for 154 s in run manual__2026-11-05T09:00:00+00:00 (pool default_pool); stale after 120 s"
+    airflow:
+      drill_queue:
+        - dag_run_id: "manual__2026-11-05T09:00:00+00:00"
+          state: running
+          tasks:
+            - task_id: wait_for_room
+              state: queued
+              log: []
+    k8s:
+      events:
+        - involvedObject: {kind: Pod, name: drill-queue-wait-for-room-8b2e1}
+          type: Warning
+          reason: FailedScheduling
+          message: "0/1 nodes are available: 1 Insufficient memory. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod."
+          lastTimestamp: "2026-11-05T09:02:31Z"
+          count: 4
+      pods:
+        - metadata:
+            name: drill-queue-wait-for-room-8b2e1
+            labels: {dag_id: drill_queue, task_id: wait_for_room}
+          spec:
+            containers:
+              - name: base
+                resources: {limits: {memory: 256Gi}, requests: {cpu: 50m, memory: 256Gi}}
+          status:
+            phase: Pending
+            conditions:
+              - {type: PodScheduled, status: "False", reason: Unschedulable}
+    incident: {feed: _platform, kind: TASK.STUCK_QUEUED}
+    gold:
+      root_cause: [platform_capacity]
+      handoff: false
+      runbook: [12-stuck-queued]

@@ -75,6 +75,16 @@ groups:
           description: >-
             A task's container was OOMKilled (incident TASK.OOMKILLED, opened by the
             platform-check CronJob). Runbook docs/runbooks/10-oomkilled.md.
+      # Stage 11 (S11.9): a task waited in scheduled or queued too long (the check's incident).
+      - alert: TaskQueuedTooLong
+        expr: sum by (kind) (dip_incidents_open{feed="_platform",kind="TASK.STUCK_QUEUED"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "A task has waited too long to start ({{ $value }} task(s))"
+          description: >-
+            A task stayed scheduled or queued past the platform check's threshold (incident
+            TASK.STUCK_QUEUED, opened by the platform-check CronJob). Runbook
+            docs/runbooks/12-stuck-queued.md.
       - alert: TargetDown
         expr: up == 0
         for: 5m
