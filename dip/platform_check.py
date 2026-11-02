@@ -98,8 +98,10 @@ def check_oomkilled(cur: Any, k8s: Any) -> dict:
         return {"oomkilled": "unknown (the Kubernetes API did not answer)"}
     killed: dict[str, dict] = {}
     for t in ended:
-        if t["reason"] == "OOMKilled":
-            target = f"{t['dag_id'] or '?'}.{t['task_id'] or t['pod']}"
+        # Airflow task pods only (labelled by the executor): a long-running pod (the
+        # scheduler, say) keeps an old OOMKilled in lastState after a healthy restart
+        if t["reason"] == "OOMKilled" and t["dag_id"] and t["task_id"]:
+            target = f"{t['dag_id']}.{t['task_id']}"
             killed.setdefault(target, t)
     for target, t in sorted(killed.items()):
         record(cur, "oomkilled", target, False, _time(t["finished_at"]),

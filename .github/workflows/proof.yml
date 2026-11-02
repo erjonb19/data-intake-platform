@@ -166,7 +166,7 @@ jobs:
           retention-days: 7
 
   # Claude's recordings: the 8 incident cases and the demo, in one process under one cap
-  # (spend_cap_usd; this job's is meant to be 0.10). Same rules as gemini-recordings.
+  # (spend_cap_usd, which must be 0.10 or less here). Same rules as gemini-recordings.
   claude-recordings:
     if: inputs.job == 'claude-recordings'
     runs-on: ubuntu-latest
@@ -203,6 +203,7 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           test -n "$ANTHROPIC_API_KEY" || { echo "the ANTHROPIC_API_KEY secret is not set"; exit 1; }
+          python -c "import os,sys; sys.exit(float(os.environ['DIP_SPEND_CAP_USD']) > 0.10)"             || { echo "claude-recordings takes spend_cap_usd 0.10 or less"; exit 1; }
           bash scripts/record_claude_incidents.sh
 
       # Only when every step succeeded: a recording that still holds the key (the script

@@ -22,7 +22,9 @@ for c in $cases; do
     echo "$c: try $try did not finish ($(grep -oE 'Gemini [0-9]+' "$out/$c.log" | head -1)); waiting"
     sleep $((60 * try))
   done
-  [ -n "$done_" ] || failed+=("$c")
+  # A case that finished but FAILED (a policy violation, a wrong cause) is not recorded
+  # either: its recording is never uploaded as if it were good.
+  if [ -z "$done_" ] || [[ "$line" == FAIL* ]]; then failed+=("$c"); fi
 done
 
 # Scrub: the key, and any auth header, out of every recording (none should be there: a
@@ -43,5 +45,5 @@ if grep -rlF "$GEMINI_API_KEY" agents/evals/incident/recordings/gemini; then
 fi
 ls agents/evals/incident/recordings/gemini
 if [ ${#failed[@]} -gt 0 ]; then
-  echo "not recorded after 5 tries: ${failed[*]}"; exit 1
+  echo "not recorded, or failed: ${failed[*]}"; exit 1
 fi

@@ -183,3 +183,21 @@ def test_an_oomkilled_pod_opens_its_tasks_incident_until_it_is_gone(warehouse):
     assert len(open_oom()) == 1
     platform_check.run(warehouse.conn, health(), oom_pods(False), now=NOW, env={})
     assert open_oom() == []
+
+
+def test_an_oomkilled_restart_outside_airflow_tasks_opens_nothing(warehouse):
+    # The scheduler's container was OOMKilled once and restarted: its pod keeps that in
+    # lastState, with no dag_id/task_id labels. Not a task's incident (review of S11.7).
+    pod = {"metadata": {"name": "airflow-scheduler-7d9f", "labels": {"component": "scheduler"}},
+           "status": {"containerStatuses": [{
+               "name": "scheduler", "state": {"running": {}},
+               "lastState": {"terminated": {"reason": "OOMKilled", "exitCode": 137,
+                                            "finishedAt": "2026-11-04T09:00:00Z"}}}]}}  # fmt: skip
+
+    def http(url, headers):
+        return {"items": [pod] if url.endswith("/pods") else []}
+
+    out = platform_check.run(warehouse.conn, health(), K8s(base="https://k8s", http=http),
+                             now=NOW, env={})  # fmt: skip
+    assert out["oomkilled"] == []
+    assert rows(warehouse, "select 1 from ops.incident where kind = 'TASK.OOMKILLED'") == []
