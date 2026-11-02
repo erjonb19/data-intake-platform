@@ -63,13 +63,20 @@ def main() -> int:
             query("airflow_dagrun_duration_count"))),
         wait_for("the alert rules are loaded", lambda: len([
             r for g in get(f"{PROM}/api/v1/rules")[1].get("data", {}).get("groups", [])
-            for r in g["rules"]]) >= 7),
+            for r in g["rules"]]) >= 10),
         wait_for("Grafana is up", lambda: get(f"{GRAFANA}/api/health")[0] == 200),
         wait_for("Grafana refuses an anonymous API call", lambda: get(
             f"{GRAFANA}/api/search")[0] == 401, 10),
-        wait_for("Grafana has both dashboards", lambda: {
+        wait_for("Grafana has the three dashboards", lambda: {
             d["uid"] for d in get(f"{GRAFANA}/api/search?type=dash-db", AUTH)[1]
-        } >= {"dip-feeds", "dip-dag-runs"}),
+        } >= {"dip-feeds", "dip-dag-runs", "dip-agents"}),
+        # Stage 11 (S11.4): the agents' series exist (the queries ran as dip_metrics; CI has
+        # no model key, so the chain and job statuses carry them).
+        wait_for("the agents' metrics", lambda: {
+            r["metric"]["query"] for r in query("dip_metrics_query_ok == 1")
+        } >= {"dip_agent_runs_24h", "dip_agent_fallback_runs_24h", "dip_approvals_decided_7d",
+              "dip_model_spend_usd_today", "dip_model_calls_24h",
+              "dip_model_latency_p95_seconds_24h"}),
     ])  # fmt: skip
     if not ok:
         return 1
