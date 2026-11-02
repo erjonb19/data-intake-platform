@@ -153,7 +153,21 @@ _PLATFORM_LOG = re.compile(
     r"|^" + _DBT + r"Failure in (test|model) [A-Za-z0-9_.]+ \("
     r"|^" + _DBT + r"Got \d+ results?, configured to "
     r"|^" + _DBT + r"Completed with \d+ errors?|^Task exited with return code "
+    # A connection refused for its credentials (S11.8, the bad_secret drill): a role name
+    r'|password authentication failed for user "[A-Za-z0-9_]+"'
 )
+# A credential in a log line, as a connection URI's password or a password=... pair:
+# masked in every line the tool returns, before any policy's filter (S11.8). An agent
+# cannot repeat what it never saw.
+_CREDENTIAL = re.compile(
+    r"(\b[a-z][a-z0-9+.-]*://[^\s:/@]*:)[^\s@]+(@)"
+    r"|(\b(?:password|passwd|pwd)\s*[=:]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;&]+)",
+    re.I,
+)
+
+
+def _mask_credentials(line: str) -> str:
+    return _CREDENTIAL.sub(lambda m: f"{m[1]}***{m[2]}" if m[1] else f"{m[3]}***", line)
 
 
 def _log_lines(got: Any) -> list[str]:
@@ -233,7 +247,7 @@ def register_read_tools(reg: Any, Tool: Any, conn: Any, store: Any,
                           (dag_run_id, "dag_run_id"), (task_id, "task_id")))  # fmt: skip
         got = svc.airflow(f"/dags/{dag}/dagRuns/{run}/taskInstances/{task}/logs/"
                           f"{max(1, int(try_number))}")  # fmt: skip
-        lines = _log_lines(got)
+        lines = [_mask_credentials(ln) for ln in _log_lines(got)]
         hidden = 0
         if phi_masked():
             # An error can quote a row's values: a masking policy sees only the lines in the

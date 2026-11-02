@@ -10,11 +10,18 @@ workflow, never on the laptop (decisions log, 2026-10-30).
 
   scheduler_down   scale the Airflow scheduler Deployment to 0      (runbook 09, S11.6)
   oom_task         run the drill_oom DAG, whose task is OOMKilled   (runbook 10, S11.7)
+  bad_secret       a wrong warehouse password in airflow-connections, then a run of
+                   the eligibility feed's DAG, whose intake task cannot connect
+                                                                    (runbook 11, S11.8)
 """
 
 from __future__ import annotations
 
+import base64
+import json
+import secrets
 import subprocess
+import urllib.parse
 from collections.abc import Callable
 
 NS = "dip-airflow"
@@ -68,9 +75,62 @@ def oom_task_undo(run: Callable[..., str] = kubectl) -> str:
     return "drill_oom is paused and its pods are gone: the next check closes the incident"
 
 
+# bad_secret: the Secret Airflow's pods read AIRFLOW_CONN_WAREHOUSE from (Terraform writes
+# it), the annotation that keeps the real value while the drill is on, and the feed DAG run.
+SECRET = "airflow-connections"
+SAVED = "dip.drill/saved-warehouse"
+FEED_DAG = "intake__healthcare__eligibility"
+
+
+def _secret(run: Callable[..., str]) -> dict:
+    return json.loads(run("-n", NS, "get", "secret", SECRET, "-o", "json"))
+
+
+def _patch(run: Callable[..., str], patch: dict) -> None:
+    run("-n", NS, "patch", "secret", SECRET, "--type=merge", "-p", json.dumps(patch))
+
+
+def wrong_password(uri: str) -> str:
+    """The same connection with a wrong password: the "rotated in Postgres, not in the
+    Secret" case. Random each time, so no log can match a fixed string by chance."""
+    u = urllib.parse.urlsplit(uri)
+    port = f":{u.port}" if u.port else ""
+    return u._replace(netloc=f"{u.username}:drill-{secrets.token_hex(8)}@{u.hostname}{port}"
+                      ).geturl()  # fmt: skip
+
+
+def bad_secret(run: Callable[..., str] = kubectl) -> str:
+    s = _secret(run)
+    if SAVED in (s["metadata"].get("annotations") or {}):
+        raise DrillError("bad_secret is already on: run it with --undo first")
+    good = s["data"]["warehouse"]  # base64, as the Secret holds it; never printed
+    bad = wrong_password(base64.b64decode(good).decode("utf-8"))
+    _patch(run, {"metadata": {"annotations": {SAVED: good}},
+                 "data": {"warehouse": base64.b64encode(bad.encode()).decode()}})  # fmt: skip
+    # Pods read the Secret when they start: the running scheduler, DAG processor and API
+    # server keep the real password; the next task pod gets the wrong one.
+    airflow(run, "dags", "unpause", FEED_DAG)
+    airflow(run, "dags", "trigger", FEED_DAG)
+    return (f"airflow-connections holds a wrong warehouse password and {FEED_DAG} runs: its"
+            " intake task fails to connect, and DAG.FAILED opens")  # fmt: skip
+
+
+def bad_secret_undo(run: Callable[..., str] = kubectl) -> str:
+    saved = (_secret(run)["metadata"].get("annotations") or {}).get(SAVED)
+    if not saved:
+        return "bad_secret is not on: nothing to restore"
+    _patch(run, {"metadata": {"annotations": {SAVED: None}}, "data": {"warehouse": saved}})
+    run("-n", NS, "delete", "pod", "-l", f"dag_id={FEED_DAG}",
+        "--field-selector=status.phase=Failed", "--ignore-not-found", "--wait=false")  # fmt: skip
+    airflow(run, "dags", "trigger", FEED_DAG)
+    return (f"the real password is back and {FEED_DAG} runs again: its success closes"
+            " DAG.FAILED")  # fmt: skip
+
+
 DRILLS: dict[str, tuple[Callable[..., str], Callable[..., str]]] = {
     "scheduler_down": (scheduler_down, scheduler_down_undo),
     "oom_task": (oom_task, oom_task_undo),
+    "bad_secret": (bad_secret, bad_secret_undo),
 }
 
 

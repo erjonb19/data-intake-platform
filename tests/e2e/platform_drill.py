@@ -1,5 +1,5 @@
 """Stage 11 (S11.6): the scheduler_down drill through the deployed stack, last in the E2E
-(it stops scheduling for a few minutes).
+(it stops scheduling for a few minutes); then oom_task (S11.7) and bad_secret (S11.8).
 
   1. the platform check (the CronJob, run now as a Job) sees a healthy scheduler;
   2. `dip drill scheduler_down` scales the scheduler to 0; once its heartbeat is older than
@@ -108,6 +108,83 @@ def oom_drill(check) -> None:
     check(closed, "after --undo the check closed TASK.OOMKILLED")
 
 
+FEED_DAG = "intake__healthcare__eligibility"
+
+
+def warehouse_secret() -> tuple[str, str]:
+    """The password airflow-connections holds now, and the saved real one ("" if none)."""
+    import base64
+    import urllib.parse
+
+    s = json.loads(kubectl("-n", NS, "get", "secret", "airflow-connections", "-o", "json"))
+
+    def pw(b64: str) -> str:
+        return urllib.parse.urlsplit(base64.b64decode(b64).decode()).password or ""
+
+    saved = (s["metadata"].get("annotations") or {}).get("dip.drill/saved-warehouse")
+    return pw(s["data"]["warehouse"]), pw(saved) if saved else ""
+
+
+def logs_with(*needles: str) -> list[str]:
+    """The pods in dip-airflow whose logs hold any of the strings."""
+    hits = []
+    for pod in kubectl("-n", NS, "get", "pods", "-o", "name").split():
+        cmd = ["kubectl", "-n", NS, "logs", pod, "--all-containers", "--tail=5000"]
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if any(n and n in out.stdout for n in needles):
+            hits.append(pod)
+    return hits
+
+
+def dag_failed_open() -> list[tuple]:
+    import psycopg
+
+    with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute("select target from ops.incident where kind = 'DAG.FAILED'"
+                    " and feed = 'healthcare.eligibility' and closed_at is null")  # fmt: skip
+        open_ = cur.fetchall()
+        cur.execute("select count(*) from ops.platform_check where check_name = 'dag_run'"
+                    " and target = %s and not ok", (FEED_DAG,))  # fmt: skip
+        return open_ + [("seen by the check",)] * min(1, cur.fetchone()[0])
+
+
+def bad_secret_drill(check) -> None:
+    """Stage 11 (S11.8): a wrong warehouse password in airflow-connections. The feed DAG's
+    intake task cannot connect; the platform check (its own login) sees the failed run and
+    DAG.FAILED opens (target the DAG); DagRunFailing fires; no pod's log holds either
+    password; after --undo the next run succeeds and DAG.FAILED closes."""
+    print(dip("drill", "bad_secret"))
+    started, opened = time.monotonic(), False
+    try:
+        bad, real = warehouse_secret()
+        check(bool(bad) and bool(real) and bad != real, "the drill swapped the password")
+        while not opened and time.monotonic() - started < 300:
+            time.sleep(20)
+            run_check("secret")
+            got = dag_failed_open()
+            opened = (FEED_DAG,) in got and ("seen by the check",) in got
+        check(opened, f"the check saw the failed run; DAG.FAILED is open: {dag_failed_open()}")
+        prom = os.environ.get("PROMETHEUS_URL", "")
+        if prom and opened:
+            seen = False
+            while not seen and time.monotonic() - started < 600:
+                seen = firing(prom, "DagRunFailing")
+                if not seen:
+                    time.sleep(15)
+            check(seen, "the DagRunFailing alert fires")
+        refused = logs_with('password authentication failed for user "warehouse"')
+        print(f"pods whose log shows the refused login: {refused or 'none'}")
+        check(not logs_with(bad, real), "no pod's log holds the wrong or the real password")
+    finally:
+        print(dip("drill", "bad_secret", "--undo"))
+    undone, closed = time.monotonic(), False
+    while not closed and time.monotonic() - undone < 420:  # the DAG's next run succeeds
+        time.sleep(20)
+        run_check("secret-after")
+        closed = (FEED_DAG,) not in dag_failed_open()
+    check(closed, "after --undo the feed's next run closed DAG.FAILED")
+
+
 def main() -> int:
     failures: list[str] = []
 
@@ -150,11 +227,13 @@ def main() -> int:
         closed = not any(open_ for _, _, open_ in scheduler_incidents())
     check(closed, "after --undo the check closed the incident")
     oom_drill(check)
+    bad_secret_drill(check)
     for f in failures:
         print(f"FAIL: {f}", file=sys.stderr)
     if failures:
         return 1
-    print("PASS: the scheduler_down and oom_task drills opened and closed their incidents")
+    print("PASS: the scheduler_down, oom_task and bad_secret drills opened and closed"
+          " their incidents")  # fmt: skip
     return 0
 
 

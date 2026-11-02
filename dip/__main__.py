@@ -59,7 +59,7 @@
   agents versions              each agent step's prompt file, its SHA-256 (what a new run
                                records) and the models a run uses (Stage 11, S11.3)
   drill NAME [--undo]          break the platform on purpose, on the kind cluster only,
-                               and undo it (Stage 11: scheduler_down; dip/drills.py)
+                               and undo it (Stage 11: scheduler_down, oom_task, bad_secret)
   platform-check               the scheduler's heartbeat (and from S11.7 the pods), as
                                platform incidents (Stage 11, S11.6; the CronJob runs it)
   trace CHAIN_ID               one chain's model and tool calls in time order, with totals

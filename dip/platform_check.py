@@ -25,6 +25,12 @@ opens or closes a platform incident (dip/incidents.py, feed `_platform`):
               until a person deletes it (runbook 10's Check), so the incident stays open
               until then; a target with no such pod left closes
 
+  dag_runs    (S11.8) each feed intake DAG's latest finished run, from the Airflow API: a
+              failed one opens the feed's DAG.FAILED (target the DAG), a successful one
+              closes it. The run's own failure callback does the same, but it needs the
+              warehouse connection, which is what a bad secret breaks; this check has
+              its own login
+
 The exporter turns the latest heartbeat into dip_airflow_scheduler_heartbeat_age_seconds,
 and the AirflowSchedulerDown alert fires above 180 s.
 """
@@ -35,7 +41,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-from dip.incidents import PLATFORM_FEED, close_platform, open_incident
+from dip.incidents import PLATFORM_FEED, close_dag_failed, close_platform, open_incident
 
 
 def _time(value: Any) -> datetime | None:
@@ -117,6 +123,37 @@ def check_oomkilled(cur: Any, k8s: Any) -> dict:
     return {"oomkilled": sorted(killed)}
 
 
+def check_dag_runs(cur: Any, services: Any) -> dict:
+    try:
+        got = services.get(services.airflow_url, "Airflow",
+                           "/api/v2/dags/~/dagRuns?state=success&state=failed"
+                           "&order_by=-end_date&limit=200")  # fmt: skip
+    except Exception as exc:  # noqa: BLE001 - recorded; no incident is decided on it
+        record(cur, "airflow_api", "dag-runs", False, detail=f"{type(exc).__name__}: {exc}")
+        return {"dag_runs": "unknown (the Airflow API did not answer)"}
+    latest: dict[str, dict] = {}
+    for r in (got or {}).get("dag_runs") or []:
+        if str(r.get("dag_id", "")).startswith("intake__"):  # feed DAGs (dag_id_for)
+            latest.setdefault(r["dag_id"], r)  # newest first
+    failed = []
+    for dag_id, r in sorted(latest.items()):
+        feed = dag_id.removeprefix("intake__").replace("__", ".")
+        if r.get("state") != "failed":
+            close_dag_failed(cur, feed)
+            continue
+        failed.append(dag_id)
+        record(cur, "dag_run", dag_id, False, _time(r.get("end_date")),
+               detail=f"run {r.get('dag_run_id')} failed")  # fmt: skip
+        # the callback's incident, if it could open one (same feed, kind and target)
+        cur.execute("select 1 from ops.incident where feed = %s and kind = 'DAG.FAILED'"
+                    " and closed_at is null", (feed,))  # fmt: skip
+        if cur.fetchone() is None:
+            open_incident(cur, feed, "DAG.FAILED",
+                          f"{dag_id} run {r.get('dag_run_id')}: failed (the platform check)",
+                          target=dag_id)  # fmt: skip
+    return {"dag_runs_failed": failed}
+
+
 def run(conn: Any, services: Any, k8s: Any = None, now: datetime | None = None,
         env: dict[str, str] | None = None) -> dict[str, Any]:  # fmt: skip
     env = dict(os.environ) if env is None else env
@@ -125,6 +162,7 @@ def run(conn: Any, services: Any, k8s: Any = None, now: datetime | None = None,
     with conn.cursor() as cur:
         out |= check_scheduler(cur, services, now,
                                float(env.get("DIP_SCHEDULER_STALE_SECONDS", "90")))  # fmt: skip
+        out |= check_dag_runs(cur, services)
         if k8s is not None and (k8s.base or k8s.http):
             out |= check_oomkilled(cur, k8s)
     conn.commit()
