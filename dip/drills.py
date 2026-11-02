@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import secrets
 import subprocess
+import tempfile
 import urllib.parse
 from collections.abc import Callable
 
@@ -76,18 +78,33 @@ def oom_task_undo(run: Callable[..., str] = kubectl) -> str:
 
 
 # bad_secret: the Secret Airflow's pods read AIRFLOW_CONN_WAREHOUSE from (Terraform writes
-# it), the annotation that keeps the real value while the drill is on, and the feed DAG run.
+# it), the Secret that keeps the real value while the drill is on (a Secret, not an
+# annotation: `kubectl describe` prints annotations), and the feed DAG it runs.
 SECRET = "airflow-connections"
-SAVED = "dip.drill/saved-warehouse"
+SAVED = "dip-drill-saved-warehouse"
 FEED_DAG = "intake__healthcare__eligibility"
 
 
-def _secret(run: Callable[..., str]) -> dict:
-    return json.loads(run("-n", NS, "get", "secret", SECRET, "-o", "json"))
+def _get_secret(run: Callable[..., str], name: str) -> dict | None:
+    out = run("-n", NS, "get", "secret", name, "-o", "json", "--ignore-not-found")
+    return json.loads(out) if out else None
 
 
-def _patch(run: Callable[..., str], patch: dict) -> None:
-    run("-n", NS, "patch", "secret", SECRET, "--type=merge", "-p", json.dumps(patch))
+def _from_file(run: Callable[..., str], doc: dict, *args: str) -> None:
+    """kubectl with the document in a file, never in its arguments (another process on the
+    machine can read those), the file removed after."""
+    fd, path = tempfile.mkstemp(suffix=".json")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(doc, f)
+        run(*[path if a == "{file}" else a for a in args])
+    finally:
+        os.unlink(path)
+
+
+def _set_warehouse(run: Callable[..., str], b64: str) -> None:
+    patch = ("-n", NS, "patch", "secret", SECRET, "--type=merge", "--patch-file", "{file}")
+    _from_file(run, {"data": {"warehouse": b64}}, *patch)
 
 
 def wrong_password(uri: str) -> str:
@@ -100,13 +117,14 @@ def wrong_password(uri: str) -> str:
 
 
 def bad_secret(run: Callable[..., str] = kubectl) -> str:
-    s = _secret(run)
-    if SAVED in (s["metadata"].get("annotations") or {}):
+    if _get_secret(run, SAVED) is not None:
         raise DrillError("bad_secret is already on: run it with --undo first")
-    good = s["data"]["warehouse"]  # base64, as the Secret holds it; never printed
+    good = _get_secret(run, SECRET)["data"]["warehouse"]  # base64, as held; never printed
     bad = wrong_password(base64.b64decode(good).decode("utf-8"))
-    _patch(run, {"metadata": {"annotations": {SAVED: good}},
-                 "data": {"warehouse": base64.b64encode(bad.encode()).decode()}})  # fmt: skip
+    _from_file(run, {"apiVersion": "v1", "kind": "Secret",
+                     "metadata": {"name": SAVED, "namespace": NS},
+                     "data": {"warehouse": good}}, "apply", "-f", "{file}")  # fmt: skip
+    _set_warehouse(run, base64.b64encode(bad.encode()).decode())
     # Pods read the Secret when they start: the running scheduler, DAG processor and API
     # server keep the real password; the next task pod gets the wrong one.
     airflow(run, "dags", "unpause", FEED_DAG)
@@ -116,10 +134,11 @@ def bad_secret(run: Callable[..., str] = kubectl) -> str:
 
 
 def bad_secret_undo(run: Callable[..., str] = kubectl) -> str:
-    saved = (_secret(run)["metadata"].get("annotations") or {}).get(SAVED)
-    if not saved:
+    saved = _get_secret(run, SAVED)
+    if saved is None:
         return "bad_secret is not on: nothing to restore"
-    _patch(run, {"metadata": {"annotations": {SAVED: None}}, "data": {"warehouse": saved}})
+    _set_warehouse(run, saved["data"]["warehouse"])
+    run("-n", NS, "delete", "secret", SAVED)
     run("-n", NS, "delete", "pod", "-l", f"dag_id={FEED_DAG}",
         "--field-selector=status.phase=Failed", "--ignore-not-found", "--wait=false")  # fmt: skip
     airflow(run, "dags", "trigger", FEED_DAG)

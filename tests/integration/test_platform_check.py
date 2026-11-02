@@ -28,13 +28,17 @@ def health(status="healthy", age=10, down=False, now=NOW, runs=()):
     def http(method, url, body, headers):
         if down:
             raise ConnectionError("api-server unreachable")
-        if "/dags/~/dagRuns?" in url:  # S11.8: the latest finished runs, newest first
+        if url.endswith("/auth/token"):  # S11.8: the dag runs need the Viewer login
+            return {"access_token": "viewer"}
+        if "/dags/~/dagRuns?" in url:  # newest first
+            assert headers.get("Authorization") == "Bearer viewer"
             return {"dag_runs": list(runs)}
         assert url.endswith("/api/v2/monitor/health")
         beat = (now - timedelta(seconds=age)).isoformat()
         return {"scheduler": {"status": status, "latest_scheduler_heartbeat": beat}}
 
-    return ReadServices(airflow_url="http://airflow", http=http)
+    return ReadServices(airflow_url="http://airflow", airflow_user="viewer",
+                        airflow_password="pw", http=http)  # fmt: skip
 
 
 def open_scheduler(wh):
@@ -225,6 +229,10 @@ def test_a_failed_feed_run_opens_dag_failed_without_its_callback(warehouse):
     assert out["dag_runs_failed"] == ["intake__healthcare__eligibility"]
     assert failed_open() == [("healthcare.eligibility", "intake__healthcare__eligibility")]
     platform_check.run(warehouse.conn, health(runs=failed), now=NOW, env={})  # still one
+    assert len(failed_open()) == 1
+    # the failed run cleared to rerun: queued, then running; nothing has succeeded yet
+    rerun = [dag_run("queued", "manual__2", end=None), dag_run("success", "manual__1")]
+    platform_check.run(warehouse.conn, health(runs=rerun), now=NOW, env={})
     assert len(failed_open()) == 1
     ok = [dag_run("success", "manual__3"), *failed]
     platform_check.run(warehouse.conn, health(runs=ok), now=NOW, env={})

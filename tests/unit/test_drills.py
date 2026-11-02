@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import base64
 import json
+from pathlib import Path
 
 import pytest
 
@@ -71,30 +72,36 @@ def test_oom_task_runs_the_drill_dag_and_its_undo_pauses_it():
 
 
 class SecretKubectl(Kubectl):
-    """kubectl with the airflow-connections Secret, as `get -o json` returns it."""
+    """kubectl with Secrets, as `get -o json`, `apply -f` and `patch --patch-file` see them."""
 
-    def __init__(self, uri="postgresql://warehouse:real-pw-1@postgres.dip-data:5432/warehouse"):
+    REAL = "postgresql://warehouse:real-pw-1@postgres.dip-data:5432/warehouse"
+
+    def __init__(self):
         super().__init__()
-        self.secret = {"metadata": {"name": "airflow-connections"},
-                       "data": {"warehouse": base64.b64encode(uri.encode()).decode()}}  # fmt: skip
+        self.secrets = {"airflow-connections": {
+            "metadata": {"name": "airflow-connections"},
+            "data": {"warehouse": base64.b64encode(self.REAL.encode()).decode()}}}  # fmt: skip
 
     def __call__(self, *args, check=True):
         self.calls.append(args)
         if args[:2] == ("config", "current-context"):
             return self.context
         if "get" in args and "secret" in args:
-            return json.dumps(self.secret)
+            s = self.secrets.get(args[args.index("secret") + 1])
+            return json.dumps(s) if s else ""
+        if "apply" in args:
+            doc = json.loads(Path(args[args.index("-f") + 1]).read_text("utf-8"))
+            self.secrets[doc["metadata"]["name"]] = doc
         if "patch" in args:
-            patch = json.loads(args[args.index("-p") + 1])
-            ann = self.secret["metadata"].setdefault("annotations", {})
-            for k, v in patch.get("metadata", {}).get("annotations", {}).items():
-                ann.pop(k) if v is None else ann.__setitem__(k, v)
-            self.secret["data"] |= patch.get("data", {})
+            patch = json.loads(Path(args[args.index("--patch-file") + 1]).read_text("utf-8"))
+            self.secrets[args[args.index("secret") + 1]]["data"] |= patch["data"]
+        if "delete" in args and "secret" in args:
+            self.secrets.pop(args[args.index("secret") + 1])
         return ""
 
 
 def _warehouse(k):
-    return base64.b64decode(k.secret["data"]["warehouse"]).decode()
+    return base64.b64decode(k.secrets["airflow-connections"]["data"]["warehouse"]).decode()
 
 
 def test_bad_secret_swaps_the_password_and_undo_restores_it():
@@ -104,19 +111,22 @@ def test_bad_secret_swaps_the_password_and_undo_restores_it():
     assert bad.startswith("postgresql://warehouse:drill-") and bad.endswith(
         "@postgres.dip-data:5432/warehouse")  # fmt: skip
     assert "real-pw-1" not in bad and "real-pw-1" not in out and bad not in out
+    assert drills.SAVED in k.secrets  # the real one, in a Secret of its own
     assert ("dags", "trigger", drills.FEED_DAG) in [c[c.index("airflow") + 1:] for c in k.calls
                                                     if "airflow" in c]  # fmt: skip
     with pytest.raises(drills.DrillError, match="already on"):  # never saves the bad one
         drills.drill("bad_secret", run=k)
     drills.drill("bad_secret", undo=True, run=k)
-    assert _warehouse(k) == "postgresql://warehouse:real-pw-1@postgres.dip-data:5432/warehouse"
-    assert drills.SAVED not in k.secret["metadata"]["annotations"]
+    assert _warehouse(k) == SecretKubectl.REAL and drills.SAVED not in k.secrets
     assert "nothing to restore" in drills.drill("bad_secret", undo=True, run=k)
 
 
-def test_no_kubectl_argument_carries_a_password_in_clear():
-    # the patch holds the values base64-encoded, as the Secret does
+def test_no_kubectl_argument_carries_a_password_even_encoded():
+    # the values go in files; another process can read a command's arguments
     k = SecretKubectl()
     drills.drill("bad_secret", run=k)
     bad_pw = _warehouse(k).split(":")[2].split("@")[0]
-    assert not any("real-pw-1" in a or bad_pw in a for c in k.calls for a in c)
+    drills.drill("bad_secret", undo=True, run=k)
+    held = [SecretKubectl.REAL, "real-pw-1", bad_pw]
+    held += [base64.b64encode(s.encode()).decode() for s in held]
+    assert not any(h in a for c in k.calls for a in c for h in held)

@@ -11,7 +11,8 @@ Secret, when it runs in a pod started after the change); the `platform-check` Cr
 with its own login, opens it from the Airflow API instead.
 
 **Break it on purpose (kind only):** `python -m dip drill bad_secret` writes a wrong
-warehouse password into `airflow-connections` (keeping the real one in an annotation) and
+warehouse password into `airflow-connections` (keeping the real one in the Secret
+`dip-drill-saved-warehouse`) and
 triggers `intake__healthcare__eligibility`; `python -m dip drill bad_secret --undo` puts the
 real one back and runs the DAG again. The drill runs in the GitHub proof workflow, never on
 the laptop.
@@ -34,7 +35,7 @@ A login refused for its password (`password authentication failed`): which side 
 
 | What you see | Action |
 |---|---|
-| The Secret was changed by hand, or a drill left it (`dip.drill/saved-warehouse` annotation on `airflow-connections`) | Put it back from Terraform: `terraform -chdir=infra/terraform apply` rewrites the Secret from its state (for the drill: `dip drill bad_secret --undo`) |
+| The Secret was changed by hand, or a drill left it (a `dip-drill-saved-warehouse` Secret exists) | Put it back from Terraform: `terraform -chdir=infra/terraform apply` rewrites the Secret from its state (for the drill: `dip drill bad_secret --undo`) |
 | The password was rotated in Postgres by hand (`ALTER ROLE`), not through Terraform | Rotate through Terraform in both places: replace `random_password.this["pg_warehouse"]`, apply, and set the role's password from the new value; never edit the Secret by hand |
 | Only one login is refused, others connect | Check that login's role exists and can log in (`pg_roles.rolcanlogin`); the password is not the cause |
 | A connection refused for another reason (`could not connect`, `timeout`) | Not credentials: runbook 09 or a platform failure |

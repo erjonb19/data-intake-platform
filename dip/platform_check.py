@@ -25,11 +25,12 @@ opens or closes a platform incident (dip/incidents.py, feed `_platform`):
               until a person deletes it (runbook 10's Check), so the incident stays open
               until then; a target with no such pod left closes
 
-  dag_runs    (S11.8) each feed intake DAG's latest finished run, from the Airflow API: a
-              failed one opens the feed's DAG.FAILED (target the DAG), a successful one
-              closes it. The run's own failure callback does the same, but it needs the
-              warehouse connection, which is what a bad secret breaks; this check has
-              its own login
+  dag_runs    (S11.8) each feed intake DAG's latest run (by run_after), from the Airflow
+              API with the Viewer login: failed opens the feed's DAG.FAILED (target the
+              DAG), success closes it, and a run still queued or running (a new one, or a
+              failed one cleared to rerun) decides nothing. The run's own failure callback
+              does the same, but it needs the warehouse connection, which is what a bad
+              secret can break; this check has its own login
 
 The exporter turns the latest heartbeat into dip_airflow_scheduler_heartbeat_age_seconds,
 and the AirflowSchedulerDown alert fires above 180 s.
@@ -125,9 +126,8 @@ def check_oomkilled(cur: Any, k8s: Any) -> dict:
 
 def check_dag_runs(cur: Any, services: Any) -> dict:
     try:
-        got = services.get(services.airflow_url, "Airflow",
-                           "/api/v2/dags/~/dagRuns?state=success&state=failed"
-                           "&order_by=-end_date&limit=200")  # fmt: skip
+        # newest first, at most 100 (Airflow's default maximum_page_limit)
+        got = services.airflow("/dags/~/dagRuns?order_by=-run_after&limit=100")
     except Exception as exc:  # noqa: BLE001 - recorded; no incident is decided on it
         record(cur, "airflow_api", "dag-runs", False, detail=f"{type(exc).__name__}: {exc}")
         return {"dag_runs": "unknown (the Airflow API did not answer)"}
@@ -138,8 +138,9 @@ def check_dag_runs(cur: Any, services: Any) -> dict:
     failed = []
     for dag_id, r in sorted(latest.items()):
         feed = dag_id.removeprefix("intake__").replace("__", ".")
-        if r.get("state") != "failed":
+        if r.get("state") == "success":
             close_dag_failed(cur, feed)
+        if r.get("state") != "failed":
             continue
         failed.append(dag_id)
         record(cur, "dag_run", dag_id, False, _time(r.get("end_date")),

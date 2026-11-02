@@ -53,8 +53,10 @@ def scheduler_incidents() -> list[tuple]:
         return cur.fetchall()
 
 
-def firing(prom: str, alert: str) -> bool:
-    q = urllib.parse.urlencode({"query": f'ALERTS{{alertname="{alert}",alertstate="firing"}}'})
+def firing(prom: str, alert: str, dag_id: str = "") -> bool:
+    dag = f',dag_id="{dag_id}"' if dag_id else ""
+    q = urllib.parse.urlencode(
+        {"query": f'ALERTS{{alertname="{alert}",alertstate="firing"{dag}}}'})  # fmt: skip
     with urllib.request.urlopen(f"{prom}/api/v1/query?{q}", timeout=10) as r:
         return bool(json.loads(r.read())["data"]["result"])
 
@@ -80,9 +82,9 @@ def open_incidents(kind: str) -> list[tuple]:
 def oom_drill(check) -> None:
     """Stage 11 (S11.7): drill_oom's task is OOMKilled; the check opens TASK.OOMKILLED for
     drill_oom.eat_memory, TaskPodOOMKilled fires, and after --undo the check closes it."""
-    print(dip("drill", "oom_task"))
     started, opened = time.monotonic(), False
-    try:
+    try:  # the undo runs even when the drill itself fails half-way
+        print(dip("drill", "oom_task"))
         while not opened and time.monotonic() - started < 300:  # the run starts, the pod dies
             time.sleep(20)
             run_check("oom")
@@ -114,15 +116,47 @@ FEED_DAG = "intake__healthcare__eligibility"
 def warehouse_secret() -> tuple[str, str]:
     """The password airflow-connections holds now, and the saved real one ("" if none)."""
     import base64
-    import urllib.parse
 
-    s = json.loads(kubectl("-n", NS, "get", "secret", "airflow-connections", "-o", "json"))
+    def pw(name: str) -> str:
+        out = kubectl("-n", NS, "get", "secret", name, "-o", "jsonpath={.data.warehouse}",
+                      "--ignore-not-found")  # fmt: skip
+        uri = base64.b64decode(out).decode() if out else ""
+        return urllib.parse.urlsplit(uri).password or "" if uri else ""
 
-    def pw(b64: str) -> str:
-        return urllib.parse.urlsplit(base64.b64decode(b64).decode()).password or ""
+    return pw("airflow-connections"), pw("dip-drill-saved-warehouse")
 
-    saved = (s["metadata"].get("annotations") or {}).get("dip.drill/saved-warehouse")
-    return pw(s["data"]["warehouse"]), pw(saved) if saved else ""
+
+def intake_log() -> str:
+    """The failed intake task's log of the feed DAG's latest run, as Airflow serves it."""
+    import urllib.request
+
+    url = os.environ.get("AIRFLOW_URL", "http://localhost:8080").rstrip("/")
+
+    def call(method: str, path: str, body: dict | None = None, token: str = "") -> dict:
+        req = urllib.request.Request(url + path, method=method,
+                                     data=json.dumps(body).encode() if body else None)  # fmt: skip
+        req.add_header("Accept", "application/json")
+        req.add_header("Content-Type", "application/json")
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read())
+
+    token = call("POST", "/auth/token", {"username": os.environ.get("AIRFLOW_USER", "admin"),
+                                         "password": os.environ["AIRFLOW_PASSWORD"]}
+                 )["access_token"]  # fmt: skip
+    api = f"/api/v2/dags/{FEED_DAG}/dagRuns"
+    run = call("GET", f"{api}?order_by=-run_after&limit=5", token=token)["dag_runs"]
+    failed = next(r for r in run if r["state"] == "failed")
+    rid = urllib.parse.quote(failed["dag_run_id"], safe=":+")
+    ti = call("GET", f"{api}/{rid}/taskInstances/intake", token=token)
+    got = call("GET", f"{api}/{rid}/taskInstances/intake/logs/{ti.get('try_number') or 1}",
+               token=token)  # fmt: skip
+    content = got.get("content", "")
+    if isinstance(content, list):
+        content = "\n".join(str(c.get("event", c)) if isinstance(c, dict) else str(c)
+                            for c in content)  # fmt: skip
+    return str(content)
 
 
 def logs_with(*needles: str) -> list[str]:
@@ -153,9 +187,9 @@ def bad_secret_drill(check) -> None:
     intake task cannot connect; the platform check (its own login) sees the failed run and
     DAG.FAILED opens (target the DAG); DagRunFailing fires; no pod's log holds either
     password; after --undo the next run succeeds and DAG.FAILED closes."""
-    print(dip("drill", "bad_secret"))
     started, opened = time.monotonic(), False
-    try:
+    try:  # the undo runs even when the drill itself fails half-way
+        print(dip("drill", "bad_secret"))
         bad, real = warehouse_secret()
         check(bool(bad) and bool(real) and bad != real, "the drill swapped the password")
         while not opened and time.monotonic() - started < 300:
@@ -168,12 +202,14 @@ def bad_secret_drill(check) -> None:
         if prom and opened:
             seen = False
             while not seen and time.monotonic() - started < 600:
-                seen = firing(prom, "DagRunFailing")
+                seen = firing(prom, "DagRunFailing", FEED_DAG)  # not drill_oom's
                 if not seen:
                     time.sleep(15)
-            check(seen, "the DagRunFailing alert fires")
-        refused = logs_with('password authentication failed for user "warehouse"')
-        print(f"pods whose log shows the refused login: {refused or 'none'}")
+            check(seen, f"the DagRunFailing alert fires for {FEED_DAG}")
+        log = intake_log()
+        check('password authentication failed for user "warehouse"' in log,
+              "the intake task's log shows the refused login")  # fmt: skip
+        check(bad not in log and real not in log, "the task log holds neither password")
         check(not logs_with(bad, real), "no pod's log holds the wrong or the real password")
     finally:
         print(dip("drill", "bad_secret", "--undo"))

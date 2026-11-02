@@ -153,15 +153,18 @@ _PLATFORM_LOG = re.compile(
     r"|^" + _DBT + r"Failure in (test|model) [A-Za-z0-9_.]+ \("
     r"|^" + _DBT + r"Got \d+ results?, configured to "
     r"|^" + _DBT + r"Completed with \d+ errors?|^Task exited with return code "
-    # A connection refused for its credentials (S11.8, the bad_secret drill): a role name
-    r'|password authentication failed for user "[A-Za-z0-9_]+"'
+    # A connection refused for its credentials (S11.8, the bad_secret drill), as psycopg
+    # words it, the whole line: a host, a port and a role name
+    r'|^([A-Za-z_.]+: |connection failed: )*connection to server at "[A-Za-z0-9.-]+"'
+    r" \([0-9A-Fa-f.:]+\), port \d+ failed: FATAL:\s+password authentication failed"
+    r' for user "[A-Za-z0-9_]+"$'
 )
-# A credential in a log line, as a connection URI's password or a password=... pair:
-# masked in every line the tool returns, before any policy's filter (S11.8). An agent
-# cannot repeat what it never saw.
+# A credential in a log line, as a connection URI's password or a password pair (key=value,
+# key: value, "key": "value", PGPASSWORD=...): masked in every line the tool returns,
+# before any policy's filter (S11.8). An agent cannot repeat what it never saw.
 _CREDENTIAL = re.compile(
-    r"(\b[a-z][a-z0-9+.-]*://[^\s:/@]*:)[^\s@]+(@)"
-    r"|(\b(?:password|passwd|pwd)\s*[=:]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;&]+)",
+    r"(\b[a-z][a-z0-9+.-]*://[^\s:/@?#]*:)[^\s@/?#]+(@)"
+    r"|(\b\w*(?:password|passwd)\w*[\"']?\s*[=:]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;&}]+)",
     re.I,
 )
 
