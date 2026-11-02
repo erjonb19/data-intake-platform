@@ -23,8 +23,8 @@ status=$?
 
 # Scrub: the key, and any auth header, out of every recording (none should be there: a
 # recording holds the model's turns and request hashes, never the request); then check.
-dirs="agents/evals/incident/recordings agents/evals/demo/recordings"
-python - $dirs <<'EOF'
+dirs=(agents/evals/incident/recordings agents/evals/demo/recordings)
+python - "${dirs[@]}" <<'EOF'
 import os, pathlib, re, sys
 key = os.environ["ANTHROPIC_API_KEY"]
 auth = re.compile(r'("?(x-api-key|authorization)"?\s*[:=]\s*)"[^"]*"', re.I)
@@ -36,10 +36,10 @@ for d in sys.argv[1:]:
             p.write_text(s, "utf-8")
             print(f"scrubbed {p}")
 EOF
-for d in $dirs; do
+for d in "${dirs[@]}"; do
   if grep -lF "$ANTHROPIC_API_KEY" "$d"/*.json; then
     echo "the key is still in a recording"; exit 1
   fi
 done
-ls -l $dirs
+ls -l "${dirs[@]}"
 exit $status
