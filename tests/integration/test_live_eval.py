@@ -24,19 +24,32 @@ def test_the_committed_baseline_covers_the_sample_and_every_case_passed():
     assert all(c["passed"] and c["calls"] > 0 and c["cost_usd"] > 0 for c in baseline["cases"])
 
 
-def test_a_seeded_drift_fails_against_the_baseline(warehouse):
-    """The incident agent's case, replayed, but its expected root cause changed: it passed
-    when recorded and fails now, so the comparison reports drift."""
+def _seeded_drift() -> dict:
+    """The incident agent's case, replayed, but its expected root cause changed."""
     from tests.integration.conftest import DSN
 
     case = copy.deepcopy(live_eval._cases("incident")["platform_oomkilled"])
     case["gold"]["root_cause"] = ["platform_scheduler"]  # what a drifted answer would miss
-    r = live_eval.measure("incident", case, DSN, live=False)
+    return live_eval.measure("incident", case, DSN, live=False)
+
+
+def test_a_seeded_drift_fails_against_the_baseline(warehouse):
+    """It passed when recorded and fails now, so the comparison reports drift."""
+    r = _seeded_drift()
     assert r["passed"] is False and r["calls"] > 0
     baseline = json.loads(live_eval.BASELINE.read_text("utf-8"))
     findings, md = live_eval.compare(baseline, [r])
     assert findings == ["incident/platform_oomkilled: passed when recorded, fails live"]
     assert "**drift**" in md
+
+
+def test_a_seeded_drift_fails_the_job(warehouse, monkeypatch, tmp_path):
+    """The job's own command (`live OUT_DIR`) on the seeded drift: exit 1, drift.md written."""
+    r = _seeded_drift()
+    monkeypatch.setenv("DIP_EVAL_DSN", "postgresql://unused")
+    monkeypatch.setattr(live_eval, "sample", lambda dsn, live: [r])
+    assert live_eval.main(["live", str(tmp_path)]) == 1
+    assert "passed when recorded, fails live" in (tmp_path / "drift.md").read_text("utf-8")
 
 
 def test_an_agent_over_twice_its_baseline_cost_is_drift():
