@@ -8,10 +8,10 @@
 
 | Status | Count |
 |---|---|
-| built | 79 |
-| partial | 19 |
+| built | 81 |
+| partial | 20 |
 | missing | 8 |
-| **total** | **106** |
+| **total** | **109** |
 
 The core platform is built and covered by CI. That includes contract intake through medallion layers with quarantine, both packs, the research track, the MCP tiers with approvals, the agents and their recorded evals, and the Stage 11 LLMOps and drills.
 
@@ -76,15 +76,16 @@ The nightly evals log shows every case passing, then `7 reports (expected 6); fa
 | Stage 1 Thin slice + E2E on every push | built | #16, #17; `e2e.yml` `on: push, pull_request`; `cases.yaml:18-48` (eligibility good, bad, row-level) | |
 | Stage 2 All channels and formats, both packs | built | See §8.6; e2e 41632157966 | |
 | Stage 3 OCR + monitoring + read-only MCP | partial | See §8.7; `tests/e2e/mcp_read.py`, `lineage.py`, `observability.py` | Marquez lineage "FHIR file → OMOP → shareable extract" is not shown in the cluster (see R6) |
-| Stage 4 Breakage generator + runbooks + Propose tier | partial | See S4.1 to S4.5; `docs/runbooks/01-08` | Runbooks 01 to 08 have no Marquez evidence, and Grafana only in 01 and 05 (grep counts). No `docs/demos/stage-4.md` |
+| Stage 4 Breakage generator + runbooks + Propose tier | partial | See S4.1 to S4.5; `docs/runbooks/01-08` | Runbooks 01 to 08 have no Marquez evidence, and Grafana only as a mention of "the Feeds dashboard" in 01 and 05 (no panel or query). No `docs/demos/stage-4.md` |
+| Stage 4 Propose tier: `propose_operation`, `ops.approvals`, `dip approvals` | built | `dip/agents/tools.py:210` (`propose_operation`); `dip/sql/warehouse.sql:233` (`ops.approvals`); `dip/__main__.py:31` (`approvals list\|show\|approve\|reject\|execute`); `tests/integration/test_agents.py:105,120,184,313` (waits for a person, runs once, tamper-proof, expiry, one pending per group) | |
 | Stage 5 Contract-author agent + eval harness | partial | See §8.8; #37 | `docs/demos/stage-5.md`; drift cases incomplete (S5.3) |
 | Stage 5R Cohort service (R7) | partial | R7a: see §8.4 | R7b lives in `erjonb19/clinical-drift-monitor`, not audited here |
 | Stage 6 Act tier + triage agent | partial | See S6.1 to S6.3; `test_act_tier.py:57` | No `release` operation (`dip/agents/approvals.py:44`: `request_resend, discard, replay, propose_contract_change`). In the cluster `dip_mcp` has only SELECT on `ops.quarantine` and `ops.intake_file` (`dip/sql/warehouse.sql:625,628`), so the agent can complete only `request_resend` there |
 | Stage 7 Incident agent + LangGraph handoff | built | See S7.1 to S7.4; nightly incident replay 10/10 (log of 41631832492) | |
 | Stage 8 Hardening and write-up | partial | README screenshots (`README.md:26-67`); `scripts/demo.sh`; §11 OAuth item; fresh-clone job 125835579275 green | Nightly evals failing (S8.1) |
 | Stage 9 Agents as workloads + approvals page | built | See §8.11 | |
-| Stage 10 Multi-agent intake | built | See §8.12; proof 41159028750 | One README screenshot (S10.6) |
-| Stage 11 LLMOps and platform drills | partial | See §8.13 | S11.12: issues for the gaps not yet opened. CI on the final main commit still running when audited |
+| Stage 10 Multi-agent intake | partial | See §8.12; proof 41159028750 | One README screenshot (S10.6) |
+| Stage 11 LLMOps and platform drills | partial | See §8.13 | S11.12 is this PR; its gap issues are #83 to #101. CI on the audited main commit was still running when audited |
 
 ## §8.1 Research-data track
 
@@ -116,6 +117,7 @@ The nightly evals log shows every case passing, then `7 reports (expected 6); fa
 | V1 `dip vocab-load --athena`, de-dup, `vocab.load_info`, unmapped report | built | `dip/__main__.py:6,643`; `tests/integration/test_vocab_athena.py:71`; `docs/research/vocabulary.md:35-41` | |
 | V2 MIMIC lab → LOINC via mimic-code, `SOURCE_TO_CONCEPT_MAP` | built | `dip/vocab.py:82-86,317-321`; `test_mimic_shaped_omop.py:101` | |
 | V3 One full Athena bundle, CPT4 skipped, rows kept with concept 0 | built | `dip/vocab.py` (`athena_vocab_full`); `vocabulary.md` rates table; #18 | |
+| §8.3 rules: Athena never committed, concept ids only in extracts, CPT4 not loaded | built | `scripts/check_no_mimic_data.sh:17,33` (Athena files fail CI); `tests/unit/test_check_no_mimic_data.py:137` (`test_athena_files_fail_anywhere`); `dip/vocab.py:8`; `docs/research/vocabulary.md:28-29` (CPT4 skipped) | |
 
 ## §8.4 R7a (this repo)
 
@@ -167,7 +169,7 @@ The nightly evals log shows every case passing, then `7 reports (expected 6); fa
 |---|---|---|---|
 | S5.1 `diff_schema`, `validate_contract`, `propose_contract_pr`, local-branch approval step | built | `dip/agents/author_tools.py`; `dip/agents/contract_pr.py:64`; `agents/policies/contract_author.yaml`; `tests/integration/test_contract_author.py` | |
 | S5.2 `dip contracts author --mode onboard\|drift`, prompt rules | built | `dip/agents/contract_author.py`; `agents/prompts/contract_author.md`. Deviation: one prompt, not two files | |
-| S5.3 Eval cases from the breakage generator (drift, onboarding, injection) | partial | `agents/evals/contract_author/cases.yaml:21-159` has 13 cases: drift for a new code, rename, two added columns, delimiter and a claims column; 2 mistakes; injection in a cell and in a header; 3 onboarding | Drift cases for a type change, an encoding change and a widened range. The Excel-comment injection case (allowed as the second cut) |
+| S5.3 Eval cases from the breakage generator (drift, onboarding, injection) | partial | `agents/evals/contract_author/cases.yaml:21-159` has 13 cases: drift for a new code, rename, two added columns, delimiter and a claims column; 2 mistakes; injection in a cell and in a header; 3 onboarding | Drift cases for a type change and a widened range (the delimiter case covers "a delimiter or encoding change"). The Excel-comment injection case (allowed as the second cut) |
 | S5.4 Scoring per mode, loosening, injection, variance | built | `dip/agents/author_evals.py`; `agents/evals/contract_author/results/{recorded,variance}.json`; nightly log shows 13/13, loosening 0 | |
 | S5.5 Gemini comparison, docs, demo, triage → contract-author handoff | partial | `agents/evals/contract_author/results/gemini.json` (8/12); `docs/agents/EVALS.md:197-206` | `docs/demos/stage-5.md` does not exist |
 
@@ -215,7 +217,7 @@ The nightly evals log shows every case passing, then `7 reports (expected 6); fa
 | S10.1 Automatic Gemini fallback per step | built | `dip/agents/llm.py:277` (`Failover`); `tests/unit/test_failover.py:39-94`; `tests/integration/test_fallback_chain.py:42,66,91`; `agents/evals/{triage,incident}/results/gemini.json`; #58 | |
 | S10.2 `ops.intake_job`, `_onboard` trigger, drift job from handoff | built | `warehouse.sql:508`; `dip/intake_jobs.py`; `test_intake_jobs.py`; `tests/e2e/intake_jobs.py:5-65`; #59 | |
 | S10.3 dbt models generated from a contract, golden tests, safe `write_branch` | built | `dip/dbt_gen.py:186`; `tests/fixtures/dbt_gen/golden/` (purchase orders, lab results, pharmacy claims, provider roster); `test_dbt_gen.py:27,62,76,92`; `test_dbt_gen_build.py:22`; #60 | |
-| S10.4 Orchestrator and three workers, server-enforced proposal rule | built | `dip/agents/intake_graph.py:155`; `warehouse.sql:550` (`ops.contract_candidate`); `registry.py:108`; `test_intake_team.py:60,139`; 35/36 live (`docs/reports/stage-10.md`); nightly 13/13, 0 injected text reached the map worker; #61 | |
+| S10.4 Orchestrator and three workers, server-enforced proposal rule | built | `dip/agents/intake_graph.py:155`; `warehouse.sql:550` (`ops.contract_candidate`); `dip/agents/author_tools.py:204-207` (no proposal without the validator's and the reviewer's pass); `test_intake_team.py:60,139`; 35/36 live (`docs/reports/stage-10.md`); nightly 13/13, 0 injected text reached the map worker; #61 | |
 | S10.5 Reviewer agent and verdicts, 8 seeded candidates | built | `agents/evals/reviewer/{cases.yaml,candidates/}` (8 files); `results/{variance,gemini}.json`; `test_intake_team.py:247`; `test_review_evals.py`; #62 | |
 | S10.6 In the cluster, and the proof | partial | `images/mcp/Dockerfile:14-26`; `infra/terraform/mcp.tf:54,303-305`; proof run 41159028750 (success); `docs/demos/stage-10.md` | The audit-trail screenshot (`docs/images/intake-audit.png`) is only in `stage-10.md`. The plan says "added to the README", and only `intake-proposal.png` is there |
 
@@ -223,18 +225,34 @@ The nightly evals log shows every case passing, then `7 reports (expected 6); fa
 
 | Item | Status | Evidence | Missing |
 |---|---|---|---|
-| S11.1 `ops.model_call`, sink, `ops.agent_run_cost` | built | `warehouse.sql:361-403`; `dip/agents/model_calls.py:24-36`; `tests/unit/test_model_calls.py:62-139`; `tests/integration/test_model_calls.py:36,49,70`; `tests/e2e/intake_jobs.py:155-164`; #69 | |
+| S11.1 `ops.model_call`, sink, `ops.agent_run_cost` | built | `warehouse.sql:362-403`; `dip/agents/model_calls.py:24-36`; `tests/unit/test_model_calls.py:62-139`; `tests/integration/test_model_calls.py:36,49,70`; `tests/e2e/intake_jobs.py:155-164`; #69 | |
 | S11.2 `ops.trace_span`, `dip trace`, page trace view | built | `warehouse.sql:470`; `dip/agents/trace.py:22,39`; `gateway.py:230`; `test_trace.py:43`; `tests/e2e/approvals_page.py:85-91`; #70 | |
 | S11.3 Prompt and model versions on calls, runs and proposals | built | `tests/unit/test_versions.py:46-71`; `tests/integration/test_versions.py:40-96`; `dip/agents/approvals.html:180`; `dip/__main__.py:59,96`; #71 | |
 | S11.4 Agents dashboard, six metrics, three alerts with promtool tests | built | `dip/metrics.py:15-22`; `observability/grafana/agents.json`; `rules.yml:98-120`; `rules_test.yml:90-140`; `tests/e2e/observability.py:70-79`; #72 | |
 | S11.5 Rejection reasons, `ops.agent_feedback`, `from-rejection` scrubbed | built | `warehouse.sql:257-298,446`; `dip/agents/feedback.py:324`; `tests/unit/test_feedback_scrub.py`; `tests/integration/test_feedback.py:51-104`; `agents/evals/triage/from_rejections.yaml` with its recording; `test_agents.py:248`; #73 | |
-| S11.6 `platform-check` CronJob (namespace Role), platform incidents, `get_k8s_events`, `scheduler_down` drill, alert, runbook 09, eval | built | `infra/terraform/platform_check.tf:15-137`; `dip/incidents.py:20-36`; `read_tools.py:285`; `dip/drills.py:33,54`; `tests/e2e/platform_drill.py:325-357` (opens within 240 s, alert, undo); `test_platform_check.py`; incident recordings (Claude and Gemini); #74 | |
+| S11.6 `platform-check` CronJob (namespace Role), platform incidents, `get_k8s_events`, `scheduler_down` drill, alert, runbook 09, eval | built | `infra/terraform/platform_check.tf:15-137`; `dip/incidents.py:20-36`; `read_tools.py:285`; `dip/drills.py:54,59` (`scheduler_down` and its undo); `tests/e2e/platform_drill.py:325-357` (opens within 240 s, alert, undo); `test_platform_check.py`; incident recordings (Claude and Gemini); #74 | |
 | S11.7 `oom_task` drill, `TASK.OOMKILLED`, alert, runbook 10, eval | built | `dags/drill_oom.py`; `drills.py:71`; `platform_drill.py:119-137`; `test_platform_check.py:199`; #75 | |
 | S11.8 `bad_secret` drill, `DAG.FAILED` from the check, secret not logged, runbook 11, eval | built | `drills.py:123-140`; `platform_drill.py:200-267`; `test_platform_check.py:237`; `tests/unit/test_incident_score_secret.py`, `test_task_log_credentials.py`; #79 | |
 | S11.9 `stuck_queued` drill, `TASK.STUCK_QUEUED`, alert, runbook 12, eval | built | `dags/drill_queue.py`; `drills.py:183`; `platform_drill.py:276-313`; `test_platform_check.py:295-382`; #80 | |
 | S11.10 Proof: drills live and fresh-clone, one run | built | Proof run 41611889836: `drills` job 125835579750 and `fresh-clone` job 125835579275 both success; `docs/demos/stage-11.md:33-38` (4/4 root causes, $0.0201); §8.9 Stage 8 row Built; #81 | |
 | S11.11 Weekly live eval, baseline, drift job, schedule off | built | `scripts/live_eval.py:39`; `proof.yml:516` (`live-eval`, `schedule:` commented at `proof.yml:22-23`); run 41618947945 job 125859408735 green; PR #82 body ($0.0354 per run); `test_live_eval.py:57,67` (seeded drift fails the job's command, by replay, a deviation the PR records) | |
 | S11.12 The audit | partial | This file | The final main commit's CI was still running when audited. The gap issues (#83 to #101) were opened with this PR |
+
+## Corrections after review
+
+A second fresh review checked this report (coverage, about 40 citations, the gaps against the issues). Its findings are applied above:
+
+- **The counts.** The first summary said 106 items with 79 built. The tables held 107 rows with 80 built: an escaped `|` hid the S5.2 row from the count.
+- **Two rows added for items the first pass folded into others:** the Stage 4 Propose tier, and the §8.3 rules. That makes 109 rows.
+- **Status changes:**
+  - Stage 10 is now partial, because its own row names a gap (S10.6, #99), as the other stage rows do.
+  - In S5.3, "encoding change" is dropped from the missing cases. The plan asks for "a delimiter or encoding change", and the delimiter case covers it. #90 is updated to match.
+- **Fixes to wording and citations:**
+  - The Stage 11 row is no longer stale about the issues.
+  - The Stage 4 runbook wording is corrected.
+  - Three weak citations are replaced: S10.4's proposal rule, `scheduler_down`, and `ops.model_call`.
+- **§8 Stage dates** is the one partial row without an issue; gap 21 says why.
+- **Not given rows of their own:** the design choices of §8.12 and §8.13, and the §8.8 rule on what data goes to model providers. They are checked through the items that implement them.
 
 ## Gaps
 
@@ -247,7 +265,7 @@ Each gap is written as a proposed issue: a title, then a one-sentence body.
 5. **Write `docs/demos/stage-5.md`.** (#87) S5.5 requires it: the contract author in onboard and drift modes, the Gemini comparison, and the triage → contract-author handoff end to end.
 6. **Runbooks 01 to 08 need Grafana and Marquez evidence.** (#88) Stage 4 says each runbook has symptoms, Grafana, Marquez and MCP evidence. Today they have MCP and SQL evidence, Grafana appears only in 01 and 05, and Marquez in none. Add the dashboard panels and lineage views to each.
 7. **Stage 6: a `release` action, and Act in the cluster beyond `request_resend`.** (#89) The Stage 6 row lists release, discard or replay. `release` is not an operation, and the in-cluster `dip_mcp` login can only read `ops.quarantine` and `ops.intake_file`, so the agent completes only `request_resend` there. Build `release` and give the executing path what discard and replay need, or amend the plan.
-8. **S5.3: the missing contract-author drift cases.** (#90) Add the type-change, encoding-change and widened-range drift cases, and the Excel-comment injection case, that S5.3 lists.
+8. **S5.3: the missing contract-author drift cases.** (#90) Add the type-change and widened-range drift cases, and the Excel-comment injection case, that S5.3 lists.
 9. **R6: the shareable-extract leg of lineage in Marquez.** (#91) Today the extract leg is emitted only by a manual `dip extract build`. Run it in the cluster (an extract DAG or an E2E step) and check the FHIR → OMOP → extract path in Marquez, as Stage 3 and R6 require. Either adopt the Airflow OpenLineage provider and `dbt-ol`, or record the own-emitter choice in the decisions log.
 10. **R7b: confirm the drift-monitor side.** (#92) The Postgres engine, the Synthea-only `cdm_source` check, the `measurement_concept_ids` criterion and offline CI belong to `clinical-drift-monitor`. Track them there and link the result here, since this audit could not check them.
 11. **F1: one OMOP row per "Maps to" target.** (#93) `source_to_standard.sql` keeps only the lowest target concept. Emit one row per target, with ids that stay unique (§8.5).
@@ -265,3 +283,4 @@ Each gap is written as a proposed issue: a title, then a one-sentence body.
 The auditor did not find this item; it was seen during Stage 11 and is recorded here so it gets an issue too.
 
 20. **The Stage 4 break-loop E2E check fails when a run crosses midnight UTC.** (#101) In e2e job 125629322267 (branch s11-9-stuck-queued, 95419a5), `tests/e2e/break_loop.py` uploaded `elig_missing_member_id.csv` at 2026-11-02T23:58:20Z and the resend `elig_resend.csv` (line 114) landed at about 00:03:40Z. Neither file name carries a date, so each file's business date fell back to the UTC day it was received; the days differed, so the quarantine entry stayed `open` and the check failed. The same check passed in another run at 23:39 the same night, and later e2e runs of that branch passed before it merged (#80). Make the check independent of the wall clock (dated file names, or a business date both files share).
+21. **§8 Stage dates (no issue).** Stage 8 closed on 11-03 (S11.10's fresh-clone check), after its 10-28 date; Stage 11 is due 11-07 and closes with this PR. A missed date cannot be fixed afterwards, so this row has no issue; it is recorded here so the slip is on the record.
