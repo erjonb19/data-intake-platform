@@ -32,8 +32,19 @@ opens or closes a platform incident (dip/incidents.py, feed `_platform`):
               does the same, but it needs the warehouse connection, which is what a bad
               secret can break; this check has its own login
 
+  stuck_queued (S11.9) task instances still `scheduled` or `queued` (the Airflow API, the
+              Viewer login) longer than DIP_QUEUED_STALE_SECONDS (default 300, under
+              Airflow's own scheduler.task_queued_timeout of 600 s, so the check sees a
+              stuck task before Airflow fails it): each opens TASK.STUCK_QUEUED (target
+              `<dag_id>.<task_id>`); a target with no such task left closes. A paused
+              DAG's `scheduled` tasks are not stuck (the scheduler holds them on purpose;
+              with more than 100 paused DAGs, no `scheduled` task is counted).
+              The API cannot order by waiting time, so with more than 100 waiting tasks
+              some may go unseen, and the check then closes nothing
+
 The exporter turns the latest heartbeat into dip_airflow_scheduler_heartbeat_age_seconds,
-and the AirflowSchedulerDown alert fires above 180 s.
+and the AirflowSchedulerDown alert fires above 180 s. TaskPodOOMKilled and TaskQueuedTooLong
+fire on the open incidents (dip_incidents_open).
 """
 
 from __future__ import annotations
@@ -155,6 +166,51 @@ def check_dag_runs(cur: Any, services: Any) -> dict:
     return {"dag_runs_failed": failed}
 
 
+def check_stuck_queued(cur: Any, services: Any, now: datetime, stale_after: float) -> dict:
+    try:
+        # every DAG and run (~), at most 100 waiting task instances
+        got = services.airflow("/dags/~/dagRuns/~/taskInstances?state=scheduled&state=queued"
+                               "&limit=100")  # fmt: skip
+    except Exception as exc:  # noqa: BLE001 - recorded; no incident is decided on it
+        record(cur, "airflow_api", "task-instances", False, detail=f"{type(exc).__name__}: {exc}")
+        return {"stuck_queued": "unknown (the Airflow API did not answer)"}
+    try:
+        got_paused = services.airflow("/dags?paused=true&limit=100") or {}
+        paused = {d.get("dag_id") for d in got_paused.get("dags") or []}
+        # more paused DAGs than one page: a scheduled task may belong to one not listed
+        paused_all = got_paused.get("total_entries", len(paused)) <= len(paused)
+    except Exception as exc:  # noqa: BLE001 - recorded; no incident is decided on it
+        record(cur, "airflow_api", "dags", False, detail=f"{type(exc).__name__}: {exc}")
+        return {"stuck_queued": "unknown (the Airflow API did not answer)"}
+    stuck: dict[str, tuple[float, datetime, dict]] = {}
+    for ti in (got or {}).get("task_instances") or []:
+        state = ti.get("state")
+        if state not in ("scheduled", "queued"):
+            continue
+        if state == "scheduled" and (ti.get("dag_id") in paused or not paused_all):
+            continue  # held by the pause, not stuck (or, past one page, perhaps so)
+        since = _time(ti.get("queued_when") if state == "queued" else ti.get("scheduled_when"))
+        waited = (now - since).total_seconds() if since else 0.0
+        target = f"{ti.get('dag_id')}.{ti.get('task_id')}"
+        if waited > max(stale_after, stuck.get(target, (0.0,))[0]):  # the longest wait
+            stuck[target] = (waited, since, ti)
+    for target, (waited, since, ti) in sorted(stuck.items()):
+        what = (f"{ti.get('state')} for {waited:.0f} s in run {ti.get('dag_run_id')}"
+                f" (pool {ti.get('pool')})")  # fmt: skip
+        record(cur, "stuck_queued", target, False, since, waited, what)
+        _open_platform(cur, "TASK.STUCK_QUEUED", target,
+                       f"task {target}: {what}; stale after {stale_after:.0f} s")  # fmt: skip
+    tis = (got or {}).get("task_instances") or []
+    if (got or {}).get("total_entries", len(tis)) > len(tis):
+        return {"stuck_queued": sorted(stuck)}  # more than one page waits: close nothing
+    cur.execute("select target from ops.incident where feed = %s and kind = 'TASK.STUCK_QUEUED'"
+                " and closed_at is null", (PLATFORM_FEED,))  # fmt: skip
+    for (target,) in cur.fetchall():
+        if target not in stuck:
+            close_platform(cur, "TASK.STUCK_QUEUED", target)
+    return {"stuck_queued": sorted(stuck)}
+
+
 def run(conn: Any, services: Any, k8s: Any = None, now: datetime | None = None,
         env: dict[str, str] | None = None) -> dict[str, Any]:  # fmt: skip
     env = dict(os.environ) if env is None else env
@@ -164,6 +220,8 @@ def run(conn: Any, services: Any, k8s: Any = None, now: datetime | None = None,
         out |= check_scheduler(cur, services, now,
                                float(env.get("DIP_SCHEDULER_STALE_SECONDS", "90")))  # fmt: skip
         out |= check_dag_runs(cur, services)
+        out |= check_stuck_queued(cur, services, now,
+                                  float(env.get("DIP_QUEUED_STALE_SECONDS", "300")))  # fmt: skip
         if k8s is not None and (k8s.base or k8s.http):
             out |= check_oomkilled(cur, k8s)
     conn.commit()

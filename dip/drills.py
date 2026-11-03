@@ -13,6 +13,9 @@ workflow, never on the laptop (decisions log, 2026-10-30).
   bad_secret       a wrong warehouse password in airflow-connections, then a run of
                    the eligibility feed's DAG, whose intake task cannot connect
                                                                     (runbook 11, S11.8)
+  stuck_queued     run the drill_queue DAG, whose task's pod can never be scheduled, with
+                   the platform check's threshold lowered to 2 minutes
+                                                                    (runbook 12, S11.9)
 """
 
 from __future__ import annotations
@@ -59,9 +62,10 @@ def scheduler_down_undo(run: Callable[..., str] = kubectl) -> str:
     return "the scheduler is back: the next platform check closes the incident"
 
 
-def airflow(run: Callable[..., str], *args: str) -> str:
+def airflow(run: Callable[..., str], *args: str, check: bool = True) -> str:
     """The Airflow CLI in the scheduler's pod (the API server would need a login)."""
-    return run("-n", NS, "exec", "deploy/airflow-scheduler", "--", "airflow", *args)
+    return run("-n", NS, "exec", "deploy/airflow-scheduler", "--", "airflow", *args,
+               check=check)  # fmt: skip
 
 
 def oom_task(run: Callable[..., str] = kubectl) -> str:
@@ -146,10 +150,86 @@ def bad_secret_undo(run: Callable[..., str] = kubectl) -> str:
             " DAG.FAILED")  # fmt: skip
 
 
+# stuck_queued: the platform check's threshold for a waiting task, lowered for the drill on
+# the CronJob (Terraform sets it), and the CronJob annotation that keeps the value it had.
+CHECK = "cronjob/platform-check"
+STALE_ENV = "DIP_QUEUED_STALE_SECONDS"
+STALE_SAVED = "dip.drill/queued-stale-seconds"
+DRILL_STALE = "120"
+
+
+def _saved_threshold(run: Callable[..., str]) -> str | None:
+    annotations = json.loads(run("-n", NS, "get", CHECK, "-o",
+                                 "jsonpath={.metadata.annotations}") or "{}")  # fmt: skip
+    return annotations.get(STALE_SAVED)
+
+
+def _json_list(out: str) -> list:
+    """The JSON list the Airflow CLI prints with -o json, after any log lines before it
+    (which can start with "[" too: "[2026-11-03T04:00:00] INFO ...")."""
+    lines = out.splitlines()
+    starts = [i for i, ln in enumerate(lines) if ln.lstrip().startswith("[")]
+    if not starts:
+        return []  # "No data found" and the like
+    for i in starts:
+        try:  # raw_decode stops at the JSON's end: a log line after it does not matter
+            got, _ = json.JSONDecoder().raw_decode("\n".join(lines[i:]).lstrip())
+        except ValueError:
+            continue
+        return got if isinstance(got, list) else []
+    raise DrillError("the Airflow CLI printed something that is not JSON")
+
+
+def stuck_queued(run: Callable[..., str] = kubectl) -> str:
+    if _saved_threshold(run) is not None:
+        raise DrillError("stuck_queued is already on: run it with --undo first")
+    # The DAG first: if drill_queue is not parsed yet (a fresh deploy, or just after an
+    # undo deleted it), this fails before the check's threshold is touched.
+    airflow(run, "dags", "unpause", "drill_queue")
+    airflow(run, "dags", "trigger", "drill_queue")
+    was = run("-n", NS, "get", CHECK, "-o", "jsonpath={.spec.jobTemplate.spec.template.spec"
+              f".containers[0].env[?(@.name==\"{STALE_ENV}\")].value}}")  # fmt: skip
+    run("-n", NS, "annotate", CHECK, f"{STALE_SAVED}={was or '300'}", "--overwrite")
+    run("-n", NS, "set", "env", CHECK, f"{STALE_ENV}={DRILL_STALE}")
+    return ("drill_queue runs: its pod stays Pending and its task queued; after"
+            f" {DRILL_STALE} s the next check opens TASK.STUCK_QUEUED")  # fmt: skip
+
+
+def stuck_queued_undo(run: Callable[..., str] = kubectl) -> str:
+    # The check's threshold first: it depends on nothing below, and a slow scheduler
+    # restart must not leave every later check at the drill's 120 s.
+    saved = _saved_threshold(run)
+    if saved is not None:
+        run("-n", NS, "set", "env", CHECK, f"{STALE_ENV}={saved}")
+        run("-n", NS, "annotate", CHECK, f"{STALE_SAVED}-")
+    # Safe to run twice: between `dags delete` and the DAG processor's next parse there is
+    # no drill_queue to pause or delete (and nothing left to undo there).
+    airflow(run, "dags", "pause", "drill_queue", check=False)
+    run("-n", NS, "delete", "pod", "-l", "dag_id=drill_queue", "--ignore-not-found",
+        "--wait=false")  # fmt: skip
+    # A Pending pod's deletion is not reported to Airflow (the KubernetesExecutor only logs
+    # it), so the task would stay queued, holding one of the executor's slots, until
+    # task_queued_timeout. Instead: delete the drill DAG's runs (the DAG processor adds the
+    # DAG back, paused), and restart the scheduler, whose executor then forgets the slot.
+    airflow(run, "dags", "delete", "drill_queue", "--yes", check=False)
+    # Then make sure: these calls must work (a failure raises), so a scheduler that cannot
+    # answer is not taken for "the runs are gone". The DAG may be absent until the DAG
+    # processor parses it again; if it is back, it must have no runs.
+    dags = {d.get("dag_id") for d in _json_list(airflow(run, "dags", "list", "-o", "json"))}
+    if "drill_queue" in dags and _json_list(
+            airflow(run, "dags", "list-runs", "drill_queue", "-o", "json")):  # fmt: skip
+        raise DrillError("drill_queue's runs were not deleted: run --undo again")
+    run("-n", NS, "rollout", "restart", "deployment/airflow-scheduler")
+    run("-n", NS, "rollout", "status", "deployment/airflow-scheduler", "--timeout=180s")
+    return ("drill_queue is paused, its run and pod are gone and the scheduler restarted:"
+            " the next check closes TASK.STUCK_QUEUED")  # fmt: skip
+
+
 DRILLS: dict[str, tuple[Callable[..., str], Callable[..., str]]] = {
     "scheduler_down": (scheduler_down, scheduler_down_undo),
     "oom_task": (oom_task, oom_task_undo),
     "bad_secret": (bad_secret, bad_secret_undo),
+    "stuck_queued": (stuck_queued, stuck_queued_undo),
 }
 
 

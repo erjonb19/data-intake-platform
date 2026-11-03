@@ -24,7 +24,16 @@ from tests.integration.conftest import rows
 NOW = datetime(2026, 11, 3, 12, 0, tzinfo=UTC)
 
 
-def health(status="healthy", age=10, down=False, now=NOW, runs=()):
+def health(
+    status="healthy",
+    age=10,
+    down=False,
+    now=NOW,
+    runs=(),
+    waiting=None,
+    paused=(),
+    paused_total=None,
+):
     def http(method, url, body, headers):
         if down:
             raise ConnectionError("api-server unreachable")
@@ -33,6 +42,15 @@ def health(status="healthy", age=10, down=False, now=NOW, runs=()):
         if "/dags/~/dagRuns?" in url:  # newest first
             assert headers.get("Authorization") == "Bearer viewer"
             return {"dag_runs": list(runs)}
+        if "/dags?paused=true" in url:  # S11.9: a paused DAG's scheduled tasks are held
+            return {
+                "dags": [{"dag_id": d} for d in paused],
+                "total_entries": len(paused) if paused_total is None else paused_total,
+            }
+        if "/dags/~/dagRuns/~/taskInstances?" in url:  # S11.9: tasks still waiting
+            assert "state=scheduled&state=queued" in url
+            tis = list(waiting or ())
+            return {"task_instances": tis, "total_entries": len(tis)}
         assert url.endswith("/api/v2/monitor/health")
         beat = (now - timedelta(seconds=age)).isoformat()
         return {"scheduler": {"status": status, "latest_scheduler_heartbeat": beat}}
@@ -49,7 +67,7 @@ def open_scheduler(wh):
 def test_a_stale_heartbeat_opens_the_incident_and_a_fresh_one_closes_it(warehouse):
     c = warehouse.conn
     out = platform_check.run(c, health(), now=NOW, env={})
-    assert out == {"scheduler": "healthy", "dag_runs_failed": []}
+    assert out == {"scheduler": "healthy", "dag_runs_failed": [], "stuck_queued": []}
     assert open_scheduler(warehouse) == 0
     out = platform_check.run(c, health("unhealthy", age=214), now=NOW, env={})
     assert out["scheduler"].startswith("down") and open_scheduler(warehouse) == 1
@@ -79,7 +97,8 @@ def test_an_api_that_does_not_answer_decides_nothing(warehouse):
     assert out["scheduler"].startswith("unknown") and open_scheduler(warehouse) == 1
     assert rows(warehouse, "select target, ok from ops.platform_check"
                            " where check_name = 'airflow_api' order by target"
-                ) == [("api-server", False), ("dag-runs", False)]  # fmt: skip
+                ) == [("api-server", False), ("dag-runs", False),
+                      ("task-instances", False)]  # fmt: skip
 
 
 def test_platform_incidents_are_one_per_kind_and_target(warehouse):
@@ -252,3 +271,117 @@ def test_the_check_adds_nothing_to_the_callbacks_incident(warehouse):
                        now=NOW, env={})  # fmt: skip
     assert rows(warehouse, "select target from ops.incident where kind = 'DAG.FAILED'") == [
         ("intake__healthcare__eligibility",)]  # fmt: skip
+
+
+def waiting(state, waited_s, dag="drill_queue", task="wait_for_room", run="manual__1"):
+    since = (NOW - timedelta(seconds=waited_s)).isoformat()
+    when = {"queued_when": since} if state == "queued" else {"scheduled_when": since}
+    return {
+        "dag_id": dag,
+        "task_id": task,
+        "dag_run_id": run,
+        "state": state,
+        "pool": "default_pool",
+        "queued_when": None,
+        "scheduled_when": None,
+    } | when
+
+
+def open_stuck(wh):
+    return rows(wh, "select target from ops.incident where kind = 'TASK.STUCK_QUEUED'"
+                    " and closed_at is null order by target")  # fmt: skip
+
+
+def test_a_task_waiting_past_the_threshold_opens_stuck_queued_until_it_starts(warehouse):
+    """S11.9: a task scheduled or queued longer than DIP_QUEUED_STALE_SECONDS opens
+    TASK.STUCK_QUEUED for its DAG and task, once; it closes when nothing of it waits."""
+    env = {"DIP_QUEUED_STALE_SECONDS": "120"}
+    young = [waiting("queued", 60)]
+    out = platform_check.run(warehouse.conn, health(waiting=young), now=NOW, env=env)
+    assert out["stuck_queued"] == [] and open_stuck(warehouse) == []
+    stuck = [waiting("queued", 154), waiting("scheduled", 400, dag="intake__x", task="intake")]
+    out = platform_check.run(warehouse.conn, health(waiting=stuck), now=NOW, env=env)
+    assert out["stuck_queued"] == ["drill_queue.wait_for_room", "intake__x.intake"]
+    assert open_stuck(warehouse) == [("drill_queue.wait_for_room",), ("intake__x.intake",)]
+    [(detail,)] = rows(
+        warehouse,
+        "select detail from ops.incident where kind ="
+        " 'TASK.STUCK_QUEUED' and target = 'drill_queue.wait_for_room'",
+    )
+    assert "queued for 154 s" in detail and "default_pool" in detail
+    platform_check.run(warehouse.conn, health(waiting=stuck), now=NOW, env=env)  # still one each
+    assert len(open_stuck(warehouse)) == 2
+    platform_check.run(warehouse.conn, health(waiting=stuck[1:]), now=NOW, env=env)
+    assert open_stuck(warehouse) == [("intake__x.intake",)]
+    got = rows(warehouse, "select target, ok, round(value) from ops.platform_check where"
+                          " check_name = 'stuck_queued' order by check_id limit 1")  # fmt: skip
+    assert got == [("drill_queue.wait_for_room", False, 154)]
+
+
+def test_the_default_threshold_is_five_minutes_and_a_partial_page_closes_nothing(warehouse):
+    out = platform_check.run(warehouse.conn, health(waiting=[waiting("queued", 280)]),
+                             now=NOW, env={})  # fmt: skip
+    assert out["stuck_queued"] == []
+    platform_check.run(warehouse.conn, health(waiting=[waiting("queued", 320)]), now=NOW, env={})
+    assert open_stuck(warehouse) == [("drill_queue.wait_for_room",)]
+
+    def more_than_a_page(method, url, body, headers):
+        if "/taskInstances?" in url:
+            return {"task_instances": [], "total_entries": 250}
+        return health().http(method, url, body, headers)
+
+    svc = ReadServices(airflow_url="http://airflow", airflow_user="viewer",
+                       airflow_password="pw", http=more_than_a_page)  # fmt: skip
+    platform_check.run(warehouse.conn, svc, now=NOW, env={})
+    assert open_stuck(warehouse) == [("drill_queue.wait_for_room",)]
+
+
+def test_task_instances_the_api_cannot_list_decide_nothing(warehouse):
+    platform_check.run(warehouse.conn, health(waiting=[waiting("queued", 900)]), now=NOW, env={})
+
+    def no_tis(method, url, body, headers):
+        if "/taskInstances?" in url:
+            raise ConnectionError("api-server unreachable")
+        return health().http(method, url, body, headers)
+
+    svc = ReadServices(airflow_url="http://airflow", airflow_user="viewer",
+                       airflow_password="pw", http=no_tis)  # fmt: skip
+    out = platform_check.run(warehouse.conn, svc, now=NOW, env={})
+    assert out["stuck_queued"].startswith("unknown")
+    assert open_stuck(warehouse) == [("drill_queue.wait_for_room",)]
+
+
+def test_a_paused_dags_scheduled_task_is_held_not_stuck(warehouse):
+    """Review of S11.9: the scheduler never queues a paused DAG's scheduled task, so it is
+    not stuck (it would never close); a queued one of a paused DAG still is (the executor
+    has it). A scheduled retry is timed from scheduled_when, not an earlier try's
+    queued_when."""
+    held = waiting("scheduled", 900, dag="intake__x", task="intake")
+    queued = waiting("queued", 900)
+    retry = waiting("scheduled", 30, dag="intake__y", task="intake") | {
+        "queued_when": (NOW - timedelta(seconds=3600)).isoformat()
+    }
+    out = platform_check.run(warehouse.conn, health(waiting=[held, queued, retry],
+                             paused=["intake__x", "drill_queue"]), now=NOW, env={})  # fmt: skip
+    assert out["stuck_queued"] == ["drill_queue.wait_for_room"]
+
+
+def test_waits_are_timed_per_task_and_the_longest_counts(warehouse):
+    """Review of S11.9: a task with no queued_when is not stuck; mapped instances of one
+    task are one target, reported with the longest wait."""
+    no_time = waiting("queued", 0) | {"queued_when": None, "task_id": "untimed"}
+    mapped = [waiting("queued", 200, run="r1"), waiting("queued", 700, run="r1")]
+    out = platform_check.run(warehouse.conn, health(waiting=[no_time, *mapped]), now=NOW,
+                             env={})  # fmt: skip
+    assert out["stuck_queued"] == ["drill_queue.wait_for_room"]
+    [(value,)] = rows(warehouse, "select round(value) from ops.platform_check"
+                                 " where check_name = 'stuck_queued'")  # fmt: skip
+    assert value == 700
+
+
+def test_more_paused_dags_than_one_page_counts_no_scheduled_task(warehouse):
+    held = waiting("scheduled", 900, dag="intake__z", task="intake")
+    queued = waiting("queued", 900)
+    out = platform_check.run(warehouse.conn, health(waiting=[held, queued], paused=["a"],
+                             paused_total=250), now=NOW, env={})  # fmt: skip
+    assert out["stuck_queued"] == ["drill_queue.wait_for_room"]
