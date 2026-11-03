@@ -193,3 +193,16 @@ def test_each_steps_provider_is_on_the_row_as_soon_as_it_finishes(warehouse):
     chain_job.finish(warehouse.conn, a, "failed", reason="later crash")
     assert rows(warehouse, "select status, provider from ops.agent_run") == [
         ("failed", "incident:gemini triage:anthropic")]  # fmt: skip
+
+
+def test_one_named_incident_is_claimed_and_no_other(warehouse):
+    """S11.10: the proof runs the chain on each drill's own incident, not the oldest open."""
+    older = _open(warehouse, "healthcare.eligibility")
+    named = _open(warehouse, "finance.invoices")
+    env = {**MCP, "GEMINI_API_KEY": "g"}
+    s = chain_job.run(warehouse.conn, env=env, runner=_ok, incident_id=named, limit=3)
+    assert s["done"] == [named]
+    assert rows(warehouse, "select incident_id from ops.agent_run") == [(named,)]
+    # done already: the same incident is not run twice
+    assert chain_job.run(warehouse.conn, env=env, runner=_ok, incident_id=named)["claimed"] == 0
+    assert chain_job.run(warehouse.conn, env=env, runner=_ok)["done"] == [older]

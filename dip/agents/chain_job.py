@@ -60,8 +60,11 @@ def plan(env: dict[str, str] | None = None) -> Plan:
     )
 
 
-def claim_one(conn: Any, dag_run_id: str | None = None) -> tuple[int, str, str] | None:
-    """The oldest open incident the chain has not finished, claimed as `running`.
+def claim_one(conn: Any, dag_run_id: str | None = None,
+              incident_id: int | None = None) -> tuple[int, str, str] | None:  # fmt: skip
+    """The oldest open incident the chain has not finished, claimed as `running`; with
+    `incident_id`, that incident only, on the same conditions (S11.10: the proof runs the
+    chain on each drill's own incident).
 
     Eligible: no agent_run row, a `skipped` one, or a `running` one older than
     STALE_AFTER. `for update skip locked` on the incident row means two task instances
@@ -74,6 +77,7 @@ def claim_one(conn: Any, dag_run_id: str | None = None) -> tuple[int, str, str] 
                 from ops.incident i
                 left join ops.agent_run r on r.incident_id = i.incident_id
                 where i.closed_at is null
+                  and (%(only)s::bigint is null or i.incident_id = %(only)s)
                   and (r.incident_id is null or r.status = 'skipped'
                        or (r.status = 'running' and r.started_at < now() - %(stale)s))
                 order by i.opened_at, i.incident_id
@@ -91,7 +95,7 @@ def claim_one(conn: Any, dag_run_id: str | None = None) -> tuple[int, str, str] 
                        and ops.agent_run.started_at < now() - %(stale)s)
             returning incident_id
             """,
-            {"stale": STALE_AFTER, "run": dag_run_id},
+            {"stale": STALE_AFTER, "run": dag_run_id, "only": incident_id},
         )
         row = cur.fetchone()
         claimed = None
@@ -226,8 +230,10 @@ def run(
     limit: int = 3,
     dag_run_id: str | None = None,
     runner: Callable[..., dict[str, Any]] | None = None,
+    incident_id: int | None = None,
 ) -> dict[str, Any]:
-    """One DAG task run: claim, run or skip each, record. Returns a summary.
+    """One DAG task run: claim, run or skip each, record. Returns a summary. With
+    `incident_id`, only that incident is claimed (if open and not yet run).
 
     `runner` stands in for `run_chain` in tests. Never raises for a chain failure: that is
     recorded on the incident's row, and the task reports it in the summary."""
@@ -242,36 +248,36 @@ def run(
     if not p.runnable:  # claim nothing: the incidents wait for a configured environment
         return summary
     for _ in range(limit):
-        claimed = claim_one(conn, dag_run_id)
+        claimed = claim_one(conn, dag_run_id, incident_id)
         if claimed is None:
             break
-        incident_id = claimed[0]
+        incident = claimed[0]
         summary["claimed"] += 1
         try:
-            state = (runner or run_chain)(conn, incident_id, env, p.providers)
+            state = (runner or run_chain)(conn, incident, env, p.providers)
         except NoProvider as exc:
             conn.rollback()
             if exc.step == "incident":  # nothing written: the incident waits, as with no key
-                finish(conn, incident_id, "skipped", reason=f"no provider answered: {exc}")
-                summary["skipped"] = [*summary.get("skipped", []), incident_id]
+                finish(conn, incident, "skipped", reason=f"no provider answered: {exc}")
+                summary["skipped"] = [*summary.get("skipped", []), incident]
                 break  # every provider is down: stop this run; the next one tries again
-            finish(conn, incident_id, "failed", reason=f"NoProvider: {exc}")
-            summary["failed"].append(incident_id)
+            finish(conn, incident, "failed", reason=f"NoProvider: {exc}")
+            summary["failed"].append(incident)
             continue
         except Exception as exc:  # the chain's own errors are the record, not a crash
             conn.rollback()  # a failed statement in the chain leaves the transaction aborted
             finish(
                 conn,
-                incident_id,
+                incident,
                 "failed",
                 reason=f"{type(exc).__name__}: {exc}\n{traceback.format_exc()[-1500:]}",
             )
-            summary["failed"].append(incident_id)
+            summary["failed"].append(incident)
             continue
         d = state.get("diagnosis") or {}
         finish(
             conn,
-            incident_id,
+            incident,
             "done",
             chain_id=state.get("chain_id"),
             root_cause=d.get("root_cause"),
@@ -279,8 +285,8 @@ def run(
             provider=" ".join(f"{k}:{v}" for k, v in (state.get("providers") or {}).items())
             or None,
         )
-        set_versions(conn, "agent_run", "incident_id", incident_id, state.get("versions"))
-        summary["done"].append(incident_id)
+        set_versions(conn, "agent_run", "incident_id", incident, state.get("versions"))
+        summary["done"].append(incident)
     return summary
 
 
@@ -299,12 +305,14 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="python -m dip.agents.chain_job")
     ap.add_argument("--limit", type=int, default=3)
     ap.add_argument("--dag-run-id")
+    ap.add_argument("--incident", type=int, help="only this incident (S11.10's proof)")
     args = ap.parse_args(argv)
     from dip.agents import model_calls
 
     dsn = os.environ["DIP_WAREHOUSE_DSN"]
     with psycopg.connect(dsn) as conn, model_calls.to_warehouse(dsn):  # S11.1
-        summary = run(conn, limit=args.limit, dag_run_id=args.dag_run_id)
+        summary = run(conn, limit=args.limit, dag_run_id=args.dag_run_id,
+                      incident_id=args.incident)  # fmt: skip
     print(json.dumps(summary))
     return 0
 

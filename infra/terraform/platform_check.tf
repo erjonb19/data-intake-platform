@@ -88,6 +88,52 @@ resource "kubernetes_secret_v1" "platform_check" {
   }
 }
 
+# S11.10: the warehouse schema and every login's grants, applied at deploy (Warehouse.init,
+# the warehouse owner's DSN from airflow-connections), not first on an intake or
+# agent_chain run: until then the platform check has no ops.platform_check to write and
+# no grants, so a scheduler that never starts could not be recorded as down (the S11.10
+# proof's drills found it). Renamed, so re-run, when the schema file or the image changes.
+resource "kubernetes_job_v1" "warehouse_init" {
+  metadata {
+    name      = "warehouse-init-${substr(sha256("${var.airflow_image_tag}:${filesha256("${path.module}/../../dip/sql/warehouse.sql")}"), 0, 8)}"
+    namespace = local.airflow_ns
+  }
+  spec {
+    backoff_limit = 5
+    template {
+      metadata {}
+      spec {
+        restart_policy = "OnFailure"
+        container {
+          # As the DAGs run it (Airflow's own environment has psycopg2; dip is installed
+          # there without its dependencies, so not `python -m dip db-init`).
+          name    = "db-init"
+          image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
+          command = ["python", "-c", "import os, psycopg2; from dip.warehouse import Warehouse; Warehouse(psycopg2.connect(os.environ['DIP_WAREHOUSE_DSN'])).init(); print('warehouse schema and grants applied')"]
+          env {
+            name = "DIP_WAREHOUSE_DSN"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.airflow["airflow-connections"].metadata[0].name
+                key  = "warehouse"
+              }
+            }
+          }
+          resources {
+            requests = { cpu = "50m", memory = "128Mi" }
+            limits   = { memory = "384Mi" }
+          }
+        }
+      }
+    }
+  }
+  wait_for_completion = true
+  timeouts {
+    create = "5m"
+  }
+  depends_on = [kubernetes_job_v1.postgres_roles]
+}
+
 resource "kubernetes_cron_job_v1" "platform_check" {
   metadata {
     name      = "platform-check"
@@ -147,5 +193,6 @@ resource "kubernetes_cron_job_v1" "platform_check" {
   depends_on = [
     kubernetes_job_v1.postgres_roles,
     kubernetes_job_v1.mcp_airflow_viewer,
+    kubernetes_job_v1.warehouse_init,
   ]
 }

@@ -40,12 +40,45 @@ def kubectl(*args: str) -> str:
     return out.stdout.strip()
 
 
-def run_check(tag: str) -> None:
-    """One run of the platform check, now, and wait for it to finish."""
-    name = f"platform-check-e2e-{tag}-{int(time.time()) % 100000}"
-    kubectl("-n", NS, "create", "job", name, "--from=cronjob/platform-check")
-    kubectl("-n", NS, "wait", "--for=condition=complete", f"job/{name}", "--timeout=120s")
-    print(kubectl("-n", NS, "logs", f"job/{name}")[-300:])
+def _job_state(name: str) -> str:
+    """ "ok", "failed" or "" (still running), from the Job's status."""
+    got = kubectl("-n", NS, "get", "job", name, "-o",
+                  "jsonpath={.status.succeeded}/{.status.failed}")  # fmt: skip
+    ok, failed = (got.split("/") + ["", ""])[:2]
+    return "ok" if ok and ok != "0" else "failed" if failed and failed != "0" else ""
+
+
+def _why(name: str) -> str:
+    """What a failed or stuck check Job shows: its conditions, its pod's phase and
+    container state, and the log's tail (the check prints numbers and states only)."""
+    parts = []
+    for args in (("get", "job", name, "-o", "jsonpath={.status.conditions}"),
+                 ("get", "pods", "-l", f"job-name={name}", "-o",
+                  "jsonpath={range .items[*]}{.metadata.name} {.status.phase} "
+                  "{.status.containerStatuses[*].state}{'\\n'}{end}"),
+                 ("logs", f"job/{name}", "--tail=30")):  # fmt: skip
+        out = subprocess.run(["kubectl", "-n", NS, *args], capture_output=True, text=True)
+        parts.append((out.stdout or out.stderr).strip()[-1500:])
+    return "\n".join(parts)
+
+
+def run_check(tag: str, attempts: int = 2) -> None:
+    """One run of the platform check, now, and wait for it to finish. The Job has no
+    retries and a 90 s deadline, so a failed run never completes: wait for success or
+    failure, show why a run failed, and try once more before giving up."""
+    for attempt in range(1, attempts + 1):
+        name = f"platform-check-e2e-{tag}-{int(time.time()) % 100000}-{attempt}"
+        kubectl("-n", NS, "create", "job", name, "--from=cronjob/platform-check")
+        state, end = "", time.monotonic() + 150
+        while not state and time.monotonic() < end:
+            time.sleep(3)
+            state = _job_state(name)
+        if state == "ok":
+            print(kubectl("-n", NS, "logs", f"job/{name}")[-300:])
+            return
+        print(f"platform check {name} {state or 'did not finish'} (try {attempt}):\n"
+              f"{_why(name)}", file=sys.stderr)  # fmt: skip
+    raise RuntimeError(f"the platform check did not succeed in {attempts} tries ({tag})")
 
 
 def scheduler_incidents() -> list[tuple]:
