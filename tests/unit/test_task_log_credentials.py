@@ -106,3 +106,11 @@ def test_the_stored_logs_error_detail_is_read_as_well():
     assert _log_lines(got)[1] == (
         'OperationalError: FATAL:  password authentication failed for user "warehouse"'
     )
+
+
+def test_a_non_list_error_detail_does_not_hide_the_exception_list():
+    from dip.agents.read_tools import _log_lines
+
+    got = {"content": [{"event": "e", "error_detail": "x",
+                        "exception": [{"exc_type": "E", "exc_value": "v"}]}]}  # fmt: skip
+    assert _log_lines(got) == ["e", "E: v"]

@@ -203,7 +203,8 @@ def _log_lines(got: Any) -> list[str]:
             # is not in "event". The task process writes it as "exception"; the supervisor
             # that stores the task log renames it "error_detail" (task SDK 1.2.2, which
             # Airflow 3.2.2 pins). One line per exception in the chain; frames are left out.
-            chain = item.get("error_detail", item.get("exception"))
+            chain = next((c for c in (item.get("error_detail"), item.get("exception"))
+                          if isinstance(c, list)), None)  # fmt: skip
             for exc in chain if isinstance(chain, list) else ():
                 if not isinstance(exc, dict):
                     continue
