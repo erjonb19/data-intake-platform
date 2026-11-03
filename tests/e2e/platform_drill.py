@@ -158,6 +158,8 @@ def intake_log() -> str:
     # as the incident agent's get_task_log reads it: the events and each exception's message
     from dip.agents.read_tools import _log_lines
 
+    records = got.get("content") if isinstance(got, dict) else None
+    intake_log.keys = sorted({k for r in records or [] if isinstance(r, dict) for k in r})
     return "\n".join(_log_lines(got))
 
 
@@ -219,6 +221,7 @@ def bad_secret_drill(check) -> None:
             lines = [_mask_credentials(ln) for ln in log.splitlines()]
             kept = [ln for ln in lines if _PLATFORM_LOG.search(ln)]
             print(f"{len(lines)} lines; the platform's own, masked:", *kept[-25:], sep="\n")
+            print(f"the records' fields (names only): {getattr(intake_log, 'keys', '?')}")
         check(not logs_with(bad, real), "no pod's log holds the wrong or the real password")
     finally:
         print(dip("drill", "bad_secret", "--undo"))

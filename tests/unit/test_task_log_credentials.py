@@ -83,3 +83,26 @@ def test_psycopgs_refused_login_survives_phi_masking_and_a_quoted_row_does_not()
     kept = [ln for ln in _log_lines(got) if _PLATFORM_LOG.search(ln)]
     assert len(kept) == 2 and "password authentication failed" in kept[0]
     assert not any("Hallett" in ln for ln in kept)
+
+
+def test_the_stored_logs_error_detail_is_read_as_well():
+    """Airflow 3.2.2's supervisor stores the exception as "error_detail" (S11.8's E2E:
+    the refused login was only there)."""
+    from dip.agents.read_tools import _log_lines
+
+    got = {
+        "content": [
+            {
+                "event": "Task failed with exception",
+                "error_detail": [
+                    {
+                        "exc_type": "OperationalError",
+                        "exc_value": 'FATAL:  password authentication failed for user "warehouse"',
+                    }
+                ],
+            }
+        ]
+    }
+    assert _log_lines(got)[1] == (
+        'OperationalError: FATAL:  password authentication failed for user "warehouse"'
+    )

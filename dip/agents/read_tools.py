@@ -198,10 +198,12 @@ def _log_lines(got: Any) -> list[str]:
         if isinstance(item, dict):
             out.append(str(item.get("event", item.get("message", json.dumps(item)))))
             # Airflow 3's task SDK renders an exception as structured data beside the event
-            # ("exception": [{"exc_type", "exc_value", "frames"}, ...], structlog's
+            # ([{"exc_type", "exc_value", "frames"}, ...], structlog's
             # ExceptionDictTransformer): its message, the part that says what went wrong,
-            # is not in "event". One line per exception in the chain; frames are left out.
-            chain = item.get("exception")
+            # is not in "event". The task process writes it as "exception"; the supervisor
+            # that stores the task log renames it "error_detail" (task SDK 1.2.2, which
+            # Airflow 3.2.2 pins). One line per exception in the chain; frames are left out.
+            chain = item.get("error_detail", item.get("exception"))
             for exc in chain if isinstance(chain, list) else ():
                 if not isinstance(exc, dict):
                     continue
