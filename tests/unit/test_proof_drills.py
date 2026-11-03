@@ -16,9 +16,9 @@ NAME = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
 
 def test_every_job_and_pod_name_is_valid():
     for drill, *_ in proof.DRILLS:
-        tag = drill.replace("_", "-")
+        tag = proof.job_tag(drill)  # what one() and run_chain() use
         for name in (f"platform-check-e2e-{tag}-12345", f"platform-check-e2e-{tag}-after-12345",
-                     f"chain-proof-{drill.replace('_', '-')}"):  # fmt: skip
+                     f"chain-proof-{tag}"):  # fmt: skip
             assert NAME.match(name) and len(name) <= 63, name
 
 

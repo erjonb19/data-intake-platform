@@ -438,6 +438,11 @@ jobs:
     if: inputs.job == 'stage-11-proof'
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # The README's documented environment for the full check (Quick start: "with the
+    # observability profile (TF_VAR_profiles='["core", "observability"]')"), so the whole
+    # E2E runs, alerts and lineage included; the commands themselves are run as written.
+    env:
+      TF_VAR_profiles: '["core", "observability"]'
     defaults:
       run:
         working-directory: fresh
@@ -470,7 +475,6 @@ jobs:
           cmds = [c for c in cmds if c]
           assert cmds and cmds[-1] == "bash scripts/down.sh", cmds  # run last, after the E2E
           print("set -e")
-          print("unset TF_VAR_profiles  # the workflow's own; the quick start sets none")
           for c in cmds[:-1]:
               # creds.sh prints this run's throwaway passwords: kept out of the log
               print(f"{c} > \"$RUNNER_TEMP/creds.txt\"" if c.endswith("creds.sh") else c)
@@ -480,7 +484,6 @@ jobs:
 
       - name: The whole E2E, including the break loop
         run: |
-          unset TF_VAR_profiles
           python3 -m venv .venv
           .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5" "jsonschema==4.*"
           bash scripts/e2e.sh

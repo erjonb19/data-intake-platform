@@ -57,6 +57,11 @@ DRILLS = [
 ]  # fmt: skip
 
 
+def job_tag(drill: str) -> str:
+    """The drill's part of a Kubernetes Job or pod name: no underscores (DNS-1123)."""
+    return drill.replace("_", "-")
+
+
 def q(sql: str, *params) -> list[tuple]:
     import psycopg
 
@@ -96,7 +101,7 @@ def alert_seen(alert: str, dag: str, timeout: float) -> bool:
 
 def run_chain(incident_id: int, drill: str, cap: str) -> dict:
     """The chain once, in the cluster, on one incident; returns the pod's summary."""
-    pod = f"chain-proof-{drill.replace('_', '-')}"
+    pod = f"chain-proof-{job_tag(drill)}"
     dsn_secret = "dip-drill-saved-warehouse" if drill == "bad_secret" else "airflow-connections"
     container = {
         "name": pod,
@@ -170,7 +175,7 @@ def model_key_secret(create: bool) -> None:
 
 def one(drill, kind, target, alert, expected, first_wait, open_wait, cap) -> dict:
     row = {"drill": drill, "kind": kind, "target": target, "expected": expected}
-    tag = drill.replace("_", "-")  # a Kubernetes Job name: no underscores
+    tag = job_tag(drill)
     try:  # the undo runs even when the drill itself fails half-way
         print(pd.dip("drill", drill))
         time.sleep(first_wait)
