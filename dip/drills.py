@@ -172,8 +172,8 @@ def _json_list(out: str) -> list:
     if not starts:
         return []  # "No data found" and the like
     for i in starts:
-        try:
-            got = json.loads("\n".join(lines[i:]))
+        try:  # raw_decode stops at the JSON's end: a log line after it does not matter
+            got, _ = json.JSONDecoder().raw_decode("\n".join(lines[i:]).lstrip())
         except ValueError:
             continue
         return got if isinstance(got, list) else []

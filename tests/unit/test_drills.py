@@ -254,3 +254,8 @@ def test_stuck_queued_undo_passes_when_the_dag_is_gone_or_has_no_runs():
 def test_cli_output_that_is_not_json_is_a_drill_error():
     with pytest.raises(drills.DrillError, match="not JSON"):
         drills._json_list("[not json")
+
+
+def test_cli_json_between_log_lines_is_read():
+    out = '[2026-11-03] INFO - start\n[{"dag_id": "drill_queue"}]\n[2026-11-03] INFO - done'
+    assert drills._json_list(out) == [{"dag_id": "drill_queue"}]
