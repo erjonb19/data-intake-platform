@@ -356,6 +356,12 @@ jobs:
       - name: Smoke test
         run: bash scripts/smoke.sh
 
+      # Before the key is in any step's environment: no package's install code sees it.
+      - name: Install
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q -e ".[dev]"
+
       - name: The drills, with the incident agent live
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -365,8 +371,6 @@ jobs:
           test -n "$ANTHROPIC_API_KEY" || { echo "the ANTHROPIC_API_KEY secret is not set"; exit 1; }
           python3 -c "import os,sys; sys.exit(float(os.environ['DIP_SPEND_CAP_USD']) > 0.15)" \
             || { echo "stage-11-proof takes spend_cap_usd 0.15 or less"; exit 1; }
-          python3 -m venv .venv
-          .venv/bin/pip install -q -e ".[dev]"
           tf() { terraform -chdir=infra/terraform "$@"; }
           export KUBECONFIG="$(tf output -raw kubeconfig_path)"
           export WAREHOUSE_DSN="$(tf output -raw warehouse_dsn)"
@@ -434,8 +438,6 @@ jobs:
     if: inputs.job == 'stage-11-proof'
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    env:
-      TF_VAR_profiles: '["core", "observability"]'
     defaults:
       run:
         working-directory: fresh
@@ -449,7 +451,8 @@ jobs:
           terraform_version: "1.16.6"
           terraform_wrapper: false
 
-      - name: Install kind
+      - name: Install kind (outside the checkout)
+        working-directory: ${{ runner.temp }}
         run: |
           curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
           curl -fsSL "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64.sha256sum" \
@@ -467,6 +470,7 @@ jobs:
           cmds = [c for c in cmds if c]
           assert cmds and cmds[-1] == "bash scripts/down.sh", cmds  # run last, after the E2E
           print("set -e")
+          print("unset TF_VAR_profiles  # the workflow's own; the quick start sets none")
           for c in cmds[:-1]:
               # creds.sh prints this run's throwaway passwords: kept out of the log
               print(f"{c} > \"$RUNNER_TEMP/creds.txt\"" if c.endswith("creds.sh") else c)
@@ -476,6 +480,7 @@ jobs:
 
       - name: The whole E2E, including the break loop
         run: |
+          unset TF_VAR_profiles
           python3 -m venv .venv
           .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5" "jsonschema==4.*"
           bash scripts/e2e.sh
@@ -497,7 +502,7 @@ jobs:
         run: bash scripts/down.sh
 
   # Stage 11: commit what the run made to the s11-* branch it was started from. See the
-  # header. Runs only when the one job that ran succeeded (every check in it passed).
+  # header. Runs only when every job that ran succeeded (every check in it passed).
   commit-results:
     needs: [proof, drills, fresh-clone, gemini-recordings, claude-recordings]
     if: >-

@@ -170,10 +170,11 @@ def model_key_secret(create: bool) -> None:
 
 def one(drill, kind, target, alert, expected, first_wait, open_wait, cap) -> dict:
     row = {"drill": drill, "kind": kind, "target": target, "expected": expected}
-    print(pd.dip("drill", drill))
-    try:
+    tag = drill.replace("_", "-")  # a Kubernetes Job name: no underscores
+    try:  # the undo runs even when the drill itself fails half-way
+        print(pd.dip("drill", drill))
         time.sleep(first_wait)
-        incident = wait_for(lambda: open_incident_id(kind, target), open_wait, tag=drill)
+        incident = wait_for(lambda: open_incident_id(kind, target), open_wait, tag=tag)
         row["incident"] = incident
         if incident is None:
             return row
@@ -190,8 +191,13 @@ def one(drill, kind, target, alert, expected, first_wait, open_wait, cap) -> dic
             row["model_calls"], row["cost_usd"] = int(cost[0][0]), float(cost[0][1])
             spans = q("select count(*) from ops.trace_span where chain_id = %s", row["chain_id"])
             row["trace_spans"] = int(spans[0][0])
+    except Exception as exc:  # noqa: BLE001 - recorded on the row; the next drill still runs
+        row["error"] = f"{type(exc).__name__}: {exc}"[:500]
     finally:
-        print(pd.dip("drill", drill, "--undo"))
+        try:
+            print(pd.dip("drill", drill, "--undo"))
+        except Exception as exc:  # noqa: BLE001 - recorded; the next drill still runs
+            row["undo_error"] = f"{type(exc).__name__}: {exc}"[:500]
         if row.get("incident"):
 
             def closed():
@@ -199,7 +205,10 @@ def one(drill, kind, target, alert, expected, first_wait, open_wait, cap) -> dic
                     pd.dip("drill", drill, "--undo")
                 return not open_incident_id(kind, target)
 
-            row["closed"] = bool(wait_for(closed, 420, every=15, tag=f"{drill}-after"))
+            try:
+                row["closed"] = bool(wait_for(closed, 420, every=15, tag=f"{tag}-after"))
+            except Exception as exc:  # noqa: BLE001 - recorded; the next drill still runs
+                row["undo_error"] = f"{type(exc).__name__}: {exc}"[:500]
     return row
 
 
@@ -207,7 +216,8 @@ def main() -> int:
     out = Path(sys.argv[1])
     out.mkdir(parents=True, exist_ok=True)
     total = float(os.environ.get("DIP_SPEND_CAP_USD", "0.15"))
-    cap = f"{total / len(DRILLS):.4f}"  # each pod's own meter; together under the run's cap
+    # each pod has its own meter: a share each, rounded down, keeps the run under its cap
+    cap = f"{int(total / len(DRILLS) * 10000) / 10000:.4f}"
     rows = []
     model_key_secret(True)
     try:
@@ -217,8 +227,10 @@ def main() -> int:
         model_key_secret(False)
 
     def ok(r):
-        return (r.get("incident") is not None and r.get("alert_seen") and r.get("status") == "done"
-                and r.get("root_cause") == r["expected"] and r.get("closed"))  # fmt: skip
+        return (not r.get("error") and not r.get("undo_error")
+                and r.get("incident") is not None and r.get("alert_seen")
+                and r.get("status") == "done" and r.get("root_cause") == r["expected"]
+                and r.get("closed"))  # fmt: skip
 
     lines = ["# Stage 11 proof: the platform drills with the incident agent live", "",
              f"Run cap ${total:.2f} (each drill's chain ${cap}); every input synthetic.", "",
@@ -232,6 +244,10 @@ def main() -> int:
             f" {r.get('root_cause')} ({r['expected']}) | {r.get('model_calls', 0)} |"
             f" ${r.get('cost_usd', 0):.4f} | {r.get('trace_spans', 0)} |"
             f" {'yes' if r.get('closed') else 'no'} | {'ok' if ok(r) else 'FAILED'} |")  # fmt: skip
+    for r in rows:
+        for k in ("error", "undo_error"):
+            if r.get(k):
+                lines.append(f"\n{r['drill']} {k}: `{r[k]}`")
     spent = sum(r.get("cost_usd", 0) for r in rows)
     lines += ["", f"Model spend, all drills: ${spent:.4f} (metered, ops.model_call)."]
     (out / "results.md").write_text("\n".join(lines) + "\n", "utf-8")
