@@ -551,7 +551,7 @@ jobs:
           IN: ${{ runner.temp }}/incoming
           ARTIFACT: ${{ steps.which.outputs.artifact }}
         run: |
-          allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|docs/demos/proof/run-[0-9]+/[A-Za-z0-9_.-]+\.(md|json|png)|artifacts/commit/checks\.md)$'
+          allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|docs/demos/proof/run-[0-9]+/([A-Za-z0-9_.-]+\.(md|png)|(results|audit)\.json)|artifacts/commit/checks\.md)$'
           (cd "$IN" && find . -type f | sed 's|^\./||') > "$RUNNER_TEMP/files"
           if grep -vE "$allowed" "$RUNNER_TEMP/files"; then echo "unexpected files (above)"; exit 1; fi
           grep -qx "artifacts/commit/checks.md" "$RUNNER_TEMP/files" || { echo "no checks.md"; exit 1; }
