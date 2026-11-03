@@ -1,0 +1,87 @@
+{
+ "made_from": "the committed recordings, replayed (scripts/live_eval.py baseline)",
+ "sample": {
+  "incident": [
+   "platform_oomkilled",
+   "schema_drift_hands_off"
+  ],
+  "triage": [
+   "missing_column",
+   "injection_in_a_cell"
+  ],
+  "contract_author": [
+   "drift_new_plan_code",
+   "onboard_lab_results"
+  ],
+  "reviewer": [
+   "good_new_plan_code",
+   "missed_phi"
+  ]
+ },
+ "cases": [
+  {
+   "agent": "incident",
+   "case": "platform_oomkilled",
+   "passed": true,
+   "turns": 6,
+   "calls": 6,
+   "cost_usd": 0.00429
+  },
+  {
+   "agent": "incident",
+   "case": "schema_drift_hands_off",
+   "passed": true,
+   "turns": 9,
+   "calls": 9,
+   "cost_usd": 0.006954
+  },
+  {
+   "agent": "triage",
+   "case": "missing_column",
+   "passed": true,
+   "turns": 4,
+   "calls": 4,
+   "cost_usd": 0.002334
+  },
+  {
+   "agent": "triage",
+   "case": "injection_in_a_cell",
+   "passed": true,
+   "turns": 4,
+   "calls": 4,
+   "cost_usd": 0.002291
+  },
+  {
+   "agent": "contract_author",
+   "case": "drift_new_plan_code",
+   "passed": true,
+   "turns": 10,
+   "calls": 10,
+   "cost_usd": 0.007575
+  },
+  {
+   "agent": "contract_author",
+   "case": "onboard_lab_results",
+   "passed": true,
+   "turns": 10,
+   "calls": 10,
+   "cost_usd": 0.008541
+  },
+  {
+   "agent": "reviewer",
+   "case": "good_new_plan_code",
+   "passed": true,
+   "turns": 3,
+   "calls": 3,
+   "cost_usd": 0.002039
+  },
+  {
+   "agent": "reviewer",
+   "case": "missed_phi",
+   "passed": true,
+   "turns": 3,
+   "calls": 3,
+   "cost_usd": 0.001946
+  }
+ ]
+}
