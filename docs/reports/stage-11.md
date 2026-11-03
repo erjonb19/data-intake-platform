@@ -60,8 +60,9 @@ runbook, an alert and a recorded eval case.
   8 pass, no drift, $0.0354 per run**. The cap is fixed at $0.10. The Monday schedule ships
   commented out; turning it on is the owner's call.
 - **S11.12 The audit** (`docs/reports/audit.md`). A fresh agent, given only the repo and
-  its CI, checked §1 and §8 to §8.13: **109 items, 81 built, 20 partial, 8 missing** (after a second review corrected the first count). Each
-  gap has an open issue, #83 to #101.
+  its CI, checked §1 and §8 to §8.13: **109 items, 81 built, 20 partial, 8 missing** (after a second review corrected the first
+  count). Each gap has an open issue, #83 to #101, except a stage date that slipped (Stage 8),
+  which cannot be fixed afterwards.
 
 **Found and fixed along the way**
 
@@ -80,7 +81,7 @@ runbook, an alert and a recorded eval case.
   started from. It holds no model key, never pushes to main, never force-pushes, and acts
   only after the scrub, the key and auth-header check, and the replay check pass.
 
-**Known limitations** (each is an open issue; see the audit)
+**Known limitations** (each is an open issue; all but #103 are in the audit)
 
 - **The nightly evals are red (#83).** `evals.yml` expects 6 reports, and S11.5 added a
   seventh. Every case passes; the count is stale.
@@ -96,22 +97,27 @@ runbook, an alert and a recorded eval case.
   - Stage 6 `release` (#89);
   - no license file (#84).
 - **The seeded drift is shown by replay, not live.** It is a test copy of a case with a
-  changed expected answer. A live baseline has no latency, because recordings keep none.
+  changed expected answer. The recorded baseline has no latency, because recordings keep
+  none, so `drift.md` reports live latency alone.
+- **The Gemini fallback still follows an injected task-log line** in one incident case
+  (`injection_in_a_task_log`: 6/7 in S11.6, 9/10 in S11.9). Nothing runs without a person's
+  approval, and Gemini-made proposals are labelled.
 
 **Spend (metered by `cost_usd`, the same meter the caps use):** about **$0.561 of the
-$1.00** stage limit. Model calls were made only on GitHub runners, under
-`DIP_SPEND_CAP_USD`. Every input was synthetic.
+$1.00** stage limit. Every model call ran under `DIP_SPEND_CAP_USD`. Since S11.7 they ran
+only on GitHub runners; before that, S11.5 to S11.7's recordings were made from the build
+session. Every input was synthetic.
 
 | What | Metered |
 |---|---|
 | S11.1 to S11.7, including their recordings | about $0.235 |
 | S11.8 recordings (Claude run 41569344921) | $0.0657 |
 | S11.9 recordings (Claude run 41588717652) | $0.0686 |
-| Two earlier recording runs, superseded by re-recording | $0.1272 |
+| Two S11.8 Claude recording runs not committed: 41564903172 ($0.0637, refused by the replay check's database-name rule, fixed in #77) and an earlier run (about $0.0635, inferred from the running total; most likely 41527040740, made before the results could be committed from the runner) | $0.1272 |
 | S11.10 proof runs (two diagnostic runs, then 41611889836) | $0.0090 + $0.0201 |
 | S11.11 live eval (41618947945) | $0.0354 |
 
-The Gemini recordings ran on the free tier.
+The Gemini recordings ran on the free tier, so they are not metered.
 
 **Housekeeping:**
 
