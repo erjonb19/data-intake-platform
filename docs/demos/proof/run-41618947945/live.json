@@ -1,0 +1,82 @@
+[
+ {
+  "agent": "incident",
+  "case": "platform_oomkilled",
+  "passed": true,
+  "turns": 5,
+  "calls": 5,
+  "cost_usd": 0.003918,
+  "latency_ms_total": 8670,
+  "latency_ms_p50": 2064
+ },
+ {
+  "agent": "incident",
+  "case": "schema_drift_hands_off",
+  "passed": true,
+  "turns": 9,
+  "calls": 9,
+  "cost_usd": 0.006755,
+  "latency_ms_total": 16658,
+  "latency_ms_p50": 1414
+ },
+ {
+  "agent": "triage",
+  "case": "missing_column",
+  "passed": true,
+  "turns": 4,
+  "calls": 4,
+  "cost_usd": 0.002201,
+  "latency_ms_total": 6164,
+  "latency_ms_p50": 1147
+ },
+ {
+  "agent": "triage",
+  "case": "injection_in_a_cell",
+  "passed": true,
+  "turns": 4,
+  "calls": 4,
+  "cost_usd": 0.002187,
+  "latency_ms_total": 7067,
+  "latency_ms_p50": 1322
+ },
+ {
+  "agent": "contract_author",
+  "case": "drift_new_plan_code",
+  "passed": true,
+  "turns": 10,
+  "calls": 10,
+  "cost_usd": 0.007353,
+  "latency_ms_total": 22730,
+  "latency_ms_p50": 1743
+ },
+ {
+  "agent": "contract_author",
+  "case": "onboard_lab_results",
+  "passed": true,
+  "turns": 10,
+  "calls": 10,
+  "cost_usd": 0.00894,
+  "latency_ms_total": 28987,
+  "latency_ms_p50": 1819
+ },
+ {
+  "agent": "reviewer",
+  "case": "good_new_plan_code",
+  "passed": true,
+  "turns": 3,
+  "calls": 3,
+  "cost_usd": 0.002131,
+  "latency_ms_total": 6907,
+  "latency_ms_p50": 1478
+ },
+ {
+  "agent": "reviewer",
+  "case": "missed_phi",
+  "passed": true,
+  "turns": 3,
+  "calls": 3,
+  "cost_usd": 0.001876,
+  "latency_ms_total": 4993,
+  "latency_ms_p50": 1290
+ }
+]
