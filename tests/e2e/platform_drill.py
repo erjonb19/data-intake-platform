@@ -210,8 +210,12 @@ def bad_secret_drill(check) -> None:
         check(refused, "the intake task's log shows the refused login")  # fmt: skip
         clean = bool(bad) and bool(real) and bad not in log and real not in log
         check(clean, "the task log holds neither password")
-        if not refused and clean:  # what it does show, to see why (it holds no password)
-            print("\n".join(log.splitlines()[-25:]))
+        if not refused and clean:  # what it does show, to see why: masked, platform lines
+            from dip.agents.read_tools import _PLATFORM_LOG, _mask_credentials
+
+            lines = [_mask_credentials(ln) for ln in log.splitlines()]
+            kept = [ln for ln in lines if _PLATFORM_LOG.search(ln)]
+            print(f"{len(lines)} lines; the platform's own, masked:", *kept[-25:], sep="\n")
         check(not logs_with(bad, real), "no pod's log holds the wrong or the real password")
     finally:
         print(dip("drill", "bad_secret", "--undo"))
