@@ -9,8 +9,9 @@ for FEED.LATE). Kinds:
                      when none of them has an open file-level quarantine entry left (a
                      resend superseded it, or a person's discard or replay closed it).
                      Other files' row rejections the same day do not hold it open
-  DAG.FAILED         a run of the feed's intake DAG failed (its failure callback). It
-                     closes at the DAG's next successful run
+  DAG.FAILED         a run of the feed's intake DAG failed (its failure callback, or the
+                     platform check when the callback cannot reach the warehouse: S11.8;
+                     target: the DAG). It closes at the DAG's next successful run
 
 Platform incidents (Stage 11, S11.6; dip/platform_check.py) belong to no feed: their feed
 is the reserved `_platform`, and `target` names what broke. Each closes when the check sees
@@ -108,7 +109,8 @@ def dag_callback(feed: str, failed: bool, context: dict[str, Any], connect: Any)
         with conn.cursor() as cur:
             if failed:
                 reason = str(context.get("reason") or "a task failed")
-                open_incident(cur, feed, "DAG.FAILED", f"{dag_id} run {run_id}: {reason}")
+                open_incident(cur, feed, "DAG.FAILED", f"{dag_id} run {run_id}: {reason}",
+                              target=dag_id or None)  # fmt: skip
             else:
                 close_dag_failed(cur, feed)
         conn.commit()

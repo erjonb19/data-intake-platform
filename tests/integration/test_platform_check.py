@@ -24,15 +24,21 @@ from tests.integration.conftest import rows
 NOW = datetime(2026, 11, 3, 12, 0, tzinfo=UTC)
 
 
-def health(status="healthy", age=10, down=False, now=NOW):
+def health(status="healthy", age=10, down=False, now=NOW, runs=()):
     def http(method, url, body, headers):
         if down:
             raise ConnectionError("api-server unreachable")
+        if url.endswith("/auth/token"):  # S11.8: the dag runs need the Viewer login
+            return {"access_token": "viewer"}
+        if "/dags/~/dagRuns?" in url:  # newest first
+            assert headers.get("Authorization") == "Bearer viewer"
+            return {"dag_runs": list(runs)}
         assert url.endswith("/api/v2/monitor/health")
         beat = (now - timedelta(seconds=age)).isoformat()
         return {"scheduler": {"status": status, "latest_scheduler_heartbeat": beat}}
 
-    return ReadServices(airflow_url="http://airflow", http=http)
+    return ReadServices(airflow_url="http://airflow", airflow_user="viewer",
+                        airflow_password="pw", http=http)  # fmt: skip
 
 
 def open_scheduler(wh):
@@ -42,7 +48,8 @@ def open_scheduler(wh):
 
 def test_a_stale_heartbeat_opens_the_incident_and_a_fresh_one_closes_it(warehouse):
     c = warehouse.conn
-    assert platform_check.run(c, health(), now=NOW, env={}) == {"scheduler": "healthy"}
+    out = platform_check.run(c, health(), now=NOW, env={})
+    assert out == {"scheduler": "healthy", "dag_runs_failed": []}
     assert open_scheduler(warehouse) == 0
     out = platform_check.run(c, health("unhealthy", age=214), now=NOW, env={})
     assert out["scheduler"].startswith("down") and open_scheduler(warehouse) == 1
@@ -70,8 +77,9 @@ def test_an_api_that_does_not_answer_decides_nothing(warehouse):
     assert open_scheduler(warehouse) == 1
     out = platform_check.run(warehouse.conn, health(down=True), now=NOW, env={})
     assert out["scheduler"].startswith("unknown") and open_scheduler(warehouse) == 1
-    assert rows(warehouse, "select ok from ops.platform_check where check_name = 'airflow_api'"
-                ) == [(False,)]  # fmt: skip
+    assert rows(warehouse, "select target, ok from ops.platform_check"
+                           " where check_name = 'airflow_api' order by target"
+                ) == [("api-server", False), ("dag-runs", False)]  # fmt: skip
 
 
 def test_platform_incidents_are_one_per_kind_and_target(warehouse):
@@ -201,3 +209,46 @@ def test_an_oomkilled_restart_outside_airflow_tasks_opens_nothing(warehouse):
                              now=NOW, env={})  # fmt: skip
     assert out["oomkilled"] == []
     assert rows(warehouse, "select 1 from ops.incident where kind = 'TASK.OOMKILLED'") == []
+
+
+def dag_run(state, run_id, dag="intake__healthcare__eligibility", end="2026-11-03T11:58:00Z"):
+    return {"dag_id": dag, "dag_run_id": run_id, "state": state, "end_date": end}
+
+
+def test_a_failed_feed_run_opens_dag_failed_without_its_callback(warehouse):
+    # S11.8: a bad secret breaks the run's own callback (it needs the warehouse); the
+    # check, with its own login, opens the feed's DAG.FAILED, once, and a later
+    # successful run closes it. A drill DAG's failure is not a feed's.
+    def failed_open():
+        return rows(warehouse, "select feed, target from ops.incident"
+                               " where kind = 'DAG.FAILED' and closed_at is null")  # fmt: skip
+
+    failed = [dag_run("failed", "manual__2"), dag_run("success", "manual__1"),
+              dag_run("failed", "manual__9", dag="drill_oom")]  # fmt: skip
+    out = platform_check.run(warehouse.conn, health(runs=failed), now=NOW, env={})
+    assert out["dag_runs_failed"] == ["intake__healthcare__eligibility"]
+    assert failed_open() == [("healthcare.eligibility", "intake__healthcare__eligibility")]
+    platform_check.run(warehouse.conn, health(runs=failed), now=NOW, env={})  # still one
+    assert len(failed_open()) == 1
+    # the failed run cleared to rerun: queued, then running; nothing has succeeded yet
+    rerun = [dag_run("queued", "manual__2", end=None), dag_run("success", "manual__1")]
+    platform_check.run(warehouse.conn, health(runs=rerun), now=NOW, env={})
+    assert len(failed_open()) == 1
+    ok = [dag_run("success", "manual__3"), *failed]
+    platform_check.run(warehouse.conn, health(runs=ok), now=NOW, env={})
+    assert failed_open() == []
+
+
+def test_the_check_adds_nothing_to_the_callbacks_incident(warehouse):
+    from dip.incidents import dag_callback
+
+    class Run:
+        run_id, dag_id = "manual__2", "intake__healthcare__eligibility"
+
+    from tests.integration.conftest import DSN
+
+    dag_callback("healthcare.eligibility", True, {"dag_run": Run()}, lambda: psycopg.connect(DSN))
+    platform_check.run(warehouse.conn, health(runs=[dag_run("failed", "manual__2")]),
+                       now=NOW, env={})  # fmt: skip
+    assert rows(warehouse, "select target from ops.incident where kind = 'DAG.FAILED'") == [
+        ("intake__healthcare__eligibility",)]  # fmt: skip
