@@ -6,8 +6,11 @@
 #      (agents/evals/<agent>/recordings/[gemini/]<case>.json, which hold only model output about
 #      invented eval data), the evals' scored results (agents/evals/<agent>/results/<run>.json,
 #      scores of runs on invented data), and the Grafana dashboards (observability/grafana/<name>.json,
-#      panel definitions only), and a proof run's results (docs/demos/proof/run-<id>/results.json or live.json,
-#      drill outcomes on the synthetic stack, committed by the proof workflow after its checks), and the live eval's baseline
+#      panel definitions only), a proof run's results (docs/demos/proof/run-<id>/
+#      results.json, audit.json or live.json: drill outcomes, the intake proof's audit rows
+#      of principal, run, tool and decision, or the live eval's scores and costs, all from
+#      the synthetic stack or invented eval data, committed by the proof workflow's
+#      commit-results job after its checks), and the live eval's baseline
 #      (agents/evals/baseline.json, scores and costs of the recordings replayed).
 #   3. Content that only real MIMIC data or a local-only extract would contain: a MIMIC FHIR
 #      identifier with a value, a MIMIC FHIR profile URL, or a package marked local-only.
@@ -26,7 +29,7 @@ fi
 
 bulk="$(files | grep -E '(^|/)mimic-iv-[^/]*/|\.ndjson(\.gz)?$|\.csv\.gz$' || true)"
 data="$(files | grep -E '\.(csv|parquet|duckdb|json)$' \
-  | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$|^agents/evals/[a-z_]+/(recordings|recordings/gemini|results)/[a-z0-9_]+\.json$|^observability/grafana/[a-z0-9-]+\.json$|^docs/demos/proof/run-[0-9]+/(results|live)\.json$|^agents/evals/baseline\.json$' || true)"
+  | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$|^agents/evals/[a-z_]+/(recordings|recordings/gemini|results)/[a-z0-9_]+\.json$|^observability/grafana/[a-z0-9-]+\.json$|^docs/demos/proof/run-[0-9]+/(results|audit|live)\.json$|^agents/evals/baseline\.json$' || true)"
 athena="$(files | grep -E '(^|/)(CONCEPT[^/]*|DOMAIN|RELATIONSHIP|VOCABULARY|DRUG_STRENGTH)\.csv$|d_labitems_to_loinc\.csv$' || true)"
 
 # This script and the code that writes the local-only marker are the only allowed hits.
@@ -52,7 +55,7 @@ if [[ -n "$bulk$data$athena$content" ]]; then
   echo "ERROR: files that must stay local are tracked by git:" >&2
   report "MIMIC or bulk data" "$bulk"
   report "Athena vocabulary or lab map" "$athena"
-  report "data file outside tests/fixtures, dbt/seeds, agents/evals, observability/grafana or docs/demos/proof" "$data"
+  report "data file outside tests/fixtures, dbt/seeds, the reviewed paths (see the header)" "$data"
   report "MIMIC identifiers or a local-only package in" "$content"
   exit 1
 fi
