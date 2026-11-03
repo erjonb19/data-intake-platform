@@ -192,6 +192,13 @@ def _log_lines(got: Any) -> list[str]:
     for item in got:
         if isinstance(item, dict):
             out.append(str(item.get("event", item.get("message", json.dumps(item)))))
+            # Airflow 3's task SDK renders an exception as structured data beside the event
+            # ("exception": [{"exc_type", "exc_value", "frames"}, ...], structlog's
+            # ExceptionDictTransformer): its message, the part that says what went wrong,
+            # is not in "event". One line per exception in the chain; frames are left out.
+            for exc in item.get("exception") or ():
+                if isinstance(exc, dict) and (exc.get("exc_type") or exc.get("exc_value")):
+                    out.append(f"{exc.get('exc_type', '')}: {exc.get('exc_value', '')}")
         elif isinstance(item, list) and item:  # [host, text] pairs from some readers
             out.extend(str(item[-1]).splitlines())
         else:

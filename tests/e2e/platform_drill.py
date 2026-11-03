@@ -152,11 +152,10 @@ def intake_log() -> str:
     ti = call("GET", f"{api}/{rid}/taskInstances/intake", token=token)
     got = call("GET", f"{api}/{rid}/taskInstances/intake/logs/{ti.get('try_number') or 1}",
                token=token)  # fmt: skip
-    content = got.get("content", "")
-    if isinstance(content, list):
-        content = "\n".join(str(c.get("event", c)) if isinstance(c, dict) else str(c)
-                            for c in content)  # fmt: skip
-    return str(content)
+    # as the incident agent's get_task_log reads it: the events and each exception's message
+    from dip.agents.read_tools import _log_lines
+
+    return "\n".join(_log_lines(got))
 
 
 def logs_with(*needles: str) -> list[str]:
@@ -207,9 +206,12 @@ def bad_secret_drill(check) -> None:
                     time.sleep(15)
             check(seen, f"the DagRunFailing alert fires for {FEED_DAG}")
         log = intake_log()
-        check('password authentication failed for user "warehouse"' in log,
-              "the intake task's log shows the refused login")  # fmt: skip
-        check(bad not in log and real not in log, "the task log holds neither password")
+        refused = 'password authentication failed for user "warehouse"' in log
+        check(refused, "the intake task's log shows the refused login")  # fmt: skip
+        clean = bool(bad) and bool(real) and bad not in log and real not in log
+        check(clean, "the task log holds neither password")
+        if not refused and clean:  # what it does show, to see why (it holds no password)
+            print("\n".join(log.splitlines()[-25:]))
         check(not logs_with(bad, real), "no pod's log holds the wrong or the real password")
     finally:
         print(dip("drill", "bad_secret", "--undo"))

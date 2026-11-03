@@ -36,3 +36,23 @@ def test_a_refused_login_is_a_platform_line():
     assert not _PLATFORM_LOG.search('Alex Hallett 1980-02-14 password authentication failed'
                                     ' for user "warehouse"')  # fmt: skip
     assert not _PLATFORM_LOG.search(line + " and Alex Hallett 1980-02-14")
+
+
+def test_an_airflow_3_exception_message_reaches_the_log_lines():
+    """Airflow 3 puts an exception's message in a structured "exception" field, not in the
+    event: the refused login of S11.8's drill is only there."""
+    from dip.agents.read_tools import _log_lines
+
+    got = {"content": [
+        {"event": "Task failed with exception", "level": "error", "exception": [{
+            "exc_type": "OperationalError", "frames": [{"filename": "x.py", "lineno": 1}],
+            "exc_value": 'connection failed: FATAL:  password authentication failed for user'
+                         ' "warehouse"'}]},
+        {"event": "Marking task as FAILED."},
+    ]}  # fmt: skip
+    assert _log_lines(got) == [
+        "Task failed with exception",
+        'OperationalError: connection failed: FATAL:  password authentication failed for user'
+        ' "warehouse"',
+        "Marking task as FAILED.",
+    ]  # fmt: skip
