@@ -201,11 +201,11 @@ jobs:
       # The new recordings replay, without a key, as CI's test job replays them.
       - name: Replay the new recordings
         env:
-          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_replay
+          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_replay_eval
           DIP_TEST_DSN: postgresql://dip:dip@localhost:5432/dip_test
           PYTHONUTF8: "1"
         run: |
-          for db in dip_replay dip_test; do
+          for db in dip_replay_eval dip_test; do
             PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database $db"
           done
           if python -m dip incident eval --provider gemini --out artifacts/replay \
@@ -284,9 +284,9 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_test"
-          PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_replay"
+          PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_replay_eval"
           # every test that replays Claude's incident or demo recordings, and the evals' replay
-          if DIP_EVAL_DSN=postgresql://dip:dip@localhost:5432/dip_replay \
+          if DIP_EVAL_DSN=postgresql://dip:dip@localhost:5432/dip_replay_eval \
                python -m dip incident eval --out artifacts/replay \
              && pytest -q -p no:cacheprovider tests/integration/test_incident_chain.py \
                tests/integration/test_demo.py tests/integration/test_trace.py; then
