@@ -235,6 +235,12 @@ def stuck_queued_drill(check) -> None:
     say FailedScheduling, TaskQueuedTooLong fires, and after --undo the check closes it and
     the threshold is back."""
     target = ("drill_queue.wait_for_room",)
+    # The undo's design rests on how this provider's executor treats a deleted Pending pod
+    # (read in 10.25.0's source): print the version the image actually has.
+    version = kubectl("-n", NS, "exec", "deploy/airflow-scheduler", "--", "python", "-c",
+                      "from importlib.metadata import version;"
+                      " print(version('apache-airflow-providers-cncf-kubernetes'))")  # fmt: skip
+    print(f"==> apache-airflow-providers-cncf-kubernetes in the Airflow image: {version}")
     before = stuck_threshold()
     started, opened = time.monotonic(), False
     try:  # the undo runs even when the drill itself fails half-way
