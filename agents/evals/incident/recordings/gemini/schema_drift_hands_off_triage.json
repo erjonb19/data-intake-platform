@@ -5,22 +5,22 @@
     "_gemini_part": {
      "functionCall": {
       "args": {},
-      "id": "call_412725",
+      "id": "call_491392",
       "name": "list_quarantine_groups"
      },
-     "thoughtSignature": "EnMKcQFpFH0TGpG5kpCUfSmAQalYEyx27ro/8zGCkuQFKTlWBJ8ZoZs6qU8ZmDRzg1Kqg/Aq2uAfmo/C2ZVQ+G7HJvZqAIhvBoBf0cfS4BfK4/TDgpqEFIwmhQjU+AAvEBCI3Yd+zBpUO1mwgY/SwZzT7e7Z"
+     "thoughtSignature": "EnMKcQFpFH0T7jC+IPhFsiwqbDjPg9DBEr2efpDW51RY+z8IKJ+CoVpqVljaz678SpuZw0RPCgNjN8185ROnO85+sJfkvmZMTUYW/ZKOiSbXV3qRhfRXs1GmacPLvAmwou6P5jv/RWUVQDJDwzA7hNU0DP0C"
     },
-    "id": "g-deecf5381f17",
+    "id": "g-6adacc1306b3",
     "input": {},
     "name": "list_quarantine_groups",
     "type": "tool_use"
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "7ae846ff240b4c156a9259e4188308dea6ac9eb996842d71d806b221d2b37a21",
+  "request_sha256": "684192a582f789769c1b79da6506aab51387e703c0c76f5e50e6230ca13ce510",
   "stop_reason": "tool_use",
   "usage": {
-   "input_tokens": 1814,
+   "input_tokens": 1839,
    "output_tokens": 13
   }
  },
@@ -32,12 +32,12 @@
       "args": {
        "feed": "healthcare.eligibility"
       },
-      "id": "call_519975",
+      "id": "call_573845",
       "name": "get_contract"
      },
-     "thoughtSignature": "EnMKcQFpFH0TZRTGqHy0VJVyNZE7Q0AW5butc0VCYZ4qtGFyfrDFNb+a3hbY8M3DMfy6rNl5bVnoLgOJvUJ0VRQVLb+QACsIgTYvecRIJ4pqVa4cBZtI1Kbwn1VjgdXe/aKmqifZWOAxDR2ekUa41nTjX0DN"
+     "thoughtSignature": "EnMKcQFpFH0Tt/rsSIy/XATNboilIlrPmAQu5sml5Hj+Qct0gQcXx6YgL14zaQMsWTR0IOlH/+13hflvsbQrdgfeyFZS1gkhKS0a93us9dORTVtzUB+bkBMxzGjMbDn7LoQM47Juwxn5ISgOpVjwD4WZKZtS"
     },
-    "id": "g-6314c166ae75",
+    "id": "g-7fd2c73bef7a",
     "input": {
      "feed": "healthcare.eligibility"
     },
@@ -46,10 +46,10 @@
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "47c6f5efea50d755d89e9932150b4a742994d11901d14bf8e93b1448b9e3f0d9",
+  "request_sha256": "30bea5c22e434480b7fbb4384e84bf2b2a23f934260cc623824b3b3151c87286",
   "stop_reason": "tool_use",
   "usage": {
-   "input_tokens": 2009,
+   "input_tokens": 2034,
    "output_tokens": 19
   }
  },
@@ -61,12 +61,12 @@
       "args": {
        "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id"
       },
-      "id": "call_417580",
+      "id": "call_186592",
       "name": "get_quarantine_sample"
      },
-     "thoughtSignature": "EnMKcQFpFH0TdHNPeDOxdK/xwbPXV0Pwo+TCF4hanmvXHa6BwQgwENDNFNSc5ULEOhyOXSfrxSzU0o4fzc8o1OqiyiI4+sAN4ECJIJQNhNmGO5weMbnf59Wi2Ffsjb4i0Ap8+WAEDMzfIYxOmzadEuAQj9qD"
+     "thoughtSignature": "EnMKcQFpFH0TFdsaNtWF6ad9GOZa7pcUu+hXrBQIJ5DRDgVJj1F1s3u+RwDIK4fvKhC0BMr5lxR56XxZpo2qBwVF5hhwqPIJobm0NsOh8zxe3bG9lU+g1uvLDrlxqpLigaMEgq6KT1+3TQphon9NCYmWpDza"
     },
-    "id": "g-63a0db199bf8",
+    "id": "g-be60d7d16999",
     "input": {
      "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id"
     },
@@ -75,10 +75,10 @@
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "6b1b74203de1ae55e880ee714a6f88de3b27a53738a52becd58baa1abb3f6def",
+  "request_sha256": "92455bd9413a43d089374e6411fe0c30984a3b8c06c1c8c9bed86141838497ff",
   "stop_reason": "tool_use",
   "usage": {
-   "input_tokens": 2461,
+   "input_tokens": 2486,
    "output_tokens": 35
   }
  },
@@ -91,28 +91,28 @@
        "action": "request_resend",
        "confidence": 1,
        "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
-       "message_to_vendor": "The file 'elig_20261021.csv' is missing the mandatory 'member_id' column required by the data contract. Please include this column and resend the file.",
+       "message_to_vendor": "The file 'elig_20261021.csv' is missing the required 'member_id' column. Please include this column in your data file according to the current data contract.",
        "quarantine_ids": [
         1
        ],
-       "rationale": "The file header shows 'first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref' but the contract requires 'member_id' as a mandatory column.",
+       "rationale": "The file 'elig_20261021.csv' is missing the 'member_id' column, which is explicitly required by the feed's data contract. The column headers received were: first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
        "root_cause": "schema_drift"
       },
-      "id": "call_621292",
+      "id": "call_606497",
       "name": "propose_operation"
      },
-     "thoughtSignature": "EnMKcQFpFH0T2Gf+MiPSkV1UZvobRX9V0pkkcR79ZsSNNcQon0Oo+d7BHEKMOhsNKAXevcTI77x1B6ThMipScoi6FJU/i5fF4uMzwyCTyvy9IRWiDQUFltkV6MMtSqQbudaWnwTuHQO0FC335UwRdFO5WetZ"
+     "thoughtSignature": "EnMKcQFpFH0TqG+7HCmRe5BtGh6AjW3wu03u9kdB61z5KdzWjWqY25RERin/A2KNshpjEpex3leuSwjDy7nJ+ppx176db/cK+Fe2CXMNGPS1g15oN1HgRjGcKi+efT65xlkj2tw4ZsJZyhqxu0vIGZoTaEHV"
     },
-    "id": "g-a92271c97a0b",
+    "id": "g-e3f5ac43e0a9",
     "input": {
      "action": "request_resend",
      "confidence": 1,
      "group_id": "healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id",
-     "message_to_vendor": "The file 'elig_20261021.csv' is missing the mandatory 'member_id' column required by the data contract. Please include this column and resend the file.",
+     "message_to_vendor": "The file 'elig_20261021.csv' is missing the required 'member_id' column. Please include this column in your data file according to the current data contract.",
      "quarantine_ids": [
       1
      ],
-     "rationale": "The file header shows 'first_name,last_name,dob,sex,plan_code,coverage_start,coverage_end,patient_ref' but the contract requires 'member_id' as a mandatory column.",
+     "rationale": "The file 'elig_20261021.csv' is missing the 'member_id' column, which is explicitly required by the feed's data contract. The column headers received were: first_name, last_name, dob, sex, plan_code, coverage_start, coverage_end, patient_ref.",
      "root_cause": "schema_drift"
     },
     "name": "propose_operation",
@@ -120,30 +120,30 @@
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "cd6d8d81b861751dae6f19b1ba9f7353bb37cede0a878daa00b8bc571249773c",
+  "request_sha256": "14e363e28307e4b9483836bde295a086487d20a783ed23d3dbe4045f4c654b5e",
   "stop_reason": "tool_use",
   "usage": {
-   "input_tokens": 2787,
-   "output_tokens": 167
+   "input_tokens": 2812,
+   "output_tokens": 192
   }
  },
  {
   "content": [
    {
     "_gemini_part": {
-     "text": "The quarantine group `healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id` has been triaged.\n\n- **healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id**: Proposed `request_resend` because the mandatory `member_id` column is missing from the file header.",
-     "thoughtSignature": "EnMKcQFpFH0TJo/vzl9+1rIiJykqt6ZviSjmAB8E30s6v6ygMWPQEaPuae0yyaU39Ws76I7Z2BZMgvITxSrthMFOajB9se9Wf1KErQ+oO3BXZEOfK/8wTKLb8+SBkTn5k8uAYMrd1iw8vmPG1+vrJITxSUyR"
+     "text": "The quarantine group `healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id` has been triaged:\n\n*   **healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id**: Proposed `request_resend` (confidence: 1.0) because the file `elig_20261021.csv` is missing the required `member_id` column mandated by the data contract.",
+     "thoughtSignature": "EnMKcQFpFH0T06KQ2RlLjwtDSLrtCA+sf/aMmWNd0gB85HJCVP6+VFTtzHovRe9KnPTErwBgmJAQeiHEuYw9cNEkownJQj9qzSgMWmTslQLiCo+kmfYp+Pz1q2TkkY2c9/ewdPOxJ6tJ2zo4cH8WNdhSScZK"
     },
-    "text": "The quarantine group `healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id` has been triaged.\n\n- **healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id**: Proposed `request_resend` because the mandatory `member_id` column is missing from the file header.",
+    "text": "The quarantine group `healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id` has been triaged:\n\n*   **healthcare.eligibility|SCHEMA.MISSING_COLUMN:member_id**: Proposed `request_resend` (confidence: 1.0) because the file `elig_20261021.csv` is missing the required `member_id` column mandated by the data contract.",
     "type": "text"
    }
   ],
   "model": "gemini-3.1-flash-lite",
-  "request_sha256": "bdf71985de60b0d8af317f18db95d8cefaae0e623b039b594aa7c80a07a1d6c3",
+  "request_sha256": "9d5279ed04d9887b526ea1ddf193e66a8ff0b41b76f1a2bf3eb8041e21173cc5",
   "stop_reason": "end_turn",
   "usage": {
-   "input_tokens": 2989,
-   "output_tokens": 67
+   "input_tokens": 3039,
+   "output_tokens": 93
   }
  }
 ]
