@@ -7,6 +7,14 @@ name: proof
 # E2E runs as in e2e.yml (spending nothing), then scripts/proof_intake.py runs the intake
 # team once, in the cluster, on the E2E's onboarding sample, with DIP_SPEND_CAP_USD set.
 # The screenshots and results.md are uploaded; the cluster is torn down.
+#
+# Stage 11: commit-results commits what a run made (recordings, a proof's results) to the
+# s11-* branch the run was started from, once every check passed (the scrub, the key and
+# auth-header check, and for recordings their replay). It has contents: write and nothing
+# else, no model key, never pushes to main and never forces: a branch that moved since the
+# run started is refused. A push made with the workflow's token starts no other workflow,
+# so CI runs on the branch's next push by a person (the PR still needs a fresh review and
+# green CI before merge).
 
 on:
   workflow_dispatch:
@@ -92,6 +100,31 @@ jobs:
           for _ in $(seq 1 30); do (exec 3<>/dev/tcp/127.0.0.1/8081) 2>/dev/null && break; sleep 1; done
           .venv/bin/python scripts/proof_intake.py artifacts/proof
 
+      # Stage 11: the results, checked, for commit-results (only when every step passed).
+      - name: The results to commit, checked for the key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OUT: docs/demos/proof/run-${{ github.run_id }}
+        run: |
+          set -o pipefail
+          mkdir -p "$OUT" artifacts/commit
+          cp artifacts/proof/results.md artifacts/proof/audit.json "$OUT"/
+          cp artifacts/proof/*.png "$OUT"/ 2>/dev/null || true
+          { echo "job: proof (run ${{ github.run_id }})"
+            python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
+            echo "replay check: n/a (a proof's results, not recordings)"
+          } | tee artifacts/commit/checks.md
+          ! grep -q FAILED artifacts/commit/checks.md
+
+      - name: Upload the results to commit
+        uses: actions/upload-artifact@v7
+        with:
+          name: proof-commit
+          path: |
+            docs/demos/proof/run-${{ github.run_id }}/*
+            artifacts/commit/checks.md
+          retention-days: 7
+
       - name: Upload the proof
         if: always()
         uses: actions/upload-artifact@v7
@@ -154,15 +187,44 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           test -n "$GEMINI_API_KEY" || { echo "the GEMINI_API_KEY secret is not set"; exit 1; }
-          bash scripts/record_gemini_incidents.sh
+          set -o pipefail  # the recording's own exit status, not tee's
+          bash scripts/record_gemini_incidents.sh 2>&1 | tee artifacts-gemini.log
+          mkdir -p artifacts/commit
+          { echo "job: gemini-recordings (run ${{ github.run_id }})"
+            grep -hE "^(PASS|FAIL) " artifacts/gemini/*.log || true
+            grep -x "scrub: ok" artifacts-gemini.log
+            python -I scripts/check_recordings.py --key-env GEMINI_API_KEY \
+              agents/evals/incident/recordings/gemini
+          } | tee artifacts/commit/checks.md
+          ! grep -q FAILED artifacts/commit/checks.md
 
-      # Only when every step succeeded: a recording that still holds the key (the script
-      # fails then) is never uploaded.
+      # The new recordings replay, without a key, as CI's test job replays them.
+      - name: Replay the new recordings
+        env:
+          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_replay
+          DIP_TEST_DSN: postgresql://dip:dip@localhost:5432/dip_test
+          PYTHONUTF8: "1"
+        run: |
+          for db in dip_replay dip_test; do
+            PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database $db"
+          done
+          if python -m dip incident eval --provider gemini --out artifacts/replay \
+               && pytest -q -p no:cacheprovider tests/integration/test_fallback_chain.py; then
+            echo "replay check: ok (dip incident eval --provider gemini, test_fallback_chain.py)" \
+              | tee -a artifacts/commit/checks.md
+          else
+            echo "replay check: FAILED" | tee -a artifacts/commit/checks.md; exit 1
+          fi
+
+      # Only when every step succeeded: a recording that holds the key, an auth header, or
+      # does not replay is never uploaded, so never committed.
       - name: Upload the recordings
         uses: actions/upload-artifact@v7
         with:
           name: gemini-incident-recordings
-          path: agents/evals/incident/recordings/gemini/*.json
+          path: |
+            agents/evals/incident/recordings/gemini/*.json
+            artifacts/commit/checks.md
           retention-days: 7
 
   # Claude's recordings: the 8 incident cases and the demo, in one process under one cap
@@ -204,10 +266,38 @@ jobs:
         run: |
           test -n "$ANTHROPIC_API_KEY" || { echo "the ANTHROPIC_API_KEY secret is not set"; exit 1; }
           python -c "import os,sys; sys.exit(float(os.environ['DIP_SPEND_CAP_USD']) > 0.10)"             || { echo "claude-recordings takes spend_cap_usd 0.10 or less"; exit 1; }
-          bash scripts/record_claude_incidents.sh
+          set -o pipefail  # the recording's own exit status, not tee's
+          bash scripts/record_claude_incidents.sh 2>&1 | tee artifacts-claude.log
+          mkdir -p artifacts/commit
+          { echo "job: claude-recordings (run ${{ github.run_id }})"
+            grep -E "^(PASS|FAIL) |spent " artifacts-claude.log || true
+            grep -x "scrub: ok" artifacts-claude.log
+            python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY \
+              agents/evals/incident/recordings/*.json agents/evals/demo/recordings
+          } | tee artifacts/commit/checks.md
+          ! grep -q FAILED artifacts/commit/checks.md
 
-      # Only when every step succeeded: a recording that still holds the key (the script
-      # fails then) is never uploaded.
+      # The new recordings replay, without a key, as CI's test job replays them.
+      - name: Replay the new recordings
+        env:
+          DIP_TEST_DSN: postgresql://dip:dip@localhost:5432/dip_test
+          PYTHONUTF8: "1"
+        run: |
+          PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_test"
+          PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_replay"
+          # every test that replays Claude's incident or demo recordings, and the evals' replay
+          if DIP_EVAL_DSN=postgresql://dip:dip@localhost:5432/dip_replay \
+               python -m dip incident eval --out artifacts/replay \
+             && pytest -q -p no:cacheprovider tests/integration/test_incident_chain.py \
+               tests/integration/test_demo.py tests/integration/test_trace.py; then
+            echo "replay check: ok (dip incident eval; test_incident_chain, test_demo, test_trace)" \
+              | tee -a artifacts/commit/checks.md
+          else
+            echo "replay check: FAILED" | tee -a artifacts/commit/checks.md; exit 1
+          fi
+
+      # Only when every step succeeded: a recording that holds the key, an auth header, or
+      # does not replay is never uploaded, so never committed.
       - name: Upload the recordings
         uses: actions/upload-artifact@v7
         with:
@@ -215,4 +305,100 @@ jobs:
           path: |
             agents/evals/incident/recordings/*.json
             agents/evals/demo/recordings/*.json
+            artifacts/commit/checks.md
           retention-days: 7
+
+  # Stage 11: commit what the run made to the s11-* branch it was started from. See the
+  # header. Runs only when the one job that ran succeeded (every check in it passed).
+  commit-results:
+    needs: [proof, gemini-recordings, claude-recordings]
+    if: >-
+      always() && github.ref_type == 'branch' && startsWith(github.ref_name, 's11-') &&
+      contains(needs.*.result, 'success') && !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: The branch, and the job whose results these are
+        id: which
+        env:
+          BRANCH: ${{ github.ref_name }}
+          PROOF: ${{ needs.proof.result }}
+          GEMINI: ${{ needs.gemini-recordings.result }}
+          CLAUDE: ${{ needs.claude-recordings.result }}
+        run: |
+          [[ "$BRANCH" =~ ^s11-[A-Za-z0-9._-]+$ ]] || { echo "not an s11-* branch: $BRANCH"; exit 1; }
+          if [ "$PROOF" = success ]; then name=proof-commit
+          elif [ "$GEMINI" = success ]; then name=gemini-incident-recordings
+          elif [ "$CLAUDE" = success ]; then name=claude-incident-recordings
+          else echo "nothing succeeded"; exit 1; fi
+          echo "artifact=$name" >> "$GITHUB_OUTPUT"
+
+      # The commit the run was started from: the push below is refused if the branch has
+      # moved since (the files were made for this commit).
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: ${{ steps.which.outputs.artifact }}
+          path: ${{ runner.temp }}/incoming
+
+      # Only the expected paths come in; checked again here (no key in this job: key shapes
+      # and auth headers), and the recording job's own checks must all say ok.
+      - name: Check and copy in
+        env:
+          IN: ${{ runner.temp }}/incoming
+          ARTIFACT: ${{ steps.which.outputs.artifact }}
+        run: |
+          allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|docs/demos/proof/run-[0-9]+/[A-Za-z0-9_.-]+\.(md|json|png)|artifacts/commit/checks\.md)$'
+          (cd "$IN" && find . -type f | sed 's|^\./||') > "$RUNNER_TEMP/files"
+          if grep -vE "$allowed" "$RUNNER_TEMP/files"; then echo "unexpected files (above)"; exit 1; fi
+          grep -qx "artifacts/commit/checks.md" "$RUNNER_TEMP/files" || { echo "no checks.md"; exit 1; }
+          cp "$IN/artifacts/commit/checks.md" "$RUNNER_TEMP/checks.md"
+          for c in "key check" "auth-header check" "replay check"; do
+            grep -E "^$c[ (].*: ok|^$c: (ok|n/a)" "$RUNNER_TEMP/checks.md" \
+              || { echo "$c did not pass"; exit 1; }
+          done
+          if grep -q FAILED "$RUNNER_TEMP/checks.md"; then echo "a check failed"; exit 1; fi
+          set -o pipefail  # a failed re-check stops here, before anything is copied in
+          python -I scripts/check_recordings.py "$IN" | tee -a "$RUNNER_TEMP/checks.md"
+          if grep -q FAILED "$RUNNER_TEMP/checks.md"; then echo "the re-check failed"; exit 1; fi
+          # a proof's results have no scrub; recordings must (decided by which job ran)
+          [ "$ARTIFACT" = proof-commit ] || grep -qx "scrub: ok" "$RUNNER_TEMP/checks.md" \
+            || { echo "no scrub: ok"; exit 1; }
+          grep -v '^artifacts/' "$RUNNER_TEMP/files" | while read -r f; do
+            mkdir -p "$(dirname "$f")"; cp "$IN/$f" "$f"
+          done
+
+      - name: Commit and push to the branch (never main, never forced)
+        env:
+          BRANCH: ${{ github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          grep -v '^artifacts/' "$RUNNER_TEMP/files" | xargs -r git add --
+          if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          { echo "Stage 11: ${{ steps.which.outputs.artifact }} from proof run ${{ github.run_id }}"
+            echo
+            echo "Made on ${{ github.sha }} by $RUN_URL"
+            echo
+            echo "Files:"
+            git diff --cached --name-status | sed 's/^/  /'
+            echo
+            echo "Checks:"
+            sed 's/^/  /' "$RUNNER_TEMP/checks.md"
+          } > "$RUNNER_TEMP/message"
+          git commit -q -F "$RUNNER_TEMP/message"
+          git log -1 --stat
+          [ "$BRANCH" != main ] || exit 1
+          # The branch must still be at the run's commit: not moved on, nor reset or deleted
+          # (a non-forced push would accept those), so the files match what is there.
+          now=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)
+          [ "$now" = "${{ github.sha }}" ] \
+            || { echo "$BRANCH is at ${now:-nothing}, not ${{ github.sha }}: refused"; exit 1; }
+          git push origin "HEAD:refs/heads/$BRANCH"
