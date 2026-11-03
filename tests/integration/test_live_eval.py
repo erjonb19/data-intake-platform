@@ -16,7 +16,7 @@ live_eval = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(live_eval)
 
 
-def test_the_committed_baseline_is_the_recordings_replayed():
+def test_the_committed_baseline_covers_the_sample_and_every_case_passed():
     baseline = json.loads(live_eval.BASELINE.read_text("utf-8"))
     assert baseline["sample"] == live_eval.SAMPLE
     assert {(c["agent"], c["case"]) for c in baseline["cases"]} == {
@@ -48,3 +48,8 @@ def test_an_agent_over_twice_its_baseline_cost_is_drift():
     assert findings == ["reviewer: live cost $0.0041 is over 2x the baseline's $0.0020"]
     live[0]["cost_usd"] = 0.0039
     assert live_eval.compare(baseline, live)[0] == []
+
+
+def test_a_case_that_cannot_run_is_a_failure_on_its_row_not_a_crash():
+    r = live_eval.measure("reviewer", "no_such_case", "postgresql://unused", live=False)
+    assert r["passed"] is False and r["error"].startswith("KeyError")

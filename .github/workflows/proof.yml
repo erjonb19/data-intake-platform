@@ -1,9 +1,9 @@
 name: proof
 
 # Stage 10 (S10.6): the stage's one proof with a model key, on a GitHub runner instead of
-# the laptop (16 GB was not enough for the kind node next to everything else). Manual only:
-# no push, pull_request or schedule trigger, so the key is never used unless a person with
-# write access starts it. The stack comes up with the core profile and no model key, the
+# the laptop (16 GB was not enough for the kind node next to everything else). Manual: no
+# push or pull_request trigger, so the key is used only when a person with write access
+# starts it (or, once it is uncommented below, the weekly live eval's schedule). The stack comes up with the core profile and no model key, the
 # E2E runs as in e2e.yml (spending nothing), then scripts/proof_intake.py runs the intake
 # team once, in the cluster, on the E2E's onboarding sample, with DIP_SPEND_CAP_USD set.
 # The screenshots and results.md are uploaded; the cluster is torn down.
@@ -512,7 +512,7 @@ jobs:
   # live once against a Postgres service (no kind), scored by their own harnesses and
   # compared with agents/evals/baseline.json; drift.md is uploaded, and committed by
   # commit-results on an s11-* branch. Fails on drift. Also the job a scheduled run would
-  # take (inputs are empty then; the cap defaults to 0.10).
+  # take (inputs are empty then). Its cap is fixed at $0.10, whatever spend_cap_usd says.
   live-eval:
     if: inputs.job == 'live-eval' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
@@ -541,13 +541,11 @@ jobs:
       - name: The sample, live, against the recorded baseline
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          DIP_SPEND_CAP_USD: ${{ inputs.spend_cap_usd || '0.10' }}
+          DIP_SPEND_CAP_USD: "0.10"  # fixed by the plan (design choice 5), not an input
           DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_live_eval
           PYTHONUTF8: "1"
         run: |
           test -n "$ANTHROPIC_API_KEY" || { echo "the ANTHROPIC_API_KEY secret is not set"; exit 1; }
-          python -c "import os,sys; sys.exit(float(os.environ['DIP_SPEND_CAP_USD']) > 0.10)" \
-            || { echo "live-eval takes spend_cap_usd 0.10 or less"; exit 1; }
           python scripts/live_eval.py live artifacts/live-eval
 
       # Only when the run passed (no drift): checked for the key, for commit-results.

@@ -102,14 +102,21 @@ def run_one(agent: str, case: dict[str, Any], dsn: str, live: bool) -> Any:
     raise ValueError(f"unknown agent {agent!r}")
 
 
-def measure(agent: str, case: dict[str, Any], dsn: str, live: bool) -> dict[str, Any]:
+def measure(agent: str, case: dict[str, Any] | str, dsn: str, live: bool) -> dict[str, Any]:
+    """One case (or its name, looked up here), measured. Anything that stops it is recorded
+    on its row as a failure, so drift.md is always written."""
     rows: list[dict[str, Any]] = []
-    out: dict[str, Any] = {"agent": agent, "case": case["name"]}
+    out: dict[str, Any] = {"agent": agent,
+                           "case": case if isinstance(case, str) else case["name"]}  # fmt: skip
     try:
+        if isinstance(case, str):
+            case = _cases(agent)[case]
         with collect(rows):
             score = run_one(agent, case, dsn, live)
         out["passed"], out["turns"] = bool(score.passed), int(getattr(score, "turns", 0) or 0)
-    except Exception as exc:  # noqa: BLE001 - recorded on the row; the next case still runs
+    except KeyboardInterrupt:
+        raise
+    except BaseException as exc:  # noqa: BLE001 - recorded on the row; the next case still runs
         out["passed"], out["error"] = False, f"{type(exc).__name__}: {exc}"[:400]
     out["calls"] = len(rows)
     out["cost_usd"] = round(sum(float(r.get("cost_usd") or 0) for r in rows), 6)
@@ -123,9 +130,8 @@ def measure(agent: str, case: dict[str, Any], dsn: str, live: bool) -> dict[str,
 def sample(dsn: str, live: bool, sample_: dict[str, list[str]] = SAMPLE) -> list[dict[str, Any]]:
     results = []
     for agent, names in sample_.items():
-        cases = _cases(agent)
         for name in names:
-            r = measure(agent, cases[name], dsn, live)
+            r = measure(agent, name, dsn, live)
             print(f"{'PASS' if r['passed'] else 'FAIL'} {agent}/{name}: {r.get('turns')} turns,"
                   f" {r['calls']} calls, ${r['cost_usd']:.4f}"
                   + (f", {r['error']}" if r.get("error") else ""), file=sys.stderr)  # fmt: skip
