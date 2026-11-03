@@ -27,6 +27,9 @@ from pathlib import Path
 
 NS = "dip-airflow"
 REPO = Path(__file__).resolve().parents[2]
+# The E2E's venv has the drivers, not the platform package: read the task log as the
+# incident agent does (dip.agents.read_tools) from the checkout itself.
+sys.path.insert(0, str(REPO))
 
 
 def kubectl(*args: str) -> str:
