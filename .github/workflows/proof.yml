@@ -352,6 +352,7 @@ jobs:
       - name: Check and copy in
         env:
           IN: ${{ runner.temp }}/incoming
+          ARTIFACT: ${{ steps.which.outputs.artifact }}
         run: |
           allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|docs/demos/proof/run-[0-9]+/[A-Za-z0-9_.-]+\.(md|json|png)|artifacts/commit/checks\.md)$'
           (cd "$IN" && find . -type f | sed 's|^\./||') > "$RUNNER_TEMP/files"
@@ -366,8 +367,9 @@ jobs:
           set -o pipefail  # a failed re-check stops here, before anything is copied in
           python -I scripts/check_recordings.py "$IN" | tee -a "$RUNNER_TEMP/checks.md"
           if grep -q FAILED "$RUNNER_TEMP/checks.md"; then echo "the re-check failed"; exit 1; fi
-          grep -qx "scrub: ok" "$RUNNER_TEMP/checks.md" \
-            || grep -q "^job: proof " "$RUNNER_TEMP/checks.md" || { echo "no scrub: ok"; exit 1; }
+          # a proof's results have no scrub; recordings must (decided by which job ran)
+          [ "$ARTIFACT" = proof-commit ] || grep -qx "scrub: ok" "$RUNNER_TEMP/checks.md" \
+            || { echo "no scrub: ok"; exit 1; }
           grep -v '^artifacts/' "$RUNNER_TEMP/files" | while read -r f; do
             mkdir -p "$(dirname "$f")"; cp "$IN/$f" "$f"
           done
