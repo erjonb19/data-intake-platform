@@ -1,0 +1,194 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1
+      },
+      "id": "call_652291",
+      "name": "get_incident"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TVI+ilytCU14kVzNRmt2YGScncknr9jktuOzSQiYzNpOJA+TF/O7Euy3fJDwi1fyD2Ci1aoYHpbEPdSsdHuXV5PDr1vg1HIwaLq1B8ZSQ5j13bD+fA9H3qGBU8zATicH/9icPaE0rZpv9Vid0"
+    },
+    "id": "g-2deca145dcb2",
+    "input": {
+     "incident_id": 1
+    },
+    "name": "get_incident",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "398417fbbbdf726fcd7fefb84ca49ed13bfa602d270947033d64cd887a452242",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2797,
+   "output_tokens": 16
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "pod": "drill_queue"
+      },
+      "id": "call_679157",
+      "name": "get_k8s_events"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TV1EN9Q6oX6QO3iYiyXnAHtzEqnmRbxZZUB9meUyVxK8a1lnEOsRZZS863lF4pPjmywrvh7o7BJTvEgVxBy8yQaVHYjWLV86q/46QjwSwevLz5YirFHngyVmcjqB/ZAkzx0LpQ+vPKiojHO8D"
+    },
+    "id": "g-b06611e288a0",
+    "input": {
+     "pod": "drill_queue"
+    },
+    "name": "get_k8s_events",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "6471b2dc5b9c470c71331531d3726921c95338a71480061e66c5eff38045b149",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3070,
+   "output_tokens": 22
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "confidence": 1,
+       "evidence": [
+        "The platform incident 1 is a TASK.STUCK_QUEUED involving drill_queue.wait_for_room.",
+        "K8s events show '0/1 nodes are available: 1 Insufficient memory' and 'FailedScheduling' for the corresponding pod."
+       ],
+       "incident_id": 1,
+       "root_cause": "platform_capacity",
+       "summary": "The task drill_queue.wait_for_room is stuck in a queued state due to a lack of cluster resources. Specifically, Kubernetes reported an 'Insufficient memory' error, preventing the pod from being scheduled."
+      },
+      "id": "call_491584",
+      "name": "report_diagnosis"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TfLW/e9LGb9fFZtSTynsHiNkN4yVu52aPBBXrbJ97vMjyjGC+UO6e2WgcL4M4VhtKEgUJ0se2s0DOcpKYHlx0R+uHHV37uBblIReqt1vCVoIp7FQRc9AGH0kFRL9/wN3xR7s+OGk1fMf7TxS7"
+    },
+    "id": "g-7b348179ddea",
+    "input": {
+     "confidence": 1,
+     "evidence": [
+      "The platform incident 1 is a TASK.STUCK_QUEUED involving drill_queue.wait_for_room.",
+      "K8s events show '0/1 nodes are available: 1 Insufficient memory' and 'FailedScheduling' for the corresponding pod."
+     ],
+     "incident_id": 1,
+     "root_cause": "platform_capacity",
+     "summary": "The task drill_queue.wait_for_room is stuck in a queued state due to a lack of cluster resources. Specifically, Kubernetes reported an 'Insufficient memory' error, preventing the pod from being scheduled."
+    },
+    "name": "report_diagnosis",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "586af5aacb98fe69ebc6d008b41e729d9c3a32f1e209d8cf4190eed0357133c8",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3251,
+   "output_tokens": 140
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "query": "platform_capacity"
+      },
+      "id": "call_600453",
+      "name": "search_runbooks"
+     },
+     "thoughtSignature": "EnMKcQFpFH0TB/PD9x4f7GdEXsV4CjTrJ4/QRvFYLyXjb2XgWyD35VXoZq7HZolA9cz6s8CkVNXSFo3sxyWZwL6l8QUi8CvVhe5b24wgdo0+tVZErPoDQEs7wY0SFF4OyLrYPQmzKqXa9qhmagww5O8s/aqE"
+    },
+    "id": "g-b199134e4f56",
+    "input": {
+     "query": "platform_capacity"
+    },
+    "name": "search_runbooks",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "bbfe4f4329aa065fb394164df445d78754660c564cd1df0644e1a8ac13b022a1",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3428,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1,
+       "runbook_id": "12-stuck-queued",
+       "steps": [
+        "Investigate if the memory request for the 'drill_queue.wait_for_room' task exceeds available node capacity.",
+        "If the request is too high, lower the request in the task's executor_config or the worker pods' default resources.",
+        "If the node is saturated by other workloads, consider waiting for tasks to finish, stopping non-essential tasks, or increasing node capacity.",
+        "Once resources are addressed, clear the stuck task to allow it to retry."
+       ]
+      },
+      "id": "call_464525",
+      "name": "propose_runbook_steps"
+     },
+     "thoughtSignature": "EnMKcQFpFH0T8tSFfFugtOps0v1jIy9PjeBHbZCARxWFc0Zfco4VgZphHk6ULWiXiVsTSBthgafLbS/08Xp94yaM6jmNQE+eYU0JWh+T23uGrGOfXQ0D4gPfG4OtwhCtnSBMj/pN5FctwsnatKD04fUc/EcD"
+    },
+    "id": "g-5d34d1c46209",
+    "input": {
+     "incident_id": 1,
+     "runbook_id": "12-stuck-queued",
+     "steps": [
+      "Investigate if the memory request for the 'drill_queue.wait_for_room' task exceeds available node capacity.",
+      "If the request is too high, lower the request in the task's executor_config or the worker pods' default resources.",
+      "If the node is saturated by other workloads, consider waiting for tasks to finish, stopping non-essential tasks, or increasing node capacity.",
+      "Once resources are addressed, clear the stuck task to allow it to retry."
+     ]
+    },
+    "name": "propose_runbook_steps",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "890a1ef7a542bef0c06eaa5ecbc00dd0e506827e55b6f878579d35aac00298ed",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 4361,
+   "output_tokens": 142
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The incident 1 involving `drill_queue.wait_for_room` is a `TASK.STUCK_QUEUED` caused by `platform_capacity` constraints. Kubernetes event logs indicate `FailedScheduling` with `0/1 nodes are available: 1 Insufficient memory`, confirming the pod could not be scheduled due to the cluster lacking sufficient memory. I have proposed steps from Runbook 12 to resolve this capacity issue.",
+     "thoughtSignature": "EnMKcQFpFH0TjoqaqufLVeBb5tywZKLpLE5JgxnYP2zBDImjevlKOtsWB5uwm37nn7RKIQp5fk2XCkZ7ilyQ/fUFD5WfG2njf6641LKLFbX39AsuNA/d1dMunTVjco1S+Gz78OGfat61R1j4R+h4rACBrTDe"
+    },
+    "text": "The incident 1 involving `drill_queue.wait_for_room` is a `TASK.STUCK_QUEUED` caused by `platform_capacity` constraints. Kubernetes event logs indicate `FailedScheduling` with `0/1 nodes are available: 1 Insufficient memory`, confirming the pod could not be scheduled due to the cluster lacking sufficient memory. I have proposed steps from Runbook 12 to resolve this capacity issue.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "e9d3d1173f1e5697bfa506f8015aca7c8c3f5f1c6814693fc8aeeda801452950",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 4561,
+   "output_tokens": 90
+  }
+ }
+]
