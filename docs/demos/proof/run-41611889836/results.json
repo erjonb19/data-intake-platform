@@ -1,0 +1,106 @@
+[
+ {
+  "drill": "scheduler_down",
+  "kind": "PLATFORM.SCHEDULER_DOWN",
+  "target": "scheduler",
+  "expected": "platform_scheduler",
+  "incident": 1,
+  "alert": "AirflowSchedulerDown",
+  "alert_seen": true,
+  "chain": {
+   "claimed": 1,
+   "done": [
+    1
+   ],
+   "failed": [],
+   "plan": "anthropic",
+   "pod_phase": "Succeeded"
+  },
+  "status": "done",
+  "root_cause": "platform_scheduler",
+  "chain_id": "chain-f335ce380a",
+  "reason": null,
+  "model_calls": 5,
+  "cost_usd": 0.004958,
+  "trace_spans": 11,
+  "closed": true
+ },
+ {
+  "drill": "oom_task",
+  "kind": "TASK.OOMKILLED",
+  "target": "drill_oom.eat_memory",
+  "expected": "platform_resources",
+  "incident": 2,
+  "alert": "TaskPodOOMKilled",
+  "alert_seen": true,
+  "chain": {
+   "claimed": 1,
+   "done": [
+    2
+   ],
+   "failed": [],
+   "plan": "anthropic",
+   "pod_phase": "Succeeded"
+  },
+  "status": "done",
+  "root_cause": "platform_resources",
+  "chain_id": "chain-fe8914f121",
+  "reason": null,
+  "model_calls": 6,
+  "cost_usd": 0.005207,
+  "trace_spans": 14,
+  "closed": true
+ },
+ {
+  "drill": "bad_secret",
+  "kind": "DAG.FAILED",
+  "target": "intake__healthcare__eligibility",
+  "expected": "platform_credentials",
+  "incident": 3,
+  "alert": "DagRunFailing",
+  "alert_seen": true,
+  "chain": {
+   "claimed": 1,
+   "done": [
+    3
+   ],
+   "failed": [],
+   "plan": "anthropic",
+   "pod_phase": "Succeeded"
+  },
+  "status": "done",
+  "root_cause": "platform_credentials",
+  "chain_id": "chain-f093698068",
+  "reason": null,
+  "model_calls": 7,
+  "cost_usd": 0.005586,
+  "trace_spans": 13,
+  "closed": true
+ },
+ {
+  "drill": "stuck_queued",
+  "kind": "TASK.STUCK_QUEUED",
+  "target": "drill_queue.wait_for_room",
+  "expected": "platform_capacity",
+  "incident": 4,
+  "alert": "TaskQueuedTooLong",
+  "alert_seen": true,
+  "chain": {
+   "claimed": 1,
+   "done": [
+    4
+   ],
+   "failed": [],
+   "plan": "anthropic",
+   "pod_phase": "Succeeded"
+  },
+  "status": "done",
+  "root_cause": "platform_capacity",
+  "chain_id": "chain-813faec287",
+  "reason": null,
+  "model_calls": 5,
+  "cost_usd": 0.004383,
+  "trace_spans": 11,
+  "closed": true
+ }
+]
