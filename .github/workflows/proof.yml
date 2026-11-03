@@ -187,12 +187,12 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           test -n "$GEMINI_API_KEY" || { echo "the GEMINI_API_KEY secret is not set"; exit 1; }
-          bash scripts/record_gemini_incidents.sh
+          set -o pipefail  # the recording's own exit status, not tee's
+          bash scripts/record_gemini_incidents.sh 2>&1 | tee artifacts-gemini.log
           mkdir -p artifacts/commit
-          set -o pipefail
           { echo "job: gemini-recordings (run ${{ github.run_id }})"
             grep -hE "^(PASS|FAIL) " artifacts/gemini/*.log || true
-            echo "scrub: ok"
+            grep -x "scrub: ok" artifacts-gemini.log
             python -I scripts/check_recordings.py --key-env GEMINI_API_KEY \
               agents/evals/incident/recordings/gemini
           } | tee artifacts/commit/checks.md
@@ -271,7 +271,7 @@ jobs:
           mkdir -p artifacts/commit
           { echo "job: claude-recordings (run ${{ github.run_id }})"
             grep -E "^(PASS|FAIL) |spent " artifacts-claude.log || true
-            echo "scrub: ok"
+            grep -x "scrub: ok" artifacts-claude.log
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY \
               agents/evals/incident/recordings/*.json agents/evals/demo/recordings
           } | tee artifacts/commit/checks.md
@@ -284,9 +284,13 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_test"
-          if pytest -q -p no:cacheprovider tests/integration/test_incident_chain.py \
-               tests/integration/test_demo.py; then
-            echo "replay check: ok (test_incident_chain.py, test_demo.py)" \
+          PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_replay"
+          # every test that replays Claude's incident or demo recordings, and the evals' replay
+          if DIP_EVAL_DSN=postgresql://dip:dip@localhost:5432/dip_replay \
+               python -m dip incident eval --out artifacts/replay \
+             && pytest -q -p no:cacheprovider tests/integration/test_incident_chain.py \
+               tests/integration/test_demo.py tests/integration/test_trace.py; then
+            echo "replay check: ok (dip incident eval; test_incident_chain, test_demo, test_trace)" \
               | tee -a artifacts/commit/checks.md
           else
             echo "replay check: FAILED" | tee -a artifacts/commit/checks.md; exit 1
@@ -359,7 +363,11 @@ jobs:
               || { echo "$c did not pass"; exit 1; }
           done
           if grep -q FAILED "$RUNNER_TEMP/checks.md"; then echo "a check failed"; exit 1; fi
+          set -o pipefail  # a failed re-check stops here, before anything is copied in
           python -I scripts/check_recordings.py "$IN" | tee -a "$RUNNER_TEMP/checks.md"
+          if grep -q FAILED "$RUNNER_TEMP/checks.md"; then echo "the re-check failed"; exit 1; fi
+          grep -qx "scrub: ok" "$RUNNER_TEMP/checks.md" \
+            || grep -q "^job: proof " "$RUNNER_TEMP/checks.md" || { echo "no scrub: ok"; exit 1; }
           grep -v '^artifacts/' "$RUNNER_TEMP/files" | while read -r f; do
             mkdir -p "$(dirname "$f")"; cp "$IN/$f" "$f"
           done
@@ -369,7 +377,7 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          git add agents/evals docs/demos/proof
+          grep -v '^artifacts/' "$RUNNER_TEMP/files" | xargs -r git add --
           if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -386,4 +394,9 @@ jobs:
           git commit -q -F "$RUNNER_TEMP/message"
           git log -1 --stat
           [ "$BRANCH" != main ] || exit 1
+          # The branch must still be at the run's commit: not moved on, nor reset or deleted
+          # (a non-forced push would accept those), so the files match what is there.
+          now=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)
+          [ "$now" = "${{ github.sha }}" ] \
+            || { echo "$BRANCH is at ${now:-nothing}, not ${{ github.sha }}: refused"; exit 1; }
           git push origin "HEAD:refs/heads/$BRANCH"

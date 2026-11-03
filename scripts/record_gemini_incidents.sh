@@ -29,7 +29,7 @@ done
 
 # Scrub: the key, and any auth header, out of every recording (none should be there: a
 # recording holds the model's turns and request hashes, never the request); then check.
-python - <<'EOF'
+if ! python - <<'EOF'
 import os, pathlib, re
 key = os.environ["GEMINI_API_KEY"]
 auth = re.compile(r'("?(x-goog-api-key|authorization)"?\s*[:=]\s*)"[^"]*"', re.I)
@@ -40,6 +40,10 @@ for p in pathlib.Path("agents/evals/incident/recordings/gemini").glob("*.json"):
         p.write_text(s, "utf-8")
         print(f"scrubbed {p.name}")
 EOF
+then
+  echo "scrub: FAILED"; exit 1
+fi
+echo "scrub: ok"
 if grep -rlF "$GEMINI_API_KEY" agents/evals/incident/recordings/gemini; then
   echo "the key is still in a recording"; exit 1
 fi
