@@ -24,9 +24,9 @@ on:
         default: "0.25"
       job:
         # Stage 11 (S11.7): record the incident cases (and the demo) here, not on the laptop.
-        description: "proof (the S10.6 proof), gemini-recordings or claude-recordings"
+        description: "proof (S10.6), stage-11-proof (S11.10), gemini-recordings or claude-recordings"
         type: choice
-        options: [proof, gemini-recordings, claude-recordings]
+        options: [proof, stage-11-proof, gemini-recordings, claude-recordings]
         default: proof
 
 permissions:
@@ -322,10 +322,184 @@ jobs:
             artifacts/commit/checks.md
           retention-days: 7
 
+  # Stage 11 (S11.10): the platform drills with the incident agent live, on the core and
+  # observability profiles (scripts/proof_drills.py: each drill, its incident and alert,
+  # the chain once on that incident, the diagnosis against the expected root cause, the
+  # trace's calls and cost, the undo). Same run as fresh-clone; both must pass.
+  drills:
+    if: inputs.job == 'stage-11-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      TF_VAR_profiles: '["core", "observability"]'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.6"
+          terraform_wrapper: false
+
+      - name: Install kind
+        run: |
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          curl -fsSL "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64.sha256sum" \
+            | awk '{print $1"  kind"}' | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+
+      - name: Prerequisites
+        run: bash scripts/prereqs.sh || true
+
+      - name: Bring up stack (no model key)
+        run: bash scripts/up.sh
+
+      - name: Smoke test
+        run: bash scripts/smoke.sh
+
+      - name: The drills, with the incident agent live
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIP_SPEND_CAP_USD: ${{ inputs.spend_cap_usd }}
+          PYTHONUTF8: "1"
+        run: |
+          test -n "$ANTHROPIC_API_KEY" || { echo "the ANTHROPIC_API_KEY secret is not set"; exit 1; }
+          python3 -c "import os,sys; sys.exit(float(os.environ['DIP_SPEND_CAP_USD']) > 0.15)" \
+            || { echo "stage-11-proof takes spend_cap_usd 0.15 or less"; exit 1; }
+          python3 -m venv .venv
+          .venv/bin/pip install -q -e ".[dev]"
+          tf() { terraform -chdir=infra/terraform "$@"; }
+          export KUBECONFIG="$(tf output -raw kubeconfig_path)"
+          export WAREHOUSE_DSN="$(tf output -raw warehouse_dsn)"
+          export AIRFLOW_PASSWORD="$(tf output -raw airflow_admin_password)"
+          export AIRFLOW_IMAGE="dip-airflow:$(jq -r .airflow_image_tag infra/terraform/image.auto.tfvars.json)"
+          kubectl -n dip-obs port-forward svc/prometheus-server 9090:80 >/dev/null 2>&1 &
+          trap 'kill %1' EXIT
+          for _ in $(seq 1 30); do (exec 3<>/dev/tcp/127.0.0.1/9090) 2>/dev/null && break; sleep 1; done
+          export PROMETHEUS_URL=http://127.0.0.1:9090
+          .venv/bin/python scripts/proof_drills.py artifacts/proof
+
+      # The results, checked, for commit-results (only when every step passed).
+      - name: The results to commit, checked for the key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OUT: docs/demos/proof/run-${{ github.run_id }}
+        run: |
+          set -o pipefail
+          mkdir -p "$OUT" artifacts/commit
+          cp artifacts/proof/results.md artifacts/proof/results.json "$OUT"/
+          { echo "job: proof (drills, run ${{ github.run_id }})"
+            python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
+            echo "replay check: n/a (a proof's results, not recordings)"
+          } | tee artifacts/commit/checks.md
+          ! grep -q FAILED artifacts/commit/checks.md
+
+      - name: Upload the results to commit
+        uses: actions/upload-artifact@v7
+        with:
+          name: proof-commit
+          path: |
+            docs/demos/proof/run-${{ github.run_id }}/*
+            artifacts/commit/checks.md
+          retention-days: 7
+
+      - name: Upload the proof
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: s11-10-drills
+          path: artifacts/proof/
+          retention-days: 30
+
+      - name: Collect diagnostics
+        if: failure()
+        run: bash scripts/diagnostics.sh
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: drills-diagnostics
+          path: artifacts/
+          retention-days: 7
+
+      - name: Tear down
+        if: always()
+        run: bash scripts/down.sh
+
+  # Stage 11 (S11.10, closing Stage 8's open check, PLAN.md section 8.9): a clean checkout
+  # in a new directory, the README's quick-start commands as written (read from the README,
+  # so they cannot drift), then the whole E2E including the break loop, then the README's
+  # last command (down.sh). No model key.
+  fresh-clone:
+    if: inputs.job == 'stage-11-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      TF_VAR_profiles: '["core", "observability"]'
+    defaults:
+      run:
+        working-directory: fresh
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: fresh
+
+      - uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.16.6"
+          terraform_wrapper: false
+
+      - name: Install kind
+        run: |
+          curl -fsSLo kind "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64"
+          curl -fsSL "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-amd64.sha256sum" \
+            | awk '{print $1"  kind"}' | sha256sum -c -
+          sudo install -m 0755 kind /usr/local/bin/kind
+
+      - name: The README's quick-start commands, as written
+        run: |
+          python3 - > "$RUNNER_TEMP/quickstart.sh" <<'PY'
+          import re
+          text = open("README.md", encoding="utf-8").read()
+          section = text.split("## Quick start", 1)[1].split("\n## ", 1)[0]
+          blocks = re.findall(r"```bash\n(.*?)```", section, re.S)
+          cmds = [ln.split("#")[0].strip() for b in blocks for ln in b.splitlines()]
+          cmds = [c for c in cmds if c]
+          assert cmds and cmds[-1] == "bash scripts/down.sh", cmds  # run last, after the E2E
+          print("set -e")
+          for c in cmds[:-1]:
+              # creds.sh prints this run's throwaway passwords: kept out of the log
+              print(f"{c} > \"$RUNNER_TEMP/creds.txt\"" if c.endswith("creds.sh") else c)
+          PY
+          cat "$RUNNER_TEMP/quickstart.sh"
+          bash "$RUNNER_TEMP/quickstart.sh"
+
+      - name: The whole E2E, including the break loop
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5" "jsonschema==4.*"
+          bash scripts/e2e.sh
+
+      - name: Collect diagnostics
+        if: failure()
+        run: bash scripts/diagnostics.sh
+
+      - name: Upload diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fresh-clone-diagnostics
+          path: fresh/artifacts/
+          retention-days: 7
+
+      - name: The README's last command
+        if: always()
+        run: bash scripts/down.sh
+
   # Stage 11: commit what the run made to the s11-* branch it was started from. See the
   # header. Runs only when the one job that ran succeeded (every check in it passed).
   commit-results:
-    needs: [proof, gemini-recordings, claude-recordings]
+    needs: [proof, drills, fresh-clone, gemini-recordings, claude-recordings]
     if: >-
       always() && github.ref_type == 'branch' && startsWith(github.ref_name, 's11-') &&
       contains(needs.*.result, 'success') && !contains(needs.*.result, 'failure') &&
@@ -340,11 +514,12 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
           PROOF: ${{ needs.proof.result }}
+          DRILLS: ${{ needs.drills.result }}
           GEMINI: ${{ needs.gemini-recordings.result }}
           CLAUDE: ${{ needs.claude-recordings.result }}
         run: |
           [[ "$BRANCH" =~ ^s11-[A-Za-z0-9._-]+$ ]] || { echo "not an s11-* branch: $BRANCH"; exit 1; }
-          if [ "$PROOF" = success ]; then name=proof-commit
+          if [ "$PROOF" = success ] || [ "$DRILLS" = success ]; then name=proof-commit
           elif [ "$GEMINI" = success ]; then name=gemini-incident-recordings
           elif [ "$CLAUDE" = success ]; then name=claude-incident-recordings
           else echo "nothing succeeded"; exit 1; fi
