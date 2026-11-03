@@ -572,8 +572,19 @@ jobs:
             artifacts/commit/checks.md
           retention-days: 7
 
-      - name: Upload drift.md
+      # Whatever the run's outcome, nothing is uploaded that holds the key or an auth header
+      # (live.json keeps error messages); if this check fails, nothing is uploaded at all.
+      - name: The run's files, checked for the key (pass or fail)
+        id: keycheck
         if: always()
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          test -d artifacts/live-eval || { echo "no results to check"; exit 1; }
+          python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY artifacts/live-eval
+
+      - name: Upload drift.md
+        if: always() && steps.keycheck.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
           name: live-eval

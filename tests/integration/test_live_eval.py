@@ -24,6 +24,27 @@ def test_the_committed_baseline_covers_the_sample_and_every_case_passed():
     assert all(c["passed"] and c["calls"] > 0 and c["cost_usd"] > 0 for c in baseline["cases"])
 
 
+def test_the_baseline_is_the_recordings_replayed_now(warehouse):
+    """Re-recording a sampled case means writing the baseline again
+    (`python scripts/live_eval.py baseline`): this fails until it is."""
+    from tests.integration.conftest import DSN
+
+    baseline = json.loads(live_eval.BASELINE.read_text("utf-8"))
+    assert live_eval.sample(DSN, live=False) == baseline["cases"]
+
+
+def test_one_case_over_twice_its_baseline_cost_is_drift_though_its_agent_is_not():
+    row = {"agent": "triage", "passed": True, "turns": 4, "calls": 4, "cost_usd": 0.0023}
+    baseline = {"cases": [dict(row, case="a"), dict(row, case="b")]}
+    live = [
+        dict(baseline["cases"][0], cost_usd=0.0069),
+        dict(baseline["cases"][1], cost_usd=0.0001),
+    ]
+    findings, md = live_eval.compare(baseline, live)
+    assert findings == ["triage/a: live cost $0.0069 is over 2x the baseline's $0.0023"]
+    assert "**drift**" in md
+
+
 def _seeded_drift() -> dict:
     """The incident agent's case, replayed, but its expected root cause changed."""
     from tests.integration.conftest import DSN
@@ -58,7 +79,8 @@ def test_an_agent_over_twice_its_baseline_cost_is_drift():
     live = [{"agent": "reviewer", "case": "x", "passed": True, "turns": 3, "calls": 9,
              "cost_usd": 0.0041}]  # fmt: skip
     findings, _ = live_eval.compare(baseline, live)
-    assert findings == ["reviewer: live cost $0.0041 is over 2x the baseline's $0.0020"]
+    over = "live cost $0.0041 is over 2x the baseline's $0.0020"
+    assert findings == [f"reviewer/x: {over}", f"reviewer: {over}"]
     live[0]["cost_usd"] = 0.0039
     assert live_eval.compare(baseline, live)[0] == []
 

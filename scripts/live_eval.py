@@ -141,7 +141,8 @@ def sample(dsn: str, live: bool, sample_: dict[str, list[str]] = SAMPLE) -> list
 
 def compare(baseline: dict[str, Any], live: list[dict[str, Any]]) -> tuple[list[str], str]:
     """Drift findings, and drift.md. Drift: a case that passed in the baseline and fails
-    live (or could not run), or an agent's live cost above COST_FACTOR x its baseline."""
+    live (or could not run), or a case's or an agent's live cost above COST_FACTOR x its
+    baseline."""
     base = {(c["agent"], c["case"]): c for c in baseline["cases"]}
     findings: list[str] = []
     lines = ["# Live eval: drift against the recorded baseline", "",
@@ -154,24 +155,31 @@ def compare(baseline: dict[str, Any], live: list[dict[str, Any]]) -> tuple[list[
         if drift:
             findings.append(f"{r['agent']}/{r['case']}: passed when recorded, fails live"
                             + (f" ({r['error']})" if r.get("error") else ""))  # fmt: skip
+        dear = b.get("cost_usd", 0) > 0 and r["cost_usd"] > COST_FACTOR * b["cost_usd"]
+        if dear:
+            findings.append(f"{r['agent']}/{r['case']}: live cost ${r['cost_usd']:.4f} is over"
+                            f" {COST_FACTOR:g}x the baseline's ${b['cost_usd']:.4f}")  # fmt: skip
+            drift = True
         lines.append(
             f"| {r['agent']} | {r['case']} | {'pass' if b.get('passed') else 'fail'} |"
             f" {'pass' if r['passed'] else 'FAIL'} | {b.get('turns', '?')} / {r.get('turns')} |"
             f" ${b.get('cost_usd', 0):.4f} / ${r['cost_usd']:.4f} |"
             f" {r.get('latency_ms_p50', 0) / 1000:.1f} s |"
             f" {'**drift**' if drift else ''} |")  # fmt: skip
-    lines += ["", "| Agent | Cost (recorded / live) | Calls (recorded / live) | Drift |",
-              "|---|---|---|---|"]  # fmt: skip
+    lines += ["", "| Agent | Cost (recorded / live) | Calls (recorded / live) |"
+              " Turns (recorded / live) | Drift |", "|---|---|---|---|---|"]  # fmt: skip
     for agent in dict.fromkeys(r["agent"] for r in live):
         bc = sum(c["cost_usd"] for c in baseline["cases"] if c["agent"] == agent)
         lc = sum(r["cost_usd"] for r in live if r["agent"] == agent)
         bn = sum(c["calls"] for c in baseline["cases"] if c["agent"] == agent)
         ln = sum(r["calls"] for r in live if r["agent"] == agent)
+        bt = sum(c.get("turns") or 0 for c in baseline["cases"] if c["agent"] == agent)
+        lt = sum(r.get("turns") or 0 for r in live if r["agent"] == agent)
         over = bc > 0 and lc > COST_FACTOR * bc
         if over:
             findings.append(f"{agent}: live cost ${lc:.4f} is over {COST_FACTOR:g}x the"
                             f" baseline's ${bc:.4f}")  # fmt: skip
-        lines.append(f"| {agent} | ${bc:.4f} / ${lc:.4f} | {bn} / {ln} |"
+        lines.append(f"| {agent} | ${bc:.4f} / ${lc:.4f} | {bn} / {ln} | {bt} / {lt} |"
                      f" {'**over 2x**' if over else ''} |")  # fmt: skip
     total = sum(r["cost_usd"] for r in live)
     lines += [
