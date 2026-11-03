@@ -1,9 +1,9 @@
 name: proof
 
 # Stage 10 (S10.6): the stage's one proof with a model key, on a GitHub runner instead of
-# the laptop (16 GB was not enough for the kind node next to everything else). Manual only:
-# no push, pull_request or schedule trigger, so the key is never used unless a person with
-# write access starts it. The stack comes up with the core profile and no model key, the
+# the laptop (16 GB was not enough for the kind node next to everything else). Manual: no
+# push or pull_request trigger, so the key is used only when a person with write access
+# starts it (or, once it is uncommented below, the weekly live eval's schedule). The stack comes up with the core profile and no model key, the
 # E2E runs as in e2e.yml (spending nothing), then scripts/proof_intake.py runs the intake
 # team once, in the cluster, on the E2E's onboarding sample, with DIP_SPEND_CAP_USD set.
 # The screenshots and results.md are uploaded; the cluster is torn down.
@@ -17,6 +17,10 @@ name: proof
 # green CI before merge).
 
 on:
+  # Stage 11 (S11.11): the weekly live eval, Mondays 06:00 UTC. Off until its measured
+  # cost per run is seen (PLAN.md section 8.13, design choice 5); to turn it on, uncomment:
+  # schedule:
+  #   - cron: "0 6 * * 1"
   workflow_dispatch:
     inputs:
       spend_cap_usd:
@@ -24,9 +28,9 @@ on:
         default: "0.25"
       job:
         # Stage 11 (S11.7): record the incident cases (and the demo) here, not on the laptop.
-        description: "proof (S10.6), stage-11-proof (S11.10), gemini-recordings or claude-recordings"
+        description: "proof (S10.6), stage-11-proof (S11.10), live-eval (S11.11), gemini- or claude-recordings"
         type: choice
-        options: [proof, stage-11-proof, gemini-recordings, claude-recordings]
+        options: [proof, stage-11-proof, live-eval, gemini-recordings, claude-recordings]
         default: proof
 
 permissions:
@@ -504,10 +508,93 @@ jobs:
         if: always()
         run: bash scripts/down.sh
 
+  # Stage 11 (S11.11): the live eval (scripts/live_eval.py). Two recorded cases per agent run
+  # live once against a Postgres service (no kind), scored by their own harnesses and
+  # compared with agents/evals/baseline.json; drift.md is uploaded, and committed by
+  # commit-results on an s11-* branch. Fails on drift. Also the job a scheduled run would
+  # take (inputs are empty then). Its cap is fixed at $0.10, whatever spend_cap_usd says.
+  live-eval:
+    if: inputs.job == 'live-eval' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dip
+          POSTGRES_PASSWORD: dip
+          POSTGRES_DB: dip_live_eval
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Before the key is in any step's environment.
+      - name: Install
+        run: pip install -q -e ".[dev]"
+
+      - name: The sample, live, against the recorded baseline
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIP_SPEND_CAP_USD: "0.10"  # fixed by the plan (design choice 5), not an input
+          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_live_eval
+          PYTHONUTF8: "1"
+        run: |
+          test -n "$ANTHROPIC_API_KEY" || { echo "the ANTHROPIC_API_KEY secret is not set"; exit 1; }
+          python scripts/live_eval.py live artifacts/live-eval
+
+      # Only when the run passed (no drift): checked for the key, for commit-results.
+      - name: The results to commit, checked for the key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OUT: docs/demos/proof/run-${{ github.run_id }}
+        run: |
+          set -o pipefail
+          mkdir -p "$OUT" artifacts/commit
+          cp artifacts/live-eval/drift.md artifacts/live-eval/live.json "$OUT"/
+          { echo "job: proof (live-eval, run ${{ github.run_id }})"
+            python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
+            echo "replay check: n/a (a live eval's results, not recordings)"
+          } | tee artifacts/commit/checks.md
+          ! grep -q FAILED artifacts/commit/checks.md
+
+      - name: Upload the results to commit
+        uses: actions/upload-artifact@v7
+        with:
+          name: proof-commit
+          path: |
+            docs/demos/proof/run-${{ github.run_id }}/*
+            artifacts/commit/checks.md
+          retention-days: 7
+
+      # Whatever the run's outcome, nothing is uploaded that holds the key or an auth header
+      # (live.json keeps error messages); if this check fails, nothing is uploaded at all.
+      - name: The run's files, checked for the key (pass or fail)
+        id: keycheck
+        if: always()
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          test -d artifacts/live-eval || { echo "no results to check"; exit 1; }
+          python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY artifacts/live-eval
+
+      - name: Upload drift.md
+        if: always() && steps.keycheck.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: live-eval
+          path: artifacts/live-eval/
+          retention-days: 30
+
   # Stage 11: commit what the run made to the s11-* branch it was started from. See the
   # header. Runs only when every job that ran succeeded (every check in it passed).
   commit-results:
-    needs: [proof, drills, fresh-clone, gemini-recordings, claude-recordings]
+    needs: [proof, drills, fresh-clone, live-eval, gemini-recordings, claude-recordings]
     if: >-
       always() && github.ref_type == 'branch' && startsWith(github.ref_name, 's11-') &&
       contains(needs.*.result, 'success') && !contains(needs.*.result, 'failure') &&
@@ -523,11 +610,13 @@ jobs:
           BRANCH: ${{ github.ref_name }}
           PROOF: ${{ needs.proof.result }}
           DRILLS: ${{ needs.drills.result }}
+          LIVE: ${{ needs.live-eval.result }}
           GEMINI: ${{ needs.gemini-recordings.result }}
           CLAUDE: ${{ needs.claude-recordings.result }}
         run: |
           [[ "$BRANCH" =~ ^s11-[A-Za-z0-9._-]+$ ]] || { echo "not an s11-* branch: $BRANCH"; exit 1; }
-          if [ "$PROOF" = success ] || [ "$DRILLS" = success ]; then name=proof-commit
+          if [ "$PROOF" = success ] || [ "$DRILLS" = success ] || [ "$LIVE" = success ]; then
+            name=proof-commit
           elif [ "$GEMINI" = success ]; then name=gemini-incident-recordings
           elif [ "$CLAUDE" = success ]; then name=claude-incident-recordings
           else echo "nothing succeeded"; exit 1; fi
@@ -551,7 +640,7 @@ jobs:
           IN: ${{ runner.temp }}/incoming
           ARTIFACT: ${{ steps.which.outputs.artifact }}
         run: |
-          allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|docs/demos/proof/run-[0-9]+/([A-Za-z0-9_.-]+\.(md|png)|(results|audit)\.json)|artifacts/commit/checks\.md)$'
+          allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|docs/demos/proof/run-[0-9]+/([A-Za-z0-9_.-]+\.(md|png)|(results|audit|live)\.json)|artifacts/commit/checks\.md)$'
           (cd "$IN" && find . -type f | sed 's|^\./||') > "$RUNNER_TEMP/files"
           if grep -vE "$allowed" "$RUNNER_TEMP/files"; then echo "unexpected files (above)"; exit 1; fi
           grep -qx "artifacts/commit/checks.md" "$RUNNER_TEMP/files" || { echo "no checks.md"; exit 1; }
