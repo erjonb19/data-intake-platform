@@ -105,10 +105,10 @@ resource "kubernetes_job_v1" "warehouse_init" {
       spec {
         restart_policy = "OnFailure"
         container {
-          name    = "db-init"
-          image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
           # As the DAGs run it (Airflow's own environment has psycopg2; dip is installed
           # there without its dependencies, so not `python -m dip db-init`).
+          name    = "db-init"
+          image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
           command = ["python", "-c", "import os, psycopg2; from dip.warehouse import Warehouse; Warehouse(psycopg2.connect(os.environ['DIP_WAREHOUSE_DSN'])).init(); print('warehouse schema and grants applied')"]
           env {
             name = "DIP_WAREHOUSE_DSN"
