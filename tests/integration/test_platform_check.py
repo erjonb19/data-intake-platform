@@ -24,7 +24,16 @@ from tests.integration.conftest import rows
 NOW = datetime(2026, 11, 3, 12, 0, tzinfo=UTC)
 
 
-def health(status="healthy", age=10, down=False, now=NOW, runs=(), waiting=None, paused=()):
+def health(
+    status="healthy",
+    age=10,
+    down=False,
+    now=NOW,
+    runs=(),
+    waiting=None,
+    paused=(),
+    paused_total=None,
+):
     def http(method, url, body, headers):
         if down:
             raise ConnectionError("api-server unreachable")
@@ -34,7 +43,10 @@ def health(status="healthy", age=10, down=False, now=NOW, runs=(), waiting=None,
             assert headers.get("Authorization") == "Bearer viewer"
             return {"dag_runs": list(runs)}
         if "/dags?paused=true" in url:  # S11.9: a paused DAG's scheduled tasks are held
-            return {"dags": [{"dag_id": d} for d in paused]}
+            return {
+                "dags": [{"dag_id": d} for d in paused],
+                "total_entries": len(paused) if paused_total is None else paused_total,
+            }
         if "/dags/~/dagRuns/~/taskInstances?" in url:  # S11.9: tasks still waiting
             assert "state=scheduled&state=queued" in url
             tis = list(waiting or ())
@@ -351,4 +363,25 @@ def test_a_paused_dags_scheduled_task_is_held_not_stuck(warehouse):
     }
     out = platform_check.run(warehouse.conn, health(waiting=[held, queued, retry],
                              paused=["intake__x", "drill_queue"]), now=NOW, env={})  # fmt: skip
+    assert out["stuck_queued"] == ["drill_queue.wait_for_room"]
+
+
+def test_waits_are_timed_per_task_and_the_longest_counts(warehouse):
+    """Review of S11.9: a task with no queued_when is not stuck; mapped instances of one
+    task are one target, reported with the longest wait."""
+    no_time = waiting("queued", 0) | {"queued_when": None, "task_id": "untimed"}
+    mapped = [waiting("queued", 200, run="r1"), waiting("queued", 700, run="r1")]
+    out = platform_check.run(warehouse.conn, health(waiting=[no_time, *mapped]), now=NOW,
+                             env={})  # fmt: skip
+    assert out["stuck_queued"] == ["drill_queue.wait_for_room"]
+    [(value,)] = rows(warehouse, "select round(value) from ops.platform_check"
+                                 " where check_name = 'stuck_queued'")  # fmt: skip
+    assert value == 700
+
+
+def test_more_paused_dags_than_one_page_counts_no_scheduled_task(warehouse):
+    held = waiting("scheduled", 900, dag="intake__z", task="intake")
+    queued = waiting("queued", 900)
+    out = platform_check.run(warehouse.conn, health(waiting=[held, queued], paused=["a"],
+                             paused_total=250), now=NOW, env={})  # fmt: skip
     assert out["stuck_queued"] == ["drill_queue.wait_for_room"]

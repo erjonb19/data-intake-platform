@@ -248,7 +248,8 @@ def stuck_queued_drill(check) -> None:
     the threshold is back."""
     target = ("drill_queue.wait_for_room",)
     # The undo's design rests on how this provider's executor treats a deleted Pending pod
-    # (read in 10.25.0's source): print the version the image actually has.
+    # (10.17.1 in the apache/airflow:3.2.2 image, E2E run 41550292053; the same in
+    # 10.25.0): print the version the image actually has.
     version = kubectl("-n", NS, "exec", "deploy/airflow-scheduler", "--", "python", "-c",
                       "from importlib.metadata import version;"
                       " print(version('apache-airflow-providers-cncf-kubernetes'))")  # fmt: skip

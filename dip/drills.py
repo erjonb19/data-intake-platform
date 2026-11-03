@@ -164,6 +164,22 @@ def _saved_threshold(run: Callable[..., str]) -> str | None:
     return annotations.get(STALE_SAVED)
 
 
+def _json_list(out: str) -> list:
+    """The JSON list the Airflow CLI prints with -o json, after any log lines before it
+    (which can start with "[" too: "[2026-11-03T04:00:00] INFO ...")."""
+    lines = out.splitlines()
+    starts = [i for i, ln in enumerate(lines) if ln.lstrip().startswith("[")]
+    if not starts:
+        return []  # "No data found" and the like
+    for i in starts:
+        try:
+            got = json.loads("\n".join(lines[i:]))
+        except ValueError:
+            continue
+        return got if isinstance(got, list) else []
+    raise DrillError("the Airflow CLI printed something that is not JSON")
+
+
 def stuck_queued(run: Callable[..., str] = kubectl) -> str:
     if _saved_threshold(run) is not None:
         raise DrillError("stuck_queued is already on: run it with --undo first")
@@ -196,8 +212,12 @@ def stuck_queued_undo(run: Callable[..., str] = kubectl) -> str:
     # task_queued_timeout. Instead: delete the drill DAG's runs (the DAG processor adds the
     # DAG back, paused), and restart the scheduler, whose executor then forgets the slot.
     airflow(run, "dags", "delete", "drill_queue", "--yes", check=False)
-    left = airflow(run, "dags", "list-runs", "drill_queue", "-o", "json", check=False)
-    if left.startswith("[") and json.loads(left):  # the DAG is there and still has runs
+    # Then make sure: these calls must work (a failure raises), so a scheduler that cannot
+    # answer is not taken for "the runs are gone". The DAG may be absent until the DAG
+    # processor parses it again; if it is back, it must have no runs.
+    dags = {d.get("dag_id") for d in _json_list(airflow(run, "dags", "list", "-o", "json"))}
+    if "drill_queue" in dags and _json_list(
+            airflow(run, "dags", "list-runs", "drill_queue", "-o", "json")):  # fmt: skip
         raise DrillError("drill_queue's runs were not deleted: run --undo again")
     run("-n", NS, "rollout", "restart", "deployment/airflow-scheduler")
     run("-n", NS, "rollout", "status", "deployment/airflow-scheduler", "--timeout=180s")

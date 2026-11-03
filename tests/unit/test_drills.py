@@ -219,11 +219,38 @@ def test_stuck_queued_undo_restores_the_threshold_even_if_the_restart_fails():
     assert k.env == "300" and k.annotations == {}
 
 
+class _Runs(_Flaky):
+    """The CLI answers: drill_queue is listed (after a log line) and still has a run."""
+
+    def __call__(self, *args, check=True):
+        out = super().__call__(*args, check=check)
+        if "list-runs" in args:
+            return '[{"run_id": "manual__1"}]'
+        if args[-4:] == ("dags", "list", "-o", "json"):
+            return '[2026-11-03] INFO - a log line\n[{"dag_id": "drill_queue"}]'
+        return out
+
+
 def test_stuck_queued_undo_fails_when_the_runs_survive():
-    class Runs(_Flaky):
+    with pytest.raises(drills.DrillError, match="not deleted"):
+        drills.drill("stuck_queued", undo=True, run=_Runs("nothing"))
+
+
+def test_stuck_queued_undo_fails_when_the_cli_cannot_answer():
+    """Review of S11.9: a list-runs that fails is not taken for "the runs are gone"."""
+    with pytest.raises(drills.DrillError, match="list-runs"):
+        drills.drill("stuck_queued", undo=True, run=_Runs("list-runs"))
+
+
+def test_stuck_queued_undo_passes_when_the_dag_is_gone_or_has_no_runs():
+    class Empty(_Flaky):
         def __call__(self, *args, check=True):
             out = super().__call__(*args, check=check)
-            return '[{"run_id": "manual__1"}]' if "list-runs" in args else out
+            return "No data found" if args[-4:] == ("dags", "list", "-o", "json") else out
 
-    with pytest.raises(drills.DrillError, match="not deleted"):
-        drills.drill("stuck_queued", undo=True, run=Runs("nothing"))
+    drills.drill("stuck_queued", undo=True, run=Empty("nothing"))  # no error
+
+
+def test_cli_output_that_is_not_json_is_a_drill_error():
+    with pytest.raises(drills.DrillError, match="not JSON"):
+        drills._json_list("[not json")
