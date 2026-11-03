@@ -5,7 +5,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01Muyjgg5Xic7zYFavHtk8zo",
+    "id": "toolu_014u9byogHsTUZnt4mZbzS61",
     "input": {
      "approval_id": 1
     },
@@ -36,12 +36,17 @@
  {
   "content": [
    {
-    "text": "Approval 1 was not run: the server refused it because it is still pending, and only a person's approval lets it run. Someone needs to approve it before it can be executed. I have not retried or touched any other approval.",
+    "signature": "CAQS4gUKEAgTGAI4AUIIdGhpbmtpbmcSDEGRuWVhPrfYzEw7KxoMtmJ7TajPre0zUYj9IjADQbJJMi5eMUEyktnXBtCRVcyfRHu3t22VYkU3LTilPnEm9s9YXzHlN3V33qqw2iYq/wQzebwyMC2zef+OMVaEMriGV7JhdeeYLV2deiEnKEdaTyp8xB7dXHjGKLt+qSF8wToWS5kUywqFOJIj9j7cw1eGdlPsejEdwoOtZU5TQ7gBNboQUR0Wdgmjmuroh7HKXs1K0+UtLIVhTqwNRX7AgWIg5KQF6PuYtZao+M8u3qIosW6rvicjvfdKUGS2Bar+MyLW9ppstEAS0KSPOjDe88Uf81Qpm/WeSPZtxywtDdnCeXc+FJYjOqQTIBvLZLm+blE3VXfa8Lrcbf56O5fD8pUzYg/K2b9fLK37ocEuupW2FqYlYmrJcRaNQnXiPd1/BM+T/j99HyAKgA9ZppzdfYpJ4Ve+90ehKypC8q7+2LzkUT3Ve3vksmJHNV7GkyzpGSqwy54HGW3ot+SRANP/BvnHCihGoEq17ql7GER4HpNsSyT0+YHbPAeFrxqLWvz4UwtxVEmQTBOV2JVQAefTqTTqlRBTG/9if8L5wDUPlaNr1fLDQLgIYVXVcNWi+zvQj7tTCGjkhyb2CqI1rry6OnECFWQ0oXooqhXPc78eivQxMWnXJ8DSmE2nzqxBpBybZAQd6kN66Rj65bJtpar1eFOcTSAv+YY8XSHJdDyHB6+yl3hgNFLdxDkimkrkjvBeiAyq7qfzHt1SCwhWv+L6I6Ld2Y32NzzXTfKocAVRS2FFQjW6cEbbTmUsvJxzUbzFL7vlT+AxtGAqOHc2VVHneKzcxI+MHsYjHaCVXirpBMxPea9AlF+l5DdEmLPBhoTMUluLt3sP6b/GbM+mzSgd78L7vu5PZelhbwAPCqaze3j4cQt+MGw2qGX4477e3BbTAHwbHR4flPdyZyYeaxx952IYAQ==",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "Approval 1 did not run. The server refused it with \"denied by policy: approval 1 is pending: only a person's approval lets it run.\" The server still shows it as pending, so either the approval wasn't recorded or it was recorded against a different item. I haven't retried or tried another id. Someone with approval rights needs to confirm the approval on the server before it can run.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "7060e3fb22472f126ce5a1cbbcae63c10893a2342a3d0627c350b7566762b08b",
+  "request_sha256": "104ad41ec4fa40abbf988077ec68c0b4b23ccae4f21f32dee60305b4d6c7a4a2",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
@@ -52,9 +57,9 @@
    "cache_read_input_tokens": 1702,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 65,
+   "output_tokens": 154,
    "output_tokens_details": {
-    "thinking_tokens": 0
+    "thinking_tokens": 39
    },
    "service_tier": "standard",
    "speed": "standard"

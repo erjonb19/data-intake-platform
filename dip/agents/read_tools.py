@@ -146,8 +146,13 @@ class ReadServices:
 _DBT = r"(\x1b\[[0-9;]*m)*([0-9]{2}:[0-9]{2}:[0-9]{2}\s+)?"
 _PLATFORM_LOG = re.compile(
     r"^(loaded|loaded_with_rejections|quarantined|duplicate)\s+\S+ accepted=\d+ rejected=\d+"
-    r"|^intake summary: |^::(end)?group::|Done\. PASS=\d+|^" + _DBT + r"Finished running |"
-    r"Task instance (is in|finished)|Marking task as "
+    r"|^intake summary: |^::(end)?group::|^"
+    + _DBT
+    + r"Done\. PASS=\d+|^"
+    + _DBT
+    # anchored: a line that only quotes one of these (an exception's message holding a
+    # row's values, say) is not a platform line (review of S11.8)
+    + r"Finished running |^Task instance (is in|finished)|^Marking task as "
     # dbt's failure lines and Airflow's exit line (Stage 7, the incident agent): a test or
     # model name and counts, never a row's values.
     r"|^" + _DBT + r"Failure in (test|model) [A-Za-z0-9_.]+ \("
@@ -192,6 +197,20 @@ def _log_lines(got: Any) -> list[str]:
     for item in got:
         if isinstance(item, dict):
             out.append(str(item.get("event", item.get("message", json.dumps(item)))))
+            # Airflow 3's task SDK renders an exception as structured data beside the event
+            # ([{"exc_type", "exc_value", "frames"}, ...], structlog's
+            # ExceptionDictTransformer): its message, the part that says what went wrong,
+            # is not in "event". The task process writes it as "exception"; the supervisor
+            # that stores the task log renames it "error_detail" (task SDK 1.2.2, which
+            # Airflow 3.2.2 pins). One line per exception in the chain; frames are left out.
+            chain = next((c for c in (item.get("error_detail"), item.get("exception"))
+                          if isinstance(c, list)), None)  # fmt: skip
+            for exc in chain if isinstance(chain, list) else ():
+                if not isinstance(exc, dict):
+                    continue
+                kind, text = str(exc.get("exc_type") or ""), str(exc.get("exc_value") or "")
+                if kind or text:
+                    out.append(f"{kind}: {text}" if kind else text)
         elif isinstance(item, list) and item:  # [host, text] pairs from some readers
             out.extend(str(item[-1]).splitlines())
         else:

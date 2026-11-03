@@ -28,6 +28,9 @@ from pathlib import Path
 
 NS = "dip-airflow"
 REPO = Path(__file__).resolve().parents[2]
+# The E2E's venv has the drivers, not the platform package: read the task log as the
+# incident agent does (dip.agents.read_tools) from the checkout itself.
+sys.path.insert(0, str(REPO))
 
 
 def kubectl(*args: str) -> str:
@@ -153,11 +156,12 @@ def intake_log() -> str:
     ti = call("GET", f"{api}/{rid}/taskInstances/intake", token=token)
     got = call("GET", f"{api}/{rid}/taskInstances/intake/logs/{ti.get('try_number') or 1}",
                token=token)  # fmt: skip
-    content = got.get("content", "")
-    if isinstance(content, list):
-        content = "\n".join(str(c.get("event", c)) if isinstance(c, dict) else str(c)
-                            for c in content)  # fmt: skip
-    return str(content)
+    # as the incident agent's get_task_log reads it: the events and each exception's message
+    from dip.agents.read_tools import _log_lines
+
+    records = got.get("content") if isinstance(got, dict) else None
+    intake_log.keys = sorted({k for r in records or [] if isinstance(r, dict) for k in r})
+    return "\n".join(_log_lines(got))
 
 
 def logs_with(*needles: str) -> list[str]:
@@ -208,9 +212,17 @@ def bad_secret_drill(check) -> None:
                     time.sleep(15)
             check(seen, f"the DagRunFailing alert fires for {FEED_DAG}")
         log = intake_log()
-        check('password authentication failed for user "warehouse"' in log,
-              "the intake task's log shows the refused login")  # fmt: skip
-        check(bad not in log and real not in log, "the task log holds neither password")
+        refused = 'password authentication failed for user "warehouse"' in log
+        check(refused, "the intake task's log shows the refused login")  # fmt: skip
+        clean = bool(bad) and bool(real) and bad not in log and real not in log
+        check(clean, "the task log holds neither password")
+        if not refused and clean:  # what it does show, to see why: masked, platform lines
+            from dip.agents.read_tools import _PLATFORM_LOG, _mask_credentials
+
+            lines = [_mask_credentials(ln) for ln in log.splitlines()]
+            kept = [ln for ln in lines if _PLATFORM_LOG.search(ln)]
+            print(f"{len(lines)} lines; the platform's own, masked:", *kept[-25:], sep="\n")
+            print(f"the records' fields (names only): {getattr(intake_log, 'keys', '?')}")
         check(not logs_with(bad, real), "no pod's log holds the wrong or the real password")
     finally:
         print(dip("drill", "bad_secret", "--undo"))
