@@ -71,6 +71,14 @@ def test_zero_cases_and_unreadable_reports_fail(tmp_path):
     assert bad[1].startswith("broken: unreadable report")
 
 
+def test_a_null_or_list_summary_is_reported_not_raised(tmp_path):
+    expect(tmp_path, "null", "list")
+    for name, body in (("null", '{"summary": null}'), ("list", '{"summary": []}')):
+        (tmp_path / name).mkdir()
+        (tmp_path / name / "report.json").write_text(body, "utf-8")
+    assert [b.split(":")[0] for b in check.problems(tmp_path)] == ["null", "list"]
+
+
 def test_no_listing_fails(tmp_path):
     write(tmp_path, "triage", 5, 5)
     assert check.main([str(tmp_path)]) == 1

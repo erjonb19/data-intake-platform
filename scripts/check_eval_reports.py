@@ -37,7 +37,7 @@ def problems(reports: Path) -> list[str]:
         if name in found:
             try:
                 passed, total = summary(found[name])
-            except (ValueError, KeyError) as e:
+            except (ValueError, KeyError, TypeError, AttributeError) as e:
                 out.append(f"{name}: unreadable report ({type(e).__name__}: {e})")
                 continue
             if total in (None, 0) or passed != total:
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> int:
         for line in bad:
             print(f"::error::{line}")
         return 1
-    n = len((reports / "expected.txt").read_text("utf-8").split())
+    n = len(set((reports / "expected.txt").read_text("utf-8").split()))
     print(f"all {n} evals wrote a report and passed every case")
     return 0
 

@@ -3,9 +3,10 @@
 The source of truth for what gets built next. Work the first unchecked item. One PR per
 item. If an item is blocked, write the reason under it and stop.
 
-New runbooks (13 to 15 below) go in `docs/runbooks/`, which the incident agent searches, so
-each one means re-recording the incident cases **(ask)**. Incident write-ups go in
-`docs/incidents.md`.
+Every new or changed file in `docs/runbooks/` (the drill runbooks of Stages 13, 14 and 16,
+and anything else added there) changes what the incident agent's runbook search returns, so
+it means re-recording the incident cases **(ask)**. Each stage's incident write-up goes in
+`docs/incidents.md` instead, which the agents never read.
 
 Every stage also carries the five things in CLAUDE.md ("Built into every stage"): tests and
 DQ checks in CI, tracing, alerts, agent evals with thresholds, and one break-and-fix incident
@@ -54,7 +55,7 @@ with runbooks 09–12; agent traces as rows (`ops.trace_span`) and lineage in Ma
 Delivers: everything red goes green, the README says what is true, and the cheap gaps from
 the audit close. Demo on its own: the nightly evals run green in Actions, and the README has
 a Production readiness checklist where every line links to its proof.
-Incident: the nightly evals have been red since S11.5 (#83). Runbook entry: what broke (a
+Incident: the nightly evals have been red since S11.5 (#83). Write-up in `docs/incidents.md`: what broke (a
 hard-coded report count), how we knew (the nightly run failed), the fix.
 
 - [x] **12.1 Nightly evals green** (#83): count the reports from the cases, not a constant
@@ -82,7 +83,10 @@ Incident: the bad release (runbook `13-bad-release.md`).
   Grafana (only MinIO has one today), with a test that every Deployment has both probes
 - [ ] **13.2 Rolling update strategy** (`maxUnavailable: 0`) on every Deployment, and
   `dip rollback <service>` (`kubectl rollout undo` against `kind-dip` only)
-- [ ] **13.3 The `bad_release` drill**, its alert, runbook 13 and an incident eval case
+- [ ] **13.3 The `bad_release` drill**, its alert, runbook 13 and an incident eval case.
+  Prerequisite: the proof workflow's `gemini-recordings`, `claude-recordings` and
+  `commit-results` jobs accept only `s11-*` branches; widen that to later stages' branches
+  first, in its own PR
   (its recording **(ask)**)
 - [ ] **13.4 Autoscaling:** metrics-server in kind, behind an on/off value in its Helm
   values, with its memory on the laptop measured and reported; HPAs for the intake API and
@@ -119,7 +123,7 @@ exactly as they are, and OTel is added as an export from them, so no recording f
 changes. Jaeger all-in-one runs only in the observability profile.
 Demo on its own: drop a file, open Jaeger, see intake → contract → dbt → (if quarantined)
 incident → triage agent → model calls and tool calls as one trace.
-Incident: a slow dbt model found from the trace (runbook entry in `docs/runbooks/`).
+Incident: a slow dbt model found from the trace (write-up in `docs/incidents.md`).
 
 - [ ] **15.1 Jaeger all-in-one** in the observability profile, in-memory storage
 - [ ] **15.2 Pipeline spans:** Airflow's OTel traces on, plus spans from intake and the

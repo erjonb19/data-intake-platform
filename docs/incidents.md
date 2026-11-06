@@ -39,7 +39,8 @@ check is the script.
 something other than what was recorded`. The new file had changed what `search_runbooks`
 returns. Moving it here fixed the replay without re-recording.
 
-**What stops it coming back.** The list of evals is now in one place. CLAUDE.md now says that any new or changed file
+**What stops it coming back.** The list of evals is now in one place. CLAUDE.md now
+says that any new or changed file
 in `docs/runbooks/` means re-recording the incident cases. The missing piece is an
 alert when an eval drops: that is Stage 16.3 (Alertmanager with a receiver, and an alert on
 the nightly eval result).

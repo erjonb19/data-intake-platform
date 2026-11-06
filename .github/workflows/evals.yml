@@ -99,6 +99,7 @@ jobs:
       # violations): the nightly run fails on any failed case, and on any eval that started
       # but wrote no report (#83: no fixed count, which went stale when an eval was added).
       - name: Every eval reported and every case passed
+        if: always()
         run: python scripts/check_eval_reports.py reports
 
       - name: Upload reports

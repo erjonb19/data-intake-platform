@@ -20,4 +20,4 @@ Anthropic Console against about $3.51 metered). Cap: $5 per calendar month on th
 
 | Date | Item | What changed | How to check it |
 |---|---|---|---|
-| 2026-11-06 | 12.1 Nightly evals green (#83) | The nightly `evals` check compares the evals the job started (`reports/expected.txt`) with the reports they wrote, instead of expecting exactly 6 (`scripts/check_eval_reports.py`, 8 unit tests). Incident write-up in `docs/incidents.md`. No model spend | `gh workflow run evals.yml --ref s12-1-nightly-evals`, then the last step of the run prints `all 7 evals wrote a report and passed every case` (proof: run 42139557535) |
+| 2026-11-06 | 12.1 Nightly evals green (#83) | The nightly `evals` check compares the evals the job started (`reports/expected.txt`) with the reports they wrote, instead of expecting exactly 6 (`scripts/check_eval_reports.py`, 8 unit tests). Incident write-up in `docs/incidents.md`. No model spend | `gh workflow run evals.yml --ref main` once merged; the last step prints `all 7 evals wrote a report and passed every case` (proof on the branch: run 42139557535) |
