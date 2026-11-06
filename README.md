@@ -190,6 +190,16 @@ docs/                contracts, research track, agents, runbooks, observability,
   the E2E again (on PRs that change dbt, infra (Terraform, Helm values), images, the
   warehouse SQL or up.sh; nightly; and on demand).
 - The agent evals replay recorded model turns: CI never calls a model.
+- `evals` workflow (nightly): every agent's recorded evals replay against Postgres; the run
+  fails on any failed case, or on any eval that started but wrote no report.
+
+## Production readiness
+
+What is in place, and where to check it. Built one item at a time from
+[docs/BACKLOG.md](docs/BACKLOG.md); [docs/PROGRESS.md](docs/PROGRESS.md) has each item's line.
+
+- [x] Nightly agent evals gate on every case and every started eval
+  (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
 
 CI uses synthetic data only (Synthea, and generated or hand-written fixtures). The MIMIC-IV
 demos are never downloaded in CI, and no real or MIMIC data is ever sent to a model
