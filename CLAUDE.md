@@ -12,6 +12,10 @@ those after a recording was made breaks its replay.
 - **The full replay suite passes in CI before merge.** A branch that adds or changes
   recordings is not merged until the CI `test` job, which replays every recording, is
   green on the branch's final commit.
+- **`docs/runbooks/*.md` is model input.** The incident agent's `search_runbooks` indexes
+  every file there except README.md, so adding or editing a runbook changes the incident
+  recordings: plan the re-recording (and ask, see the cost rule) or keep the text elsewhere.
+  Incident write-ups go in `docs/incidents.md`.
 - **Recordings reach the branch through the proof workflow.** Dispatch
   `gemini-recordings` or `claude-recordings` on an `s11-*` branch; its `commit-results`
   job commits the files to that branch only after the scrub, the key and auth-header check
@@ -51,8 +55,9 @@ those after a recording was made breaks its replay.
 2. Tracing for every pipeline run and every agent step.
 3. Alerts when a run fails, a contract breaks, or an agent eval drops.
 4. Agent evals in CI with pass and fail thresholds (the agentic layer exists).
-5. One real break-and-fix incident per stage, written into the runbook: what broke, how we
-   knew, how we fixed it.
+5. One real break-and-fix incident per stage, written into the incident log,
+   `docs/incidents.md`: what broke, how we knew, how we fixed it. (Not into
+   `docs/runbooks/`, which is model input; see "Model recordings".)
 
 ### When an item is done
 
