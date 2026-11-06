@@ -60,12 +60,18 @@ resource "kubernetes_secret_v1" "airflow" {
   data = each.value
 }
 
+# The official chart, committed in infra/helm-charts/ (how to update it is in its README).
+# Fetching it from archive.apache.org at deploy time timed out on CI runners (incident
+# 2026-11-06 in docs/incidents.md), so nothing here downloads it.
+locals {
+  airflow_chart        = "${path.module}/../helm-charts/airflow-${var.airflow_chart_version}.tgz"
+  airflow_chart_sha512 = split(" ", trimspace(file("${local.airflow_chart}.sha512")))[0]
+}
+
 resource "helm_release" "airflow" {
-  name       = "airflow"
-  repository = "https://airflow.apache.org"
-  chart      = "airflow"
-  version    = var.airflow_chart_version
-  namespace  = local.airflow_ns
+  name      = "airflow"
+  chart     = local.airflow_chart
+  namespace = local.airflow_ns
 
   values = [file("${path.module}/../helm-values/airflow.yaml")]
 
@@ -101,4 +107,11 @@ resource "helm_release" "airflow" {
     kubernetes_service_v1.postgres,
     kubernetes_job_v1.minio_buckets,
   ]
+
+  lifecycle {
+    precondition {
+      condition     = filesha512(local.airflow_chart) == local.airflow_chart_sha512
+      error_message = "infra/helm-charts/airflow-${var.airflow_chart_version}.tgz does not match the upstream .sha512 beside it."
+    }
+  }
 }
