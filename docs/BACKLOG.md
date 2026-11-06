@@ -14,7 +14,8 @@ written into a runbook. Each stage below names its incident.
 
 Anything marked **(ask)** needs the user's OK first: a system install on the laptop, a live
 model call or new recording (CLAUDE.md, cost rule), or a change to a decision in PLAN.md.
-Approved 2026-11-05: Haiku on the paid key ($5/month cap), Jaeger, metrics-server and
+Approved 2026-11-05: Haiku on the paid key ($5/month cap, cumulative spend logged in
+`docs/PROGRESS.md` after any run that spends), Jaeger, metrics-server and
 Alertmanager (each with an on/off switch in the Helm values, memory measured on the laptop),
 Apache-2.0.
 
