@@ -10,7 +10,7 @@ it means re-recording the incident cases **(ask)**. Each stage's incident write-
 
 Every stage also carries the five things in CLAUDE.md ("Built into every stage"): tests and
 DQ checks in CI, tracing, alerts, agent evals with thresholds, and one break-and-fix incident
-written into a runbook. Each stage below names its incident.
+written into `docs/incidents.md`. Each stage below names its incident.
 
 Anything marked **(ask)** needs the user's OK first: a system install on the laptop, a live
 model call or new recording (CLAUDE.md, cost rule), or a change to a decision in PLAN.md.
