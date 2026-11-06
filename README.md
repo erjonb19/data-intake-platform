@@ -170,7 +170,8 @@ dags/                Airflow DAGs (one per contract, FHIR, SFTP sync, late files
 dbt/                 bronze → silver → gold, OMOP CDM 5.4, the shareable tier, DQ tests
 packs/               contracts, generators and cohorts per domain (healthcare, finance, mimic)
 agents/              agent policies, prompts, eval cases and recordings
-infra/terraform/     kind cluster and every service; infra/helm-values/ for the charts
+infra/terraform/     kind cluster and every service; infra/helm-values/ for the charts;
+                     infra/helm-charts/ holds the Airflow chart (its README: how to update it)
 images/              Airflow, OCR, intake API and MCP server images
 observability/       Prometheus alert rules and their tests; Grafana dashboards
 tests/               unit, Postgres integration, and end-to-end (tests/e2e/) tests

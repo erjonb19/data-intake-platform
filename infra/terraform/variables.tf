@@ -38,7 +38,7 @@ variable "host_ports" {
 }
 
 variable "airflow_chart_version" {
-  description = "Official Apache Airflow Helm chart version."
+  description = "Official Apache Airflow Helm chart version: the file infra/helm-charts/airflow-<version>.tgz (see its README to change it)."
   type        = string
   default     = "1.22.0"
 }
