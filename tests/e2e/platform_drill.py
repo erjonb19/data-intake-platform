@@ -33,8 +33,9 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 
-def kubectl(*args: str) -> str:
-    out = subprocess.run(["kubectl", *args], capture_output=True, text=True, timeout=300)
+def kubectl(*args: str, stdin: str | None = None) -> str:
+    out = subprocess.run(["kubectl", *args], capture_output=True, text=True, timeout=300,
+                         input=stdin)  # fmt: skip
     if out.returncode:
         raise RuntimeError(f"kubectl {' '.join(args[:4])}: {out.stderr.strip()[-300:]}")
     return out.stdout.strip()
@@ -62,13 +63,33 @@ def _why(name: str) -> str:
     return "\n".join(parts)
 
 
+def check_job_manifest(name: str, rendered: str) -> str:
+    """The Job `kubectl create job --from=cronjob/platform-check` would make, without its
+    owner reference. Owned by the CronJob, the E2E's Job counted toward its
+    `successful_jobs_history_limit` of 1, so a scheduled run that succeeded just after it
+    made the controller delete the E2E's Job before it was read (#103). Unowned, the
+    controller never prunes it; a TTL well past the read (10 minutes) cleans it up."""
+    job = json.loads(rendered)
+    job["spec"]["ttlSecondsAfterFinished"] = 600
+    job["metadata"].pop("ownerReferences", None)
+    job["metadata"]["name"] = name
+    job["metadata"].setdefault("labels", {})["dip-e2e"] = "platform-check"
+    return json.dumps(job)
+
+
+def create_check_job(name: str) -> None:
+    rendered = kubectl("-n", NS, "create", "job", name, "--from=cronjob/platform-check",
+                       "--dry-run=client", "-o", "json")  # fmt: skip
+    kubectl("-n", NS, "create", "-f", "-", stdin=check_job_manifest(name, rendered))
+
+
 def run_check(tag: str, attempts: int = 2) -> None:
     """One run of the platform check, now, and wait for it to finish. The Job has no
     retries and a 90 s deadline, so a failed run never completes: wait for success or
     failure, show why a run failed, and try once more before giving up."""
     for attempt in range(1, attempts + 1):
         name = f"platform-check-e2e-{tag}-{int(time.time()) % 100000}-{attempt}"
-        kubectl("-n", NS, "create", "job", name, "--from=cronjob/platform-check")
+        create_check_job(name)
         state, end = "", time.monotonic() + 150
         while not state and time.monotonic() < end:
             time.sleep(3)

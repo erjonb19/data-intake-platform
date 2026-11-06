@@ -14,7 +14,10 @@ a recording. What it proves is the deployed wiring:
      refused while the approval is pending, and audited as denied;
   4. approve: a person, with `dip approvals approve`; then the same call by the agent runs
      it (allowed, audited): "denied, then allowed";
-  5. fix: the vendor's corrected file goes through MinIO and the intake DAG;
+  5. fix: the vendor's corrected file goes through MinIO and the intake DAG, named with the
+     quarantined file's business date (elig_YYYYMMDD_resend.csv), because a resend closes
+     only the entries of its own business day. An undated name would take the UTC day it
+     arrived, and a loop that crossed midnight left the entries open (#101);
   6. check: it loaded, and the group's entries are closed as `superseded`.
 
 The upgrade job runs the E2E twice on one cluster: on the second run the group is already
@@ -51,6 +54,29 @@ def dip(*args: str) -> subprocess.CompletedProcess:
         text=True,
         timeout=120,
     )
+
+
+def quarantined_business_day(sha256: str):
+    """The business day the quarantined file was filed under: its name's date, or the UTC
+    day it was received, from its latest delivery (the expression the resend match uses,
+    `_close_resent` in dip/warehouse.py)."""
+    import psycopg
+
+    with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
+        cur.execute(
+            "select coalesce(file_date, (received_at at time zone 'UTC')::date)"
+            " from ops.intake_delivery where feed = %s and file_sha256 = %s"
+            " order by received_at desc limit 1",
+            (FEED, sha256),
+        )
+        row = cur.fetchone()
+    return row[0] if row else None
+
+
+def resend_name(day) -> str:
+    """The resend's name, dated so its business day is the quarantined file's whatever the
+    clock says when it lands (the eligibility contract reads `^elig_([0-9]+)` as %Y%m%d)."""
+    return f"elig_{day:%Y%m%d}_resend.csv"
 
 
 def main() -> int:
@@ -112,7 +138,12 @@ def main() -> int:
         region_name="us-east-1",
     )
     resend = (FIXTURES / "eligibility/good/elig_resend.csv").read_bytes()
-    s3.put_object(Bucket="landing", Key=f"{FEED}/elig_resend.csv", Body=resend)
+    day = quarantined_business_day(hashlib.sha256(missing).hexdigest())
+    check(day is not None, f"the quarantined file's business day ({day})")
+    if day is None:
+        return report(failures)
+    resend_key = f"{FEED}/{resend_name(day)}"
+    s3.put_object(Bucket="landing", Key=resend_key, Body=resend)
     _, body = request("POST", f"{AIRFLOW_URL}/auth/token", {"username": USER, "password": PASSWORD})
     trigger_and_wait(body["access_token"], dag_id_for(FEED), failures)
 
