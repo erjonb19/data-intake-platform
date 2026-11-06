@@ -61,6 +61,8 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
 
 - [x] **12.1 Nightly evals green** (#83): count the reports from the cases, not a constant
 - [ ] **12.2 The midnight-UTC E2E flake** (#101) and **the CronJob history limit** (#103)
+  CI on #107 (2026-11-06): both e2e runs failed before any test, at `helm_release.airflow`
+  ("Error locating chart", airflow.apache.org unreachable). Unticked until CI is green.
 - [ ] **12.3 README: "runs on Kubernetes locally" and the Production readiness checklist.**
   One line per feature with its file, CI job or demo; unbuilt ones listed as not yet built
 - [ ] **12.4 License file: Apache-2.0** (#84)
