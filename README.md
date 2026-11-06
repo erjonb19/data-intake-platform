@@ -200,6 +200,9 @@ What is in place, and where to check it. Built one item at a time from
 
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
+- [x] The kind E2E's break loop and platform drill do not depend on the clock: the resend
+  carries the quarantined file's business date, and the drill's check Job has no CronJob
+  owner to prune it (`tests/e2e/break_loop.py`, `tests/e2e/platform_drill.py`; 12.2)
 
 CI uses synthetic data only (Synthea, and generated or hand-written fixtures). The MIMIC-IV
 demos are never downloaded in CI, and no real or MIMIC data is ever sent to a model
