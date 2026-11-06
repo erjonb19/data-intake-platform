@@ -2,7 +2,9 @@
 
 Real breaks on this platform, one per stage from Stage 12: what broke, how we knew, how we
 fixed it, and what stops it coming back. Drills (`dip drill`, `dip break`) have their own
-runbooks in this folder; this file is for the ones nobody planned.
+runbooks in `docs/runbooks/`; this file is for the ones nobody planned. It is not in that
+folder on purpose: every `.md` there (except its README) is in the incident agent's runbook
+search, and its hits are part of every incident recording's fingerprint.
 
 ## 2026-11-03: the nightly evals went red with every case passing (Stage 12, #83)
 
@@ -31,6 +33,13 @@ check is the script.
 `gh workflow run evals.yml`): the last step prints
 `all 7 evals wrote a report and passed every case`.
 
-**What stops it coming back.** The list of evals is now in one place. The missing piece is an
+**A second break while fixing it.** The first version of this write-up went into
+`docs/runbooks/incidents.md`. The proof run on the branch (42139290188) then failed the
+`incident` eval: `schema_drift_hands_off_incident.json, turn 4: the agent sent the model
+something other than what was recorded`. The new file had changed what `search_runbooks`
+returns. Moving it here fixed the replay without re-recording.
+
+**What stops it coming back.** The list of evals is now in one place. CLAUDE.md now says that any new or changed file
+in `docs/runbooks/` means re-recording the incident cases. The missing piece is an
 alert when an eval drops: that is Stage 16.3 (Alertmanager with a receiver, and an alert on
 the nightly eval result).

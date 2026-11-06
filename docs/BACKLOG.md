@@ -3,6 +3,10 @@
 The source of truth for what gets built next. Work the first unchecked item. One PR per
 item. If an item is blocked, write the reason under it and stop.
 
+New runbooks (13 to 15 below) go in `docs/runbooks/`, which the incident agent searches, so
+each one means re-recording the incident cases **(ask)**. Incident write-ups go in
+`docs/incidents.md`.
+
 Every stage also carries the five things in CLAUDE.md ("Built into every stage"): tests and
 DQ checks in CI, tracing, alerts, agent evals with thresholds, and one break-and-fix incident
 written into a runbook. Each stage below names its incident.

@@ -12,6 +12,10 @@ those after a recording was made breaks its replay.
 - **The full replay suite passes in CI before merge.** A branch that adds or changes
   recordings is not merged until the CI `test` job, which replays every recording, is
   green on the branch's final commit.
+- **`docs/runbooks/*.md` is model input.** The incident agent's `search_runbooks` indexes
+  every file there except README.md, so adding or editing a runbook changes the incident
+  recordings: plan the re-recording (and ask, see the cost rule) or keep the text elsewhere.
+  Incident write-ups go in `docs/incidents.md`.
 - **Recordings reach the branch through the proof workflow.** Dispatch
   `gemini-recordings` or `claude-recordings` on an `s11-*` branch; its `commit-results`
   job commits the files to that branch only after the scrub, the key and auth-header check
