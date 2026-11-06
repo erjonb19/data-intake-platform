@@ -44,3 +44,8 @@ committed fixtures, and the contract-author evals cover the scenarios of runbook
 `python -m dip triage loop`, replayed in CI by `tests/integration/test_break_loop.py`,
 and once through the deployed stack in the kind E2E (`tests/e2e/break_loop.py`).
 Results: [docs/agents/triage.md](../agents/triage.md#the-break-and-fix-loop-stage-4).
+
+Real incidents on the platform itself, one per stage from Stage 12, are written up in
+[docs/incidents.md](../incidents.md) (kept out of this folder: every `.md` here except
+this index is in the incident agent's runbook search, so a new file changes its
+recordings): what broke, how we knew, how we fixed it.

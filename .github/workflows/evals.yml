@@ -60,6 +60,7 @@ jobs:
           status=0
           run() {  # name, then the dip command
             local name="$1"; shift
+            echo "$name" >> reports/expected.txt  # the last check expects its report
             echo "::group::$name"
             if python -m dip "$@" --out "reports/$name"; then
               echo "$name ok"
@@ -95,23 +96,11 @@ jobs:
           EOF
 
       # Some commands exit 0 when only a case's score fails (they gate on policy
-      # violations): the nightly run fails on any failed case.
-      - name: Every case passed
-        run: |
-          python - <<'EOF'
-          import json, pathlib, sys
-          reports = sorted(pathlib.Path("reports").glob("*/report.json"))
-          bad = []
-          for report in reports:
-              s = json.loads(report.read_text())["summary"]
-              passed = s.get("cases_passed", s.get("passed"))
-              total = s.get("cases", s.get("scenarios"))
-              if passed != total:
-                  bad.append(f"{report.parent.name}: {passed}/{total}")
-          if len(reports) != 6 or bad:
-              sys.exit(f"{len(reports)} reports (expected 6); failed: {bad}")
-          print(f"all {len(reports)} evals passed every case")
-          EOF
+      # violations): the nightly run fails on any failed case, and on any eval that started
+      # but wrote no report (#83: no fixed count, which went stale when an eval was added).
+      - name: Every eval reported and every case passed
+        if: always()
+        run: python scripts/check_eval_reports.py reports
 
       - name: Upload reports
         if: always()
