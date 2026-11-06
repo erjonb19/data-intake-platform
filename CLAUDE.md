@@ -32,6 +32,12 @@ those after a recording was made breaks its replay.
   - **Every new recording and every live model call needs the user's OK first**, Claude or
     Gemini, and runs under `DIP_SPEND_CAP_USD`.
   - After any run that spends, update the cumulative spend in `docs/PROGRESS.md`.
+- **Approved by the user on 2026-11-05** (also in PLAN.md's decisions log):
+  - Jaeger, added as an OpenTelemetry export (Stage 15). The database trace rows
+    (`ops.model_call`, `ops.audit_log`, `ops.trace_span`) stay exactly as they are.
+  - metrics-server and Alertmanager, each behind an on/off switch in its Helm values, with
+    its memory use on the laptop measured and reported.
+  - The license is Apache-2.0.
 - **Agent guardrails.** Read-only by default, human approval before any change, an audit
   log of every agent action, and evals of agent behavior.
 - **Synthetic and public data only.** Never Montefiore data.
