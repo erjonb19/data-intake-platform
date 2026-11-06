@@ -173,7 +173,8 @@ dags/                Airflow DAGs (one per contract, FHIR, SFTP sync, late files
 dbt/                 bronze → silver → gold, OMOP CDM 5.4, the shareable tier, DQ tests
 packs/               contracts, generators and cohorts per domain (healthcare, finance, mimic)
 agents/              agent policies, prompts, eval cases and recordings
-infra/terraform/     kind cluster and every service; infra/helm-values/ for the charts
+infra/terraform/     kind cluster and every service; infra/helm-values/ for the charts;
+                     infra/helm-charts/ holds the Airflow chart (its README: how to update it)
 images/              Airflow, OCR, intake API and MCP server images
 observability/       Prometheus alert rules and their tests; Grafana dashboards
 tests/               unit, Postgres integration, and end-to-end (tests/e2e/) tests
@@ -264,6 +265,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   a model (`docs/agents/EVALS.md`, `agents/evals/`)
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
+- [x] The kind E2E's break loop and platform drill do not depend on the clock: the resend
+  carries the quarantined file's business date, and the drill's check Job has no CronJob
+  owner to prune it (`tests/e2e/break_loop.py`, `tests/e2e/platform_drill.py`; 12.2)
 
 **Project**
 

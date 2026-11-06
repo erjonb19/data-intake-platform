@@ -44,3 +44,35 @@ says that any new or changed file
 in `docs/runbooks/` means re-recording the incident cases. The missing piece is an
 alert when an eval drops: that is Stage 16.3 (Alertmanager with a receiver, and an alert on
 the nightly eval result).
+
+## 2026-11-06: e2e on `main` and #107 red, the Airflow chart download timed out (Stage 12)
+
+**What broke.** Every `e2e` run from 13:23 UTC failed before a single test ran: `main`
+after #106 merged (run 42225177412), and both runs on #107 twice (42225387574,
+42225395837, 42238412980, 42238421200). Terraform failed at `helm_release.airflow` with
+`Error locating chart`: it downloaded the official Airflow chart from
+`https://archive.apache.org/dist/airflow/helm-chart/1.22.0/airflow-1.22.0.tgz` on every
+deploy, and archive.apache.org was throttling (connection reset in one run, client timeout
+in another; from a laptop the 291 KB file took 20 s). The same error had hit #105 once on
+2026-11-05 and passed on a re-run, so it had been read as a one-off.
+
+**How we knew.** The `e2e` check went red on the PR. The failed step's log named the URL;
+the step was "Bring up stack", before any test, and lint and test were green on the same
+commits. A fresh review of #107 then pointed out that its new E2E code had never run on a
+cluster, so 12.2 was unticked in `docs/BACKLOG.md` until it does.
+
+**How we fixed it.** We removed the network dependency instead of retrying it. The chart is
+committed in `infra/helm-charts/` with Apache's `.sha512` and the chart's own `LICENSE` and
+`NOTICE`, and `infra/terraform/airflow.tf` deploys the local file. A Terraform
+`precondition` refuses a file that does not match the checksum, and
+`tests/unit/test_helm_charts.py` checks the same in CI along with the version and the
+license copy. The signature was checked once against Apache's KEYS. Updating the version is
+written up in `infra/helm-charts/README.md`.
+
+**Check.** The fix's PR: both `e2e` runs green on its final commit, then #107's.
+`pytest tests/unit/test_helm_charts.py`.
+
+**What stops it coming back.** Nothing in a deploy fetches the Airflow chart now. The
+Prometheus and Grafana charts still come from their GitHub Pages repos in the observability
+profile, which every `e2e` run deploys; that CDN has not failed so far, and they move to
+the same folder if it does. An alert on a red `main` is still missing (Stage 16.3).
