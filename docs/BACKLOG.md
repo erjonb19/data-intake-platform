@@ -21,7 +21,7 @@ Apache-2.0.
 
 Built and merged, PRs #1 to #104. Details in PLAN.md §8, demos in `docs/demos/`, and the
 S11.12 audit in `docs/reports/audit.md` (109 items: 81 built, 20 partial, 8 missing; the
-gaps are issues #83 to #103 and are scheduled below).
+gaps are issues #83 to #101 and #103, all scheduled below).
 
 - [x] **0. Foundations.** kind cluster with Terraform, Airflow (official Helm chart,
   KubernetesExecutor), Postgres, MinIO, CI. Demo: `docs/demos/stage-0.md`
