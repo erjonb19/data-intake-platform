@@ -42,3 +42,21 @@ def test_the_resend_carries_the_quarantined_day_across_midnight():
 def test_same_day_is_unchanged():
     day = date(2026, 11, 5)
     assert CONTRACT.filename_date(break_loop.resend_name(day), day) == (day, None)
+
+
+def test_business_day_query_matches_the_resend_match() -> None:
+    """`quarantined_business_day` must compute the day the way `_close_resent` matches it,
+    or the E2E names the resend for a day the match never compares against."""
+    import inspect
+    import re
+
+    from dip import warehouse
+
+    def day_expr(src: str) -> str:
+        found = re.search(r"coalesce\((.+?)::date\)", src.replace("d.", ""))
+        assert found, "no business-day coalesce(...) found"
+        return found.group(1)
+
+    assert day_expr(inspect.getsource(break_loop.quarantined_business_day)) == day_expr(
+        inspect.getsource(warehouse._close_resent)
+    )

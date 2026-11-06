@@ -68,9 +68,10 @@ def check_job_manifest(name: str, rendered: str) -> str:
     owner reference. Owned by the CronJob, the E2E's Job counted toward its
     `successful_jobs_history_limit` of 1, so a scheduled run that succeeded just after it
     made the controller delete the E2E's Job before it was read (#103). Unowned, the
-    controller never prunes it; a TTL well past the read (10 minutes) cleans it up."""
+    controller never prunes it; a TTL past the read (3 minutes) cleans it up and keeps the
+    finished check pods few (the bad_secret drill reads every pod's log)."""
     job = json.loads(rendered)
-    job["spec"]["ttlSecondsAfterFinished"] = 600
+    job["spec"]["ttlSecondsAfterFinished"] = 180
     job["metadata"].pop("ownerReferences", None)
     job["metadata"]["name"] = name
     job["metadata"].setdefault("labels", {})["dip-e2e"] = "platform-check"

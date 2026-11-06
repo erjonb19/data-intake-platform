@@ -35,7 +35,7 @@ def test_the_check_job_has_no_owner_and_keeps_the_cronjobs_spec():
     assert job["metadata"]["name"] == "platform-check-e2e-oom-1-1"
     assert job["metadata"]["labels"]["dip-e2e"] == "platform-check"
     assert job["spec"]["backoffLimit"] == 0 and job["spec"]["activeDeadlineSeconds"] == 90
-    assert job["spec"]["ttlSecondsAfterFinished"] == 600
+    assert job["spec"]["ttlSecondsAfterFinished"] == 180
 
 
 def test_run_check_uses_it():
