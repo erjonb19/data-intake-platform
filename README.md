@@ -212,6 +212,12 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   (`infra/helm-values/`)
 - [x] A fresh cluster on every push and pull request: the `e2e` workflow builds kind with
   Terraform and runs `tests/e2e/`
+- [x] The kind E2E's break loop and platform drill do not depend on the clock: the resend
+  carries the quarantined file's business date, and the drill's check Job has no CronJob
+  owner to prune it (`tests/e2e/break_loop.py`, `tests/e2e/platform_drill.py`; 12.2)
+- [x] The Airflow chart is committed and checksummed, so a deploy downloads no Airflow
+  chart (`infra/helm-charts/`, `tests/unit/test_helm_charts.py`; incident 2026-11-06 in
+  `docs/incidents.md`)
 - [x] Upgrades in place: the `upgrade` workflow deploys the previous `main`, loads data,
   upgrades and runs the E2E again; Airflow's own migration Job (`migrateDatabaseJob` in
   `infra/helm-values/airflow.yaml`)
@@ -265,9 +271,6 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   a model (`docs/agents/EVALS.md`, `agents/evals/`)
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
-- [x] The kind E2E's break loop and platform drill do not depend on the clock: the resend
-  carries the quarantined file's business date, and the drill's check Job has no CronJob
-  owner to prune it (`tests/e2e/break_loop.py`, `tests/e2e/platform_drill.py`; 12.2)
 
 **Project**
 
