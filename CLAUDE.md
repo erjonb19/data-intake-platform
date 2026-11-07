@@ -59,6 +59,13 @@ those after a recording was made breaks its replay.
    `docs/incidents.md`: what broke, how we knew, how we fixed it. (Not into
    `docs/runbooks/`, which is model input; see "Model recordings".)
 
+### Memory budget (from Stage 13 on, set by the user on 2026-11-06)
+
+- Every stage that adds a service reports the **peak memory of its end-to-end CI run** in
+  its `docs/PROGRESS.md` line.
+- **If a run goes above 12 GB, stop and tell the user** before adding more services.
+- Every new service can be switched off in its Helm values.
+
 ### When an item is done
 
 - Tick it in `docs/BACKLOG.md` and add its line to `docs/PROGRESS.md` (what changed, how

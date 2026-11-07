@@ -10,7 +10,7 @@ it means re-recording the incident cases **(ask)**. Each stage's incident write-
 
 Every stage also carries the five things in CLAUDE.md ("Built into every stage"): tests and
 DQ checks in CI, tracing, alerts, agent evals with thresholds, and one break-and-fix incident
-written into a runbook. Each stage below names its incident.
+written into `docs/incidents.md`. Each stage below names its incident.
 
 Anything marked **(ask)** needs the user's OK first: a system install on the laptop, a live
 model call or new recording (CLAUDE.md, cost rule), or a change to a decision in PLAN.md.
@@ -60,10 +60,10 @@ Incident: the nightly evals have been red since S11.5 (#83). Write-up in `docs/i
 hard-coded report count), how we knew (the nightly run failed), the fix.
 
 - [x] **12.1 Nightly evals green** (#83): count the reports from the cases, not a constant
-- [ ] **12.2 The midnight-UTC E2E flake** (#101) and **the CronJob history limit** (#103)
-  CI on #107 (2026-11-06): both e2e runs failed before any test, at `helm_release.airflow`
-  ("Error locating chart", airflow.apache.org unreachable). Unticked until CI is green.
-- [ ] **12.3 README: "runs on Kubernetes locally" and the Production readiness checklist.**
+- [x] **12.2 The midnight-UTC E2E flake** (#101) and **the CronJob history limit** (#103).
+  Green once the Airflow chart was committed (#108; the chart download had made every e2e
+  run fail)
+- [x] **12.3 README: "runs on Kubernetes locally" and the Production readiness checklist.**
   One line per feature with its file, CI job or demo; unbuilt ones listed as not yet built
 - [ ] **12.4 License file: Apache-2.0** (#84)
 - [ ] **12.5 `.wslconfig` guidance** (#85)
