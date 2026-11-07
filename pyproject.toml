@@ -3,6 +3,8 @@ name = "data-intake-platform"
 version = "0.1.0"
 description = "Free, enterprise-style data intake platform with contracts, quarantine, and governed agents."
 requires-python = ">=3.11"
+# SPDX expression (PEP 639); setuptools adds LICENSE and NOTICE when they are present.
+license = "Apache-2.0"
 # Kept loose so the package installs into the official Airflow image with --no-deps
 # alongside the versions Airflow already ships.
 dependencies = [
@@ -49,7 +51,7 @@ dev = [
 ]
 
 [build-system]
-requires = ["setuptools>=75"]
+requires = ["setuptools>=77"]  # 77: SPDX `license` (PEP 639)
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
