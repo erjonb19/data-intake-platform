@@ -151,6 +151,34 @@ and the E2E passed every stage up to the last, which was stopped for low memory;
 profiles, the laptop's available memory fell from 3.2 GB to about 150 MB during the E2E:
 start with at least 4 GB free.
 
+### WSL2 memory on Windows
+
+On Windows, Docker Desktop runs in WSL2, and WSL2's memory cap is the memory Docker (and so
+the kind node) can use. Without a cap WSL2 may take up to half the RAM and keeps its page
+cache, which starves Windows; with too low a cap the kind node is OOM-killed. Set it in
+`%USERPROFILE%\.wslconfig` (create the file if it is not there). For a 16 GB laptop:
+
+```ini
+[wsl2]
+# Docker sees about 8 GiB: the core profile needs about 4.5 GiB plus headroom
+memory=9GB
+swap=4GB
+# your core count, or fewer
+processors=8
+```
+
+Then run `wsl --shutdown` from PowerShell and restart Docker Desktop for it to take effect.
+`bash scripts/prereqs.sh` prints the `memory=` it finds, and the memory Docker reports.
+
+The 16 GB numbers are measured (the paragraph above); the others are a starting point, not
+tested here:
+
+- **8 GB laptop:** `memory=5GB` and the core profile only (the default). The full E2E may
+  not fit; it also runs on a GitHub runner on every push (the `e2e` workflow).
+- **32 GB laptop:** `memory=16GB` leaves room for both profiles.
+- **Done for the day:** `bash scripts/down.sh` deletes the cluster; quitting Docker Desktop
+  (or `wsl --shutdown`) gives the memory back to Windows.
+
 ## What runs where
 
 | Namespace | Component | Notes |
@@ -277,6 +305,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] This checklist, and the README saying "runs on Kubernetes locally" (12.3)
 - [x] Apache-2.0: `LICENSE`, `NOTICE` (with the third-party chart), and `license` in
   `pyproject.toml` (12.4)
+- [x] WSL2 memory guidance for Windows: `.wslconfig` values per laptop size (README, "WSL2
+  memory on Windows") and a hint in `scripts/prereqs.sh` (12.5)
 
 CI uses synthetic data only (Synthea, and generated or hand-written fixtures). The MIMIC-IV
 demos are never downloaded in CI, and no real or MIMIC data is ever sent to a model
