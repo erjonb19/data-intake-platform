@@ -3,11 +3,16 @@ Copyright 2026 Erjon Brucaj
 
 Licensed under the Apache License, Version 2.0 (LICENSE).
 
-This repository also contains third-party material under its own license:
+This repository also contains third-party material, credited here:
 
 - infra/helm-charts/airflow-1.22.0.tgz: the Apache Airflow Helm chart, unchanged.
   Copyright The Apache Software Foundation, Apache License 2.0. Its LICENSE and NOTICE
   are in infra/helm-charts/airflow-license/.
+- dbt/seeds/omop_fixed_concepts.csv and dbt/seeds/fhir_concept_map.csv: a handful of
+  standard OMOP concept IDs, names and codes (gender, race, ethnicity, type concepts and
+  "No matching concept") from the OHDSI Standardized Vocabularies, as distributed by OHDSI
+  (https://www.ohdsi.org, https://athena.ohdsi.org); the race codes they map from are the
+  CDC Race and Ethnicity code set.
 
 Data sources, their licenses and where each one runs are listed in the README, under
 "Data sources and citations". No real patient data is in this repository.
