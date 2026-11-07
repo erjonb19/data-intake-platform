@@ -275,7 +275,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 **Project**
 
 - [x] This checklist, and the README saying "runs on Kubernetes locally" (12.3)
-- [ ] A license file (Apache-2.0): not yet built (12.4)
+- [x] Apache-2.0: `LICENSE`, `NOTICE` (with the third-party chart), and `license` in
+  `pyproject.toml` (12.4)
 
 CI uses synthetic data only (Synthea, and generated or hand-written fixtures). The MIMIC-IV
 demos are never downloaded in CI, and no real or MIMIC data is ever sent to a model
@@ -312,3 +313,9 @@ When using the MIMIC-IV demos, cite:
 - Pollard, T., Moody, B. E., Lehman, L., Gow, B., Fernandes, C., Xie, C., Johnson, A.,
   Mark, R. G., & Heldt, T. (2026). PhysioNet as a global platform for biomedical research.
   Nature Health. https://doi.org/10.1038/s44360-026-00096-z
+
+## License
+
+Apache License 2.0: see [LICENSE](LICENSE) and [NOTICE](NOTICE). The committed Airflow Helm
+chart keeps its own Apache-2.0 license and notice (`infra/helm-charts/airflow-license/`).
+The data sources above each have their own terms.
