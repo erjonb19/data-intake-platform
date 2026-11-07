@@ -160,9 +160,11 @@ cache, which starves Windows; with too low a cap the kind node is OOM-killed. Se
 
 ```ini
 [wsl2]
-memory=9GB      # Docker sees about 8 GiB: the core profile needs about 4.5 GiB plus headroom
+# Docker sees about 8 GiB: the core profile needs about 4.5 GiB plus headroom
+memory=9GB
 swap=4GB
-processors=8    # or fewer than your core count
+# your core count, or fewer
+processors=8
 ```
 
 Then run `wsl --shutdown` from PowerShell and restart Docker Desktop for it to take effect.

@@ -41,7 +41,9 @@ case "$(uname -s)" in
     log "WSL2 (.wslconfig)"
     wslconfig="${USERPROFILE:-$HOME}/.wslconfig"
     if [[ -f "$wslconfig" ]]; then
-      limit="$(grep -i -E '^[[:space:]]*memory[[:space:]]*=' "$wslconfig" | tail -1 | cut -d= -f2 | tr -d '[:space:]\r')"
+      # No match is fine (|| true under pipefail); drop a trailing comment and CRs.
+      limit="$({ grep -i -E '^[[:space:]]*memory[[:space:]]*=' "$wslconfig" || true; } \
+        | tail -1 | cut -d= -f2 | sed 's/[#;].*//' | tr -d '[:space:]\r')"
       echo "  ${wslconfig}: memory=${limit:-not set}"
       [[ -n "$limit" ]] || warn "no memory= line: WSL2 may take half the RAM; see the README, \"WSL2 memory on Windows\""
     else
