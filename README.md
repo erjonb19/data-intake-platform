@@ -258,6 +258,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [ ] A bad-release drill: not yet built (13.3)
 - [ ] Autoscaling (metrics-server, HPAs): not yet built (13.4)
 - [ ] OpenTofu checked in CI: not yet built (13.5)
+- [ ] Merge rules enforced by GitHub, dependency updates, image and code scanning: not yet
+  built (12.9)
+- [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
 
@@ -270,6 +273,11 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `create ... if not exists` at startup (`dip/sql/warehouse.sql`)
 - [ ] Backpressure on a flood of files: not yet built (16.1)
 - [ ] Signed inbound webhooks: not yet built (16.2)
+- [ ] Measured scale: a volume generator, incremental dbt models, partitioned gold tables
+  and a benchmark report: not yet built (19.1, 19.2, 19.3)
+- [ ] Versioned contracts, with a CI check that fails a breaking change: not yet built
+  (21.1, 21.2)
+- [ ] A member's data deleted from every layer, with an audit trail: not yet built (22.2)
 
 **Observability and incidents**
 
@@ -288,6 +296,7 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   Prometheus and show in Grafana only
 - [ ] Distributed tracing in Jaeger: not yet built (Stage 15)
 - [ ] Chaos pod kills and an on-call drill with postmortems: not yet built (Stage 17)
+- [ ] SLOs with error budgets: not yet built (16.4)
 
 **Agents**
 
@@ -299,6 +308,14 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   a model (`docs/agents/EVALS.md`, `agents/evals/`)
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
+
+**Access**
+
+- [ ] People log in with roles (Keycloak): not yet built (20.1, 20.2)
+- [ ] Healthcare and finance as separate tenants, with row-level security and quotas: not
+  yet built (20.3)
+- [ ] A vendor portal: not yet built (20.4)
+- [ ] The governed clinical agent reads this platform's gold layer: not yet built (22.1)
 
 **Project**
 

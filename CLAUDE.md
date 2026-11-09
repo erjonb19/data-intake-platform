@@ -24,7 +24,8 @@ those after a recording was made breaks its replay.
 
 ## Ground rules
 
-- **The work queue is `docs/BACKLOG.md`.** Always work the first unchecked item. PLAN.md
+- **The work queue is `docs/BACKLOG.md`.** Always work the first unchecked item, in the
+  order given under "Order of work" there (not the order of the stage numbers). PLAN.md
   stays the design record and decisions log; when the two disagree, BACKLOG.md wins and
   the decision gets a line in PLAN.md's log.
 - **One stage at a time, one PR per piece.** Tests must stay green.
