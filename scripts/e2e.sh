@@ -136,6 +136,12 @@ fi
 KUBECONFIG="$(tf output -raw kubeconfig_path)" PROMETHEUS_URL="$PROMETHEUS_URL" \
   "$py" "$REPO_ROOT/tests/e2e/backup.py"
 
+# Stage 14 (14.2): the restore drill, on the dump just written: `dip drill drop_table`
+# drops gold.member_eligibility after its snapshot, `dip restore --latest --verify` brings
+# it back from s3://backups/ (through warehouse_restore) and compares; the time to restore
+# goes in the job summary. Here rather than a proof-workflow job: see PLAN.md, 2026-11-09.
+KUBECONFIG="$(tf output -raw kubeconfig_path)" "$py" "$REPO_ROOT/tests/e2e/restore.py"
+
 # Stage 11 (S11.6): the scheduler_down drill, last (it stops scheduling for a few minutes).
 # The platform check runs on demand from its CronJob; dip drill runs only against kind-dip.
 KUBECONFIG="$(tf output -raw kubeconfig_path)" PROMETHEUS_URL="$PROMETHEUS_URL" \

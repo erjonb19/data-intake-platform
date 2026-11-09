@@ -159,8 +159,13 @@ Incident: the dropped table (runbook `14-restore.md`).
 
 - [x] **14.1 Backup CronJob:** `pg_dump` of the warehouse to a MinIO bucket, retention of
   7 dumps, an `ops.backup` row per run, alert `BackupMissing` (none in 26 h)
-- [ ] **14.2 Restore drill** in the proof workflow: drop, restore, verify counts and
+- [x] **14.2 Restore drill** in the proof workflow: drop, restore, verify counts and
   checksums, time-to-restore recorded
+  - Built in the kind E2E (every push) instead of a proof-workflow job: see PLAN.md's
+    decisions log, 2026-11-09.
+  - Runbook `14-restore.md` is deferred: `docs/runbooks/` is the incident agent's search
+    input, so a new runbook changes the incident recordings, and that re-recording needs
+    the user's approval first. The drill's steps are in `docs/backups.md` until then.
 - [ ] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database

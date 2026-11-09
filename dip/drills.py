@@ -16,6 +16,9 @@ workflow, never on the laptop (decisions log, 2026-10-30).
   stuck_queued     run the drill_queue DAG, whose task's pod can never be scheduled, with
                    the platform check's threshold lowered to 2 minutes
                                                                     (runbook 12, S11.9)
+  drop_table       snapshot gold.member_eligibility (rows, checksum, grants) into
+                   ops.restore_drill and drop it, in one transaction; the undo is the
+                   restore, `dip restore --latest --verify` (dip/restore.py; 14.2)
 """
 
 from __future__ import annotations
@@ -225,11 +228,45 @@ def stuck_queued_undo(run: Callable[..., str] = kubectl) -> str:
             " the next check closes TASK.STUCK_QUEUED")  # fmt: skip
 
 
+def drop_table(run: Callable[..., str] = kubectl) -> str:
+    """Stage 14 (14.2): drop gold.member_eligibility in the live warehouse, after its
+    snapshot. Refused when a drop is already waiting for its restore, when the table is
+    not there, or when there is no good backup to restore it from."""
+    from dip import restore
+
+    table = restore.DRILL_TABLE
+    there, pending, backup_id = restore.psql(run, restore.LIVE_DB,
+                                             restore.precheck_sql(table)).split("|")  # fmt: skip
+    if pending:
+        raise DrillError(f"drop_table is already on (drill {pending}): run"
+                         " `python -m dip restore --latest --verify` first")  # fmt: skip
+    if there != "t":
+        raise DrillError(f"{table} is not in the warehouse: nothing to drop")
+    if not backup_id:
+        raise DrillError("no good backup in ops.backup: run `python -m dip backup now` first")
+    out = restore.psql(run, restore.LIVE_DB, restore.drop_sql(table))
+    drill_id, rows, checksum, backup_id = out.splitlines()[-1].split("|")
+    return (f"{table} is dropped (drill {drill_id}): {rows} rows, checksum {checksum}, in"
+            f" ops.restore_drill. The newest good backup is {backup_id}; bring it back with"
+            " `python -m dip restore --latest --verify`")  # fmt: skip
+
+
+def drop_table_undo(run: Callable[..., str] = kubectl) -> str:
+    """The undo is the restore itself (it needs stdin for kubectl, so its own runner)."""
+    from dip import restore
+
+    out = restore.restore_latest(verify=True)
+    if not out.get("verified"):
+        raise DrillError(f"restored, but it does not match the snapshot: {out.get('failed')}")
+    return f"{out['table']} is back and matches the snapshot ({out['seconds']} s)"
+
+
 DRILLS: dict[str, tuple[Callable[..., str], Callable[..., str]]] = {
     "scheduler_down": (scheduler_down, scheduler_down_undo),
     "oom_task": (oom_task, oom_task_undo),
     "bad_secret": (bad_secret, bad_secret_undo),
     "stuck_queued": (stuck_queued, stuck_queued_undo),
+    "drop_table": (drop_table, drop_table_undo),
 }
 
 
