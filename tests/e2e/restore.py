@@ -10,7 +10,7 @@ left a fresh dump in s3://backups/.
   4. the drill's row says verified, with the backup and the time to restore, which goes in
      the job summary (GITHUB_STEP_SUMMARY).
 
-Env: KUBECONFIG (context kind-dip), WAREHOUSE_DSN, MINIO_URL, MINIO_USER, MINIO_PASSWORD.
+Env: KUBECONFIG (context kind-dip), WAREHOUSE_DSN, MINIO_USER, MINIO_PASSWORD.
 """
 
 from __future__ import annotations

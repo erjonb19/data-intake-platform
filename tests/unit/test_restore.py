@@ -7,7 +7,6 @@ The SQL itself runs against Postgres in tests/integration/test_restore.py."""
 from __future__ import annotations
 
 import hashlib
-from pathlib import Path
 
 import pytest
 
@@ -15,6 +14,7 @@ from dip import drills, restore
 from dip.drills import DrillError
 
 DUMP = b"PGDMP fake custom archive"
+SIZE = len(DUMP)
 SHA = hashlib.sha256(DUMP).hexdigest()
 KEY = "warehouse/warehouse-20261109T021503Z.dump"
 LISTING = """\
@@ -34,21 +34,28 @@ LISTING = """\
 """
 
 
-class S3:
-    def __init__(self, body: bytes = DUMP):
-        self.body, self.calls = body, []
+URL = f"http://minio.dip-data.svc.cluster.local:9000/backups/{KEY}?X-Amz-Signature=s"
 
-    def download_file(self, bucket: str, key: str, path: str) -> None:
-        self.calls.append((bucket, key))
-        Path(path).write_bytes(self.body)
+
+class S3:
+    """Signs a GET URL; makes no request."""
+
+    def __init__(self):
+        self.calls = []
+
+    def generate_presigned_url(self, method, Params, ExpiresIn):  # noqa: N803 - boto3's names
+        self.calls.append((method, Params, ExpiresIn))
+        return URL
 
 
 class Kube:
     """kubectl against a fake postgres-0: answers psql by what the SQL asks."""
 
     def __init__(self, context="kind-dip", pending=True, there=False, copy_sha=SHA,
-                 live=("42", "abc"), acl="{warehouse=arwdDxtm/warehouse}"):  # fmt: skip
+                 copy_size=SIZE, live=("42", "abc"),
+                 acl="{warehouse=arwdDxtm/warehouse}"):  # fmt: skip
         self.context, self.pending, self.there, self.copy_sha = context, pending, there, copy_sha
+        self.copy_size = copy_size
         self.live, self.acl = live, acl
         self.calls: list[tuple] = []
         self.stdin: dict[str, bytes] = {}
@@ -60,9 +67,9 @@ class Kube:
             return self.context
         cmd = list(args[args.index("--") + 1 :])
         if stdin is not None:
-            self.stdin[cmd[-1]] = stdin.read_bytes() if isinstance(stdin, Path) else stdin
-        if cmd[0] == "sha256sum":
-            return f"{self.copy_sha}  {cmd[1]}"
+            self.stdin[cmd[-1]] = stdin
+        if cmd[0] == "sh" and "sha256sum" in cmd[-1]:
+            return f"   {self.copy_size}\n{self.copy_sha}  {restore.POD_DUMP}"
         if cmd[:2] == ["pg_restore", "--list"]:
             return LISTING
         if cmd[0] != "psql":
@@ -104,9 +111,14 @@ def test_restore_brings_the_table_back_and_verifies_it():
     out = run_restore(k)
     assert out["verified"] is True and out["failed"] == [] and out["rows"] == 42
     execs = k.execs()
-    # the dump reaches the pod as a file, checked there, before anything is restored
-    assert k.stdin[f"cat > {restore.POD_DUMP}"] == DUMP
-    assert ["sha256sum", restore.POD_DUMP] in execs
+    # the pod fetches the dump with a signed URL, read from stdin (never an argument), and
+    # checks it before anything is restored
+    fetch = [c for c in execs if c[0] == "sh" and "wget" in c[-1]]
+    assert len(fetch) == 1 and k.stdin[fetch[0][-1]] == (URL + "\n").encode()
+    assert not any(URL in a for c in k.calls for a in c)
+    check = [c for c in execs if c[0] == "sh" and "sha256sum" in c[-1]]
+    dropdb = ["dropdb", "-U", "postgres", "--if-exists", "warehouse_restore"]
+    assert execs.index(fetch[0]) < execs.index(check[0]) < execs.index(dropdb)
     assert ["dropdb", "-U", "postgres", "--if-exists", "warehouse_restore"] in execs
     assert ["createdb", "-U", "postgres", "-O", "warehouse", "warehouse_restore"] in execs
     full = ["pg_restore", "-U", "postgres", "-d", "warehouse_restore", "--exit-on-error",
@@ -130,19 +142,13 @@ def test_restore_brings_the_table_back_and_verifies_it():
     assert execs[-1] == ["rm", "-f", restore.POD_DUMP, restore.POD_LIST]
 
 
-def test_a_dump_that_does_not_match_its_row_never_reaches_the_pod():
-    k = Kube()
+@pytest.mark.parametrize("bad", [{"copy_sha": "0" * 64}, {"copy_size": len(DUMP) - 1}])
+def test_a_dump_that_does_not_match_its_row_is_never_restored(bad):
+    k = Kube(**bad)
     with pytest.raises(DrillError, match="does not match ops.backup 7"):
-        run_restore(k, S3(DUMP + b"x"))
-    assert not any(c[0] in ("sh", "pg_restore", "dropdb", "createdb") for c in k.execs())
-
-
-def test_a_bad_copy_in_the_pod_stops_before_the_restore():
-    k = Kube(copy_sha="0" * 64)
-    with pytest.raises(DrillError, match="copy in the pod"):
         run_restore(k)
     assert not any(c[0] in ("pg_restore", "dropdb", "createdb") for c in k.execs())
-    assert k.execs()[-1][:2] == ["rm", "-f"]  # the copy is removed anyway
+    assert k.execs()[-1][:2] == ["rm", "-f"]  # the file is removed anyway
 
 
 def test_a_restored_table_that_differs_is_recorded_as_not_verified():

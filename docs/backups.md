@@ -58,7 +58,6 @@ checks that it is the same table. Both commands refuse any kube context but `kin
 ```bash
 cd infra/terraform
 export KUBECONFIG="$(terraform output -raw kubeconfig_path)"
-export MINIO_URL="$(terraform output -raw minio_api_url)"
 export MINIO_USER="$(terraform output -raw minio_root_user)"
 export MINIO_PASSWORD="$(terraform output -raw minio_root_password)"
 cd ../..
@@ -83,12 +82,14 @@ The row also keeps the result, so every drill's time to restore stays on record.
 
 **The restore** (`dip restore --latest --verify`, in `dip/restore.py`):
 
-1. It reads the newest `ok` row of `ops.backup` and downloads that dump as the MinIO admin
-   (the backup's own MinIO user cannot read a dump back). It checks the file's size and
-   SHA-256 against the row. A dump that does not match never reaches the cluster.
-2. It copies the file into `postgres-0` and checks its SHA-256 there too. pg_restore
-   reading a custom archive from stdin over `kubectl exec -i` never returns (the first 14.1
-   E2E run timed out on it), so the restore always reads a file.
+1. It reads the newest `ok` row of `ops.backup` and signs a GET URL for that dump, as the
+   MinIO admin, valid for 5 minutes. The backup's own MinIO user cannot read a dump back.
+2. `postgres-0` downloads the dump from MinIO inside the cluster with that URL (`wget`; the
+   URL goes over stdin, never in a command's arguments). The restore then checks the
+   file's size and SHA-256 in the pod against the row. A dump that does not match is never
+   restored. The dump is not piped in over `kubectl exec -i`: in this drill's first CI run
+   it arrived with a different SHA-256 (docs/incidents.md, 2026-11-09), and in 14.1
+   pg_restore reading stdin that way never returned.
 3. It drops and remakes the database `warehouse_restore`, then restores the whole dump into
    it with `pg_restore --exit-on-error`. It never restores over the live `warehouse`.
 4. It brings the dropped table back into `warehouse` with `pg_restore -L`, in one
@@ -160,11 +161,14 @@ job.
    s3.download_file("backups", os.environ["KEY"], "warehouse.dump")
    ```
 
-3. Copy it into the pod as a file (pg_restore reading from stdin over `kubectl exec -i`
-   hangs), then restore it into a new database first, never straight over the live one:
+3. Copy it into the pod as a file, and check its SHA-256 there against the row's `sha256`
+   before going on: a copy piped over `kubectl exec -i` has arrived changed
+   (docs/incidents.md, 2026-11-09), and pg_restore reading stdin that way hangs. Then
+   restore it into a new database first, never straight over the live one:
 
    ```bash
-   kubectl -n dip-data exec -i postgres-0 -- sh -c 'cat > /tmp/warehouse.dump' < warehouse.dump
+   kubectl -n dip-data cp warehouse.dump postgres-0:/tmp/warehouse.dump
+   kubectl -n dip-data exec postgres-0 -- sha256sum /tmp/warehouse.dump
    kubectl -n dip-data exec postgres-0 -- createdb -U postgres -O warehouse warehouse_restore
    kubectl -n dip-data exec postgres-0 -- \
      pg_restore -U postgres -d warehouse_restore --exit-on-error /tmp/warehouse.dump

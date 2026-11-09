@@ -7,12 +7,13 @@ warehouse backup and prove it is the same table.
 The drill (dip/drills.py) records the table's row count, order-independent checksum, owner
 and grants in ops.restore_drill, in the transaction that drops it. The restore:
 
-  1. reads the newest `ok` row of ops.backup and downloads its dump from s3://backups/ (as
-     the MinIO admin: the backup's own MinIO user cannot read a dump back, by design), and
-     checks its size and SHA-256 against the row;
-  2. copies the file into the Postgres pod and checks its SHA-256 there too (pg_restore
-     reading a custom archive from stdin over `kubectl exec -i` never returned: the
-     first 14.1 E2E run timed out, tests/e2e/backup.py);
+  1. reads the newest `ok` row of ops.backup;
+  2. has the Postgres pod download that dump from MinIO inside the cluster, with a GET URL
+     signed here as the MinIO admin (the backup's own MinIO user cannot read a dump back,
+     by design), and checks its size and SHA-256 there against the row. Not piped in over
+     `kubectl exec -i`: in the first CI run of this drill the 900 KB dump arrived with a
+     different SHA-256, and in 14.1 pg_restore reading stdin that way never returned
+     (docs/incidents.md, 2026-11-09);
   3. restores the whole dump into a new database, `warehouse_restore` (dropped and made
      again each time; never the live one), and compares the table there with the snapshot;
   4. brings the dropped table back into `warehouse` with `pg_restore -L`, a list of the
@@ -22,9 +23,9 @@ and grants in ops.restore_drill, in the transaction that drops it. The restore:
      the time to restore and records it on the drill's row.
 
 Every step runs through kubectl against the Postgres pod, and only when the current
-context is the kind cluster `kind-dip` (drills.require_kind). MinIO is reached at
-MINIO_URL with MINIO_USER and MINIO_PASSWORD (`terraform output -raw minio_api_url`,
-`minio_root_user`, `minio_root_password`).
+context is the kind cluster `kind-dip` (drills.require_kind). The URL is signed with
+MINIO_USER and MINIO_PASSWORD (`terraform output -raw minio_root_user`,
+`minio_root_password`).
 """
 
 from __future__ import annotations
@@ -32,13 +33,11 @@ from __future__ import annotations
 import os
 import re
 import subprocess
-import tempfile
 import time
 from collections.abc import Callable
-from pathlib import Path
 from typing import Any
 
-from dip.backup import BUCKET, DUMP_KEY, sha256_of
+from dip.backup import BUCKET, DUMP_KEY
 from dip.drills import DrillError, require_kind
 
 NS = "dip-data"
@@ -48,6 +47,7 @@ RESTORE_DB = "warehouse_restore"
 POD_DUMP = "/tmp/dip-restore.dump"
 POD_LIST = "/tmp/dip-restore.list"
 DRILL_TABLE = "gold.member_eligibility"
+MINIO_IN_CLUSTER = f"http://minio.{NS}.svc.cluster.local:9000"  # infra/terraform/secrets.tf
 TABLE_NAME = re.compile(r"^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$")
 
 # The same text for every row, whatever the session: dates, times, intervals and floats
@@ -133,14 +133,11 @@ def toc_entries(listing: str, table: str) -> list[str]:
     return out
 
 
-def kubectl(*args: str, check: bool = True, stdin: Path | bytes | None = None,
+def kubectl(*args: str, check: bool = True, stdin: bytes | None = None,
             timeout: int = 900) -> str:  # fmt: skip
-    cmd = ["kubectl", *args]
-    if isinstance(stdin, Path):
-        with stdin.open("rb") as f:  # streamed: a large dump is never held in memory
-            out = subprocess.run(cmd, stdin=f, capture_output=True, timeout=timeout)
-    else:
-        out = subprocess.run(cmd, input=stdin, capture_output=True, timeout=timeout)
+    """kubectl; stdin carries only short text (a URL, a list), never a dump."""
+    out = subprocess.run(["kubectl", *args], input=stdin, capture_output=True,
+                         timeout=timeout)  # fmt: skip
     if check and out.returncode:
         err = out.stderr.decode("utf-8", errors="replace").strip()
         raise DrillError(f"kubectl {' '.join(args[:6])}: {err[-400:]}")
@@ -164,16 +161,21 @@ def snapshot_of(run: Callable[..., str], db: str, table: str) -> tuple[str, str]
 
 
 def _s3() -> Any:
+    """A client for signing only: its endpoint is MinIO's address inside the cluster, which
+    the Postgres pod uses. Signing makes no request."""
     import boto3
+    from botocore.config import Config
 
-    missing = [v for v in ("MINIO_URL", "MINIO_USER", "MINIO_PASSWORD") if not os.environ.get(v)]
+    missing = [v for v in ("MINIO_USER", "MINIO_PASSWORD") if not os.environ.get(v)]
     if missing:
-        raise DrillError(f"set {', '.join(missing)} (terraform output -raw minio_api_url,"
+        raise DrillError(f"set {' and '.join(missing)} (terraform output -raw"
                          " minio_root_user, minio_root_password)")  # fmt: skip
-    return boto3.client("s3", endpoint_url=os.environ["MINIO_URL"],
+    return boto3.client("s3", endpoint_url=MINIO_IN_CLUSTER,
                         aws_access_key_id=os.environ["MINIO_USER"],
                         aws_secret_access_key=os.environ["MINIO_PASSWORD"],
-                        region_name="us-east-1")  # fmt: skip
+                        region_name="us-east-1",
+                        config=Config(signature_version="s3v4",
+                                      s3={"addressing_style": "path"}))  # fmt: skip
 
 
 def restore_latest(verify: bool = False, run: Callable[..., str] = kubectl,
@@ -204,22 +206,23 @@ def restore_latest(verify: bool = False, run: Callable[..., str] = kubectl,
                          " (run `python -m dip drill drop_table` first)")  # fmt: skip
     say(f"backup {backup_id}: s3://{BUCKET}/{key} ({size} B)")
 
-    with tempfile.TemporaryDirectory() as tmp:
-        local = Path(tmp) / "warehouse.dump"
-        (s3 or _s3()).download_file(BUCKET, key, str(local))
-        got_size, got_sha = local.stat().st_size, sha256_of(local)
-        if got_size != int(size) or got_sha != sha:
-            raise DrillError(f"the dump does not match ops.backup {backup_id}: {got_size} B,"
-                             f" SHA-256 {got_sha} (the row: {size} B, {sha})")  # fmt: skip
-        say(f"downloaded, SHA-256 matches the row: {sha}")
-        mark("download")
-        in_pod(run, "sh", "-c", f"cat > {POD_DUMP}", stdin=local)
+    # The pod fetches the dump itself, from MinIO inside the cluster, with a GET URL signed
+    # here for that one object for 5 minutes. The URL goes over stdin (a short line), never
+    # in a command's arguments, where another process could read it.
+    url = (s3 or _s3()).generate_presigned_url(
+        "get_object", Params={"Bucket": BUCKET, "Key": key}, ExpiresIn=300)  # fmt: skip
     out: dict[str, Any] = {"backup_id": int(backup_id), "object_key": key}
     try:
-        copied = in_pod(run, "sha256sum", POD_DUMP).split()[0]
-        if copied != sha:
-            raise DrillError(f"the copy in the pod has SHA-256 {copied}, not {sha}")
-        mark("copy into the pod")
+        fetch = f'{{ read -r url || [ -n "$url" ]; }} && wget -q -O {POD_DUMP} "$url"'
+        in_pod(run, "sh", "-c", fetch, stdin=(url + "\n").encode())
+        got = in_pod(run, "sh", "-c", f"wc -c < {POD_DUMP} && sha256sum {POD_DUMP}").split()
+        got_size, got_sha = (got[0], got[1]) if len(got) >= 2 else ("?", "?")
+        if got_size != size or got_sha != sha:
+            raise DrillError(f"the dump in the pod does not match ops.backup {backup_id}:"
+                             f" {got_size} B, SHA-256 {got_sha}"
+                             f" (the row: {size} B, {sha})")  # fmt: skip
+        say(f"downloaded into {POD}, size and SHA-256 match the row: {sha}")
+        mark("download into the pod")
         owner = psql(run, LIVE_DB, "select pg_get_userbyid(datdba) from pg_database"
                      " where datname = current_database()")  # fmt: skip
         in_pod(run, "dropdb", "-U", "postgres", "--if-exists", RESTORE_DB)
