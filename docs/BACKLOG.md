@@ -100,7 +100,13 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
 - [x] **12.5 `.wslconfig` guidance** (#85)
 - [x] **12.6 Demos for Stages 4 and 5** (#86, #87)
 - [x] **12.7 §8.9 status table refresh** (#100) and the README screenshot (#99)
-- [ ] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
+- [x] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
+  Runbook 07 does not name `PDF.DECOMPRESSION_BOMB` yet: a runbook edit changes the incident
+  recordings, so it waits for 18.1 and its re-recording **(ask)**.
+  Follow-ups the security review found outside this item: pdfminer's own content-stream
+  parsing is quadratic in CPU, so a text stream of a few MB can take minutes inside the
+  budget (a wall-clock limit on the read is the fix); and pdfium decodes image XObjects at
+  their own /Width and /Height when a scan is rendered, outside this budget.
 - [ ] **12.9 Merge rules and supply-chain checks** **(ask)** before building.
   - Branch protection on `main`, requiring the `lint`, `test` and `e2e` checks (not
     `upgrade`, which runs only when certain paths change). The user turns this on in
