@@ -307,6 +307,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `pyproject.toml` (12.4)
 - [x] WSL2 memory guidance for Windows: `.wslconfig` values per laptop size (README, "WSL2
   memory on Windows") and a hint in `scripts/prereqs.sh` (12.5)
+- [x] A demo script for every stage from 0 to 11 (`docs/demos/`; Stages 4 and 5 run locally
+  with a throwaway Postgres and no model key; 12.6)
 
 CI uses synthetic data only (Synthea, and generated or hand-written fixtures). The MIMIC-IV
 demos are never downloaded in CI, and no real or MIMIC data is ever sent to a model
