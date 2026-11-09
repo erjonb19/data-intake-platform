@@ -120,6 +120,12 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   cluster keeps building images locally; 13.2's rollback can deploy a released tag. First
   tag: `v0.12.0`, once 12.5 to 12.9 are done. Demo: the release page, its notes, and
   `docker pull` of the tagged image.
+  **Built (2026-11-09), not yet released.** `.github/workflows/release.yml` and
+  `scripts/release_notes.py` (5 unit tests). A tag push builds the four images, pushes them
+  to GHCR as `:<version>` and `:sha-<commit>`, and creates the release; a manual run is a
+  dry run that builds and writes the notes and publishes nothing. Waiting on the user: the
+  first tag, `v0.12.0` (no tag is pushed and nothing is published without the user's OK),
+  and 12.9, which is blocked.
 
 ## Stage 13: Deployment hardening
 
