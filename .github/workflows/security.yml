@@ -1,0 +1,66 @@
+name: security
+
+# 12.9: build the images the repo ships (images/, as scripts/up.sh does) and scan them with
+# Trivy. The job fails on a CRITICAL vulnerability that has a fix; anything accepted goes in
+# .trivyignore with its reason. Nothing is pushed anywhere.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 5 * * 1"   # weekly, Monday 05:17 UTC: new CVEs in unchanged images
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Scan this public image instead of building ours (the demo: a known-old one fails)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Pinned by digest; 0.76.1 (2026-10-21).
+  TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+
+jobs:
+  trivy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build the images
+        if: inputs.image == ''
+        run: |
+          set -euo pipefail
+          docker build -t dip-airflow:scan -f images/airflow/Dockerfile .
+          docker build -t dip-ocr:scan --build-arg BASE=dip-airflow:scan -f images/ocr/Dockerfile .
+          docker build -t dip-mcp:scan -f images/mcp/Dockerfile .
+          docker build -t dip-intake-api:scan -f images/intake-api/Dockerfile .
+
+      - name: Scan (fails on a fixable CRITICAL)
+        env:
+          EXTRA_IMAGE: ${{ inputs.image }}
+        run: |
+          set -uo pipefail
+          status=0
+          images="dip-airflow:scan dip-ocr:scan dip-mcp:scan dip-intake-api:scan"
+          [ -n "$EXTRA_IMAGE" ] && images="$EXTRA_IMAGE"
+          for image in $images; do
+            echo "::group::$image"
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$PWD/.trivyignore:/trivyignore:ro" \
+              -v trivy-cache:/root/.cache \
+              "$TRIVY_IMAGE" image --quiet --scanners vuln \
+              --severity CRITICAL --ignore-unfixed --ignorefile /trivyignore \
+              --exit-code 1 "$image" || { status=1; echo "::error::$image has a fixable CRITICAL finding"; }
+            echo "::endgroup::"
+          done
+          exit "$status"
