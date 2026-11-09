@@ -65,8 +65,8 @@ gaps are issues #83 to #101 and #103, all scheduled below).
   Demo: `stage-2.md`
 - [x] **3. OCR, monitoring, read-only MCP.** Scanned PDF invoices, Marquez lineage, Grafana
   and Prometheus alert rules, MCP Read tier with audit log. Demo: `stage-3.md`
-- [x] **4. Breakage generator, runbooks 01–08, Propose tier.** No demo file yet (#86)
-- [x] **5. Contract-author agent + eval harness.** No demo file yet (#87)
+- [x] **4. Breakage generator, runbooks 01–08, Propose tier.** Demo: `stage-4.md`
+- [x] **5. Contract-author agent + eval harness.** Demo: `stage-5.md`
 - [x] **6. Act tier + triage agent.** Demo: `stage-6.md`
 - [x] **7. Incident agent + LangGraph handoff.** Demo: `stage-7.md`
 - [x] **8. Hardening and write-up.** Demo: `stage-8.md`
@@ -98,8 +98,8 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   One line per feature with its file, CI job or demo; unbuilt ones listed as not yet built
 - [x] **12.4 License file: Apache-2.0** (#84)
 - [x] **12.5 `.wslconfig` guidance** (#85)
-- [ ] **12.6 Demos for Stages 4 and 5** (#86, #87)
-- [ ] **12.7 §8.9 status table refresh** (#100) and the README screenshot (#99)
+- [x] **12.6 Demos for Stages 4 and 5** (#86, #87)
+- [x] **12.7 §8.9 status table refresh** (#100) and the README screenshot (#99)
 - [ ] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
 - [ ] **12.9 Merge rules and supply-chain checks** **(ask)** before building.
   - Branch protection on `main`, requiring the `lint`, `test` and `e2e` checks (not
@@ -120,6 +120,12 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   cluster keeps building images locally; 13.2's rollback can deploy a released tag. First
   tag: `v0.12.0`, once 12.5 to 12.9 are done. Demo: the release page, its notes, and
   `docker pull` of the tagged image.
+  **Built (2026-11-09), not yet released.** `.github/workflows/release.yml` and
+  `scripts/release_notes.py` (5 unit tests). A tag push builds the four images, pushes them
+  to GHCR as `:<version>` and `:sha-<commit>`, and creates the release; a manual run is a
+  dry run that builds and writes the notes and publishes nothing. Waiting on the user: the
+  first tag, `v0.12.0` (no tag is pushed and nothing is published without the user's OK),
+  and 12.9, which is blocked.
 
 ## Stage 13: Deployment hardening
 
@@ -164,6 +170,12 @@ Incident: the dropped table (runbook `14-restore.md`).
 - [ ] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database
+  Found 2026-11-09 (#115's e2e, run 42617255988): every intake task runs `Warehouse.init`,
+  which re-applies all of `warehouse.sql`, `ALTER TABLE` included, and its exclusive locks
+  deadlocked with the MCP server's `propose_operation` query (Postgres: `deadlock detected`,
+  the init's `pg_advisory_xact_lock` transaction against a `select ... from ops.quarantine`).
+  The break loop's proposal failed; the other e2e run on the same commit passed. Applying migrations once,
+  before the services start, and not on every task removes it.
 
 ## Stage 15: Tracing with Jaeger
 
