@@ -49,6 +49,7 @@ and an 835 sent to the 837 feed (`tests/fixtures/x12/bad/`):
 from pathlib import Path
 from dip.contracts import load_contract
 from dip.x12feed import validate_x12
+
 c = load_contract("packs/healthcare/contracts/claims_837.yaml")
 validate_x12(Path("artifacts/out/claims837_lost.x12").read_bytes(), c)
 ```
