@@ -75,12 +75,12 @@ def test_the_workflow_publishes_only_on_a_tag_push():
     on = wf[True] if True in wf else wf["on"]  # PyYAML reads the key `on` as True
     assert on["push"] == {"tags": ["v*"]}
     steps = {s.get("name"): s for s in wf["jobs"]["release"]["steps"]}
+    # A manual run started on a tag also has GITHUB_REF_TYPE=tag: only a push may publish.
     for publishing in ("Push the images", "The GitHub release"):
-        assert steps[publishing]["if"] == "steps.v.outputs.publish == 'true'"
-    assert (
-        "publish=true" in steps["Version"]["run"]
-        and 'GITHUB_REF_TYPE}" = tag' in steps["Version"]["run"]
-    )
+        assert steps[publishing]["if"].startswith("github.event_name == 'push' && ")
+    version = steps["Version"]["run"]
+    assert '[ "${GITHUB_EVENT_NAME}" = push ] && [ "${GITHUB_REF_TYPE}" = tag ]' in version
+    assert "${{" not in steps["Release notes"]["run"]  # values come in through env
     built = steps["Build the images"]["run"]
     for image in ("dip-airflow", "dip-ocr", "dip-mcp", "dip-intake-api"):
         assert f"build {image} " in built

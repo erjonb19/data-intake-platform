@@ -43,7 +43,9 @@ jobs:
         id: v
         run: |
           set -euo pipefail
-          if [ "${GITHUB_REF_TYPE}" = tag ]; then version="${GITHUB_REF_NAME}"; publish=true
+          # Only a tag push publishes: a manual run started on a tag also has REF_TYPE=tag.
+          if [ "${GITHUB_EVENT_NAME}" = push ] && [ "${GITHUB_REF_TYPE}" = tag ]; then
+            version="${GITHUB_REF_NAME}"; publish=true
           else version="dryrun-${GITHUB_SHA::12}"; publish=false; fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
@@ -51,12 +53,15 @@ jobs:
           echo "version $version, publish $publish"
 
       - name: Release notes
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          PUBLISH: ${{ steps.v.outputs.publish }}
         run: |
           set -euo pipefail
           # The tag itself on a tag push, so it is not taken for the previous tag.
-          ref="${GITHUB_SHA}"; [ "${GITHUB_REF_TYPE}" = tag ] && ref="${GITHUB_REF_NAME}"
+          ref="${GITHUB_SHA}"; [ "${PUBLISH}" = true ] && ref="${VERSION}"
           python scripts/release_notes.py "$ref" > notes.md
-          sed -i "1s/.*/# ${{ steps.v.outputs.version }}/" notes.md
+          { echo "# ${VERSION}"; tail -n +2 notes.md; } > notes.tmp && mv notes.tmp notes.md
           cat notes.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build the images
@@ -80,7 +85,7 @@ jobs:
           docker images "${REGISTRY}/*"
 
       - name: Push the images
-        if: steps.v.outputs.publish == 'true'
+        if: github.event_name == 'push' && steps.v.outputs.publish == 'true'
         env:
           VERSION: ${{ steps.v.outputs.version }}
           SHA: ${{ steps.v.outputs.sha }}
@@ -93,7 +98,7 @@ jobs:
           done
 
       - name: The GitHub release
-        if: steps.v.outputs.publish == 'true'
+        if: github.event_name == 'push' && steps.v.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.v.outputs.version }}
