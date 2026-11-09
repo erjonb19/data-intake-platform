@@ -157,7 +157,7 @@ drops `gold.member_eligibility`; `dip restore --latest --verify` brings it back 
 counts and checksums match the pre-drop snapshot.
 Incident: the dropped table (runbook `14-restore.md`).
 
-- [ ] **14.1 Backup CronJob:** `pg_dump` of the warehouse to a MinIO bucket, retention of
+- [x] **14.1 Backup CronJob:** `pg_dump` of the warehouse to a MinIO bucket, retention of
   7 dumps, an `ops.backup` row per run, alert `BackupMissing` (none in 26 h)
 - [ ] **14.2 Restore drill** in the proof workflow: drop, restore, verify counts and
   checksums, time-to-restore recorded

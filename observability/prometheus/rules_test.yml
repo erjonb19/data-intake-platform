@@ -196,3 +196,51 @@ tests:
                 A task stayed scheduled or queued past the platform check's threshold (incident
                 TASK.STUCK_QUEUED, opened by the platform-check CronJob). Runbook
                 docs/runbooks/12-stuck-queued.md.
+  # Stage 14 (14.1): the last good backup finished at time 0 and none since: 25 h old, no
+  # alert; 27 h old, BackupMissing.
+  - interval: 1h
+    input_series:
+      - series: 'dip_backup_last_success_timestamp_seconds'
+        values: "0x30"
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupMissing
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: BackupMissing
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: "The newest good warehouse backup is 1d 3h 0m 0s old"
+              description: >-
+                No backup of the warehouse has succeeded in 26 hours (the warehouse-backup
+                CronJob runs nightly; ops.backup holds each run's status and error).
+                Restore notes: docs/backups.md.
+  # A good backup every 12 h: never older than 26 h, no alert.
+  - interval: 12h
+    input_series:
+      - series: 'dip_backup_last_success_timestamp_seconds'
+        values: "0+43200x6"
+    alert_rule_test:
+      - eval_time: 60h
+        alertname: BackupMissing
+        exp_alerts: []
+  # No good backup ever (no series): no alert for 26 h, then BackupMissing.
+  - interval: 1h
+    input_series:
+      - series: 'up{job="dip-metrics"}'
+        values: "1x30"
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: BackupMissing
+        exp_alerts: []
+      - eval_time: 27h
+        alertname: BackupMissing
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: "No warehouse backup has succeeded yet"
+              description: >-
+                No backup of the warehouse has succeeded in 26 hours (the warehouse-backup
+                CronJob runs nightly; ops.backup holds each run's status and error).
+                Restore notes: docs/backups.md.

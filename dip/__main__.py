@@ -62,6 +62,8 @@
                                and undo it (Stage 11: scheduler_down, oom_task, bad_secret)
   platform-check               the scheduler's heartbeat (and from S11.7 the pods), as
                                platform incidents (Stage 11, S11.6; the CronJob runs it)
+  backup now                   a warehouse backup now (pg_dump to s3://backups/), as a Job
+                               from the warehouse-backup CronJob; kind-dip only (14.1)
   trace CHAIN_ID               one chain's model and tool calls in time order, with totals
                                per step (Stage 11, S11.2: ops.trace_span)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
@@ -741,6 +743,8 @@ def main(argv: list[str] | None = None) -> int:
     drl = sub.add_parser("drill")
     drl.add_argument("name")
     drl.add_argument("--undo", action="store_true")
+    bkp = sub.add_parser("backup")
+    bkp.add_argument("action", choices=["now"])
     trc = sub.add_parser("trace")
     trc.add_argument("chain_id")
     met = sub.add_parser("metrics-serve")
@@ -890,6 +894,15 @@ def main(argv: list[str] | None = None) -> int:
             print(f"refused: {exc}", file=sys.stderr)
             return 1
         return 0
+    elif args.command == "backup":
+        from dip import backup
+        from dip.drills import DrillError
+
+        try:
+            return backup.now()
+        except DrillError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 1
     elif args.command == "platform-check":
         from dip import platform_check
 

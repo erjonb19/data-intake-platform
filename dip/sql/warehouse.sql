@@ -440,6 +440,37 @@ BEGIN
 END $$;
 SELECT ops.grant_platform_check();
 
+-- Stage 14 (14.1): one row per warehouse backup (dip/backup.py, the warehouse-backup
+-- CronJob): when it ran, how it ended, and the dump it left in the backups bucket (its key,
+-- size and SHA-256). The exporter reads the newest good one (BackupMissing).
+CREATE TABLE IF NOT EXISTS ops.backup (
+    backup_id    bigserial   PRIMARY KEY,
+    started_at   timestamptz NOT NULL DEFAULT now(),
+    finished_at  timestamptz,
+    status       text        NOT NULL DEFAULT 'running'
+                             CHECK (status IN ('running', 'ok', 'failed')),
+    object_key   text,
+    bytes        bigint,
+    sha256       text,
+    error        text
+);
+CREATE INDEX IF NOT EXISTS backup_latest ON ops.backup (status, finished_at DESC);
+-- Its login (dip_backup, postgres-roles.sql) reads everything through pg_read_all_data,
+-- for pg_dump; its only writes are its own rows here.
+CREATE OR REPLACE FUNCTION ops.grant_backup() RETURNS void
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_backup') THEN
+        RETURN;
+    END IF;
+    GRANT USAGE ON SCHEMA ops TO dip_backup;
+    GRANT INSERT ON ops.backup TO dip_backup;
+    GRANT UPDATE (finished_at, status, object_key, bytes, sha256, error)
+        ON ops.backup TO dip_backup;
+    GRANT USAGE ON SEQUENCE ops.backup_backup_id_seq TO dip_backup;
+END $$;
+SELECT ops.grant_backup();
+
 -- Stage 11 (S11.5): feedback. Each agent's proposals by action and week (of the decision,
 -- or of the expiry), with what people decided and why they rejected: the rate panel on the
 -- Agents dashboard and the trend `dip agents feedback` prints.
@@ -608,6 +639,10 @@ BEGIN
     -- (S11.6) the platform check's latest findings
     IF to_regclass('ops.platform_check') IS NOT NULL THEN
         GRANT SELECT (check_name, target, ok, observed, at) ON ops.platform_check TO dip_metrics;
+    END IF;
+    -- (14.1) when the newest good backup finished
+    IF to_regclass('ops.backup') IS NOT NULL THEN
+        GRANT SELECT (status, finished_at) ON ops.backup TO dip_metrics;
     END IF;
 END $$;
 SELECT ops.grant_metrics_reader();

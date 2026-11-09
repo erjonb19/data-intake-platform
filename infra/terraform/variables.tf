@@ -102,7 +102,7 @@ variable "minio_client_image" {
 variable "minio_buckets" {
   description = "Buckets created at deploy time."
   type        = list(string)
-  default     = ["landing", "raw", "quarantine", "airflow-logs"]
+  default     = ["landing", "raw", "quarantine", "airflow-logs", "backups"]
 }
 
 variable "prometheus_chart_version" {
@@ -157,4 +157,28 @@ variable "gemini_api_key" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+# Stage 14 (14.1): the nightly warehouse backup (backups.tf).
+variable "backups_enabled" {
+  description = "The warehouse backup CronJob (pg_dump into the MinIO bucket backups), its MinIO user and the BackupMissing alert. false removes all three."
+  type        = bool
+  default     = true
+}
+
+variable "backup_schedule" {
+  description = "When the warehouse backup runs (cron, UTC). BackupMissing fires 26 h after the newest good one."
+  type        = string
+  default     = "15 2 * * *"
+}
+
+variable "backup_keep" {
+  description = "How many warehouse dumps the backups bucket keeps; older ones are deleted after each good backup."
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.backup_keep >= 1
+    error_message = "backup_keep must be at least 1."
+  }
 }

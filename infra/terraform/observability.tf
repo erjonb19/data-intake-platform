@@ -117,7 +117,14 @@ resource "helm_release" "prometheus" {
     file("${path.module}/../helm-values/prometheus.yaml"),
     yamlencode({
       serverFiles = {
-        "alerting_rules.yml" = yamldecode(file("${path.module}/../../observability/prometheus/rules.yml"))
+        # Without backups (backups_enabled = false) the dip-backups group is left out, so
+        # BackupMissing cannot fire for a backup that is switched off.
+        "alerting_rules.yml" = {
+          groups = [
+            for g in yamldecode(file("${path.module}/../../observability/prometheus/rules.yml")).groups :
+            g if var.backups_enabled || g.name != "dip-backups"
+          ]
+        }
       }
     }),
   ]
