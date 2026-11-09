@@ -205,10 +205,27 @@ def _refuse_ccitt(data: bytes, params: Any) -> bytes:
     )
 
 
+def _png_predictor(original: Any) -> Any:
+    """pdfminer's PNG predictor, refusing a row wider than the data. It allocates a row of
+    /Columns entries before it reads any data, so a few bytes with `/Columns 100000000`
+    would take about a GB. A real row is at most the data (8 columns per byte at 1 bit)."""
+
+    def apply(pred: int, colors: int, columns: int, bpc: int, data: bytes) -> bytes:
+        if columns > 8 * len(data) + 8 or colors * columns * bpc // 8 > len(data):
+            raise _Refused(
+                "PDF.DECOMPRESSION_BOMB",
+                f"a PNG predictor row of {columns} columns over {len(data)} bytes of data",
+            )
+        return original(pred, colors, columns, bpc, data)
+
+    return apply
+
+
 @contextmanager
 def _decode_budget(limit: int) -> Iterator[None]:
     """While reading one file, every Flate, LZW and RunLength decode pdfminer does is
-    charged to one budget, and CCITTFax is refused (those are the filters that expand data)."""
+    charged to one budget, CCITTFax is refused, and a PNG predictor row wider than its data
+    is refused (those are the steps that expand data or allocate from the file's word)."""
     from pdfminer import pdftypes
     from pdfminer.lzw import LZWDecoder
 
@@ -227,6 +244,7 @@ def _decode_budget(limit: int) -> Iterator[None]:
         "lzwdecode": lzwdecode,
         "rldecode": lambda data: _rldecode(data, budget),
         "ccittfaxdecode": _refuse_ccitt,
+        "apply_png_predictor": _png_predictor(pdftypes.apply_png_predictor),
     }
     saved = {name: getattr(pdftypes, name) for name in swaps}
     for name, value in swaps.items():

@@ -387,3 +387,20 @@ def test_a_flate_compressed_invoice_is_still_read(contract):
     c.save()
     assert b"/FlateDecode" in buf.getvalue()
     assert record(read(contract, "", buf.getvalue()))["total"] == "1088.75"
+
+
+def test_a_png_predictor_row_wider_than_its_data_is_refused(contract, monkeypatch):
+    # pdfminer allocates the row from /Columns before reading: a GB from a few bytes.
+    data = _one_page_pdf(
+        zlib.compress(bytes(4)), "/FlateDecode /DecodeParms << /Predictor 12 /Columns 100000000 >>"
+    )
+    assert _codes(contract, monkeypatch, data) == ["PDF.DECOMPRESSION_BOMB"]
+
+
+def test_a_normal_png_predictor_still_decodes():
+    from dip.pdffeed import _png_predictor
+
+    rows = b"\x00abc\x00def"  # two rows of 3 bytes, filter type 0 (none)
+    calls = []
+    apply = _png_predictor(lambda *a: calls.append(a) or b"ok")
+    assert apply(12, 1, 3, 8, rows) == b"ok" and calls
