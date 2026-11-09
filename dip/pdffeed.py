@@ -65,10 +65,10 @@ MAX_BYTES = 20 * 1024 * 1024
 MAX_PAGES = 20
 MAX_PIXELS = 40_000_000  # per rendered page: a letter page at 600 dpi is 33.7 Mpx
 OCR_TIMEOUT_S = 60  # per page
-# Everything pdfminer decodes from one file, in total. A third of the OCR task pod's 768Mi:
-# pdfminer keeps what it decodes, so a file past this would not have fit anyway. Text and
+# Everything pdfminer decodes from one file, in total. A sixth of the OCR task pod's 768Mi,
+# since a decode holds its pieces and their join at once (twice the budget at the peak). Text and
 # fonts are a few MB even for a long invoice; images are not decoded to read text.
-MAX_INFLATED_BYTES = 256 * 1024 * 1024
+MAX_INFLATED_BYTES = 128 * 1024 * 1024
 _INFLATE_CHUNK = 1024 * 1024
 
 
@@ -195,10 +195,20 @@ class _ChargedZlib:
         return getattr(zlib, name)
 
 
+def _refuse_ccitt(data: bytes, params: Any) -> bytes:
+    """CCITTFax is a fax image encoding: a few bytes stand for any number of white rows
+    (/Columns sets their width), and pdfminer decodes it in pure Python. Images are not
+    decoded to read text, so pdfminer reaches this only for a content stream or a font
+    marked CCITT, which no real invoice has: refused, not decoded."""
+    raise _Refused(
+        "PDF.DECOMPRESSION_BOMB", "a CCITTFax-encoded content or font stream is not decoded"
+    )
+
+
 @contextmanager
 def _decode_budget(limit: int) -> Iterator[None]:
     """While reading one file, every Flate, LZW and RunLength decode pdfminer does is
-    charged to one budget (those are the filters that expand data)."""
+    charged to one budget, and CCITTFax is refused (those are the filters that expand data)."""
     from pdfminer import pdftypes
     from pdfminer.lzw import LZWDecoder
 
@@ -216,6 +226,7 @@ def _decode_budget(limit: int) -> Iterator[None]:
         "decompress_corrupted": lambda data: _inflate(data, budget, strict=False),
         "lzwdecode": lzwdecode,
         "rldecode": lambda data: _rldecode(data, budget),
+        "ccittfaxdecode": _refuse_ccitt,
     }
     saved = {name: getattr(pdftypes, name) for name in swaps}
     for name, value in swaps.items():

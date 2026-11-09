@@ -324,6 +324,13 @@ def _bomb(kind: str) -> bytes:
             zlib.compress(b"x\x9c" + bytes(BOMB_SIZE)), "/FlateDecode"
         ),
         "lzw": lambda: _one_page_pdf(_lzw_zeros(BOMB_SIZE), "/LZWDecode"),
+        "ccittfax": lambda: _one_page_pdf(
+            b"\xff" * 10, "/CCITTFaxDecode /DecodeParms << /K -1 /Columns 80000 >>"
+        ),
+        "ccittfax_under_flate": lambda: _one_page_pdf(
+            zlib.compress(b"\xff" * 10),
+            "[/FlateDecode /CCITTFaxDecode] /DecodeParms [null << /K -1 /Columns 80000 >>]",
+        ),
         "runlength": lambda: _one_page_pdf(
             b"\x81\x00" * (BOMB_SIZE // 128) + b"\x80", "/RunLengthDecode"
         ),
@@ -334,7 +341,7 @@ def _bomb(kind: str) -> bytes:
     "kind",
     ["flate", "flate_abbreviated", "small_zlib_window", "keyword_with_a_comment",
      "ascii85_open_no_close", "asciihex_no_close", "flate_in_flate", "three_flate_layers",
-     "zlib_header_inside", "lzw", "runlength"],
+     "zlib_header_inside", "lzw", "runlength", "ccittfax", "ccittfax_under_flate"],
 )  # fmt: skip
 def test_a_decompression_bomb_is_refused(contract, monkeypatch, kind):
     data = _bomb(kind)

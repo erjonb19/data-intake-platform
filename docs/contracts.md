@@ -73,9 +73,9 @@ are read: `FILE.TOO_LARGE` (over 20 MB), `PDF.TOO_MANY_PAGES` (over 20: the page
 `/Count`, and the pages actually read, since a forged `/Count` can understate them),
 `PDF.PAGE_TOO_LARGE` (a scanned page that would render over 40 Mpx), and `OCR.TIMEOUT`
 (60 s per page). A Tesseract error on a page is `OCR.FAILED`. `PDF.DECOMPRESSION_BOMB`
-refuses a file whose streams decode to more than 256 MB (12.8): pdfminer's Flate, LZW and
+refuses a file whose streams decode to more than 128 MB (12.8): pdfminer's Flate, LZW and
 RunLength decoders share one budget while it reads the file and stop the moment it is
-spent, whatever the filter chain. Image streams are not decoded to read text; a scan is
+spent, whatever the filter chain; a CCITTFax-encoded content or font stream is refused. Image streams are not decoded to read text; a scan is
 rendered by pdfium, bounded by `PDF.PAGE_TOO_LARGE`. The poor-scan fixture scores
 6.7 against the threshold of 75, a wide margin across Tesseract builds (CI's Ubuntu
 build, the image's Debian build).
