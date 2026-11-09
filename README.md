@@ -69,6 +69,13 @@ generated dbt models, and `dbt build` passed on them (11 of 11). Model spend: $0
 
 ![The approvals page: the intake team's contract proposal for a new feed](docs/images/intake-proposal.png)
 
+The same run in the audit log, filtered to its chain id: each of the 12 calls, by the profile,
+contract author, validator, reviewer and orchestrator, with its tier and decision. Eight are
+Read tier; the four Propose-tier calls record a step's result, and the last,
+`propose_contract_pr` (call 33), files the proposal, which waits for a person.
+
+![The approvals page's audit log: the intake team's 12 calls under one chain id](docs/images/intake-audit.png)
+
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
 **Status (PLAN.md §8.9 has the item-by-item check).** Built and merged: Stage 0
@@ -307,6 +314,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `pyproject.toml` (12.4)
 - [x] WSL2 memory guidance for Windows: `.wslconfig` values per laptop size (README, "WSL2
   memory on Windows") and a hint in `scripts/prereqs.sh` (12.5)
+- [x] PLAN.md §8.9 matches the audit: Stages 4, 5 and 6 marked partly with their open issues,
+  Stages 9 to 11 added (12.7)
 
 CI uses synthetic data only (Synthea, and generated or hand-written fixtures). The MIMIC-IV
 demos are never downloaded in CI, and no real or MIMIC data is ever sent to a model
