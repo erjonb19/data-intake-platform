@@ -404,3 +404,17 @@ def test_a_normal_png_predictor_still_decodes():
     calls = []
     apply = _png_predictor(lambda *a: calls.append(a) or b"ok")
     assert apply(12, 1, 3, 8, rows) == b"ok" and calls
+
+
+def test_a_one_bit_predictor_row_cannot_pass_by_its_byte_count(contract, monkeypatch):
+    # 1 bit per component: a 16 MB row over 16 MB of data, but 134 M columns of row buffer.
+    data = _one_page_pdf(
+        _zeros_deflated(16 << 20),
+        "/FlateDecode /DecodeParms << /Predictor 12 /BitsPerComponent 1 /Columns 134217728 >>",
+    )
+    import dip.pdffeed as pdffeed
+
+    monkeypatch.setattr(pdffeed, "MAX_INFLATED_BYTES", 32 << 20)  # the data fits the budget
+    assert [v.reason_code for v in read(contract, "", data).file_violations] == [
+        "PDF.DECOMPRESSION_BOMB"
+    ]

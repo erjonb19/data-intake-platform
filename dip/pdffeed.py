@@ -70,6 +70,7 @@ OCR_TIMEOUT_S = 60  # per page
 # fonts are a few MB even for a long invoice; images are not decoded to read text.
 MAX_INFLATED_BYTES = 128 * 1024 * 1024
 _INFLATE_CHUNK = 1024 * 1024
+_MAX_COLUMNS = 1_000_000  # PNG predictor rows: about 9 MB of row buffer at most
 
 
 class _Refused(Exception):
@@ -208,10 +209,11 @@ def _refuse_ccitt(data: bytes, params: Any) -> bytes:
 def _png_predictor(original: Any) -> Any:
     """pdfminer's PNG predictor, refusing a row wider than the data. It allocates a row of
     /Columns entries before it reads any data, so a few bytes with `/Columns 100000000`
-    would take about a GB. A real row is at most the data (8 columns per byte at 1 bit)."""
+    would take about a GB, at about 9 bytes per column whatever the bits per component. A
+    real row is at most the data, and a page at 600 dpi is 5,100 columns wide."""
 
     def apply(pred: int, colors: int, columns: int, bpc: int, data: bytes) -> bytes:
-        if columns > 8 * len(data) + 8 or colors * columns * bpc // 8 > len(data):
+        if columns > _MAX_COLUMNS or colors * columns * bpc // 8 > len(data):
             raise _Refused(
                 "PDF.DECOMPRESSION_BOMB",
                 f"a PNG predictor row of {columns} columns over {len(data)} bytes of data",
