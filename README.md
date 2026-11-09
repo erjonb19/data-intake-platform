@@ -265,6 +265,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `packs/`); dbt tests on every layer, their results carried into lineage
   (`tests/e2e/lineage.py`)
 - [x] Lineage in Marquez (OpenLineage), checked by the E2E
+- [x] Untrusted PDFs are refused before they are parsed when too large, too long or a
+  decompression bomb (`dip/pdffeed.py`, `tests/unit/test_pdffeed.py`; 12.8)
 - [ ] Nightly Postgres backups to MinIO and a restore drill: not yet built (14.1, 14.2)
 - [ ] Versioned warehouse migrations: not yet built (14.3); today the schemas are
   `create ... if not exists` at startup (`dip/sql/warehouse.sql`)

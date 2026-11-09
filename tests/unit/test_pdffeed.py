@@ -6,6 +6,8 @@ tests need Tesseract, which only the OCR task image and CI have: they skip witho
 from __future__ import annotations
 
 import shutil
+import struct
+import zlib
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -207,3 +209,107 @@ def test_a_forged_page_count_does_not_get_past_the_page_limit(contract):
     forged = data.replace(b"/Count 25", b"/Count 1 ")  # same length, so offsets hold
     result = read(contract, "", forged)
     assert [v.reason_code for v in result.file_violations] == ["PDF.TOO_MANY_PAGES"]
+
+
+# 12.8 (#97): a decompression bomb is refused before pdfminer inflates it. The limit is
+# lowered for speed; each bomb inflates to 4 times it.
+BOMB_LIMIT = 8 * 1024 * 1024
+
+
+def _zeros_deflated(n: int, wbits: int) -> bytes:
+    """`n` zero bytes, compressed in pieces (never `n` bytes in memory at once)."""
+    comp, out, chunk = zlib.compressobj(9, zlib.DEFLATED, wbits), [], bytes(1 << 20)
+    for _ in range(n >> 20):
+        out.append(comp.compress(chunk))
+    out.append(comp.flush())
+    return b"".join(out)
+
+
+def _pdf_with_stream(body: bytes, before: bytes = b"") -> bytes:
+    return (b"%PDF-1.4\n" + before
+            + b"2 0 obj\n<< /Length " + str(len(body)).encode() + b" /Filter /FlateDecode >>\n"
+            + b"stream\n" + body + b"\nendstream\nendobj\ntrailer\n<< >>\n%%EOF\n")  # fmt: skip
+
+
+def _bomb_codes(contract, monkeypatch, data: bytes) -> list[str]:
+    import dip.pdffeed as pdffeed
+
+    monkeypatch.setattr(pdffeed, "MAX_INFLATED_BYTES", BOMB_LIMIT)
+    return [v.reason_code for v in read(contract, "", data).file_violations]
+
+
+def test_a_decompression_bomb_is_refused_before_parsing(contract, monkeypatch):
+    bomb = _zeros_deflated(4 * BOMB_LIMIT, 15)
+    assert len(bomb) < BOMB_LIMIT // 100  # tiny on disk
+    codes = _bomb_codes(contract, monkeypatch, _pdf_with_stream(bomb))
+    assert codes == ["PDF.DECOMPRESSION_BOMB"]
+
+
+def test_a_bomb_with_a_small_zlib_window_is_refused(contract, monkeypatch):
+    bomb = _zeros_deflated(4 * BOMB_LIMIT, 10)  # header 0x28, not the usual 0x78
+    assert bomb[0] != 0x78
+    codes = _bomb_codes(contract, monkeypatch, _pdf_with_stream(bomb))
+    assert codes == ["PDF.DECOMPRESSION_BOMB"]
+
+
+def test_a_bomb_hiding_endstream_in_its_data_is_refused(contract, monkeypatch):
+    # A stored block holding the bytes "endstream", then the bomb: a scan that stopped at
+    # the first "endstream" would count nine bytes. A small stream comes first, so its own
+    # "endstream" is crossed too.
+    hidden = b"endstream"
+    stored = b"\x00" + struct.pack("<HH", len(hidden), 0xFFFF ^ len(hidden)) + hidden
+    raw = _zeros_deflated(4 * BOMB_LIMIT, -15)
+    adler = zlib.adler32(hidden)
+    for _ in range(4 * BOMB_LIMIT >> 20):
+        adler = zlib.adler32(bytes(1 << 20), adler)
+    body = b"\x78\x9c" + stored + raw + struct.pack(">I", adler)
+    small = zlib.compress(b"q 1 0 0 1 0 0 cm Q")
+    before = b"1 0 obj\n<< /Length " + str(len(small)).encode() + b" /Filter /FlateDecode >>\n"
+    before += b"stream\n" + small + b"\nendstream\nendobj\n"
+    codes = _bomb_codes(contract, monkeypatch, _pdf_with_stream(body, before))
+    assert codes == ["PDF.DECOMPRESSION_BOMB"]
+
+
+def test_real_invoices_are_far_under_the_inflate_budget():
+    from dip.pdffeed import MAX_INFLATED_BYTES, _inflated_size
+
+    for pdf in sorted((FIXTURES / "good").glob("*.pdf")) + sorted((FIXTURES / "bad").glob("*.pdf")):
+        assert _inflated_size(pdf.read_bytes(), MAX_INFLATED_BYTES) < 16 * 1024 * 1024, pdf.name
+
+
+def test_a_flate_compressed_invoice_is_counted_and_still_read(contract):
+    import io
+
+    from reportlab.pdfgen import canvas
+
+    from dip.pdffeed import MAX_INFLATED_BYTES, _inflated_size
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pageCompression=1, invariant=1)
+    y = 720
+    for line in ["Acme Supplies", "Vendor ID V1001", "Invoice number: INV-000001",
+                 "Invoice date: 2026-10-14", "Due date: 2026-11-13", "PO number: PO-000001",
+                 "Payment terms: NET30", "Currency: USD", "Subtotal: 1,000.00",
+                 "Tax: 88.75", "Total: 1,088.75"]:  # fmt: skip
+        c.drawString(72, y, line)
+        y -= 18
+    c.showPage()
+    c.save()
+    data = buf.getvalue()
+    assert b"/FlateDecode" in data
+    assert 0 < _inflated_size(data, MAX_INFLATED_BYTES) < 1024 * 1024
+    assert record(read(contract, "", data))["total"] == "1088.75"
+
+
+@pytest.mark.parametrize("wrap", ["ascii85", "asciihex", "flate_in_flate"])
+def test_a_wrapped_bomb_is_refused(contract, monkeypatch, wrap):
+    import base64
+
+    bomb = _zeros_deflated(4 * BOMB_LIMIT, 15)
+    body = {
+        "ascii85": lambda: base64.a85encode(bomb, wrapcol=72) + b"~>",
+        "asciihex": lambda: bomb.hex().encode() + b">",
+        "flate_in_flate": lambda: zlib.compress(bomb),
+    }[wrap]()
+    codes = _bomb_codes(contract, monkeypatch, _pdf_with_stream(body))
+    assert codes == ["PDF.DECOMPRESSION_BOMB"]

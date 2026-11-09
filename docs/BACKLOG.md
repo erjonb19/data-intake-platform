@@ -69,7 +69,9 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
 - [x] **12.5 `.wslconfig` guidance** (#85)
 - [ ] **12.6 Demos for Stages 4 and 5** (#86, #87)
 - [ ] **12.7 §8.9 status table refresh** (#100) and the README screenshot (#99)
-- [ ] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
+- [x] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
+  Runbook 07 does not name `PDF.DECOMPRESSION_BOMB` yet: a runbook edit changes the incident
+  recordings, so it waits for 18.1 and its re-recording **(ask)**.
 
 ## Stage 13: Deployment hardening
 

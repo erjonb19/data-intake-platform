@@ -30,16 +30,27 @@ File-level codes: PDF.INVALID (anything the parser cannot read, wherever it fail
 PDF.EMPTY, PDF.TOO_MANY_PAGES (over 20), FILE.TOO_LARGE (over 20 MB), PDF.PAGE_TOO_LARGE
 (a page that would render over 40 Mpx), OCR.TIMEOUT (60 s per page), OCR.FAILED (Tesseract
 could not read a page), OCR.UNAVAILABLE (the
-task is not in the OCR image), OCR.LOW_CONFIDENCE, PDF.MISSING_FIELD:<column>. The limits
-bound what one file can cost; a stream that inflates to gigabytes (a decompression bomb)
-is not detected before pdfminer inflates it, and is bounded only by the pod's memory limit
-(a follow-up in PLAN.md section 8.7).
+task is not in the OCR image), OCR.LOW_CONFIDENCE, PDF.MISSING_FIELD:<column>,
+PDF.DECOMPRESSION_BOMB (its Flate streams would inflate past MAX_INFLATED_BYTES). The limits
+bound what one file can cost.
+
+The decompression check (12.8, #97) runs before pdfminer parses anything: it finds every
+`stream` keyword in the raw bytes and inflates each body that is zlib data in bounded
+chunks, throwing the output away, so the check itself never holds more than a chunk
+(`_inflated_size`). An ASCII85 or ASCIIHex body is decoded first, and a Flate layer inside
+a Flate layer is inflated too. A file whose streams add up to more than MAX_INFLATED_BYTES
+is refused. A legitimate invoice inflates to a few MB, and 20 grayscale 300 dpi scans fit;
+the budget is a third of the OCR pod's memory, since pdfminer keeps what it inflates.
+Streams in another form (LZW, run-length, an encrypted stream) are not counted and are left
+to the pod's memory limit, as every stream was before.
 """
 
 from __future__ import annotations
 
+import base64
 import io
 import re
+import zlib
 from datetime import UTC, datetime
 from typing import Any
 
@@ -54,6 +65,13 @@ MAX_BYTES = 20 * 1024 * 1024
 MAX_PAGES = 20
 MAX_PIXELS = 40_000_000  # per rendered page: a letter page at 600 dpi is 33.7 Mpx
 OCR_TIMEOUT_S = 60  # per page
+# Every Flate stream inflated, in total. A third of the OCR task pod's 768Mi: pdfminer keeps
+# what it inflates, so a file past this would not have fit anyway. A grayscale letter page
+# at 300 dpi is 8.4 MB raw, so 20 of them (MAX_PAGES) fit; scans are mostly JPEG (DCT),
+# which is not inflated at all.
+MAX_INFLATED_BYTES = 256 * 1024 * 1024
+_INFLATE_CHUNK = 1024 * 1024
+_STREAM = re.compile(rb"(?<!end)stream(?:\r\n|\n|\r)")
 
 
 class _Refused(Exception):
@@ -110,6 +128,90 @@ def _ocr(page: Any, cap: int) -> tuple[str, list[float]]:
     return "\n".join(" ".join(ws) for _, ws in sorted(lines.items())), confidences
 
 
+def _inflated_size(data: bytes, limit: int) -> int:
+    """How many bytes the file's Flate streams inflate to, counted without keeping them, and
+    stopping as soon as the total passes `limit`.
+
+    The body after each `stream` keyword is looked at, not its dictionary's /Filter, which
+    can be hidden: if it is ASCII85 or ASCIIHex text (`[/ASCII85Decode /FlateDecode]`, as
+    reportlab writes), that is decoded first, bounded by the file's own size. Zlib data is
+    then inflated from its first byte until zlib says it ended, not up to the next
+    `endstream`, which compressed bytes can contain; a second Flate layer inside is inflated
+    as it streams. Every layer's output counts. Input goes in 64 KiB pieces and output comes
+    out at most `_INFLATE_CHUNK` at a time, so the check holds little memory whatever the
+    ratio. A stream in any other form (an image, LZW, an encrypted stream) is skipped; one
+    that is cut short counts what it gave."""
+    total, pos = 0, 0
+    while total <= limit and (m := _STREAM.search(data, pos)) is not None:
+        start = pos = m.end()
+        body = _text_decoded(data, start)
+        if body is None:
+            body = memoryview(data)[start:]
+        if not _zlib_header(bytes(body[:2])):
+            continue
+        total = _count_inflated(body, total, limit)
+    return total
+
+
+def _count_inflated(body: Any, total: int, limit: int) -> int:
+    """`total` plus what `body` inflates to, through at most one inner Flate layer."""
+    outer, inner = zlib.decompressobj(), None
+    try:
+        for start in range(0, len(body), 65536):
+            out = outer.decompress(body[start : start + 65536], _INFLATE_CHUNK)
+            while True:
+                total += len(out)
+                if inner is None and len(out) >= 2 and _zlib_header(out[:2]):
+                    inner = zlib.decompressobj()
+                if inner is not None and not inner.eof:
+                    total += len(inner.decompress(out, _INFLATE_CHUNK))
+                    while inner.unconsumed_tail and total <= limit:
+                        total += len(inner.decompress(inner.unconsumed_tail, _INFLATE_CHUNK))
+                if total > limit or not outer.unconsumed_tail:
+                    break
+                out = outer.decompress(outer.unconsumed_tail, _INFLATE_CHUNK)
+            if total > limit or outer.eof:
+                break
+    except zlib.error:
+        pass
+    return total
+
+
+_A85 = re.compile(rb"[!-uz\s]*~>")
+_AHX = re.compile(rb"[0-9A-Fa-f\s]*>")
+
+
+def _text_decoded(data: bytes, start: int) -> bytes | None:
+    """The stream body at `start` decoded from ASCII85 or ASCIIHex, or None if it is
+    neither. Both only shrink data, so this is bounded by the file's size."""
+    head = data[start : start + 2]
+    if _zlib_header(head):
+        return None
+    if m := _A85.match(data, start):
+        try:
+            # Without the closing "~>"; ">" alone is an ASCII85 digit.
+            return base64.a85decode(
+                data[start : m.end() - 2], adobe=False, ignorechars=b" \t\n\r\x0b\x0c"
+            )
+        except ValueError:
+            return None
+    if m := _AHX.match(data, start):
+        digits = re.sub(rb"\s", b"", data[start : m.end() - 1])
+        try:
+            return bytes.fromhex((digits + b"0" * (len(digits) % 2)).decode())
+        except ValueError:
+            return None
+    return None
+
+
+def _zlib_header(two: bytes) -> bool:
+    """A zlib header: deflate (CM 8) with any window size, and the FCHECK that makes the two
+    bytes a multiple of 31. Any of these, not only the common 0x78, is inflated by pdfminer."""
+    if len(two) != 2:
+        return False
+    return two[0] & 0x0F == 8 and two[0] >> 4 <= 7 and (two[0] << 8 | two[1]) % 31 == 0
+
+
 def _page_count(pdf: Any) -> int:
     """From the page tree's /Count, before pdfplumber builds a Page for every page."""
     from pdfminer.pdftypes import resolve1
@@ -124,6 +226,10 @@ def _read(data: bytes, fmt: dict[str, Any]) -> tuple[str, float | None]:
         raise _Refused("OCR.UNAVAILABLE", f"no PDF reader in this task: {exc}") from exc
     if len(data) > MAX_BYTES:
         raise _Refused("FILE.TOO_LARGE", f"{len(data)} bytes (limit {MAX_BYTES})")
+    inflated = _inflated_size(data, MAX_INFLATED_BYTES)
+    if inflated > MAX_INFLATED_BYTES:
+        detail = f"its compressed streams inflate past {MAX_INFLATED_BYTES} bytes"
+        raise _Refused("PDF.DECOMPRESSION_BOMB", detail)
     with pdfplumber.open(io.BytesIO(data)) as pdf:
         count = _page_count(pdf)
         if count == 0:
