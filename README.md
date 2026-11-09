@@ -69,6 +69,13 @@ generated dbt models, and `dbt build` passed on them (11 of 11). Model spend: $0
 
 ![The approvals page: the intake team's contract proposal for a new feed](docs/images/intake-proposal.png)
 
+The same run in the audit log, filtered to its chain id: each of the 12 calls, by the profile,
+contract author, validator, reviewer and orchestrator, with its tier and decision. Eight are
+Read tier; the four Propose-tier calls record a step's result, and the last,
+`propose_contract_pr` (call 33), files the proposal, which waits for a person.
+
+![The approvals page's audit log: the intake team's 12 calls under one chain id](docs/images/intake-audit.png)
+
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
 **Status (PLAN.md §8.9 has the item-by-item check).** Built and merged: Stage 0
@@ -258,6 +265,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [ ] A bad-release drill: not yet built (13.3)
 - [ ] Autoscaling (metrics-server, HPAs): not yet built (13.4)
 - [ ] OpenTofu checked in CI: not yet built (13.5)
+- [ ] Merge rules enforced by GitHub, dependency updates, image and code scanning: not yet
+  built (12.9)
+- [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
 
@@ -272,6 +282,11 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `create ... if not exists` at startup (`dip/sql/warehouse.sql`)
 - [ ] Backpressure on a flood of files: not yet built (16.1)
 - [ ] Signed inbound webhooks: not yet built (16.2)
+- [ ] Measured scale: a volume generator, incremental dbt models, partitioned gold tables
+  and a benchmark report: not yet built (19.1, 19.2, 19.3)
+- [ ] Versioned contracts, with a CI check that fails a breaking change: not yet built
+  (21.1, 21.2)
+- [ ] A member's data deleted from every layer, with an audit trail: not yet built (22.2)
 
 **Observability and incidents**
 
@@ -290,6 +305,7 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   Prometheus and show in Grafana only
 - [ ] Distributed tracing in Jaeger: not yet built (Stage 15)
 - [ ] Chaos pod kills and an on-call drill with postmortems: not yet built (Stage 17)
+- [ ] SLOs with error budgets: not yet built (16.4)
 
 **Agents**
 
@@ -302,6 +318,14 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
 
+**Access**
+
+- [ ] People log in with roles (Keycloak): not yet built (20.1, 20.2)
+- [ ] Healthcare and finance as separate tenants, with row-level security and quotas: not
+  yet built (20.3)
+- [ ] A vendor portal: not yet built (20.4)
+- [ ] The governed clinical agent reads this platform's gold layer: not yet built (22.1)
+
 **Project**
 
 - [x] This checklist, and the README saying "runs on Kubernetes locally" (12.3)
@@ -309,6 +333,10 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `pyproject.toml` (12.4)
 - [x] WSL2 memory guidance for Windows: `.wslconfig` values per laptop size (README, "WSL2
   memory on Windows") and a hint in `scripts/prereqs.sh` (12.5)
+- [x] A demo script for every stage from 0 to 11 (`docs/demos/`; Stages 4 and 5 run locally
+  with a throwaway Postgres and no model key; 12.6)
+- [x] PLAN.md §8.9 matches the audit: Stages 4, 5 and 6 marked partly with their open issues,
+  Stages 9 to 11 added (12.7)
 
 CI uses synthetic data only (Synthea, and generated or hand-written fixtures). The MIMIC-IV
 demos are never downloaded in CI, and no real or MIMIC data is ever sent to a model
