@@ -447,7 +447,7 @@ What is left is below. The date stays **2026-11-30**.
 
 The MCP Read tier and OCR stay.
 
-**Follow-up (from the S3.1 review):** a PDF stream that inflates to gigabytes is bounded only by the task pod's memory limit; detect it before inflating (stream length caps in the reader), so an OOM-killed task cannot leave the file in landing to fail again. **Done 2026-11-08 (12.8, #97):** `PDF.DECOMPRESSION_BOMB` (`dip/pdffeed.py` `_inflated_size`) counts Flate output before parsing, without keeping it; LZW, run-length and encrypted streams are still bounded by the pod only.
+**Follow-up (from the S3.1 review):** a PDF stream that inflates to gigabytes is bounded only by the task pod's memory limit; detect it before inflating (stream length caps in the reader), so an OOM-killed task cannot leave the file in landing to fail again. **Done 2026-11-08 (12.8, #97):** `PDF.DECOMPRESSION_BOMB` (`dip/pdffeed.py` `_decode_budget`): pdfminer's Flate, LZW and RunLength decoders share one 256 MB budget per file and stop when it is spent.
 
 **Follow-up (from the S3.3 review):** an extract DAG (or an E2E step) so the FHIR → OMOP →
 shareable extract leg reaches Marquez in the cluster and is checked there; today it is
