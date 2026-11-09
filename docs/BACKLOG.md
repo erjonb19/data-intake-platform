@@ -1,6 +1,7 @@
 # Backlog
 
-The source of truth for what gets built next. Work the first unchecked item. One PR per
+The source of truth for what gets built next. Work the first unchecked item in the order
+given under "Order of work" below, which is not the order of the stage numbers. One PR per
 item. If an item is blocked, write the reason under it and stop.
 
 Every new or changed file in `docs/runbooks/` (the drill runbooks of Stages 13, 14 and 16,
@@ -18,6 +19,36 @@ Approved 2026-11-05: Haiku on the paid key ($5/month cap, cumulative spend logge
 `docs/PROGRESS.md` after any run that spends), Jaeger, metrics-server and
 Alertmanager (each with an on/off switch in the Helm values, memory measured on the laptop),
 Apache-2.0.
+
+## Order of work (set by the user on 2026-11-08)
+
+Stage and item numbers never change, because the README checklist and its test look items up
+by number. Work the stages in this order instead:
+
+1. **Stage 12** to the end: 12.5 to 12.8, then 12.9 and 12.10. Tag `v0.12.0` when Stage 12
+   is done.
+2. **Stage 14**, backups, restore and versioned migrations. These come up more in data
+   engineering interviews than autoscaling does, and 14.3's migrations should exist before
+   Stages 19 to 22 change the warehouse schemas.
+3. **Stage 13**, deployment hardening. Its rollback goes back to a tagged image from 12.10.
+4. **Stage 19**, proof at scale.
+5. **Stage 16**, backpressure, webhooks, alert delivery and SLOs. The SLO targets come from
+   Stage 19's measured numbers.
+6. **Stage 20**, users and tenants. Its per-tenant quotas build on 16.1's backpressure.
+7. **Stage 21**, contracts as a product.
+8. **Stage 15**, Jaeger.
+9. **Stage 22**, the connected platform and the member data lifecycle. 22.1 waits until the
+   governed clinical agent's open PRs (#50 and #40 in that repo) are merged.
+10. **Stage 23**, the showcase: a one-page architecture and a recorded walkthrough.
+
+**Later:** Stages 17 and 18 are deferred. Re-decide them after Stage 22 and pick what still
+earns its place. If 19.2's idempotent reruns need 18.5's reprocessing (F4), pull that item
+forward and say so in its PR.
+
+Every new service in these stages (Keycloak, an Iceberg catalog) is **(ask)** and falls
+under the 12 GB memory rule in CLAUDE.md. Claims stay honest: the README says what was
+measured and where (for example "tested at 1M members on a GitHub runner"), never
+"enterprise scale".
 
 ## Done: Stages 0 to 11 (2026-10-17 to 2026-11-03)
 
@@ -70,6 +101,25 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
 - [ ] **12.6 Demos for Stages 4 and 5** (#86, #87)
 - [ ] **12.7 §8.9 status table refresh** (#100) and the README screenshot (#99)
 - [ ] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
+- [ ] **12.9 Merge rules and supply-chain checks** **(ask)** before building.
+  - Branch protection on `main`, requiring the `lint`, `test` and `e2e` checks (not
+    `upgrade`, which runs only when certain paths change). The user turns this on in
+    GitHub's settings; write the steps in the PR and check afterwards with
+    `gh api repos/erjonb19/data-intake-platform/branches/main --jq .protected`.
+  - Dependabot for pip, Docker and GitHub Actions, grouped into one weekly PR per ecosystem
+    so the e2e runs stay few.
+  - A Trivy scan of the images the repo builds (`images/`), in CI, failing on critical
+    findings that have a fix; any accepted finding goes in `.trivyignore` with its reason.
+  - CodeQL for Python and for the workflows.
+  - Demo: a PR with a deliberately vulnerable pin fails the scan; a PR with a red `test`
+    cannot be merged.
+- [ ] **12.10 Versioned releases** **(ask)** before building. A `release` workflow that runs
+  on a `v*` tag: builds the repo's images, pushes them to GHCR
+  (`ghcr.io/erjonb19/...`) tagged with the version and the commit, and creates a GitHub
+  release whose notes come from the `docs/PROGRESS.md` lines since the last tag. The kind
+  cluster keeps building images locally; 13.2's rollback can deploy a released tag. First
+  tag: `v0.12.0`, once 12.5 to 12.9 are done. Demo: the release page, its notes, and
+  `docker pull` of the tagged image.
 
 ## Stage 13: Deployment hardening
 
@@ -155,8 +205,16 @@ Incident: the flood (runbook `15-flood.md`).
   laptop measured and reported, with a webhook receiver (a small local sink
   that opens or annotates an `ops.incident`), so "a run fails, a contract breaks, an eval
   drops" each reaches a receiver; an alert on the nightly eval result
+- [ ] **16.4 SLOs and error budgets.** Two or three service level objectives in
+  `docs/slos.md`, with targets set from Stage 19's measured numbers, not guessed: the time
+  from a file landing to its rows in gold (95th percentile), the intake API's availability,
+  and each feed's quarantine rate. Prometheus recording rules, burn-rate alerts (fast and
+  slow windows) tested with `promtool`, and an error-budget panel in Grafana.
 
 ## Stage 17: Chaos and on-call simulation
+
+**Deferred on 2026-11-08** (see "Order of work"): re-decide after Stage 22.
+
 
 Delivers: pods are killed on purpose and the platform recovers; an on-call drill runs from
 alert to postmortem.
@@ -176,6 +234,9 @@ Incident: the on-call drill itself, with its postmortem.
 
 ## Stage 18: Open follow-ups from the audit
 
+**Deferred on 2026-11-08** (see "Order of work"): re-decide after Stage 22.
+
+
 Delivers: the remaining partial items from the S11.12 audit. Demo per item in its PR.
 
 - [ ] **18.1 Runbooks 01–08 get Grafana and Marquez evidence** (#88)
@@ -184,3 +245,117 @@ Delivers: the remaining partial items from the S11.12 audit. Demo per item in it
 - [ ] **18.4 Lineage: per-feed bronze datasets** (#98) **and the shareable-extract leg** (#91)
 - [ ] **18.5 OMOP mapping follow-ups F1–F3** (#93, #94, #95) **and F4 reprocess** (#96)
 - [ ] **18.6 R7b: confirm the drift-monitor side** (#92; depends on the other repo)
+
+## Stage 19: Proof at scale
+
+Delivers: measured numbers for how much data the platform handles and how fast, and the first
+bottleneck found and fixed. Today there is no load test, no benchmark, and no incremental dbt
+model.
+Features: volume generation, incremental models, partitioned tables, load testing, a
+benchmark report.
+Demo on its own: `dip generate --members 100000` writes vendor-sized eligibility and claims
+drops; the `scale` job runs them through the platform; `docs/benchmarks.md` shows files per
+hour, rows per second, the 95th-percentile time from landing to gold, and peak memory,
+before and after the bottleneck fix.
+Incident: the first bottleneck the load test finds (write-up in `docs/incidents.md`).
+
+- [ ] **19.1 Volume generator:** synthetic eligibility and claims at 100k and 1M members,
+  split into files the size real vendors send, built on the existing Synthea packs; a
+  flood mode (many small files in a short time) that 16.1's `dip drill flood` reuses.
+  Synthetic data only
+- [ ] **19.2 Incremental dbt models and partitioned gold tables:** the large models
+  (claims, eligibility) become incremental with unique keys; gold claims are partitioned
+  by service month (Postgres declarative partitioning); a test that rerunning one day's
+  files changes nothing (idempotent)
+- [ ] **19.3 Load test and benchmark report:** a `scale` job in the proof workflow
+  (`workflow_dispatch`, no model calls, $0) that runs 100k and then 1M members on a fresh
+  kind cluster and records throughput, latency and peak memory; `docs/benchmarks.md` with
+  the numbers, the machine they ran on, and the bottleneck found and fixed. 1M members runs
+  on a GitHub runner only, never the laptop
+- [ ] **19.4 Bronze as Iceberg tables on MinIO (optional)** **(ask)**: an Iceberg REST
+  catalog, bronze written as Iceberg, read by dbt through DuckDB or Trino. Only if the
+  memory rule allows, measured in the PR
+
+## Stage 20: Users and tenants
+
+Delivers: people log in with roles, healthcare and finance are separate tenants that cannot
+see each other's data, and vendors have their own page. Today access is per-agent API keys
+and one shared approvals login.
+Features: login (OIDC), role-based access, tenant isolation, per-tenant quotas, a vendor
+portal, human identity in the audit log.
+Demo on its own: two vendor logins, one per tenant. One uploads a bad file, sees in plain
+words why it was quarantined, and resends; the other vendor cannot see that file by any
+path; a data steward approves the resend; `ops.audit_log` shows which person did each step.
+Incident: the first cross-tenant read the isolation tests catch (write-up in
+`docs/incidents.md`).
+
+- [ ] **20.1 Login with Keycloak** **(ask: a new service)**: Keycloak in the cluster behind an
+  on/off value, its memory measured and reported; an OIDC implementation of the
+  `Authenticator` interface PLAN.md already describes, so the tools and the policy engine do
+  not change. Agents keep their per-agent keys
+- [ ] **20.2 Roles:** vendor uploader (own tenant's feeds only), data steward (approves),
+  viewer, admin; enforced at the intake API, the approvals page and the MCP server, with a
+  test that each role is refused outside its rights
+- [ ] **20.3 Tenants:** the healthcare and finance packs become tenants, each with its own
+  MinIO buckets, Postgres row-level security on every tenant-scoped table, and per-tenant
+  quotas on the intake API (building on 16.1). A test tries to read tenant B as tenant A
+  through every path: the API, the MCP tools and each SQL login
+- [ ] **20.4 Vendor portal:** a page where a vendor logs in, uploads a file, sees its status
+  and quarantine reasons in plain words, and resends
+- [ ] **20.5 Human identity in the audit log:** every human action (upload, approve, reject,
+  resend) records the person's identity beside the agent's
+
+## Stage 21: Contracts as a product
+
+Delivers: contracts carry versions, and a change that would break the dbt models built on a
+contract fails in CI before it merges, including a change the contract-author agent
+proposes.
+Features: contract versioning, breaking-change detection.
+Demo on its own: a PR that drops a column from the eligibility contract fails the check, which
+names the dbt models it would break; bumping the major version and updating those models in
+the same PR passes.
+Incident: a breaking change the check catches (write-up in `docs/incidents.md`).
+
+- [ ] **21.1 Versioned contracts:** a semantic `version` in every contract and a changelog per
+  contract; a test that any change to a contract file changes its version; the version a file
+  was checked against is recorded with the file
+- [ ] **21.2 Breaking-change check in CI:** compare a PR's contracts with `main`'s and classify
+  each change (a removed or renamed column, a narrowed type or a tightened rule is breaking;
+  a new optional column is not); for a breaking change, use the dbt manifest to list the
+  dependent models, and fail unless the major version is bumped and those models change in
+  the same PR
+
+## Stage 22: The connected platform and the member data lifecycle
+
+Delivers: one story across two projects (a vendor file arrives, is checked and cleaned, and a
+clinician asks a plain-English question about it through the governed clinical agent's PHI
+guard), and a member's data can be deleted from every layer with an audit trail.
+Features: a cross-project data product, retention and deletion.
+Demo on its own: drop a healthcare file here, see its rows reach the governed agent's data
+source, ask a question in the agent; then `dip forget --member <id>` and show the member is
+gone from every layer, with the audit rows.
+Incident: a copy of a member's data the first deletion run missed, found by its check
+(write-up in `docs/incidents.md`).
+
+- [ ] **22.1 Gold layer as the governed clinical agent's data source** **(ask: touches the
+  other repo)**. Only after that repo's #50 and #40 are merged. A versioned, de-identified
+  export of the healthcare gold layer (the shareable tier, under its PHI rules), a contract
+  between the two repos, and an end-to-end check in one of them
+- [ ] **22.2 Member data retention and deletion:** `dip forget --member <id>` removes a member
+  from landing, bronze, silver, gold and quarantine (and any copy the export holds), with an
+  `ops.audit_log` row; a retention period per layer with a scheduled purge; a test that no
+  trace of the member remains
+
+## Stage 23: Showcase
+
+Delivers: what a hiring manager reads and watches in five minutes. PLAN.md is the design
+record, but it is long.
+Demo on its own: the page and the video.
+No incident: this stage changes documentation only.
+
+- [ ] **23.1 One-page architecture:** `docs/ARCHITECTURE.md` with one diagram, "how it scales
+  and where it breaks" using Stage 19's numbers, and the main trade-offs, each linked to its
+  PLAN.md decision
+- [ ] **23.2 A three-minute walkthrough:** a script in `docs/demos/` for the user to record
+  (file drop, quarantine, agent proposal, approval, gold, Grafana and the trace), linked from
+  the README with a screenshot (overlaps #99 in 12.7; reuse it)
