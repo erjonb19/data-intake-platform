@@ -99,7 +99,7 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
 - [x] **12.4 License file: Apache-2.0** (#84)
 - [x] **12.5 `.wslconfig` guidance** (#85)
 - [x] **12.6 Demos for Stages 4 and 5** (#86, #87)
-- [ ] **12.7 §8.9 status table refresh** (#100) and the README screenshot (#99)
+- [x] **12.7 §8.9 status table refresh** (#100) and the README screenshot (#99)
 - [ ] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
 - [ ] **12.9 Merge rules and supply-chain checks** **(ask)** before building.
   - Branch protection on `main`, requiring the `lint`, `test` and `e2e` checks (not
