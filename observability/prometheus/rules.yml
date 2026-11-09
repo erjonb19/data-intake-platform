@@ -131,7 +131,9 @@ groups:
     rules:
       - alert: BackupMissing
         expr: time() - dip_backup_last_success_timestamp_seconds > 26 * 3600
-        labels: {severity: critical}
+        # Two rules share the name; the reason label keeps them distinct (promtool refuses
+        # duplicates) and says which case fired.
+        labels: {severity: critical, reason: stale}
         annotations:
           summary: "The newest good warehouse backup is {{ $value | humanizeDuration }} old"
           description: >-
@@ -142,7 +144,7 @@ groups:
       - alert: BackupMissing
         expr: absent(dip_backup_last_success_timestamp_seconds)
         for: 26h
-        labels: {severity: critical}
+        labels: {severity: critical, reason: none_yet}
         annotations:
           summary: "No warehouse backup has succeeded yet"
           description: >-

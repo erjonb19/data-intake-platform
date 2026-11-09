@@ -209,7 +209,7 @@ tests:
       - eval_time: 27h
         alertname: BackupMissing
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, reason: stale}
             exp_annotations:
               summary: "The newest good warehouse backup is 1d 3h 0m 0s old"
               description: >-
@@ -237,7 +237,7 @@ tests:
       - eval_time: 27h
         alertname: BackupMissing
         exp_alerts:
-          - exp_labels: {severity: critical}
+          - exp_labels: {severity: critical, reason: none_yet}
             exp_annotations:
               summary: "No warehouse backup has succeeded yet"
               description: >-

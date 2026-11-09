@@ -60,8 +60,12 @@ def s3():
 
 
 def restore_list(dump: bytes) -> str:
+    # Into a file in the pod first: `pg_restore --list` reading a custom archive from stdin
+    # over `kubectl exec -i` never returned (the first CI run timed out after 300 s).
+    script = ("f=/tmp/e2e-backup.dump; cat > $f && pg_restore --list $f; rc=$?;"
+              " rm -f $f; exit $rc")  # fmt: skip
     out = subprocess.run(["kubectl", "-n", "dip-data", "exec", "-i", "postgres-0", "--",
-                          "pg_restore", "--list"], input=dump, capture_output=True,
+                          "sh", "-c", script], input=dump, capture_output=True,
                          timeout=300)  # fmt: skip
     if out.returncode:
         raise RuntimeError(f"pg_restore --list: {out.stderr.decode(errors='replace')[-500:]}")
