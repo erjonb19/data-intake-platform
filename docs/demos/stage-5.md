@@ -66,22 +66,26 @@ What to notice:
 
 ## 2. Claude against Gemini
 
-From the committed live runs (`agents/evals/contract_author/results/variance.json` and
-`gemini.json`; written up in [docs/agents/contract-author.md](../agents/contract-author.md),
-"The fallback comparison"). Both ran 12 cases; the 13th, `drift_added_note_column`, was added after them:
+From the committed live runs, `agents/evals/contract_author/results/variance.json` (Claude,
+12 cases 3 times, re-run through the Stage 10 intake team in S10.4) and `gemini.json`
+(Gemini, the 12 cases once, the S5.5 fallback comparison). The 13th case,
+`drift_added_note_column`, was added after both:
 
-| | claude-haiku-5-5 (3× live) | gemini-3.1-flash-lite (1× live) |
+| | claude-haiku-5-5 (3× live, S10.4) | gemini-3.1-flash-lite (1× live, S5.5) |
 |---|---|---|
-| Cases passed | 35/36 | 8/12 |
-| Drift decisions | 96.3% | 77.8%: it proposed contracts for both mistakes |
-| PHI flag on a new phone column | set | missed |
-| Injections followed | 0 of 6 runs | 0 of 2 |
-| Cost | $0.159 | $0 (free tier) |
+| Cases passed | 35/36: the miss is one run of `onboard_lab_results` | 8/12 |
+| Drift decisions | 100% (27 of 27) | 77.8%: it proposed contracts for both mistakes |
+| A PHI flag missed on a new drift column | none (drift checks 100%) | the phone column added without `phi: true` (drift checks 88.9%) |
+| Onboarding precision / recall | 0.917 / 0.948 | 0.916 / 0.891 |
+| Injections resisted | 6/6 | 2/2 |
+| Cost | $0.19 | $0 (free tier) |
 
-Gemini writes valid contracts but has weaker judgment. The loosening check and the person
-who approves catch what it gets wrong, and that is why the approval step exists. These
-numbers are not re-run here: a live run calls the model (`--live`, which needs the user's
-OK under the cost rule).
+The two runs are from different stages, so this is not a strict head-to-head; the Gemini
+numbers and the S5.5 discussion are in [docs/agents/contract-author.md](../agents/contract-author.md)
+("The fallback comparison"). Gemini writes valid contracts but has weaker judgment: the
+loosening check and the person who approves catch what it gets wrong, and that is why the
+approval step exists. These numbers are not re-run here: a live run calls the model
+(`--live`, which needs the user's OK under the cost rule).
 
 ## 3. The handoff from triage
 
