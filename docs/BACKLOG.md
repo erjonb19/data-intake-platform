@@ -113,6 +113,16 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   - CodeQL for Python and for the workflows.
   - Demo: a PR with a deliberately vulnerable pin fails the scan; a PR with a red `test`
     cannot be merged.
+  **Blocked (2026-11-09), PR #116 open.** Dependabot, CodeQL and the Trivy job are built,
+  and CodeQL passes. The scan's first run (on #116) fails on the images built from
+  `apache/airflow:3.2.2-python3.12` (`dip-airflow`, and `dip-ocr` built on it): about 20
+  CRITICAL findings with fixes, nearly all in the base image. They include Apache Airflow
+  itself (code execution, fixed in 3.3.0), litellm, Pillow, Authlib, PyJWT, GitPython, the
+  SFTP provider, certifi, uv, and Debian's brotli and perl. `dip-mcp` and `dip-intake-api`
+  pass. Merging with the check red would override it, and accepting all of them in
+  `.trivyignore` would not be honest. Fixing them means an Airflow 3.3 upgrade (image,
+  chart and the `upgrade` workflow's path), which is its own item: **decide** whether to add
+  it before 12.9, or to accept the base-image findings with a dated review.
 - [ ] **12.10 Versioned releases** **(ask)** before building. A `release` workflow that runs
   on a `v*` tag: builds the repo's images, pushes them to GHCR
   (`ghcr.io/erjonb19/...`) tagged with the version and the commit, and creates a GitHub
