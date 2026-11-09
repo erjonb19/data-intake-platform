@@ -34,4 +34,22 @@ else
   status=1
 fi
 
+# On Windows, Docker Desktop's memory is WSL2's, capped by %USERPROFILE%\.wslconfig
+# (README, "WSL2 memory on Windows"). Only a hint: it never changes the exit status.
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*)
+    log "WSL2 (.wslconfig)"
+    wslconfig="${USERPROFILE:-$HOME}/.wslconfig"
+    if [[ -f "$wslconfig" ]]; then
+      # No match is fine (|| true under pipefail); drop a trailing comment and CRs.
+      limit="$({ grep -i -E '^[[:space:]]*memory[[:space:]]*=' "$wslconfig" || true; } \
+        | tail -1 | cut -d= -f2 | sed 's/[#;].*//' | tr -d '[:space:]\r')"
+      echo "  ${wslconfig}: memory=${limit:-not set}"
+      [[ -n "$limit" ]] || warn "no memory= line: WSL2 may take half the RAM; see the README, \"WSL2 memory on Windows\""
+    else
+      warn "no ${wslconfig}: WSL2 may take half the RAM; see the README, \"WSL2 memory on Windows\""
+    fi
+    ;;
+esac
+
 exit "$status"
