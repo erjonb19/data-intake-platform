@@ -109,6 +109,12 @@ def drop_sql(table: str = DRILL_TABLE) -> str:
 NEWEST_BACKUP_SQL = ("select backup_id, object_key, bytes, sha256 from ops.backup"
                      " where status = 'ok' order by finished_at desc nulls last,"
                      " backup_id desc limit 1")  # fmt: skip
+# The backup a pending drill recorded when it dropped the table: a backup taken after the
+# drop (the nightly CronJob, or `dip backup now`) no longer holds the table.
+DRILL_BACKUP_SQL = ("select backup_id, object_key, bytes, sha256 from ops.backup"
+                    " where status = 'ok' and backup_id = (select backup_id from"
+                    " ops.restore_drill where restored_at is null order by drill_id desc"
+                    " limit 1)")  # fmt: skip
 PENDING_SQL = ("select drill_id, table_name, row_count, checksum, owner, coalesce(acl, '')"
                " from ops.restore_drill where restored_at is null"
                " order by drill_id desc limit 1")  # fmt: skip
@@ -194,21 +200,27 @@ def restore_latest(verify: bool = False, run: Callable[..., str] = kubectl,
         now = clock()
         steps[step], last = round(now - last, 1), now
 
-    newest = psql(run, LIVE_DB, NEWEST_BACKUP_SQL)
+    pending = psql(run, LIVE_DB, PENDING_SQL)
+    if verify and not pending:
+        raise DrillError("nothing to verify against: no drill is waiting for a restore"
+                         " (run `python -m dip drill drop_table` first)")  # fmt: skip
+    if pending:  # the dump the drill recorded, which still holds the table
+        newest = psql(run, LIVE_DB, DRILL_BACKUP_SQL)
+        if not newest:
+            raise DrillError("the backup the pending drill recorded is not in ops.backup as ok")
+    else:
+        newest = psql(run, LIVE_DB, NEWEST_BACKUP_SQL)
     if not newest:
         raise DrillError("no good backup in ops.backup: run `python -m dip backup now` first")
     backup_id, key, size, sha = newest.splitlines()[-1].split("|")
     if not DUMP_KEY.match(key):
         raise DrillError(f"ops.backup {backup_id} names an unexpected object: {key!r}")
-    pending = psql(run, LIVE_DB, PENDING_SQL)
-    if verify and not pending:
-        raise DrillError("nothing to verify against: no drill is waiting for a restore"
-                         " (run `python -m dip drill drop_table` first)")  # fmt: skip
     say(f"backup {backup_id}: s3://{BUCKET}/{key} ({size} B)")
 
     # The pod fetches the dump itself, from MinIO inside the cluster, with a GET URL signed
-    # here for that one object for 5 minutes. The URL goes over stdin (a short line), never
-    # in a command's arguments, where another process could read it.
+    # here for that one object for 5 minutes. The URL goes to the pod over stdin, so it is
+    # never in kubectl's arguments on this machine; inside the pod it is wget's argument for
+    # the length of the download.
     url = (s3 or _s3()).generate_presigned_url(
         "get_object", Params={"Bucket": BUCKET, "Key": key}, ExpiresIn=300)  # fmt: skip
     out: dict[str, Any] = {"backup_id": int(backup_id), "object_key": key}

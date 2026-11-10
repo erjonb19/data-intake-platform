@@ -68,7 +68,7 @@
   restore --latest [--verify]  the newest good backup into a new database,
                                warehouse_restore, and a table `drill drop_table` dropped
                                back into the warehouse; --verify compares it with the
-                               drill's snapshot (MINIO_URL, MINIO_USER, MINIO_PASSWORD;
+                               drill's snapshot (MINIO_USER, MINIO_PASSWORD;
                                kind-dip only; 14.2)
   trace CHAIN_ID               one chain's model and tool calls in time order, with totals
                                per step (Stage 11, S11.2: ops.trace_span)

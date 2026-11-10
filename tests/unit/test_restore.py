@@ -231,3 +231,18 @@ def test_drop_table_refuses(state, why):
     with pytest.raises(DrillError, match=why):
         drills.drill("drop_table", run=k)
     assert not any("begin;" in c[-1] for c in k.calls)
+
+
+def test_a_pending_drill_restores_from_the_backup_it_recorded():
+    # A backup taken after the drop no longer holds the table: the drill's own one is used.
+    k = Kube()
+    run_restore(k)
+    asked = [sql for _, sql in k.sql if sql.startswith("select backup_id, object_key")]
+    assert asked == [restore.DRILL_BACKUP_SQL]
+
+
+def test_a_restore_without_a_drill_takes_the_newest_backup():
+    k = Kube(pending=False)
+    run_restore(k, verify=False)
+    asked = [sql for _, sql in k.sql if sql.startswith("select backup_id, object_key")]
+    assert asked == [restore.NEWEST_BACKUP_SQL]
