@@ -41,6 +41,16 @@ jobs:
       - name: Prerequisites
         run: bash scripts/prereqs.sh || true
 
+      # CLAUDE.md's memory budget (from Stage 13 on): the run's peak memory goes in the PROGRESS
+      # line of a stage that adds a service. Sampled every 5 s from /proc/meminfo
+      # (MemTotal - MemAvailable), the highest kept; reported in the last step.
+      - name: Start the memory sampler
+        run: |
+          nohup bash -c 'peak=0; while :; do
+            used=$(awk "/^MemTotal:/{t=\$2} /^MemAvailable:/{a=\$2} END{print t-a}" /proc/meminfo)
+            [ "$used" -gt "$peak" ] && peak=$used && echo "$peak" > "$RUNNER_TEMP/mem-peak-kib"
+            sleep 5; done' >/dev/null 2>&1 &
+
       - name: Bring up stack
         run: bash scripts/up.sh
 
@@ -70,3 +80,14 @@ jobs:
       - name: Tear down
         if: always()
         run: bash scripts/down.sh
+
+      - name: Peak memory
+        if: always()
+        run: |
+          peak=$(cat "$RUNNER_TEMP/mem-peak-kib" 2>/dev/null || echo 0)
+          total=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
+          line=$(awk -v p="$peak" -v t="$total" 'BEGIN{printf "peak memory used on the runner: %.1f GiB of %.1f GiB", p/1048576, t/1048576}')
+          echo "$line"; echo "$line" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$peak" -gt $((12 * 1048576)) ]; then
+            echo "::warning::over the 12 GiB memory budget (CLAUDE.md): stop and ask before adding services"
+          fi

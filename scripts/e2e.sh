@@ -125,11 +125,18 @@ pids+=("$!")
 wait_port "$APPROVALS_PORT"
 APPROVALS_URL="http://127.0.0.1:$APPROVALS_PORT" APPROVALS_TOKEN="$(tf output -raw approvals_token)"   "$py" "$REPO_ROOT/tests/e2e/approvals_page.py"
 
-# Stage 11 (S11.6): the scheduler_down drill, last (it stops scheduling for a few minutes).
-# The platform check runs on demand from its CronJob; dip drill runs only against kind-dip.
 PROMETHEUS_URL=""
 if tf output -json profiles | grep -q '"observability"'; then
   PROMETHEUS_URL="http://127.0.0.1:${PROM_PORT:-9090}"
 fi
+
+# Stage 14 (14.1): one warehouse backup now (`dip backup now`, a Job from the
+# warehouse-backup CronJob), after the cases above loaded gold: the dump is in
+# s3://backups/, matches its ops.backup row and reads back with pg_restore --list.
+KUBECONFIG="$(tf output -raw kubeconfig_path)" PROMETHEUS_URL="$PROMETHEUS_URL" \
+  "$py" "$REPO_ROOT/tests/e2e/backup.py"
+
+# Stage 11 (S11.6): the scheduler_down drill, last (it stops scheduling for a few minutes).
+# The platform check runs on demand from its CronJob; dip drill runs only against kind-dip.
 KUBECONFIG="$(tf output -raw kubeconfig_path)" PROMETHEUS_URL="$PROMETHEUS_URL" \
   "$py" "$REPO_ROOT/tests/e2e/platform_drill.py"

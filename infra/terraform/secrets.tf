@@ -21,6 +21,8 @@ locals {
     "airflow_mcp_viewer", # the MCP server's Airflow Viewer login (S3.4)
     "pg_approver",        # the approvals page's warehouse login (S9.2)
     "pg_platform_check",  # the platform-check CronJob's warehouse login (S11.6)
+    "pg_backup",          # the warehouse-backup CronJob's login: pg_read_all_data (14.1)
+    "minio_backup",       # the backup's MinIO user: list, put and delete in backups (14.1)
   ])
 }
 

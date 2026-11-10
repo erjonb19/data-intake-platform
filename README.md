@@ -277,7 +277,12 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Lineage in Marquez (OpenLineage), checked by the E2E
 - [x] Untrusted PDFs are refused before they are parsed when too large, too long or a
   decompression bomb (`dip/pdffeed.py`, `tests/unit/test_pdffeed.py`; 12.8)
-- [ ] Nightly Postgres backups to MinIO and a restore drill: not yet built (14.1, 14.2)
+- [x] Nightly Postgres backups to MinIO: the `warehouse-backup` CronJob
+  (`infra/terraform/backups.tf`, `dip/backup.py`) keeps 7 dumps, writes an `ops.backup` row
+  per run, alerts `BackupMissing` after 26 h without a good one, and `dip backup now` runs it
+  on demand; the E2E reads a dump back with `pg_restore --list` (`tests/e2e/backup.py`;
+  restore notes in `docs/backups.md`; 14.1)
+- [ ] A restore drill that proves a dump brings the warehouse back: not yet built (14.2)
 - [ ] Versioned warehouse migrations: not yet built (14.3); today the schemas are
   `create ... if not exists` at startup (`dip/sql/warehouse.sql`)
 - [ ] Backpressure on a flood of files: not yet built (16.1)

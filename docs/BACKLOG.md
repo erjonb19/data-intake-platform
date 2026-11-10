@@ -169,13 +169,19 @@ drops `gold.member_eligibility`; `dip restore --latest --verify` brings it back 
 counts and checksums match the pre-drop snapshot.
 Incident: the dropped table (runbook `14-restore.md`).
 
-- [ ] **14.1 Backup CronJob:** `pg_dump` of the warehouse to a MinIO bucket, retention of
+- [x] **14.1 Backup CronJob:** `pg_dump` of the warehouse to a MinIO bucket, retention of
   7 dumps, an `ops.backup` row per run, alert `BackupMissing` (none in 26 h)
 - [ ] **14.2 Restore drill** in the proof workflow: drop, restore, verify counts and
   checksums, time-to-restore recorded
 - [ ] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database
+  Found 2026-11-09 (#115's e2e, run 42617255988): every intake task runs `Warehouse.init`,
+  which re-applies all of `warehouse.sql`, `ALTER TABLE` included, and its exclusive locks
+  deadlocked with the MCP server's `propose_operation` query (Postgres: `deadlock detected`,
+  the init's `pg_advisory_xact_lock` transaction against a `select ... from ops.quarantine`).
+  The break loop's proposal failed; the other e2e run on the same commit passed. Applying migrations once,
+  before the services start, and not on every task removes it.
 
 ## Stage 15: Tracing with Jaeger
 
