@@ -98,3 +98,23 @@ ALTER ROLE dip_platform_check WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOR
 ALTER ROLE dip_platform_check SET statement_timeout = '15s';
 ALTER ROLE dip_platform_check SET idle_in_transaction_session_timeout = '60s';
 ALTER ROLE dip_platform_check SET search_path = ops;
+
+-- The warehouse backup's login (Stage 14, 14.1; dip/backup.py, the warehouse-backup
+-- CronJob in dip-data). pg_dump must read every table, sequence and schema, so it holds the
+-- predefined pg_read_all_data (Postgres 14+): SELECT everywhere, no writes, no superuser,
+-- no replication. INHERIT, so the membership's privileges apply (the other logins are
+-- NOINHERIT and hold no roles). Its one write is its own row in ops.backup, by
+-- ops.grant_backup() (dip/sql/warehouse.sql). No statement_timeout: a dump of a large
+-- warehouse takes minutes (pg_dump sets its own session timeouts to 0 anyway).
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_backup') THEN
+        CREATE ROLE dip_backup LOGIN;
+    END IF;
+END
+$$;
+ALTER ROLE dip_backup WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+    NOBYPASSRLS INHERIT CONNECTION LIMIT 3;
+GRANT pg_read_all_data TO dip_backup;
+ALTER ROLE dip_backup SET idle_in_transaction_session_timeout = '10min';
+ALTER ROLE dip_backup SET search_path = ops;

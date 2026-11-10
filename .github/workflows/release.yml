@@ -1,0 +1,105 @@
+name: release
+
+# 12.10: a versioned release. Pushing a `v*` tag builds the repo's images (as scripts/up.sh
+# does), pushes them to GHCR tagged with the version and the commit, and creates a GitHub
+# release whose notes are the docs/PROGRESS.md rows added since the previous tag
+# (scripts/release_notes.py). The kind cluster still builds its images locally.
+#
+# A manual run (workflow_dispatch) is a dry run: it builds the images and writes the notes,
+# and pushes nothing and creates no release. Only a tag push publishes.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write   # the GitHub release
+      packages: write   # the GHCR images
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # the previous tag, for the notes
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Version
+        id: v
+        run: |
+          set -euo pipefail
+          # Only a tag push publishes: a manual run started on a tag also has REF_TYPE=tag.
+          if [ "${GITHUB_EVENT_NAME}" = push ] && [ "${GITHUB_REF_TYPE}" = tag ]; then
+            version="${GITHUB_REF_NAME}"; publish=true
+          else version="dryrun-${GITHUB_SHA::12}"; publish=false; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "sha=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "version $version, publish $publish"
+
+      - name: Release notes
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          PUBLISH: ${{ steps.v.outputs.publish }}
+        run: |
+          set -euo pipefail
+          # The tag itself on a tag push, so it is not taken for the previous tag.
+          ref="${GITHUB_SHA}"; [ "${PUBLISH}" = true ] && ref="${VERSION}"
+          python scripts/release_notes.py "$ref" > notes.md
+          { echo "# ${VERSION}"; tail -n +2 notes.md; } > notes.tmp && mv notes.tmp notes.md
+          cat notes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the images
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          SHA: ${{ steps.v.outputs.sha }}
+        run: |
+          set -euo pipefail
+          label="--label org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}"
+          label="$label --label org.opencontainers.image.version=${VERSION}"
+          label="$label --label org.opencontainers.image.revision=${GITHUB_SHA}"
+          build() {  # name, then docker build arguments
+            local name="$1"; shift
+            # shellcheck disable=SC2086
+            docker build $label -t "${REGISTRY}/${name}:${VERSION}" -t "${REGISTRY}/${name}:sha-${SHA}" "$@" .
+          }
+          build dip-airflow -f images/airflow/Dockerfile
+          build dip-ocr -f images/ocr/Dockerfile --build-arg "BASE=${REGISTRY}/dip-airflow:${VERSION}"
+          build dip-mcp -f images/mcp/Dockerfile
+          build dip-intake-api -f images/intake-api/Dockerfile
+          docker images "${REGISTRY}/*"
+
+      - name: Push the images
+        if: github.event_name == 'push' && steps.v.outputs.publish == 'true'
+        env:
+          VERSION: ${{ steps.v.outputs.version }}
+          SHA: ${{ steps.v.outputs.sha }}
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          for name in dip-airflow dip-ocr dip-mcp dip-intake-api; do
+            docker push "${REGISTRY}/${name}:${VERSION}"
+            docker push "${REGISTRY}/${name}:sha-${SHA}"
+          done
+
+      - name: The GitHub release
+        if: github.event_name == 'push' && steps.v.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.v.outputs.version }}
+        run: gh release create "$VERSION" --title "$VERSION" --notes-file notes.md --verify-tag

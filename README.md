@@ -69,6 +69,13 @@ generated dbt models, and `dbt build` passed on them (11 of 11). Model spend: $0
 
 ![The approvals page: the intake team's contract proposal for a new feed](docs/images/intake-proposal.png)
 
+The same run in the audit log, filtered to its chain id: each of the 12 calls, by the profile,
+contract author, validator, reviewer and orchestrator, with its tier and decision. Eight are
+Read tier; the four Propose-tier calls record a step's result, and the last,
+`propose_contract_pr` (call 33), files the proposal, which waits for a person.
+
+![The approvals page's audit log: the intake team's 12 calls under one chain id](docs/images/intake-audit.png)
+
 See [PLAN.md](PLAN.md) for the architecture, decisions, and staged roadmap.
 
 **Status (PLAN.md §8.9 has the item-by-item check).** Built and merged: Stage 0
@@ -183,7 +190,7 @@ tested here:
 
 | Namespace | Component | Notes |
 |---|---|---|
-| `dip-airflow` | Airflow 3.2.2 (official Helm chart 1.22.0) | KubernetesExecutor: every task is its own pod; task logs go to MinIO |
+| `dip-airflow` | Airflow 3.4.0 (official Helm chart 1.22.0) | KubernetesExecutor: every task is its own pod; task logs go to MinIO |
 | `dip-data` | Postgres 17 | Shared instance with `airflow`, `warehouse` (bronze, silver, gold, ops schemas) and `marquez` databases |
 | `dip-data` | MinIO | Buckets: `landing`, `raw`, `quarantine`, `airflow-logs` |
 | `dip-data` | SFTP server, intake API | Vendor channels (Stage 2) |
@@ -268,7 +275,18 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `packs/`); dbt tests on every layer, their results carried into lineage
   (`tests/e2e/lineage.py`)
 - [x] Lineage in Marquez (OpenLineage), checked by the E2E
-- [ ] Nightly Postgres backups to MinIO and a restore drill: not yet built (14.1, 14.2)
+- [x] Untrusted PDFs are refused before they are parsed when too large, too long or a
+  decompression bomb (`dip/pdffeed.py`, `tests/unit/test_pdffeed.py`; 12.8)
+- [x] Nightly Postgres backups to MinIO: the `warehouse-backup` CronJob
+  (`infra/terraform/backups.tf`, `dip/backup.py`) keeps 7 dumps, writes an `ops.backup` row
+  per run, alerts `BackupMissing` after 26 h without a good one, and `dip backup now` runs it
+  on demand; the E2E reads a dump back with `pg_restore --list` (`tests/e2e/backup.py`;
+  restore notes in `docs/backups.md`; 14.1)
+- [x] A restore drill that proves a dump brings a table back: `dip drill drop_table` drops
+  `gold.member_eligibility` after a snapshot of its count and checksum, and
+  `dip restore --latest --verify` restores the newest dump into `warehouse_restore`, brings
+  the table back and compares; the kind E2E runs it on every push and reports the time to
+  restore (`dip/restore.py`, `tests/e2e/restore.py`, `docs/backups.md`; 14.2)
 - [ ] Versioned warehouse migrations: not yet built (14.3); today the schemas are
   `create ... if not exists` at startup (`dip/sql/warehouse.sql`)
 - [ ] Backpressure on a flood of files: not yet built (16.1)
@@ -324,6 +342,10 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `pyproject.toml` (12.4)
 - [x] WSL2 memory guidance for Windows: `.wslconfig` values per laptop size (README, "WSL2
   memory on Windows") and a hint in `scripts/prereqs.sh` (12.5)
+- [x] A demo script for every stage from 0 to 11 (`docs/demos/`; Stages 4 and 5 run locally
+  with a throwaway Postgres and no model key; 12.6)
+- [x] PLAN.md §8.9 matches the audit: Stages 4, 5 and 6 marked partly with their open issues,
+  Stages 9 to 11 added (12.7)
 
 CI uses synthetic data only (Synthea, and generated or hand-written fixtures). The MIMIC-IV
 demos are never downloaded in CI, and no real or MIMIC data is ever sent to a model

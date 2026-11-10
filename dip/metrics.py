@@ -21,6 +21,8 @@ codes and test names, all from contracts and the dbt project), so the series sta
   dip_model_latency_p95_seconds_24h{agent}     p95 model call latency, last 24 h
   dip_airflow_scheduler_heartbeat_age_seconds  the scheduler's last heartbeat, as the
                                                platform check saw it (S11.6)
+  dip_backup_last_success_timestamp_seconds    when the newest good warehouse backup
+                                               finished (14.1); none before the first
   dip_metrics_query_ok{query}                  1, or 0 when a query failed (a table not
                                                created yet, a missing grant)
 
@@ -168,6 +170,15 @@ QUERIES: dict[str, tuple[str, str, str]] = {
         " where check_name = 'scheduler_heartbeat' and observed is not null"
         " order by at desc limit 1",
     ),
+    # Stage 14 (14.1): the newest good backup (dip/backup.py). No series until the first
+    # one (not 0, which BackupMissing would read as 56 years old): the rule's absent()
+    # term covers a backup that never succeeds.
+    "dip_backup_last_success_timestamp_seconds": (
+        "When the newest successful warehouse backup finished (Unix time).",
+        "gauge",
+        "select extract(epoch from max(finished_at)) from ops.backup where status = 'ok'"
+        " having max(finished_at) is not null",
+    ),
 }
 LABELS: dict[str, tuple[str, ...]] = {
     "dip_intake_files": ("feed", "status"),
@@ -185,6 +196,7 @@ LABELS: dict[str, tuple[str, ...]] = {
     "dip_model_calls_24h": ("agent", "provider"),
     "dip_model_latency_p95_seconds_24h": ("agent",),
     "dip_airflow_scheduler_heartbeat_age_seconds": (),
+    "dip_backup_last_success_timestamp_seconds": (),
 }
 
 

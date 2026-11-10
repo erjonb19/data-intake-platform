@@ -59,9 +59,17 @@
   agents versions              each agent step's prompt file, its SHA-256 (what a new run
                                records) and the models a run uses (Stage 11, S11.3)
   drill NAME [--undo]          break the platform on purpose, on the kind cluster only,
-                               and undo it (Stage 11: scheduler_down, oom_task, bad_secret)
+                               and undo it (Stage 11: scheduler_down, oom_task, bad_secret,
+                               stuck_queued; 14.2: drop_table)
   platform-check               the scheduler's heartbeat (and from S11.7 the pods), as
                                platform incidents (Stage 11, S11.6; the CronJob runs it)
+  backup now                   a warehouse backup now (pg_dump to s3://backups/), as a Job
+                               from the warehouse-backup CronJob; kind-dip only (14.1)
+  restore --latest [--verify]  the newest good backup into a new database,
+                               warehouse_restore, and a table `drill drop_table` dropped
+                               back into the warehouse; --verify compares it with the
+                               drill's snapshot (MINIO_USER, MINIO_PASSWORD;
+                               kind-dip only; 14.2)
   trace CHAIN_ID               one chain's model and tool calls in time order, with totals
                                per step (Stage 11, S11.2: ops.trace_span)
   metrics-serve [--port P]     warehouse metrics for Prometheus at /metrics, as the
@@ -741,6 +749,20 @@ def main(argv: list[str] | None = None) -> int:
     drl = sub.add_parser("drill")
     drl.add_argument("name")
     drl.add_argument("--undo", action="store_true")
+    bkp = sub.add_parser("backup")
+    bkp.add_argument("action", choices=["now"])
+    rst = sub.add_parser("restore")
+    rst.add_argument(
+        "--latest",
+        action="store_true",
+        required=True,
+        help="the newest ok dump in ops.backup (the only source so far)",
+    )
+    rst.add_argument(
+        "--verify",
+        action="store_true",
+        help="compare the restored table with the drop_table drill's snapshot",
+    )
     trc = sub.add_parser("trace")
     trc.add_argument("chain_id")
     met = sub.add_parser("metrics-serve")
@@ -890,6 +912,24 @@ def main(argv: list[str] | None = None) -> int:
             print(f"refused: {exc}", file=sys.stderr)
             return 1
         return 0
+    elif args.command == "restore":
+        from dip import restore
+        from dip.drills import DrillError
+
+        try:
+            return restore.main(args.verify)
+        except DrillError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 1
+    elif args.command == "backup":
+        from dip import backup
+        from dip.drills import DrillError
+
+        try:
+            return backup.now()
+        except DrillError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 1
     elif args.command == "platform-check":
         from dip import platform_check
 

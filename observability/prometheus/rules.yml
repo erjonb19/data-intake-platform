@@ -125,3 +125,29 @@ groups:
           description: >-
             Metered spend on live model calls today (UTC) is over $0.50 (ops.model_call,
             dip.agents.llm.cost_usd, which errs high).
+  # Stage 14 (14.1): the nightly warehouse backup (dip/backup.py, ops.backup). Its own group,
+  # so Terraform leaves it out when backups_enabled is false (observability.tf).
+  - name: dip-backups
+    rules:
+      - alert: BackupMissing
+        expr: time() - dip_backup_last_success_timestamp_seconds > 26 * 3600
+        # Two rules share the name; the reason label keeps them distinct (promtool refuses
+        # duplicates) and says which case fired.
+        labels: {severity: critical, reason: stale}
+        annotations:
+          summary: "The newest good warehouse backup is {{ $value | humanizeDuration }} old"
+          description: >-
+            No backup of the warehouse has succeeded in 26 hours (the warehouse-backup
+            CronJob runs nightly; ops.backup holds each run's status and error).
+            Restore notes: docs/backups.md.
+      # No good backup yet: the exporter has no series. After 26 hours without one, alert.
+      - alert: BackupMissing
+        expr: absent(dip_backup_last_success_timestamp_seconds)
+        for: 26h
+        labels: {severity: critical, reason: none_yet}
+        annotations:
+          summary: "No warehouse backup has succeeded yet"
+          description: >-
+            No backup of the warehouse has succeeded in 26 hours (the warehouse-backup
+            CronJob runs nightly; ops.backup holds each run's status and error).
+            Restore notes: docs/backups.md.
