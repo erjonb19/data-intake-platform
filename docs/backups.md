@@ -25,8 +25,16 @@ Dumps are named `warehouse/warehouse-<UTC start, YYYYMMDDTHHMMSSZ>.dump`, so the
 by time. After each good backup, every dump past the newest 7 (`backup_keep`) is deleted,
 oldest first. Nothing else in the bucket is touched. A failed run deletes nothing.
 
-`backups_enabled = false` in the Terraform variables removes the CronJob, its MinIO user and
-secrets, and the `dip-backups` alert group. The bucket stays.
+`backups_enabled = false` in the Terraform variables removes the CronJob, its secrets and
+the `dip-backups` alert group. The bucket stays, and so does the backup's MinIO user inside
+MinIO: the Job that created it is removed, not the user. Delete it by hand if you switch
+backups off for good: `mc admin user ls local` shows it as `warehouse-backup-<hash>`,
+and `mc admin user rm local <that name>` removes it.
+
+The backup's MinIO user can list, put and **delete** in `backups` (retention needs it). The
+bucket has no versioning or object lock, so a leaked backup credential could delete every
+dump. That is acceptable for a laptop cluster; a shared one would add object lock or a
+second copy.
 
 Memory: the dump step requests 64 Mi (limit 256 Mi) and the upload step 128 Mi (limit
 384 Mi). They run one after the other, so the pod requests 128 Mi, for a few minutes a night.
@@ -172,6 +180,7 @@ job.
    kubectl -n dip-data exec postgres-0 -- createdb -U postgres -O warehouse warehouse_restore
    kubectl -n dip-data exec postgres-0 -- \
      pg_restore -U postgres -d warehouse_restore --exit-on-error /tmp/warehouse.dump
+   kubectl -n dip-data exec postgres-0 -- rm /tmp/warehouse.dump
    ```
 
 4. Compare the row counts with the live database (for example `gold.member_eligibility`

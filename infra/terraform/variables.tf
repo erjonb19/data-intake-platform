@@ -161,7 +161,7 @@ variable "gemini_api_key" {
 
 # Stage 14 (14.1): the nightly warehouse backup (backups.tf).
 variable "backups_enabled" {
-  description = "The warehouse backup CronJob (pg_dump into the MinIO bucket backups), its MinIO user and the BackupMissing alert. false removes all three."
+  description = "The warehouse backup CronJob (pg_dump into the MinIO bucket backups), its secrets and the BackupMissing alert; false removes them. The MinIO user it created stays in MinIO (docs/backups.md)."
   type        = bool
   default     = true
 }
