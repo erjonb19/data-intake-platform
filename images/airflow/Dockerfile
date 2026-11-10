@@ -1,6 +1,6 @@
 # Platform Airflow image: the official image plus our DAGs, the `dip` package, the domain
 # packs (contracts) and the dbt project. Build context is the repo root.
-FROM apache/airflow:3.2.2-python3.12
+FROM apache/airflow:3.4.0-python3.12
 
 # --no-deps: pyyaml, jsonschema and boto3 already ship in the official image at versions
 # Airflow's constraints pin, and we must not move them.
