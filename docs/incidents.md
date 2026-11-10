@@ -98,3 +98,31 @@ which case fired; the promtool tests expect those labels. The restore steps in
 
 **What stops it coming back.** The E2E runs a real `pg_restore --list` on every push, and
 promtool checks the rules in `lint`. The full restore, timed, is 14.2's drill.
+
+## 2026-11-09: the restore drill's dump arrived in the pod changed (Stage 14, #119)
+
+**What broke.** The first `e2e` run of the 14.2 restore drill (run 42619586313) failed at
+`dip restore --latest --verify`. The 919,644-byte dump downloaded from MinIO matched its
+`ops.backup` SHA-256 on the runner. It was then piped into `postgres-0` with
+`kubectl exec -i postgres-0 -- sh -c 'cat > /tmp/dip-restore.dump'`, and the file in the pod
+had a different SHA-256. The table the drill had dropped stayed dropped, and the run failed.
+In 14.1, pg_restore reading the same kind of stream from stdin never returned, and
+`pg_restore --list` on a piped copy passed only because it reads the archive's table of
+contents at the start.
+
+**How we knew.** The restore checks the dump's hash in the pod before it restores anything,
+and it stopped with `the copy in the pod has SHA-256 2144c7e0..., not ea8dae7f...`. No
+restore ran on a damaged file.
+
+**How we fixed it.** The dump no longer goes through `kubectl exec` stdin. The restore signs
+a GET URL for that one object (5 minutes, as the MinIO admin) and passes it on stdin as a
+single short line. `postgres-0` downloads the dump from MinIO inside the cluster with
+`wget`, and the restore checks the size and SHA-256 in the pod against the row. The manual
+steps in `docs/backups.md` use `kubectl cp` and say to check the hash in the pod.
+
+**Check.** The `e2e` run on #119's final commit: `tests/e2e/restore.py` passes, and the
+job summary shows the time to restore. `pytest tests/unit/test_restore.py` covers a size
+or hash mismatch, which stops before any restore.
+
+**What stops it coming back.** Large files no longer go through `kubectl exec` stdin. The
+in-pod size and hash check stays, whatever the transport.
