@@ -190,7 +190,7 @@ tested here:
 
 | Namespace | Component | Notes |
 |---|---|---|
-| `dip-airflow` | Airflow 3.2.2 (official Helm chart 1.22.0) | KubernetesExecutor: every task is its own pod; task logs go to MinIO |
+| `dip-airflow` | Airflow 3.4.0 (official Helm chart 1.22.0) | KubernetesExecutor: every task is its own pod; task logs go to MinIO |
 | `dip-data` | Postgres 17 | Shared instance with `airflow`, `warehouse` (bronze, silver, gold, ops schemas) and `marquez` databases |
 | `dip-data` | MinIO | Buckets: `landing`, `raw`, `quarantine`, `airflow-logs` |
 | `dip-data` | SFTP server, intake API | Vendor channels (Stage 2) |
