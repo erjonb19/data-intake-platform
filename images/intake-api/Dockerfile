@@ -1,7 +1,7 @@
 # Intake API (Stage 2, the api channel): the dip package served by uvicorn. Build context
 # is the repo root. Base and packages pinned; every version was at least two weeks old
 # when it was chosen.
-FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
+FROM python:3.15.0-slim@sha256:f5b92f2a669a4c347044f29367f31983280b648250ca94dea66f98c53bc87e58
 
 RUN pip install --no-cache-dir "fastapi==0.142.4" "starlette==1.7.0" "uvicorn==0.54.0" \
       "boto3==1.43.109" "pyyaml==6.0.3" "jsonschema==4.26.0" \
