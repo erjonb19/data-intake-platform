@@ -25,6 +25,8 @@ Apache-2.0.
 Stage and item numbers never change, because the README checklist and its test look items up
 by number. Work the stages in this order instead:
 
+**First (owner, 2026-11-09): 24.1, the security audit** (plan only), after any PR already in progress. The items it adds are placed by the owner when he merges it.
+
 1. **Stage 12** to the end: 12.5 to 12.8, then 12.9 and 12.10. Tag `v0.12.0` when Stage 12
    is done.
 2. **Stage 14**, backups, restore and versioned migrations. These come up more in data
@@ -377,3 +379,9 @@ No incident: this stage changes documentation only.
 - [ ] **23.2 A three-minute walkthrough:** a script in `docs/demos/` for the user to record
   (file drop, quarantine, agent proposal, approval, gold, Grafana and the trace), linked from
   the README with a screenshot (overlaps #99 in 12.7; reuse it)
+
+## Stage 24: Security hardening (owner, 2026-11-09)
+
+Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's standard for every repo, and a plan to close each gap. The items after 24.1 come from the audit.
+
+- [ ] **24.1 Security audit (plan only).** Plan only, change no code. Audit the repo against Section 19.3 of `docs/SECURITY_STANDARDS.md` and every section that applies to this stack, and report each gap in the file's SEVERITY format. Add one backlog item per gap, numbered after this one, with anything Critical (CVSS 9+) first in the Order of work. Propose a `.claude/settings.json` from Section 17.2, tailored so unattended runs don't stall: keep the deny list, and explain each change to the ask list. Check every vendor-specific setting (npm, uv, GitHub, Claude Code permission syntax) against the vendor's current docs before proposing it. One docs-only PR, which the owner reviews and merges himself (security decisions are his).
