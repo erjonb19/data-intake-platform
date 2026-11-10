@@ -12,7 +12,8 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 USER airflow
 
-# Each version was at least two weeks old when chosen.
+# Each version was at least two weeks old when chosen. Pillow 13.0.0 (2026-10-16) fixes
+# the CRITICAL findings the 12.9 Trivy scan reported in 12.3.0 (CVE-2026-112393 and others).
 # pdfplumber's own dependencies are pinned too, so a rebuild cannot move them.
 RUN pip install --no-cache-dir "pdfplumber==0.11.10" "pdfminer.six==20260107" \
-      "pypdfium2==5.14.0" "pytesseract==0.3.13" "pillow==12.3.0"
+      "pypdfium2==5.14.0" "pytesseract==0.3.13" "pillow==13.0.0"
