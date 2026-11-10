@@ -123,7 +123,10 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   CRITICAL findings, nearly all in the upstream image. A newer image of the same major
   version fixed them: #121 moved to `apache/airflow:3.4.0-python3.12` (on Debian 13), and
   the OCR image's own Pillow pin went to 13.0.0. The scan then passed on all four images, so
-  `.trivyignore` accepts nothing. Branch protection is the user's step (the PR lists it).
+  `.trivyignore` accepts nothing. Ticked for what the repo itself can do: branch protection
+  on `main` is the user's step in GitHub's settings and was not on as of 2026-11-10 (#116 has
+  the steps), so "a PR with a red `test` cannot be merged" waits on it. The scan's demo is a
+  manual run on an old public image instead of a PR with a vulnerable pin (decisions log).
 - [ ] **12.10 Versioned releases** **(ask)** before building. A `release` workflow that runs
   on a `v*` tag: builds the repo's images, pushes them to GHCR
   (`ghcr.io/erjonb19/...`) tagged with the version and the commit, and creates a GitHub
