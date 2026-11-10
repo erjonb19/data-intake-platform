@@ -265,8 +265,10 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [ ] A bad-release drill: not yet built (13.3)
 - [ ] Autoscaling (metrics-server, HPAs): not yet built (13.4)
 - [ ] OpenTofu checked in CI: not yet built (13.5)
-- [ ] Merge rules enforced by GitHub, dependency updates, image and code scanning: not yet
-  built (12.9)
+- [x] Dependency updates (`.github/dependabot.yml`), Trivy scans of every image we build,
+  failing on a fixable CRITICAL (`.github/workflows/security.yml`, `.trivyignore`), and
+  CodeQL for Python and the workflows (`.github/workflows/codeql.yml`; 12.9). Branch
+  protection on `main` is turned on by the owner in GitHub's settings
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**

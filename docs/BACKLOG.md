@@ -107,7 +107,7 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   parsing is quadratic in CPU, so a text stream of a few MB can take minutes inside the
   budget (a wall-clock limit on the read is the fix); and pdfium decodes image XObjects at
   their own /Width and /Height when a scan is rendered, outside this budget.
-- [ ] **12.9 Merge rules and supply-chain checks** **(ask)** before building.
+- [x] **12.9 Merge rules and supply-chain checks** **(ask)** before building.
   - Branch protection on `main`, requiring the `lint`, `test` and `e2e` checks (not
     `upgrade`, which runs only when certain paths change). The user turns this on in
     GitHub's settings; write the steps in the PR and check afterwards with
@@ -119,16 +119,11 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   - CodeQL for Python and for the workflows.
   - Demo: a PR with a deliberately vulnerable pin fails the scan; a PR with a red `test`
     cannot be merged.
-  **Blocked (2026-11-09), PR #116 open.** Dependabot, CodeQL and the Trivy job are built,
-  and CodeQL passes. The scan's first run (on #116) fails on the images built from
-  `apache/airflow:3.2.2-python3.12` (`dip-airflow`, and `dip-ocr` built on it): about 20
-  CRITICAL findings with fixes, nearly all in the base image. They include Apache Airflow
-  itself (code execution, fixed in 3.3.0), litellm, Pillow, Authlib, PyJWT, GitPython, the
-  SFTP provider, certifi, uv, and Debian's brotli and perl. `dip-mcp` and `dip-intake-api`
-  pass. Merging with the check red would override it, and accepting all of them in
-  `.trivyignore` would not be honest. Fixing them means an Airflow 3.3 upgrade (image,
-  chart and the `upgrade` workflow's path), which is its own item: **decide** whether to add
-  it before 12.9, or to accept the base-image findings with a dated review.
+  **Done (2026-11-10, #116).** The first scan (on Airflow 3.2.2) failed on about 20 fixable
+  CRITICAL findings, nearly all in the upstream image. A newer image of the same major
+  version fixed them: #121 moved to `apache/airflow:3.4.0-python3.12` (on Debian 13), and
+  the OCR image's own Pillow pin went to 13.0.0. The scan then passed on all four images, so
+  `.trivyignore` accepts nothing. Branch protection is the user's step (the PR lists it).
 - [ ] **12.10 Versioned releases** **(ask)** before building. A `release` workflow that runs
   on a `v*` tag: builds the repo's images, pushes them to GHCR
   (`ghcr.io/erjonb19/...`) tagged with the version and the commit, and creates a GitHub
