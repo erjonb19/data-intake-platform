@@ -338,6 +338,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] The scheduled agents run as their own warehouse login with only the grants they use, and
   each runner holds only its own agents' MCP keys (`dip/sql/migrations/0003_agent_runner.sql`,
   `tests/integration/test_agent_runner_login.py`; 24.9)
+- [x] Alerts on security events: refused agent tool calls and refused intake API uploads
+  (`observability/prometheus/rules.yml`, `dip-security`; 24.18)
 - [x] A kill switch for the agents' write tools: one setting refuses every agent propose and act
   call (audited) and stops the scheduled agents (`docs/agents/kill-switch.md`; 24.8)
 

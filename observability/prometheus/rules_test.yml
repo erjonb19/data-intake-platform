@@ -244,3 +244,40 @@ tests:
                 No backup of the warehouse has succeeded in 26 hours (the warehouse-backup
                 CronJob runs nightly; ops.backup holds each run's status and error).
                 Restore notes: docs/backups.md.
+  # 24.18: refused tool calls. 4 in the hour is the policy working; 6 is a spike.
+  - interval: 1m
+    input_series:
+      - series: 'dip_agent_denied_calls_1h{principal="triage"}'
+        values: "4x5 6x5"
+      - series: 'dip_agent_denied_calls_1h{principal="human"}'
+        values: "1x10"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: AgentCallsDenied
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: AgentCallsDenied
+        exp_alerts:
+          - exp_labels: {severity: warning, principal: triage}
+            exp_annotations:
+              summary: "triage: 6 tool calls refused in the last hour"
+              description: "Read ops.audit_log (decision = 'denied') for the reasons; docs/agents/kill-switch.md stops the agents' writes."
+  # 24.18: refused intake API uploads. A few are a vendor's typo; 30 in 15 minutes is not.
+  - interval: 1m
+    input_series:
+      - series: 'dip_intake_api_refused_total{reason="unauthorized"}'
+        values: "0+2x30"
+      - series: 'dip_intake_api_refused_total{reason="forbidden"}'
+        values: "0+5x30"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: IntakeApiAuthFailures
+        exp_alerts: []
+      - eval_time: 29m
+        alertname: IntakeApiAuthFailures
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "30 intake API uploads with no or a wrong key in 15 minutes"
+              description: "Someone is trying keys against the intake API, or a vendor's key was rotated without them."
+

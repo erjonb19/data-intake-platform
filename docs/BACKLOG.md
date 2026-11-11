@@ -439,7 +439,11 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
 - [ ] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
 - [ ] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
-- [ ] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
+- [x] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
+  Done 2026-11-11: `AgentCallsDenied` (`dip_agent_denied_calls_1h`, from the audit log;
+  migration 0004 grants the exporter three of its columns) and `IntakeApiAuthFailures` (the
+  API's own `/metrics`, a new scrape job), with promtool tests. Routing waits for 16.3's
+  Alertmanager: today they show on Prometheus's `/alerts` page, like the others.
 - [ ] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
 - [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
