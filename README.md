@@ -272,7 +272,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch
   protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
   the steps)
-- [x] Every image pinned by digest (`tests/unit/test_image_digests.py`; 24.22)
+- [x] The platform's own image bases and Terraform's image defaults pinned by digest
+  (`tests/unit/test_image_digests.py`; 24.22). The Prometheus and Grafana charts still pull
+  their default images by tag
 - [x] Every GitHub Action pinned by commit SHA, its version in a comment (`tests/unit/test_actions_pinned.py`; 24.5)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 

@@ -1,5 +1,6 @@
 """24.22: every image the platform runs is pinned by digest, so a moved tag cannot change
-what is deployed. Dependabot's docker updates keep the digests current."""
+what is deployed. Dependabot's docker updates keep the Dockerfiles' digests current; the
+Terraform defaults are bumped by hand. The Prometheus and Grafana charts' images are not covered."""
 
 from __future__ import annotations
 
