@@ -96,6 +96,10 @@ where run_id like 'chain-0d38d8d4dd/%' order by audit_id;
 
 `python -m dip incident run --incident ID` runs the chain against an MCP server with both
 agents' keys (`DIP_MCP_URL`, `DIP_INCIDENT_KEY`, `DIP_TRIAGE_KEY`, `DIP_WAREHOUSE_DSN`).
+Against the cluster's MCP server it also needs the platform's run token key (24.10:
+`export DIP_RUN_TOKEN_KEY="$(terraform -chdir=infra/terraform output -raw run_token_key)"`):
+the server refuses a chain's run id that carries no token signed with it
+(`dip/agents/run_token.py`).
 For a live run, see [docs/demos/stage-7.md](../demos/stage-7.md).
 
 ## Evals (S7.4)
