@@ -445,7 +445,12 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   through the API: `vulnerability-alerts` 204, `automated-security-fixes` enabled).
 - [ ] **24.8 A kill switch for the agents' write tools** (Medium): `DIP_AGENTS_WRITE_DISABLED` checked in `Registry.check`: every propose and act call by an agent refused and audited as denied; the chain DAG skips while it is set.
 - [ ] **24.9 Least privilege for the agent-chain pod** (Medium): a dedicated warehouse login instead of the owner DSN; each step's agent key in its own pod, or at least incident/triage split from the intake team.
-- [ ] **24.10 The server, not the agent, issues run and chain ids** (Medium): an HMAC-signed run token minted when a job is claimed and checked in `on_call_tool`; a test that a key cannot read another chain's profile.
+- [x] **24.10 The server, not the agent, issues run and chain ids** (Medium): an HMAC-signed run token minted when a job is claimed and checked in `on_call_tool`; a test that a key cannot read another chain's profile.
+  Done 2026-11-11: chain run ids carry an HMAC token (`dip/agents/run_token.py`, key
+  `DIP_RUN_TOKEN_KEY` from Terraform in the MCP server's and the runners' Secrets only); the
+  MCP server refuses and audits a run id without its chain's valid, unexpired token (a bare
+  run id is its own chain). The
+  token is minted by the platform's runner code, not by the model, which never sees it.
 - [ ] **24.11 Approvals: one token per person** (Medium): hashed per-person tokens (like `DIP_AGENT_KEYS`); the reviewer name comes from the token, not the `X-Reviewer` header.
 - [ ] **24.12 Backups without the de-identification key in plaintext** (Medium): `--exclude-schema=ops_secret` with the key backed up separately, or client-side encryption of each dump; MinIO SSE on `backups`.
 - [ ] **24.13 MinIO root password out of Job specs** (Medium): the `MC_HOST_local` URI in a Secret, read with `secret_key_ref` (`minio.tf`, `intake_api.tf`, `mcp.tf`, `backups.tf`).
