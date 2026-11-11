@@ -34,6 +34,8 @@ locals {
       # 24.3: both caps, so a paid key never runs uncapped (the runners refuse without them).
       DIP_SPEND_CAP_USD   = var.agent_spend_cap_usd
       DIP_MONTHLY_CAP_USD = var.agent_monthly_cap_usd
+      # 24.8: while set, the chain and the intake team claim nothing.
+      DIP_AGENTS_WRITE_DISABLED = var.agents_write_disabled ? "1" : ""
     }
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod

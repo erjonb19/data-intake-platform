@@ -51,6 +51,10 @@ def plan(env: dict[str, str] | None = None) -> Plan:
     if missing:
         return Plan(False, reason=f"no MCP configuration: {', '.join(missing)} unset")
     from dip.agents.llm import provider_names, spend_caps_missing
+    from dip.agents.registry import WRITE_SWITCH, writes_disabled
+
+    if writes_disabled(env):  # 24.8: the incidents wait until the switch is off
+        return Plan(False, reason=f"agent write tools are switched off ({WRITE_SWITCH})")
 
     names = provider_names(env)
     if names:

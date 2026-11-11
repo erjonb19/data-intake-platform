@@ -21,6 +21,7 @@ from typing import Any
 
 from dip.agents.chain_job import _llm_for, merge_version, set_versions
 from dip.agents.llm import NoProvider, provider_names, spend_cap_of, spend_caps_missing
+from dip.agents.registry import WRITE_SWITCH, writes_disabled
 
 KEYS = {
     "profile": "DIP_PROFILE_KEY",
@@ -33,6 +34,8 @@ KEYS = {
 
 def plan(env: dict[str, str]) -> tuple[tuple[str, ...], str | None]:
     """(providers, None) when jobs can run here, else ((), why not)."""
+    if writes_disabled(env):  # 24.8: the jobs wait until the switch is off
+        return (), f"agent write tools are switched off ({WRITE_SWITCH})"
     missing = [v for v in ("DIP_MCP_URL", *KEYS.values()) if not env.get(v)]
     if missing:
         return (), f"no intake-team MCP configuration: {', '.join(missing)} unset"
