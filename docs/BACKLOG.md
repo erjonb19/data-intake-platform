@@ -411,7 +411,13 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   they go in the Order of work is the owner's call.
 
 - [ ] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
-- [ ] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
+- [x] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
+  Done 2026-11-11 for what the repo can do: `DIP_SPEND_CAP_USD` (0.25 a run) and `DIP_MONTHLY_CAP_USD` (5)
+  in the `dip-agent-chain` Secret; before each live Anthropic call the request's worst case
+  is added to this month's live total in `ops.model_call` and refused past the cap, failing
+  closed when that total cannot be read; `chain_job` and `intake_runner` claim nothing with a
+  paid key and either cap unset; an unpriced model is refused. Left for the owner: the
+  provider-side limit in the Anthropic Console.
 - [ ] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool **(ask)**.
 - [ ] **24.5 GitHub Actions pinned by commit SHA** (Medium): every `uses:` in the 8 workflows, with a `# vN.M` comment; Dependabot keeps them current.
 - [ ] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
