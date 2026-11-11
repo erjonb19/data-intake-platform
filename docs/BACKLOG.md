@@ -466,7 +466,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
 - [ ] **24.35 Generic errors to callers and the model** (Low): a correlation id back, the full error logged on the server (`mcp_server.py:134`, `gateway.py`).
 - [x] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
-  Done 2026-11-11: the intake API's name rule and 20 MiB limit, checked from the listing before
+  Done 2026-11-11: the intake API's name rule and a 50 MiB limit (the largest feed's), checked from the listing before
   reading (and the read stops one byte past it); a refused file stays on the server, reported.
 - [ ] **24.37 The approvals negative test covers every route** (Low): loop over `app.routes`, 401 for every `/api` path without the token.
 - [ ] **24.38 TLS and encryption at rest in the cluster** (Low): a self-signed CA, Postgres `sslmode=verify-full`, MinIO TLS and SSE; needed before anything is hosted.
