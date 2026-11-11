@@ -133,6 +133,19 @@ class SpendCap(RuntimeError):
     priced or counted."""
 
 
+def spend_cap_of(exc: BaseException) -> SpendCap | None:
+    """The SpendCap behind `exc`, also inside an exception group (an MCP client's task
+    group wraps what failed in it), or None. The runners put the job back instead of
+    failing it, so reaching a cap never uses up an incident or an onboarding job."""
+    if isinstance(exc, SpendCap):
+        return exc
+    if isinstance(exc, BaseExceptionGroup):
+        for e in exc.exceptions:
+            if found := spend_cap_of(e):
+                return found
+    return None
+
+
 def spend_caps_missing(providers: list[str] | tuple[str, ...],
                        env: dict[str, str] | None = None) -> str | None:  # fmt: skip
     """Why a scheduled runner must not start with these providers, or None."""

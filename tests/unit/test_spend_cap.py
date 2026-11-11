@@ -153,3 +153,10 @@ def test_spend_caps_missing_only_for_a_paid_provider():
         ["anthropic"], {"DIP_SPEND_CAP_USD": "1"})  # fmt: skip
     assert llm.spend_caps_missing(
         ["anthropic"], {"DIP_SPEND_CAP_USD": "1", "DIP_MONTHLY_CAP_USD": "5"}) is None  # fmt: skip
+
+
+def test_spend_cap_of_finds_a_cap_inside_an_exception_group():
+    cap = SpendCap("over")
+    assert llm.spend_cap_of(cap) is cap
+    assert llm.spend_cap_of(ExceptionGroup("g", [ValueError(), ExceptionGroup("h", [cap])])) is cap
+    assert llm.spend_cap_of(ExceptionGroup("g", [ValueError()])) is None

@@ -20,7 +20,7 @@ from collections.abc import Callable
 from typing import Any
 
 from dip.agents.chain_job import _llm_for, merge_version, set_versions
-from dip.agents.llm import NoProvider, provider_names, spend_caps_missing
+from dip.agents.llm import NoProvider, provider_names, spend_cap_of, spend_caps_missing
 
 KEYS = {
     "profile": "DIP_PROFILE_KEY",
@@ -121,6 +121,10 @@ def run(
             continue
         except Exception as exc:  # the team's errors are the record, not a crash
             conn.rollback()
+            if cap := spend_cap_of(exc):  # 24.3: back to the queue, not failed
+                requeue(conn, job["job_id"], f"spend cap: {cap}", dag_run_id)
+                summary["done"][job["job_id"]] = "queued"
+                break
             finish(
                 conn,
                 job["job_id"],

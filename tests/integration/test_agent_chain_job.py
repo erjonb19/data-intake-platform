@@ -212,3 +212,23 @@ def test_one_named_incident_is_claimed_and_no_other(warehouse):
     # done already: the same incident is not run twice
     assert chain_job.run(warehouse.conn, env=env, runner=_ok, incident_id=named)["claimed"] == 0
     assert chain_job.run(warehouse.conn, env=env, runner=_ok)["done"] == [older]
+
+
+def test_a_spend_cap_puts_the_incident_back_and_stops_the_run(warehouse):
+    """24.3: reaching DIP_SPEND_CAP_USD or DIP_MONTHLY_CAP_USD is not the incident's fault:
+    it goes back to `skipped` (claimed again once there is room), even when the cap is
+    raised inside an MCP client's task group, and this run stops."""
+    from dip.agents.llm import SpendCap
+
+    a = _open(warehouse, "healthcare.eligibility", "FILE.QUARANTINED", "elig_20261021.csv")
+    _open(warehouse, "finance.invoices")
+    calls = []
+
+    def runner(conn, incident_id, env_, providers):
+        calls.append(incident_id)
+        raise ExceptionGroup("task group", [SpendCap("past the $5.00 monthly cap")])
+
+    s = chain_job.run(warehouse.conn, env={**MCP, "GEMINI_API_KEY": "g"}, runner=runner)
+    assert calls == [a] and s["skipped"] == [a] and s["failed"] == []
+    got = rows(warehouse, "select status, reason from ops.agent_run where incident_id = %s", (a,))
+    assert got[0][0] == "skipped" and "monthly cap" in got[0][1]

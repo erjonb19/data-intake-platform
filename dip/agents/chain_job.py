@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from dip.agents.llm import NoProvider
+from dip.agents.llm import NoProvider, spend_cap_of
 
 MCP_VARS = ("DIP_MCP_URL", "DIP_INCIDENT_KEY", "DIP_TRIAGE_KEY")
 # A claim older than this is a dead pod's: dags/agent_chain.py's execution timeout is
@@ -269,6 +269,10 @@ def run(
             continue
         except Exception as exc:  # the chain's own errors are the record, not a crash
             conn.rollback()  # a failed statement in the chain leaves the transaction aborted
+            if cap := spend_cap_of(exc):  # 24.3: the incident waits for the next month
+                finish(conn, incident, "skipped", reason=f"spend cap: {cap}")
+                summary["skipped"] = [*summary.get("skipped", []), incident]
+                break  # the next request would pass the cap too: stop this run
             finish(
                 conn,
                 incident,
