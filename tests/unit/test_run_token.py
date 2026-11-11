@@ -35,3 +35,16 @@ def test_a_missing_malformed_or_edited_token_is_refused():
 def test_another_key_signs_nothing_this_one_accepts():
     t = run_token.sign("chain-a", env={run_token.KEY_VAR: "x" * 40})
     assert run_token.verify("chain-a", t, env=ENV) is not None
+
+
+def test_a_bare_run_id_is_its_own_chain():
+    """Tools fall back to the raw run id as the chain, so `intake-y` needs a token too."""
+    assert run_token.chain_for("intake-y") == "intake-y"
+    assert run_token.chain_for("intake-y/map#2") == "intake-y"
+    assert run_token.chain_for(None) is None
+    assert "no run token" in run_token.verify(run_token.chain_for("intake-y"), None, env=ENV)
+
+
+def test_odd_characters_fail_closed_without_an_exception():
+    for token in ("²³.abc", "123.é", ".", "abc.def"):
+        assert run_token.verify("chain-a", token, env=ENV) is not None

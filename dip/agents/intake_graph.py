@@ -139,10 +139,9 @@ def _summary(run: triage.TriageRun, task: str = "") -> dict[str, Any]:
 async def _call(client: Any, tool: str, run_id: str, agent_version: dict | None = None,
                 **args: Any) -> dict[str, Any]:  # fmt: skip
     from dip.agents import run_token
-    from dip.agents.registry import chain_of
 
     # 24.10: the chain's signed token rides with the run id (dip/agents/run_token.py).
-    meta = {"_run_id": run_id, "_run_token": run_token.sign(chain_of(run_id))} | (
+    meta = {"_run_id": run_id, "_run_token": run_token.sign(run_token.chain_for(run_id))} | (
         {"_agent_version": agent_version} if agent_version else {}
     )
     r = await client.call_tool(tool, {**args, **meta})

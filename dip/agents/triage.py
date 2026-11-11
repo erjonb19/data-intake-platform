@@ -19,7 +19,6 @@ from typing import Any
 
 from dip.agents import model_calls, run_token
 from dip.agents.llm import LLM, PROMPT_DIR, Message, SpendCap
-from dip.agents.registry import chain_of
 
 PROMPT = (PROMPT_DIR / "triage.md").read_text(encoding="utf-8")
 TASK = (
@@ -140,7 +139,7 @@ async def run_agent(client: Any, llm: LLM, system: str, task: str, max_turns: in
             # arguments: the server records the version on any proposal the call makes.
             # 24.10: with the platform's key, a token proving the run id's chain was issued
             # here (dip/agents/run_token.py). Always set, so a model cannot supply one.
-            token = run_token.sign(chain_of(out.run_id))
+            token = run_token.sign(run_token.chain_for(out.run_id))
             r = await client.call_tool(use["name"], {**args, "_run_id": out.run_id,
                                                      "_run_token": token,
                                                      "_agent_version": out.version})  # fmt: skip

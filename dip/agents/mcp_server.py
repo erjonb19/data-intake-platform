@@ -34,7 +34,7 @@ from mcp.server.lowlevel.server import Server
 from mcp.server.transport_security import TransportSecuritySettings
 
 from dip.agents import run_token
-from dip.agents.registry import Denied, Policy, Registry, chain_of
+from dip.agents.registry import Denied, Policy, Registry
 
 INSTRUCTIONS = (
     "Data intake platform tools. Read tools have no side effects. propose_operation writes a "
@@ -119,9 +119,11 @@ def build_server(
         run_id = str(args.pop("_run_id", "") or "") or None
         token = args.pop("_run_token", None)
         version = agent_version(args.pop("_agent_version", None))
-        # 24.10: a run id that names a chain must carry that chain's signed token (with
-        # DIP_RUN_TOKEN_KEY set); otherwise the call is refused and audited as denied.
-        if refusal := run_token.verify(chain_of(run_id), token if isinstance(token, str) else None):
+        # 24.10: with DIP_RUN_TOKEN_KEY set, a run id must carry its chain's signed token
+        # (run_token.chain_for); otherwise the call is refused and audited as denied.
+        if refusal := run_token.verify(
+            run_token.chain_for(run_id), token if isinstance(token, str) else None
+        ):
             tier = registry.tools[params.name].tier if params.name in registry.tools else "unknown"
 
             def audit() -> None:

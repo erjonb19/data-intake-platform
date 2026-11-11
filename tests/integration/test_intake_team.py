@@ -304,3 +304,17 @@ def test_with_the_platform_key_a_chain_run_id_needs_its_signed_token(world, ware
     err, out = call("contract_author", "get_intake_profile", "c1/map", job_id=job["job_id"],
                     _run_token=good)  # fmt: skip
     assert not err, out
+
+
+def test_a_bare_chain_id_needs_its_token_too(world, monkeypatch):
+    """24.10 review: tools fall back to the raw run id as the chain, so `c1` with no step
+    must not get past the check that `c1/map` needs."""
+    from dip.agents import run_token
+
+    call, job, _ = world
+    monkeypatch.setenv(run_token.KEY_VAR, "k" * 40)
+    err, out = call("validator", "validate_contract", "c1", candidate_id="x")
+    assert err and "no run token" in json.dumps(out)
+    err, out = call("validator", "validate_contract", "c1", candidate_id="x",
+                    _run_token=run_token.sign("c2"))  # fmt: skip
+    assert err and "not for this chain" in json.dumps(out)
