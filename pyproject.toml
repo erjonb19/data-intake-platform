@@ -17,35 +17,35 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "psycopg[binary]==3.3.*",
-  "pytest==9.1.*",
+  "pytest>=9.1,<9.3",
   "ruff==0.17.*",
   "dbt-core==1.12.*",
   "dbt-postgres==1.11.*",
-  "paramiko==3.5.*",
+  "paramiko>=3.5,<5.2",
   # The intake API (images/intake-api pins the same versions).
-  "fastapi==0.142.4",
-  "starlette==1.7.0",
+  "fastapi==0.162.2",
+  "starlette==1.10.0",
   "uvicorn==0.54.0",
   "httpx==0.28.1",
   # Stage 3 PDF invoices (images/ocr pins the same readers; Tesseract itself is only in
   # that image and on CI, so the OCR tests skip without it).
   "pdfplumber==0.11.10",
   "pdfminer.six==20260107",
-  "pypdfium2==5.14.0",
+  "pypdfium2==5.15.0",
   "pytesseract==0.3.13",
   "pillow==13.0.0",
-  "reportlab==5.0.1",
+  "reportlab==5.1.0",
   # The agent layer (Stage 4): Claude, the MCP server and client, and the HTTP server.
   # Each pin was at least two weeks old when chosen. CI never calls the model.
   "anthropic==1.12.0",
   "mcp==2.3.0",
   # Stage 7: the incident -> triage chain is a LangGraph state graph (MIT). Its own
   # dependencies are pinned too, each at least two weeks old when chosen (2026-10-23).
-  "langgraph==1.2.14",
-  "langchain-core==1.6.9",
-  "langgraph-checkpoint==4.2.0",
-  "langgraph-prebuilt==1.1.0",
-  "langgraph-sdk==0.4.6",
+  "langgraph==1.2.20",
+  "langchain-core==1.7.6",
+  "langgraph-checkpoint==4.3.1",
+  "langgraph-prebuilt==1.1.1",
+  "langgraph-sdk==0.4.14",
   # Stage 8 (S8.3): scripts/screenshots.py drives a headless Chrome over DevTools.
   "websocket-client==1.9.2",
 ]
