@@ -105,3 +105,10 @@ resource "kubernetes_service_v1" "approvals" {
     }
   }
 }
+
+# 24.11: the single token became the first approver's (`owner` by default), so an upgrade
+# keeps the token people already have instead of generating a new one.
+moved {
+  from = random_password.approvals_token
+  to   = random_password.approver_token["owner"]
+}
