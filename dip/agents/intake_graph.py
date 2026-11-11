@@ -138,7 +138,12 @@ def _summary(run: triage.TriageRun, task: str = "") -> dict[str, Any]:
 
 async def _call(client: Any, tool: str, run_id: str, agent_version: dict | None = None,
                 **args: Any) -> dict[str, Any]:  # fmt: skip
-    meta = {"_run_id": run_id} | ({"_agent_version": agent_version} if agent_version else {})
+    from dip.agents import run_token
+
+    # 24.10: the chain's signed token rides with the run id (dip/agents/run_token.py).
+    meta = {"_run_id": run_id, "_run_token": run_token.sign(run_token.chain_for(run_id))} | (
+        {"_agent_version": agent_version} if agent_version else {}
+    )
     r = await client.call_tool(tool, {**args, **meta})
     text = "\n".join(getattr(c, "text", "") for c in r.content)
     try:

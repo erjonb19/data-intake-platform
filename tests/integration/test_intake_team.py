@@ -269,3 +269,52 @@ def test_the_reviewers_verdict_decides_what_happens(warehouse, verdicts, provide
     assert r.proposed == (outcome == "proposed")
     approvals = rows(warehouse, "select count(*) from ops.approvals")[0][0]
     assert approvals == (1 if outcome == "proposed" else 0)
+
+
+def test_with_the_platform_key_a_chain_run_id_needs_its_signed_token(world, warehouse, monkeypatch):
+    """24.10: a client holding a team key cannot name another chain to read its profile.
+    With DIP_RUN_TOKEN_KEY set, a chain run id without that chain's token is refused and
+    audited as denied; with the token, the call goes through as before."""
+    from dip.agents import run_token
+
+    call, job, _ = world
+    monkeypatch.setenv(run_token.KEY_VAR, "k" * 40)
+    good = run_token.sign("c1")
+    err, out = call("profile", "report_profile", "c1/profile", job_id=job["job_id"],
+                    columns=[], _run_token=good)  # fmt: skip
+    assert not err, out
+
+    # No token, a token for another chain, a forged token: all refused, nothing read.
+    for token, why in ((None, "no run token"), (run_token.sign("c2"), "not for this chain"),
+                       ("9999999999.beef", "not for this chain")):  # fmt: skip
+        err, out = call("contract_author", "get_intake_profile", "c1/map",
+                        job_id=job["job_id"], _run_token=token)  # fmt: skip
+        assert err and why in json.dumps(out)
+        assert "columns" not in json.dumps(out)
+    denied = rows(warehouse, "select principal, decision, reason from ops.audit_log"
+                  " where tool = 'get_intake_profile' order by audit_id")  # fmt: skip
+    assert [d[1] for d in denied] == ["denied"] * 3
+    assert all("run token" in d[2] for d in denied)
+
+    # Its own chain's token for another chain's run id is no help either.
+    err, out = call("contract_author", "get_intake_profile", "c2/map", job_id=job["job_id"],
+                    _run_token=run_token.sign("c2"))  # fmt: skip
+    assert "another chain" in json.dumps(out)
+
+    err, out = call("contract_author", "get_intake_profile", "c1/map", job_id=job["job_id"],
+                    _run_token=good)  # fmt: skip
+    assert not err, out
+
+
+def test_a_bare_chain_id_needs_its_token_too(world, monkeypatch):
+    """24.10 review: tools fall back to the raw run id as the chain, so `c1` with no step
+    must not get past the check that `c1/map` needs."""
+    from dip.agents import run_token
+
+    call, job, _ = world
+    monkeypatch.setenv(run_token.KEY_VAR, "k" * 40)
+    err, out = call("validator", "validate_contract", "c1", candidate_id="x")
+    assert err and "no run token" in json.dumps(out)
+    err, out = call("validator", "validate_contract", "c1", candidate_id="x",
+                    _run_token=run_token.sign("c2"))  # fmt: skip
+    assert err and "not for this chain" in json.dumps(out)

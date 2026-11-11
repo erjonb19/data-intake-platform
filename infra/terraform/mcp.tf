@@ -33,6 +33,13 @@ locals {
   mcp_airflow_user = "mcp-viewer"
 }
 
+# 24.10: signs chain run ids (dip/agents/run_token.py). The MCP server checks them; the
+# scheduled runners (dip-agent-chain) sign the chains they start. No agent or model sees it.
+resource "random_password" "run_token_key" {
+  length  = 48
+  special = false
+}
+
 resource "random_password" "mcp_reader_key" {
   length  = 40
   special = false
@@ -243,7 +250,8 @@ resource "kubernetes_secret_v1" "mcp" {
     DIP_AIRFLOW_PASSWORD = local.pw["airflow_mcp_viewer"]
     DIP_MARQUEZ_URL      = local.observability ? local.marquez_url : ""
     DIP_PROMETHEUS_URL   = local.observability ? "http://prometheus-server.${local.obs_ns}.svc.cluster.local" : ""
-    DIP_K8S_NAMESPACE    = local.airflow_ns # S11.6: get_k8s_events reads this namespace
+    DIP_K8S_NAMESPACE    = local.airflow_ns                     # S11.6: get_k8s_events reads this namespace
+    DIP_RUN_TOKEN_KEY    = random_password.run_token_key.result # 24.10
     # 24.8: the kill switch for the agents' propose and act tools (docs/agents/kill-switch.md).
     DIP_AGENTS_WRITE_DISABLED = var.agents_write_disabled ? "1" : ""
   }

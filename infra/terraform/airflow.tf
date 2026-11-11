@@ -33,6 +33,8 @@ locals {
       GEMINI_API_KEY       = var.gemini_api_key
       # 24.8: while set, the chain and the intake team claim nothing.
       DIP_AGENTS_WRITE_DISABLED = var.agents_write_disabled ? "1" : ""
+      # 24.10: signs the chains this runner starts (the MCP server checks them).
+      DIP_RUN_TOKEN_KEY = random_password.run_token_key.result
     }
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod
