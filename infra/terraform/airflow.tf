@@ -165,6 +165,9 @@ resource "kubernetes_secret_v1" "airflow" {
     namespace = local.airflow_ns
   }
   data = each.value
+
+  # The minio connection names Airflow's MinIO user: it exists before a pod can read it.
+  depends_on = [kubernetes_job_v1.airflow_minio_user]
 }
 
 # The official chart, committed in infra/helm-charts/ (how to update it is in its README).
