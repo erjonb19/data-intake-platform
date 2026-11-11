@@ -28,7 +28,7 @@
         recorded_at timestamptz not null,
         primary key (invocation_id, test_name)
     );
-    -- The metrics exporter reads the latest results (dip/sql/warehouse.sql).
+    -- The metrics exporter reads the latest results (dip/sql/migrations/0001_baseline.sql).
     DO $$ BEGIN
         IF to_regprocedure('ops.grant_metrics_reader()') IS NOT NULL THEN
             PERFORM ops.grant_metrics_reader();

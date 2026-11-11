@@ -137,7 +137,7 @@ def ensure(conn: Any) -> list[str]:
         if not pending(conn):
             conn.commit()  # end the read's transaction
             return []
-    except MigrationChanged:
+    except BaseException:  # MigrationChanged, or the read failed: leave no aborted transaction
         conn.rollback()
         raise
     conn.rollback()
