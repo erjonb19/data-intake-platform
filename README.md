@@ -274,6 +274,7 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   the steps)
 - [x] The SFTP sync refuses unsafe names and files over 20 MiB before reading them
   (`dip/sftp_sync.py`; 24.36)
+- [x] Every GitHub Action pinned by commit SHA, its version in a comment (`tests/unit/test_actions_pinned.py`; 24.5)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
