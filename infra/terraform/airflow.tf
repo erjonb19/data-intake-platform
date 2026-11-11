@@ -31,6 +31,8 @@ locals {
       DIP_ORCHESTRATOR_KEY = random_password.mcp_team_key["intake_orchestrator"].result
       ANTHROPIC_API_KEY    = var.anthropic_api_key
       GEMINI_API_KEY       = var.gemini_api_key
+      # 24.10: signs the chains this runner starts (the MCP server checks them).
+      DIP_RUN_TOKEN_KEY = random_password.run_token_key.result
     }
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod
