@@ -29,6 +29,12 @@ those after a recording was made breaks its replay.
   stays the design record and decisions log; when the two disagree, BACKLOG.md wins and
   the decision gets a line in PLAN.md's log.
 - **One stage at a time, one PR per piece.** Tests must stay green.
+- **Merging (owner, 2026-11-11).** Merge PRs yourself, including ones marked "owner
+  merges", when CI is green on the final commit and a fresh review by a separate agent
+  that did not write the change finds nothing blocking. Dependabot security updates follow
+  the same rule. The recording rules above still apply. Still ask the owner first, in chat,
+  for anything that spends money, release tags, deploys, deleting data, and any change to
+  `.claude/settings.json` or other permission settings: open those PRs and stop.
 - **Cost stays at $0, with one approved exception.** Open-source tools, free or near-free
   LLMs. Ask before adding anything that could bill.
   - `claude-haiku-5-5` on the paid key is approved (2026-11-05) with a **$5 per calendar
