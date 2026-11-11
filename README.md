@@ -272,6 +272,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch
   protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
   the steps)
+- [x] The SFTP sync refuses unsafe names and files over 20 MiB before reading them
+  (`dip/sftp_sync.py`; 24.36)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
