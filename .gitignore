@@ -4,6 +4,18 @@
 !.env.example
 *.pem
 *.key
+# 24.26: certificate bundles, a secrets folder, cloud credential files
+*.p12
+*.pfx
+*.jks
+secrets/
+**/secrets/
+credentials*.json
+*-credentials.json
+service-account*.json
+*.serviceaccount.json
+.netrc
+.pypirc
 
 # python
 __pycache__/
