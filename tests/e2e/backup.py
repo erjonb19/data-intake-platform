@@ -107,6 +107,8 @@ def main() -> int:
         check("TABLE ops backup" in listing, "the archive has ops.backup")
         check("TABLE DATA ops_secret" not in listing,
               "24.12: no ops_secret rows (the de-identification key) in the dump")  # fmt: skip
+        check("TABLE ops_secret deid_key" in listing,
+              "24.12: the key's table itself is in the dump, empty")  # fmt: skip
     keys = [o["Key"] for o in s3().list_objects_v2(Bucket=BUCKET, Prefix="warehouse/")
             .get("Contents", [])]  # fmt: skip
     check(0 < len(keys) <= KEEP, f"the bucket keeps at most {KEEP} dumps: {len(keys)}")
