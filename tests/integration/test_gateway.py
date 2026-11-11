@@ -36,7 +36,11 @@ def page(warehouse):
         cur.execute(ROLES_SQL.read_text(encoding="utf-8"))
         cur.execute(f"alter role dip_approver password '{PASSWORD}'")
     warehouse.conn.commit()
-    warehouse.init()  # the role exists now: its grants apply
+    from dip.migrations import reapply_grants
+
+    reapply_grants(
+        warehouse.conn
+    )  # the role exists now: its grants apply (14.3: as the deploy Job does)
     app = create_app(approver_conn, [HOST], token=TOKEN)
     with TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"}) as client:
         yield client

@@ -74,3 +74,21 @@ def test_a_failed_migration_applies_none_of_the_batch(warehouse, monkeypatch):
     # 0002 ran first in the same transaction, and was rolled back with 0003
     assert rows(warehouse, "select to_regclass('vocab.source_to_concept_map') is null") == [(True,)]
     assert rows(warehouse, "select max(version) from ops.schema_migration") == [(1,)]
+
+
+def test_a_login_created_after_the_migrations_gets_its_grants_on_reapply(warehouse):
+    """A login the roles Job creates after the migration that defines its grants: the
+    deploy Job's reapply_grants gives it what the migration would have (14.3 review)."""
+    with warehouse.conn.cursor() as cur:
+        cur.execute(
+            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname ="
+            " 'dip_platform_check') THEN CREATE ROLE dip_platform_check NOLOGIN; END IF; END $$"
+        )
+        cur.execute("revoke all on ops.platform_check from dip_platform_check")
+    warehouse.conn.commit()
+    assert rows(warehouse, "select has_table_privilege('dip_platform_check',"
+                " 'ops.platform_check', 'INSERT')") == [(False,)]  # fmt: skip
+    names = migrations.reapply_grants(warehouse.conn)
+    assert "grant_platform_check" in names
+    assert rows(warehouse, "select has_table_privilege('dip_platform_check',"
+                " 'ops.platform_check', 'INSERT')") == [(True,)]  # fmt: skip

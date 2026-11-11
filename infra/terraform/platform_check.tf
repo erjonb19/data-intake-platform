@@ -116,7 +116,7 @@ resource "kubernetes_job_v1" "warehouse_init" {
           # there without its dependencies, so not `python -m dip db-init`).
           name    = "db-init"
           image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
-          command = ["python", "-c", "import os, psycopg2; from dip.migrations import migrate; n = migrate(psycopg2.connect(os.environ['DIP_WAREHOUSE_DSN'])); print('applied: ' + (', '.join(n) or 'none, the warehouse is current'))"]
+          command = ["python", "-c", "import os, psycopg2; from dip.migrations import migrate, reapply_grants; c = psycopg2.connect(os.environ['DIP_WAREHOUSE_DSN']); n = migrate(c); g = reapply_grants(c); print('applied: ' + (', '.join(n) or 'none, the warehouse is current') + '; grants: ' + ', '.join(g))"]
           env {
             name = "DIP_WAREHOUSE_DSN"
             value_from {

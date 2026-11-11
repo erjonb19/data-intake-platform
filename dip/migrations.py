@@ -142,3 +142,26 @@ def ensure(conn: Any) -> list[str]:
         raise
     conn.rollback()
     return migrate(conn)
+
+
+GRANT_FN = re.compile(r"^grant_[a-z_]+$")
+
+
+def reapply_grants(conn: Any) -> list[str]:
+    """Call every `ops.grant_*()` function the migrations defined; returns their names.
+
+    Each one grants a login what it may use, and does nothing when its login does not exist
+    yet. The `warehouse-init` Job runs this after `migrate` on every deploy, so a login the
+    roles Job created after the migration that defines its grants still gets them, as it
+    did when every task re-applied the whole schema. Grants only: no DDL, no table lock."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace"
+            " where n.nspname = 'ops' and p.proname like 'grant\_%' and p.pronargs = 0"
+            " order by 1"
+        )
+        names = [r[0] for r in cur.fetchall() if GRANT_FN.match(r[0])]
+        for name in names:
+            cur.execute(f"select ops.{name}()")  # name checked against GRANT_FN
+    conn.commit()
+    return names

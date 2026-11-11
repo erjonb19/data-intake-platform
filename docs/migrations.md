@@ -28,9 +28,10 @@ name, SHA-256 of its text, time).
    `IF NOT EXISTS` where a table may already exist on a laptop's old database.
 3. **Grants for a new login go in a migration too**, after the login is added to
    `infra/terraform/files/postgres-roles.sql` (the roles Job runs before `warehouse-init`).
-   Grants are applied only when a migration runs, no longer by every task, so a new login or
-   a new grant on an existing table is always a new migration (it can call the
-   `ops.grant_*()` function again). A table dropped by hand is no longer recreated by the
+   Grants are no longer applied by every task: the `warehouse-init` Job calls every
+   `ops.grant_*()` function after `migrate` on each deploy (`reapply_grants`), so a login the
+   roles Job adds later still gets the grants its function gives. A new grant is a new
+   migration (a new or replaced `ops.grant_*()` function). A table dropped by hand is no longer recreated by the
    next task either: restore it (docs/backups.md).
 4. **The upgrade workflow is the check.** It deploys the previous `main`, loads data, then
    deploys the PR: `warehouse-init` applies the new migrations to the previous release's
