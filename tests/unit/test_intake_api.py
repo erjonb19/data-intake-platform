@@ -136,3 +136,10 @@ def test_another_packs_feed_names_cannot_be_probed(setup):
     _, api = setup
     assert post(api, feed="healthcare.nothing", key=KEYS["finance"]).status_code == 403
     assert post(api, feed="healthcare.nothing").status_code == 404  # its own pack: 404
+
+
+def test_no_schema_or_docs_are_served_without_a_key(setup):
+    """24.34: the API's route list is not public."""
+    _, api = setup
+    for path in ("/openapi.json", "/docs", "/redoc"):
+        assert api.get(path).status_code == 404, path

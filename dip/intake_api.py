@@ -77,7 +77,10 @@ def create_app(
     clients: list[Client],
     max_bytes: int = DEFAULT_MAX_BYTES,
 ) -> FastAPI:
-    app = FastAPI(title="dip intake API", version="1", docs_url=None, redoc_url=None)
+    # 24.34: no /docs, /redoc or /openapi.json: they answer without a key and list every
+    # route and parameter to anyone who can reach the Service.
+    app = FastAPI(title="dip intake API", version="1", docs_url=None, redoc_url=None,
+                  openapi_url=None)  # fmt: skip
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
