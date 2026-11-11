@@ -290,8 +290,10 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `dip restore --latest --verify` restores the newest dump into `warehouse_restore`, brings
   the table back and compares; the kind E2E runs it on every push and reports the time to
   restore (`dip/restore.py`, `tests/e2e/restore.py`, `docs/backups.md`; 14.2)
-- [ ] Versioned warehouse migrations: not yet built (14.3); today the schemas are
-  `create ... if not exists` at startup (`dip/sql/warehouse.sql`)
+- [x] Versioned warehouse migrations: numbered SQL files applied once each and recorded in
+  `ops.schema_migration`, by the `warehouse-init` Job before the services start; tasks find the
+  warehouse current and apply nothing (`dip/migrations.py`, `dip/sql/migrations/`,
+  `docs/migrations.md`; 14.3)
 - [ ] Backpressure on a flood of files: not yet built (16.1)
 - [ ] Signed inbound webhooks: not yet built (16.2)
 - [ ] Measured scale: a volume generator, incremental dbt models, partitioned gold tables
@@ -306,7 +308,7 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   (`observability/prometheus/rules.yml`); Grafana dashboards for feeds, DAG runs and
   agents (`observability/grafana/`)
 - [x] Agent traces as database rows: `ops.trace_span`, `ops.model_call`, `ops.audit_log`
-  (`dip/agents/trace.py`, `dip/sql/warehouse.sql`)
+  (`dip/agents/trace.py`, `dip/sql/migrations/0001_baseline.sql`)
 - [x] Break-and-fix: `python -m dip break` (`dip/breakages.py`) and runbooks 01–08
   (`docs/runbooks/`); the whole loop runs in the kind E2E (`tests/e2e/break_loop.py`)
 - [x] Platform drills (scheduler down, OOMKilled, bad secret, stuck queued; runbooks 09–12),

@@ -188,7 +188,7 @@ Incident: the dropped table (runbook `14-restore.md`).
   - Runbook `14-restore.md` is deferred: `docs/runbooks/` is the incident agent's search
     input, so a new runbook changes the incident recordings, and that re-recording needs
     the user's approval first. The drill's steps are in `docs/backups.md` until then.
-- [ ] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
+- [x] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database
   Found 2026-11-09 (#115's e2e, run 42617255988): every intake task runs `Warehouse.init`,
@@ -197,6 +197,13 @@ Incident: the dropped table (runbook `14-restore.md`).
   the init's `pg_advisory_xact_lock` transaction against a `select ... from ops.quarantine`).
   The break loop's proposal failed; the other e2e run on the same commit passed. Applying migrations once,
   before the services start, and not on every task removes it.
+  Done 2026-11-11: numbered SQL files in `dip/sql/migrations/` (0001 is the old
+  `warehouse.sql`, unchanged, so an earlier release's warehouse takes it as is; 0002 the
+  `source_to_concept_map` table), applied once each under an advisory lock, all-or-nothing, and
+  recorded with their SHA-256 in `ops.schema_migration` (`dip/migrations.py`). The
+  `warehouse-init` Job runs `migrate` at deploy; `Warehouse.init` now reads the table and
+  applies nothing when current, so tasks no longer take the DDL's locks. An edited migration is
+  refused. The `upgrade` workflow applies them to the previous release's database.
 
 ## Stage 15: Tracing with Jaeger
 
