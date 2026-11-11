@@ -424,7 +424,13 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
 - [x] **24.8 A kill switch for the agents' write tools** (Medium): `DIP_AGENTS_WRITE_DISABLED` checked in `Registry.check`: every propose and act call by an agent refused and audited as denied; the chain DAG skips while it is set.
   Done 2026-11-11: `DIP_AGENTS_WRITE_DISABLED` (Terraform `agents_write_disabled`, in the MCP and `dip-agent-chain` Secrets); `docs/agents/kill-switch.md`.
-- [ ] **24.9 Least privilege for the agent-chain pod** (Medium): a dedicated warehouse login instead of the owner DSN; each step's agent key in its own pod, or at least incident/triage split from the intake team.
+- [x] **24.9 Least privilege for the agent-chain pod** (Medium): a dedicated warehouse login instead of the owner DSN; each step's agent key in its own pod, or at least incident/triage split from the intake team.
+  Done 2026-11-11: the runners connect as `dip_agent_runner` (migration 0003's grants: read the
+  incident side, write `ops.agent_run`, the run columns of `ops.intake_job`, and inserts into
+  `ops.model_call` and `ops.audit_log`; nothing in bronze, silver, gold, research or
+  `ops_secret`), never the owner; the DAG fails rather than fall back. The intake team's keys
+  moved to their own Secret, `dip-intake-team`, so `run_chain` and `intake_jobs` each hold only
+  their own agents' keys.
 - [ ] **24.10 The server, not the agent, issues run and chain ids** (Medium): an HMAC-signed run token minted when a job is claimed and checked in `on_call_tool`; a test that a key cannot read another chain's profile.
 - [ ] **24.11 Approvals: one token per person** (Medium): hashed per-person tokens (like `DIP_AGENT_KEYS`); the reviewer name comes from the token, not the `X-Reviewer` header.
 - [ ] **24.12 Backups without the de-identification key in plaintext** (Medium): `--exclude-schema=ops_secret` with the key backed up separately, or client-side encryption of each dump; MinIO SSE on `backups`.

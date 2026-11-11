@@ -118,3 +118,20 @@ ALTER ROLE dip_backup WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATI
 GRANT pg_read_all_data TO dip_backup;
 ALTER ROLE dip_backup SET idle_in_transaction_session_timeout = '10min';
 ALTER ROLE dip_backup SET search_path = ops;
+
+-- The scheduled agent runners' login (24.9; dip/agents/chain_job.py and intake_runner.py, the
+-- agent_chain DAG's two tasks, in the agent venv). They claim and finish their own work and
+-- record their model calls and audit rows; every change to data goes through the MCP server
+-- under its own login. Grants: ops.grant_agent_runner() (dip/sql/migrations/0003).
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_agent_runner') THEN
+        CREATE ROLE dip_agent_runner LOGIN;
+    END IF;
+END
+$$;
+ALTER ROLE dip_agent_runner WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+    NOBYPASSRLS NOINHERIT CONNECTION LIMIT 6;
+ALTER ROLE dip_agent_runner SET statement_timeout = '30s';
+ALTER ROLE dip_agent_runner SET idle_in_transaction_session_timeout = '10min';
+ALTER ROLE dip_agent_runner SET search_path = ops;

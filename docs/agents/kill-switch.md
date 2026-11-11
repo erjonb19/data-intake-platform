@@ -25,7 +25,7 @@ kubectl -n dip-data set env deploy/mcp DIP_AGENTS_WRITE_DISABLED=1
 ```
 
 `kubectl set env` restarts the MCP pod with the switch on at once. The runners follow the
-`dip-agent-chain` Secret, so to stop them too, apply with Terraform (or pause the
+`dip-agent-chain` and `dip-intake-team` Secrets, so to stop them too, apply with Terraform (or pause the
 `agent_chain` DAG in Airflow).
 
 **Turning it off.** `terraform apply` without the variable (it defaults to `false`), then

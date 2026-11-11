@@ -77,7 +77,7 @@ and runs `dip approvals execute`.
 
 - In the cluster: put a sample in MinIO under `landing/_onboard/<pack>.<name>/`; within
   about 5 minutes the `agent_chain` DAG queues and runs the job (with a model key and the
-  team's keys in the `dip-agent-chain` Secret, S10.6). Without them, jobs wait in
+  team's keys in the `dip-intake-team` Secret, S10.6 and 24.9). Without them, jobs wait in
   `ops.intake_job`.
 - Evals: `python -m dip contracts eval [--record | --live --repeat N]` runs every
   contract-author case through the graph (`DIP_EVAL_DSN`, a throwaway database). Each case
