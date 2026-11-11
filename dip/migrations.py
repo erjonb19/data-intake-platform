@@ -153,15 +153,22 @@ def reapply_grants(conn: Any) -> list[str]:
     Each one grants a login what it may use, and does nothing when its login does not exist
     yet. The `warehouse-init` Job runs this after `migrate` on every deploy, so a login the
     roles Job created after the migration that defines its grants still gets them, as it
-    did when every task re-applied the whole schema. Grants only: no DDL, no table lock."""
-    with conn.cursor() as cur:
-        cur.execute(
-            "select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace"
-            " where n.nspname = 'ops' and p.proname like 'grant\_%' and p.pronargs = 0"
-            " order by 1"
-        )
-        names = [r[0] for r in cur.fetchall() if GRANT_FN.match(r[0])]
-        for name in names:
-            cur.execute(f"select ops.{name}()")  # name checked against GRANT_FN
-    conn.commit()
+    did when every task re-applied the whole schema. Grants only: no DDL. Under 0001's
+    advisory lock, so concurrent GRANTs on one object never fail with "tuple concurrently
+    updated"; all or nothing, like migrate."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pg_advisory_xact_lock(724163001)")
+            cur.execute(
+                "select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace"
+                " where n.nspname = 'ops' and p.proname like 'grant%' and p.pronargs = 0"
+                " order by 1"
+            )
+            names = [r[0] for r in cur.fetchall() if GRANT_FN.match(r[0])]
+            for name in names:
+                cur.execute(f"select ops.{name}()")  # name checked against GRANT_FN
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
     return names
