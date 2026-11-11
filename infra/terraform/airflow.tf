@@ -34,6 +34,8 @@ locals {
       # 24.3: both caps, so a paid key never runs uncapped (the runners refuse without them).
       DIP_SPEND_CAP_USD   = var.agent_spend_cap_usd
       DIP_MONTHLY_CAP_USD = var.agent_monthly_cap_usd
+      # 24.10: signs the chains this runner starts (the MCP server checks them).
+      DIP_RUN_TOKEN_KEY = random_password.run_token_key.result
     }
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod
