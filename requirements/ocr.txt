@@ -102,7 +102,7 @@ cffi==2.1.1 ; platform_python_implementation != 'PyPy' \
     --hash=sha256:fb92203a88b3d3053034db775110081c49d28be6551923805e039924093761e4 \
     --hash=sha256:fcd22650c908d7b7da162bbfaab594a1227a15d1643a98c68b122ac642fa2264
     # via
-    #   -c requirements/airflow-constraints-3.4.0-py3.12.txt
+    #   -c requirements/airflow-3.4.0-py3.12.constraints
     #   cryptography
 charset-normalizer==3.5.2 \
     --hash=sha256:01077390b03f7988f11d700a2194e69b119741a86b1a638b1db88891e3eced8e \
@@ -278,7 +278,7 @@ charset-normalizer==3.5.2 \
     --hash=sha256:fd1fbe0f116b6e55da77aca2c6ddcddcfac2186cbf78bdebf40fc156efca389d \
     --hash=sha256:fe9753dfee015c570d73df76f899f18444d41388bffcde097deba51c4fadbb9f
     # via
-    #   -c requirements/airflow-constraints-3.4.0-py3.12.txt
+    #   -c requirements/airflow-3.4.0-py3.12.constraints
     #   pdfminer-six
 cryptography==50.0.2 \
     --hash=sha256:0ddc924c04591c2811ca024d62ecad4f7f6f08af8939c211438f48a16bd23602 \
@@ -341,13 +341,13 @@ cryptography==50.0.2 \
     --hash=sha256:fa8f5efb344d6908a1ce62f4a24e2e5780f825d6f53f5f50ec5ffacac72936cb \
     --hash=sha256:fdd28f912fccfec1846a94e2e1e8f9b0012f557f0c46fe4f3eb0d7a87afcf90b
     # via
-    #   -c requirements/airflow-constraints-3.4.0-py3.12.txt
+    #   -c requirements/airflow-3.4.0-py3.12.constraints
     #   pdfminer-six
 packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
     # via
-    #   -c requirements/airflow-constraints-3.4.0-py3.12.txt
+    #   -c requirements/airflow-3.4.0-py3.12.constraints
     #   pytesseract
 pdfminer-six==20260107 \
     --hash=sha256:366585ba97e80dffa8f00cebe303d2f381884d8637af4ce422f1df3ef38111a9 \
@@ -444,7 +444,7 @@ pillow==13.0.0 \
     --hash=sha256:ff3fe9eb621fbb9db4c4be33ab946f6bac5f98ab50ca8d3260503653656c961b \
     --hash=sha256:ffea6b2986a797c84b6d1d27d4f43e0b83c73fc16281a930891cd237cf0d08fe
     # via
-    #   -c requirements/airflow-constraints-3.4.0-py3.12.txt
+    #   -c requirements/airflow-3.4.0-py3.12.constraints
     #   -r requirements/ocr.in
     #   pdfplumber
     #   pytesseract
@@ -452,7 +452,7 @@ pycparser==3.12 ; implementation_name != 'PyPy' and platform_python_implementati
     --hash=sha256:a076f3f489b39b43ed13563a1dafe42447445bec2e294154ec5c57fcdda4c85e \
     --hash=sha256:f03387877eab82ce01bbdfd0ba7252ee55a90b1c708d5129e2ce915475cf1db6
     # via
-    #   -c requirements/airflow-constraints-3.4.0-py3.12.txt
+    #   -c requirements/airflow-3.4.0-py3.12.constraints
     #   cffi
 pypdfium2==5.14.0 \
     --hash=sha256:09b99c8f0cb427eb17fec13c0862ed598bba34b4843df153f70fff806a2820bc \

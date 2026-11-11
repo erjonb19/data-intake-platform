@@ -4,10 +4,12 @@
 FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
 
 # 24.4: a hashed lock (requirements/intake-api.in, compiled by scripts/lock.py), installed
-# with --require-hashes --no-deps. It includes setuptools, dip's build backend.
-COPY requirements/intake-api.txt /tmp/intake-api.txt
-RUN pip install --no-cache-dir --require-hashes --no-deps -r /tmp/intake-api.txt \
- && rm /tmp/intake-api.txt \
+# with --require-hashes --no-deps --no-build-isolation after the hashed build lock
+# (setuptools, packaging), so pip never fetches an unhashed build backend for an sdist.
+COPY requirements/build.txt requirements/intake-api.txt /tmp/
+RUN pip install --no-cache-dir --require-hashes --no-deps -r /tmp/build.txt \
+ && pip install --no-cache-dir --require-hashes --no-deps --no-build-isolation -r /tmp/intake-api.txt \
+ && rm /tmp/build.txt /tmp/intake-api.txt \
  && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin api
 
 # --no-deps: the dependencies above are the ones the API needs (openpyxl is not: the API

@@ -7,15 +7,15 @@ FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0a
 
 # 24.4: hashed locks (requirements/mcp.in and dbt.in, compiled by scripts/lock.py),
 # installed with --require-hashes --no-deps. mcp.txt includes setuptools, dip's build backend.
-COPY requirements/mcp.txt requirements/dbt.txt /tmp/req/
-RUN pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/mcp.txt \
+COPY requirements/build.txt requirements/mcp.txt requirements/dbt.txt /tmp/req/
+RUN pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/build.txt && pip install --no-cache-dir --require-hashes --no-deps --no-build-isolation -r /tmp/req/mcp.txt \
  && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin mcp
 
 # Stage 10 (S10.6): dbt for check_dbt_models (`dbt parse` of the models generated from a
 # candidate contract; no database connection), in its own venv as in the Airflow image so
 # its dependencies never touch the server's. Same lock as the Airflow image.
 RUN python -m venv /opt/dbt-venv \
- && /opt/dbt-venv/bin/pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/dbt.txt \
+ && /opt/dbt-venv/bin/pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/build.txt && /opt/dbt-venv/bin/pip install --no-cache-dir --require-hashes --no-deps --no-build-isolation -r /tmp/req/dbt.txt \
  && /opt/dbt-venv/bin/pip check \
  && rm -rf /tmp/req
 

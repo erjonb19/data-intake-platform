@@ -20,7 +20,7 @@ jobs:
 
       - name: Ruff
         run: |
-          pip install --require-hashes --no-deps -r requirements/tools.txt
+          pip install --require-hashes --no-deps -r requirements/build.txt && pip install --require-hashes --no-deps --no-build-isolation -r requirements/tools.txt
           ruff check .
           ruff format --check .
 
@@ -85,7 +85,7 @@ jobs:
 
       - name: Install
         run: |
-          pip install --require-hashes --no-deps -r requirements/dev.txt
+          pip install --require-hashes --no-deps -r requirements/build.txt && pip install --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
           pip install --no-deps --no-build-isolation -e .
           pip check
 

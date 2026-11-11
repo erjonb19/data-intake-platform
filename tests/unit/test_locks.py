@@ -71,3 +71,35 @@ def test_every_lock_exists_and_pins_with_hashes() -> None:
 
 def test_the_cutoff_is_a_timestamp() -> None:
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", lock.cutoff())
+
+
+def test_no_locked_install_builds_in_isolation():
+    """24.4 review: a lock entry that is an sdist (dbt-core-experimental-parser has no
+    wheel) is built at install time. With build isolation pip would fetch the build's own
+    requirements (packaging) unpinned, unhashed and without the cooldown. So every locked
+    install but the build lock itself runs with --no-build-isolation, after the hashed build
+    lock (setuptools, packaging) is installed into the same environment, or, in Airflow's
+    own environment, with the build tools Airflow's constraints already pinned."""
+    bad = []
+    for where, cmd in install_commands():
+        if "--require-hashes" not in cmd or "build.txt" in cmd:
+            continue
+        if "--no-build-isolation" not in cmd:
+            bad.append(f"{where}: {cmd}")
+    assert bad == [], "locked installs that may build in isolation:\n" + "\n".join(bad)
+
+
+def test_the_build_lock_holds_what_sdist_builds_need():
+    text = (ROOT / "requirements" / "build.txt").read_text(encoding="utf-8")
+    assert "\nsetuptools==" in text and "\npackaging==" in text
+
+
+def test_the_airflow_constraints_are_upstreams_unchanged():
+    """The two Airflow-environment locks are resolved against Airflow 3.4.0's published
+    constraints. It is not a .txt file, so Dependabot does not bump pins in it, and its
+    hash is fixed here: replacing it is a deliberate change (requirements/README.md)."""
+    import hashlib
+
+    data = (ROOT / "requirements" / "airflow-3.4.0-py3.12.constraints").read_bytes()
+    digest = hashlib.sha256(data.replace(b"\r\n", b"\n")).hexdigest()
+    assert digest == "3cecb4fe4a11d69bd772aef18434825bbed9b344703302ca0a55d50e30a33eda"

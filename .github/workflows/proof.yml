@@ -81,7 +81,7 @@ jobs:
       - name: E2E
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/dev.txt  # boto3, PyYAML, openpyxl, websocket-client, dbt
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/build.txt && .venv/bin/pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt  # boto3, PyYAML, openpyxl, websocket-client, dbt
           .venv/bin/pip install -q --no-deps --no-build-isolation -e .
           bash scripts/e2e.sh
 
@@ -184,7 +184,7 @@ jobs:
 
       - name: Install
         run: |
-          pip install -q --require-hashes --no-deps -r requirements/dev.txt
+          pip install -q --require-hashes --no-deps -r requirements/build.txt && pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
           pip install -q --no-deps --no-build-isolation -e .
           pip check
 
@@ -274,7 +274,7 @@ jobs:
 
       - name: Install
         run: |
-          pip install -q --require-hashes --no-deps -r requirements/dev.txt
+          pip install -q --require-hashes --no-deps -r requirements/build.txt && pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
           pip install -q --no-deps --no-build-isolation -e .
           pip check
 
@@ -371,7 +371,7 @@ jobs:
       - name: Install
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/dev.txt
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/build.txt && .venv/bin/pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
           .venv/bin/pip install -q --no-deps --no-build-isolation -e .
 
       - name: The drills, with the incident agent live
@@ -497,7 +497,7 @@ jobs:
       - name: The whole E2E, including the break loop
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/e2e.txt
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/build.txt && .venv/bin/pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/e2e.txt
           bash scripts/e2e.sh
 
       - name: Collect diagnostics
@@ -545,7 +545,7 @@ jobs:
       # Before the key is in any step's environment.
       - name: Install
         run: |
-          pip install -q --require-hashes --no-deps -r requirements/dev.txt
+          pip install -q --require-hashes --no-deps -r requirements/build.txt && pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
           pip install -q --no-deps --no-build-isolation -e .
           pip check
 

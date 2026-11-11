@@ -17,4 +17,4 @@ USER airflow
 # 24.4: a hashed lock of the whole tree (requirements/ocr.in), resolved against Airflow's
 # constraints so it never moves a package Airflow ships.
 COPY --chown=airflow:root requirements/ocr.txt /tmp/ocr.txt
-RUN pip install --no-cache-dir --require-hashes --no-deps -r /tmp/ocr.txt && rm /tmp/ocr.txt
+RUN pip install --no-cache-dir --require-hashes --no-deps --no-build-isolation -r /tmp/ocr.txt && rm /tmp/ocr.txt

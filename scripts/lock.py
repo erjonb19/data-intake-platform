@@ -31,7 +31,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REQ = ROOT / "requirements"
 CUTOFF = REQ / "cutoff.txt"
-AIRFLOW_CONSTRAINTS = "requirements/airflow-constraints-3.4.0-py3.12.txt"
+AIRFLOW_CONSTRAINTS = "requirements/airflow-3.4.0-py3.12.constraints"
 PYTHON = "3.12"
 COOLDOWN = timedelta(days=7)
 

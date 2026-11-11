@@ -1,10 +1,15 @@
 # Python locks (24.4)
 
 Every Python install in CI, the proof jobs and the images reads one of the `.txt` locks here
-with `pip install --require-hashes --no-deps`: an exact version and the SHA-256 of every file,
-for the whole dependency tree, so nothing unpinned or unhashed is ever downloaded. dip itself
-is then installed from the checkout with `--no-deps --no-build-isolation` (its build backend,
-setuptools, is in the lock).
+with `pip install --require-hashes --no-deps --no-build-isolation`: an exact version and the
+SHA-256 of every file, for the whole dependency tree. One locked package,
+`dbt-core-experimental-parser`, is published as source only, so pip builds it at install time;
+without isolation the build uses what is already installed, which is why every environment
+first gets `build.txt` (setuptools and packaging, hashed and under the cooldown). Installs
+into the official Airflow image's own environment skip that step and build with the tools
+Airflow's constraints pinned. That sdist's own backend downloads a prebuilt wheel from the
+dbt release on GitHub and checks it against a SHA-256 inside the hashed sdist. dip itself is
+then installed from the checkout with `--no-deps --no-build-isolation`.
 
 | Lock | From | Used by |
 | --- | --- | --- |
@@ -17,7 +22,7 @@ setuptools, is in the lock).
 | `intake-api.txt`, `mcp.txt` | their `.in` | `images/intake-api`, `images/mcp` |
 | `airflow-extra.txt`, `ocr.txt` | their `.in`, with Airflow's constraints | the Airflow image's own environment, `images/ocr` |
 
-`airflow-constraints-3.4.0-py3.12.txt` is Airflow's published constraints file for the image's
+`airflow-3.4.0-py3.12.constraints` is Airflow's published constraints file for the image's
 version, so the two locks that install into Airflow's environment never move a package Airflow
 ships. Replace it when the Airflow image moves.
 

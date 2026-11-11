@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir --no-deps /tmp/whl/*.whl
 # Anthropic SDK, the MCP client and LangGraph never touch Airflow's dependencies. The
 # same pins as pyproject.toml's dev extra and images/mcp (requirements/agent.in).
 RUN python -m venv /opt/airflow/agent-venv \
- && /opt/airflow/agent-venv/bin/pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/agent.txt \
+ && /opt/airflow/agent-venv/bin/pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/build.txt && /opt/airflow/agent-venv/bin/pip install --no-cache-dir --require-hashes --no-deps --no-build-isolation -r /tmp/req/agent.txt \
  && /opt/airflow/agent-venv/bin/pip install --no-cache-dir --no-deps /tmp/whl/*.whl \
  && /opt/airflow/agent-venv/bin/pip check \
  && rm -rf /tmp/whl
@@ -29,14 +29,14 @@ COPY --chown=airflow:root config/llm.toml /opt/airflow/config/llm.toml
 ENV DIP_PROMPT_DIR=/opt/airflow/agents/prompts     DIP_LLM_CONFIG=/opt/airflow/config/llm.toml
 # Excel contracts (Stage 2). Not in the official image; pure Python, one dependency
 # (et-xmlfile). Locked against Airflow's constraints (requirements/airflow-extra.in).
-RUN pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/airflow-extra.txt
+RUN pip install --no-cache-dir --require-hashes --no-deps --no-build-isolation -r /tmp/req/airflow-extra.txt
 
 COPY --chown=airflow:root packs/ /opt/airflow/packs/
 ENV DIP_CONTRACT_DIRS=/opt/airflow/packs/healthcare/contracts:/opt/airflow/packs/finance/contracts
 
 # dbt in its own venv so its dependencies never touch Airflow's.
 RUN python -m venv /opt/airflow/dbt-venv \
- && /opt/airflow/dbt-venv/bin/pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/dbt.txt \
+ && /opt/airflow/dbt-venv/bin/pip install --no-cache-dir --require-hashes --no-deps -r /tmp/req/build.txt && /opt/airflow/dbt-venv/bin/pip install --no-cache-dir --require-hashes --no-deps --no-build-isolation -r /tmp/req/dbt.txt \
  && /opt/airflow/dbt-venv/bin/pip check
 COPY --chown=airflow:root dbt/ /opt/airflow/dbt/
 ENV DIP_DBT_DIR=/opt/airflow/dbt \

@@ -1,3 +1,4 @@
 # The build backend for the dip package (pyproject.toml [build-system]). Installs of dip use
 # --no-build-isolation with this, so pip never downloads an unhashed setuptools.
 setuptools>=77
+packaging>=24
