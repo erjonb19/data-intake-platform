@@ -1,6 +1,6 @@
 # 12.9: dependency updates, one grouped PR per ecosystem per week, so the e2e runs stay few.
 # Every Dependabot PR goes through the same CI (lint, test, e2e, the image scan) and is merged
-# by a person.
+# under CLAUDE.md's merge rule (CI green and a fresh review by a separate agent).
 version: 2
 updates:
   - package-ecosystem: pip
@@ -9,9 +9,17 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 2
+    ignore:
+      # Owner, 2026-11-11: paramiko stays on 3.5.x (pyproject pins "==3.5.*"); a grouped PR
+      # (#125) had widened it to ">=3.5,<5.2", two major versions at once.
+      - dependency-name: paramiko
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     groups:
       python:
         patterns: ["*"]
+        # Owner, 2026-11-11: anthropic 2.x comes as its own PR, held until 24.3 (the hard
+        # spend cap on the agent chain) is merged, since it changes the live model call path.
+        exclude-patterns: ["anthropic"]
 
   - package-ecosystem: docker
     directories:
@@ -23,6 +31,12 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 2
+    ignore:
+      # Owner, 2026-11-11: the base images stay on Python 3.12 (patch updates only) until
+      # dbt-core installs on a newer one. On python:3.15, dbt-core 1.12.6 needs
+      # metricflow>=0.213, which has no release for 3.15, so the image build failed (#123).
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     groups:
       images:
         patterns: ["*"]

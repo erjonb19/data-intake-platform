@@ -25,7 +25,20 @@ Apache-2.0.
 Stage and item numbers never change, because the README checklist and its test look items up
 by number. Work the stages in this order instead:
 
-**First (owner, 2026-11-09): 24.1, the security audit** (plan only), after any PR already in progress. The items it adds are placed by the owner when he merges it.
+**First (owner, 2026-11-09): 24.1, the security audit** (plan only). Done 2026-11-10 (#126).
+
+**Then (owner, 2026-11-11), before the numbered list below:**
+
+1. **24.2, 24.3, 24.4**, the audit's three High findings, in that order. uv is approved for
+   24.4.
+2. **24.42**, the Claude Code project settings: open the PR and stop. A change to
+   `.claude/settings.json` is the owner's to merge.
+3. **The rest of Stage 14** (14.3).
+4. **The audit's Mediums**, 24.5 to 24.18, in number order.
+5. **The audit's Lows**, 24.19 to 24.41, then 24.43 (the open CodeQL alerts).
+
+Items marked **(owner)** or **(ask)** among them are skipped with the reason written under
+them. 12.10 stays open until the owner re-runs the release (see its note).
 
 1. **Stage 12** to the end: 12.5 to 12.8, then 12.9 and 12.10. Tag `v0.12.0` when Stage 12
    is done.
@@ -142,6 +155,10 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   dry run that builds and writes the notes and publishes nothing. Waiting on the user: the
   first tag, `v0.12.0` (no tag is pushed and nothing is published without the user's OK),
   and 12.9, which is blocked.
+  **Not done (2026-11-11):** 12.9 is merged (#116), but the owner's `v0.12.0` release
+  run failed on the GHCR push (`denied` on `dip-airflow`): the packages are not yet
+  linked to the repo. The owner links them and re-runs the release; 12.10 stays open until
+  that run passes.
 
 ## Stage 13: Deployment hardening
 
@@ -405,7 +422,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 
 - [ ] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
 - [ ] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
-- [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool **(ask)**.
+- [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
   Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
   compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
   every `pip install` in the workflows and images reads one with `--require-hashes --no-deps`,
@@ -413,7 +430,13 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   stale lock; `tests/unit/test_locks.py` fails on an unlocked install.
 - [ ] **24.5 GitHub Actions pinned by commit SHA** (Medium): every `uses:` in the 8 workflows, with a `# vN.M` comment; Dependabot keeps them current.
 - [ ] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
-- [ ] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
+  2026-11-11: classic branch protection is on for `main`: required checks `lint`, `test`,
+  `e2e`, `trivy` and both CodeQL `analyze` jobs; force push and deletion blocked. Not set:
+  required reviews, and the rules are not enforced for admins. Left open for the owner to say
+  whether that is all 24.6 asks.
+- [x] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
+  Done by the owner 2026-11-11: alerts, grouped security updates and malware alerts on (checked
+  through the API: `vulnerability-alerts` 204, `automated-security-fixes` enabled).
 - [ ] **24.8 A kill switch for the agents' write tools** (Medium): `DIP_AGENTS_WRITE_DISABLED` checked in `Registry.check`: every propose and act call by an agent refused and audited as denied; the chain DAG skips while it is set.
 - [ ] **24.9 Least privilege for the agent-chain pod** (Medium): a dedicated warehouse login instead of the owner DSN; each step's agent key in its own pod, or at least incident/triage split from the intake team.
 - [ ] **24.10 The server, not the agent, issues run and chain ids** (Medium): an HMAC-signed run token minted when a job is claimed and checked in `on_call_tool`; a test that a key cannot read another chain's profile.
@@ -431,6 +454,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
 - [ ] **24.23 Dependabot cooldown of 7 days** (Low): `cooldown: { default-days: 7 }` per ecosystem.
 - [ ] **24.24 SECURITY.md and private vulnerability reporting** **(owner)** (Low): turn reporting on; a SECURITY.md pointing to it, with no personal email.
+  Reporting turned on by the owner 2026-11-11 (the API says enabled); the SECURITY.md is left.
 - [ ] **24.25 No expressions inlined into `run:` in `release.yml`** (Low): the token and actor through `env:` (`release.yml:94`).
 - [ ] **24.26 More `.gitignore` patterns** (Low): `*.p12`, `secrets/`, credential JSON, and `.claude/worktrees/`.
 - [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
@@ -449,3 +473,10 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
 - [ ] **24.41 Retention and a second backup copy** (Low): MinIO lifecycle rules for `airflow-logs` (per-layer retention is 22.2); optionally a host copy of the newest dump.
 - [ ] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).
+- [ ] **24.43 The three open CodeQL alerts** (Low; found 2026-11-11, not in the audit): #3
+  `py/clear-text-logging-sensitive-data`, `scripts/check_model.py:38`, prints the key's variable
+  name, not the key (false positive: dismiss with that reason); #1
+  `py/clear-text-storage-sensitive-data`, `tests/fixtures/fhir/make_fixtures.py:221`, writes a
+  synthetic fixture (false positive); #2 the same rule at `dip/storage.py:66`, the local object
+  store writing object metadata to disk: trace what reaches `metadata` and fix it if a secret or
+  PHI can, otherwise dismiss with the reason.

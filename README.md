@@ -267,7 +267,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [ ] OpenTofu checked in CI: not yet built (13.5)
 - [x] Dependency updates (`.github/dependabot.yml`), Trivy scans of every image we build,
   failing on a fixable CRITICAL (`.github/workflows/security.yml`, `.trivyignore`), and
-  CodeQL for Python and the workflows (`.github/workflows/codeql.yml`; 12.9). Branch
+  CodeQL for Python and the workflows (`.github/workflows/codeql.yml`; 12.9); Dependabot
+  alerts and grouped security updates, and private vulnerability reporting, on in the repo's
+  settings (24.7). Branch
   protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
   the steps)
 - [x] Locked, hashed Python installs with a 7-day release cooldown in CI, the proof jobs and
