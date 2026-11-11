@@ -450,7 +450,10 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.23 Dependabot cooldown of 7 days** (Low): `cooldown: { default-days: 7 }` per ecosystem.
 - [ ] **24.24 SECURITY.md and private vulnerability reporting** **(owner)** (Low): turn reporting on; a SECURITY.md pointing to it, with no personal email.
   Reporting turned on by the owner 2026-11-11 (the API says enabled); the SECURITY.md is left.
-- [ ] **24.25 No expressions inlined into `run:` in `release.yml`** (Low): the token and actor through `env:` (`release.yml:94`).
+- [x] **24.25 No expressions inlined into `run:` in `release.yml`** (Low): the token and actor through `env:` (`release.yml:94`).
+  Done 2026-11-11: the GHCR login's token and actor through `env:`; `proof.yml`'s run ids, SHAs and
+  artifact name too (`$GITHUB_RUN_ID`, `$GITHUB_SHA`, `env:`), and `tests/unit/test_workflow_expressions.py`
+  fails on any `${{ }}` in a `run:` script.
 - [ ] **24.26 More `.gitignore` patterns** (Low): `*.p12`, `secrets/`, credential JSON, and `.claude/worktrees/`.
 - [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
 - [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).

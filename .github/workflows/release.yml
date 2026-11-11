@@ -89,9 +89,13 @@ jobs:
         env:
           VERSION: ${{ steps.v.outputs.version }}
           SHA: ${{ steps.v.outputs.sha }}
+          # 24.25: through env, never inlined into the script (an expression in `run:` is
+          # pasted into the shell before it runs).
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
         run: |
           set -euo pipefail
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
           for name in dip-airflow dip-ocr dip-mcp dip-intake-api; do
             docker push "${REGISTRY}/${name}:${VERSION}"
             docker push "${REGISTRY}/${name}:sha-${SHA}"

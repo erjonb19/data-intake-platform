@@ -114,7 +114,7 @@ jobs:
           mkdir -p "$OUT" artifacts/commit
           cp artifacts/proof/results.md artifacts/proof/audit.json "$OUT"/
           cp artifacts/proof/*.png "$OUT"/ 2>/dev/null || true
-          { echo "job: proof (run ${{ github.run_id }})"
+          { echo "job: proof (run $GITHUB_RUN_ID)"
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
             echo "replay check: n/a (a proof's results, not recordings)"
           } | tee artifacts/commit/checks.md
@@ -194,7 +194,7 @@ jobs:
           set -o pipefail  # the recording's own exit status, not tee's
           bash scripts/record_gemini_incidents.sh 2>&1 | tee artifacts-gemini.log
           mkdir -p artifacts/commit
-          { echo "job: gemini-recordings (run ${{ github.run_id }})"
+          { echo "job: gemini-recordings (run $GITHUB_RUN_ID)"
             grep -hE "^(PASS|FAIL) " artifacts/gemini/*.log || true
             grep -x "scrub: ok" artifacts-gemini.log
             python -I scripts/check_recordings.py --key-env GEMINI_API_KEY \
@@ -287,7 +287,7 @@ jobs:
           set -o pipefail  # the recording's own exit status, not tee's
           bash scripts/record_claude_incidents.sh 2>&1 | tee artifacts-claude.log
           mkdir -p artifacts/commit
-          { echo "job: claude-recordings (run ${{ github.run_id }})"
+          { echo "job: claude-recordings (run $GITHUB_RUN_ID)"
             grep -E "^(PASS|FAIL) |spent " artifacts-claude.log || true
             grep -x "scrub: ok" artifacts-claude.log
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY \
@@ -395,7 +395,7 @@ jobs:
           set -o pipefail
           mkdir -p "$OUT" artifacts/commit
           cp artifacts/proof/results.md artifacts/proof/results.json "$OUT"/
-          { echo "job: proof (drills, run ${{ github.run_id }})"
+          { echo "job: proof (drills, run $GITHUB_RUN_ID)"
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
             echo "replay check: n/a (a proof's results, not recordings)"
           } | tee artifacts/commit/checks.md
@@ -557,7 +557,7 @@ jobs:
           set -o pipefail
           mkdir -p "$OUT" artifacts/commit
           cp artifacts/live-eval/drift.md artifacts/live-eval/live.json "$OUT"/
-          { echo "job: proof (live-eval, run ${{ github.run_id }})"
+          { echo "job: proof (live-eval, run $GITHUB_RUN_ID)"
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
             echo "replay check: n/a (a live eval's results, not recordings)"
           } | tee artifacts/commit/checks.md
@@ -664,14 +664,15 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT: ${{ steps.which.outputs.artifact }}  # 24.25: through env
         run: |
           grep -v '^artifacts/' "$RUNNER_TEMP/files" | xargs -r git add --
           if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          { echo "Stage 11: ${{ steps.which.outputs.artifact }} from proof run ${{ github.run_id }}"
+          { echo "Stage 11: $ARTIFACT from proof run $GITHUB_RUN_ID"
             echo
-            echo "Made on ${{ github.sha }} by $RUN_URL"
+            echo "Made on $GITHUB_SHA by $RUN_URL"
             echo
             echo "Files:"
             git diff --cached --name-status | sed 's/^/  /'
@@ -685,6 +686,6 @@ jobs:
           # The branch must still be at the run's commit: not moved on, nor reset or deleted
           # (a non-forced push would accept those), so the files match what is there.
           now=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)
-          [ "$now" = "${{ github.sha }}" ] \
-            || { echo "$BRANCH is at ${now:-nothing}, not ${{ github.sha }}: refused"; exit 1; }
+          [ "$now" = "$GITHUB_SHA" ] \
+            || { echo "$BRANCH is at ${now:-nothing}, not $GITHUB_SHA: refused"; exit 1; }
           git push origin "HEAD:refs/heads/$BRANCH"

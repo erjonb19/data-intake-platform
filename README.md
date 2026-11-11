@@ -272,6 +272,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch
   protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
   the steps)
+- [x] No `${{ }}` expression inlined into a workflow's shell script
+  (`tests/unit/test_workflow_expressions.py`; 24.25)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
