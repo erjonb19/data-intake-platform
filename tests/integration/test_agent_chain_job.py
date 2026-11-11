@@ -156,7 +156,13 @@ def test_the_row_says_which_provider_answered_each_step(warehouse):
         return {"chain_id": "chain-fb", "diagnosis": {"root_cause": "quarantined_records"},
                 "providers": {"incident": "anthropic", "triage": "gemini"}}  # fmt: skip
 
-    env = {**MCP, "ANTHROPIC_API_KEY": "a", "GEMINI_API_KEY": "g"}
+    env = {
+        **MCP,
+        "ANTHROPIC_API_KEY": "a",
+        "GEMINI_API_KEY": "g",
+        "DIP_SPEND_CAP_USD": "0.25",
+        "DIP_MONTHLY_CAP_USD": "5",
+    }
     assert chain_job.run(warehouse.conn, env=env, runner=runner)["done"] == [a]
     assert rows(warehouse, "select provider from ops.agent_run") == [
         ("incident:anthropic triage:gemini",)]  # fmt: skip

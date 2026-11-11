@@ -152,6 +152,20 @@ variable "anthropic_api_key" {
   sensitive   = true
 }
 
+# 24.3: the scheduled agents' spend caps, in the dip-agent-chain Secret. Per process (one
+# chain_job or intake_runner run) and per calendar month, counted from ops.model_call's live
+# rows (dip/agents/llm.py). With a paid key and either unset, the runners claim nothing.
+variable "agent_spend_cap_usd" {
+  description = "DIP_SPEND_CAP_USD for each scheduled agent run."
+  type        = string
+  default     = "0.25"
+}
+
+variable "agent_monthly_cap_usd" {
+  description = "DIP_MONTHLY_CAP_USD: live model spend per calendar month (UTC), the owner's $5."
+  type        = string
+  default     = "5"
+}
 variable "gemini_api_key" {
   description = "Gemini key for the agent_chain DAG, used when no Anthropic key is set."
   type        = string

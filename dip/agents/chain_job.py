@@ -50,10 +50,13 @@ def plan(env: dict[str, str] | None = None) -> Plan:
     missing = [v for v in MCP_VARS if not env.get(v)]
     if missing:
         return Plan(False, reason=f"no MCP configuration: {', '.join(missing)} unset")
-    from dip.agents.llm import provider_names
+    from dip.agents.llm import provider_names, spend_caps_missing
 
     names = provider_names(env)
     if names:
+        # 24.3: a paid key with no spend caps claims nothing (fails closed).
+        if why := spend_caps_missing(names, env):
+            return Plan(False, reason=why)
         return Plan(True, providers=tuple(names))
     return Plan(
         False, reason="no model key (ANTHROPIC_API_KEY or GEMINI_API_KEY) in the agent environment"

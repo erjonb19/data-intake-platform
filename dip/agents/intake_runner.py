@@ -20,7 +20,7 @@ from collections.abc import Callable
 from typing import Any
 
 from dip.agents.chain_job import _llm_for, merge_version, set_versions
-from dip.agents.llm import NoProvider, provider_names
+from dip.agents.llm import NoProvider, provider_names, spend_caps_missing
 
 KEYS = {
     "profile": "DIP_PROFILE_KEY",
@@ -39,6 +39,8 @@ def plan(env: dict[str, str]) -> tuple[tuple[str, ...], str | None]:
     names = provider_names(env)
     if not names:
         return (), "no model key (ANTHROPIC_API_KEY or GEMINI_API_KEY) in the agent environment"
+    if why := spend_caps_missing(names, env):  # 24.3: fails closed
+        return (), why
     return tuple(names), None
 
 
