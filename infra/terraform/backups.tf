@@ -207,7 +207,11 @@ resource "kubernetes_cron_job_v1" "backup" {
                 set -u
                 rm -f /backup/warehouse.dump /backup/status /backup/error
                 date -u +%Y-%m-%dT%H:%M:%SZ > /backup/started_at
+                # 24.12: not the de-identification key's rows (ops_secret): the dump would
+                # put the key in the bucket in plain text. Its table is kept, empty; the
+                # key itself is in the dip-deid Secret, and fhir_intake installs it again.
                 if pg_dump --format=custom --lock-wait-timeout=60s \
+                     --exclude-table-data='ops_secret.*' \
                      --file=/backup/warehouse.dump 2>/backup/error \
                    && pg_restore --list /backup/warehouse.dump >/dev/null 2>>/backup/error; then
                   echo ok > /backup/status

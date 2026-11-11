@@ -136,8 +136,12 @@ up a second kind cluster for a few minutes of work (decisions log, PLAN.md, 2026
 
 ## Restore the whole warehouse by hand
 
-The dump holds everything in the `warehouse` database, including `ops_secret.deid_key`, the
-de-identification key. Treat the bucket as secret. It holds no roles: those are cluster-wide
+The dump holds everything in the `warehouse` database except the rows of `ops_secret` (24.12):
+`ops_secret.deid_key`, the de-identification key, is dumped as an empty table, so the key
+never sits in the bucket in plain text. After a restore, the next `fhir_intake` run installs
+the key again from the `dip-deid` Secret (or run `python -m dip deid-key-install` with
+`DIP_DEID_KEY` set); the key itself lives in that Secret and in Terraform's state. The rest of
+the dump is still the warehouse's data: treat the bucket as secret. It holds no roles: those are cluster-wide
 and come from `postgres-roles.sql` and the init script, which a fresh cluster already has.
 
 `python -m dip restore --latest` (no drill waiting) does steps 1 to 3 below for you, into

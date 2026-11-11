@@ -105,6 +105,8 @@ def main() -> int:
         check("TABLE DATA gold member_eligibility" in listing,
               "pg_restore --list reads it and lists gold.member_eligibility's data")  # fmt: skip
         check("TABLE ops backup" in listing, "the archive has ops.backup")
+        check("TABLE DATA ops_secret" not in listing,
+              "24.12: no ops_secret rows (the de-identification key) in the dump")  # fmt: skip
     keys = [o["Key"] for o in s3().list_objects_v2(Bucket=BUCKET, Prefix="warehouse/")
             .get("Contents", [])]  # fmt: skip
     check(0 < len(keys) <= KEEP, f"the bucket keeps at most {KEEP} dumps: {len(keys)}")
