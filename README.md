@@ -272,7 +272,7 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch
   protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
   the steps)
-- [x] Credential files (`*.p12`, `secrets/`, credential JSON, `.netrc`) are gitignored (24.26)
+- [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
