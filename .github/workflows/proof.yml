@@ -81,7 +81,8 @@ jobs:
       - name: E2E
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q -e ".[dev]"  # boto3, PyYAML, openpyxl, websocket-client, dbt
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/dev.txt  # boto3, PyYAML, openpyxl, websocket-client, dbt
+          .venv/bin/pip install -q --no-deps --no-build-isolation -e .
           bash scripts/e2e.sh
 
       - name: The intake team, once, with the key
@@ -182,7 +183,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -q -e ".[dev]"
+        run: |
+          pip install -q --require-hashes --no-deps -r requirements/dev.txt
+          pip install -q --no-deps --no-build-isolation -e .
+          pip check
 
       - name: Record the incident cases on Gemini, one at a time
         env:
@@ -269,7 +273,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -q -e ".[dev]"
+        run: |
+          pip install -q --require-hashes --no-deps -r requirements/dev.txt
+          pip install -q --no-deps --no-build-isolation -e .
+          pip check
 
       - name: A second database, for the demo
         run: PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_demo_eval"
@@ -364,7 +371,8 @@ jobs:
       - name: Install
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q -e ".[dev]"
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/dev.txt
+          .venv/bin/pip install -q --no-deps --no-build-isolation -e .
 
       - name: The drills, with the incident agent live
         env:
@@ -489,7 +497,7 @@ jobs:
       - name: The whole E2E, including the break loop
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5" "jsonschema==4.*"
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/e2e.txt
           bash scripts/e2e.sh
 
       - name: Collect diagnostics
@@ -536,7 +544,10 @@ jobs:
 
       # Before the key is in any step's environment.
       - name: Install
-        run: pip install -q -e ".[dev]"
+        run: |
+          pip install -q --require-hashes --no-deps -r requirements/dev.txt
+          pip install -q --no-deps --no-build-isolation -e .
+          pip check
 
       - name: The sample, live, against the recorded baseline
         env:

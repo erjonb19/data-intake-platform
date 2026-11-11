@@ -20,9 +20,13 @@ jobs:
 
       - name: Ruff
         run: |
-          pip install "ruff==0.17.*"
+          pip install --require-hashes --no-deps -r requirements/tools.txt
           ruff check .
           ruff format --check .
+
+      # 24.4: every hashed lock in requirements/ matches a fresh compile at its cutoff.
+      - name: Python locks are current
+        run: python scripts/lock.py --check
 
       - name: No MIMIC data committed
         run: bash scripts/check_no_mimic_data.sh
@@ -80,7 +84,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -e ".[dev]"
+        run: |
+          pip install --require-hashes --no-deps -r requirements/dev.txt
+          pip install --no-deps --no-build-isolation -e .
+          pip check
 
       # Stage 3: the PDF invoice tests OCR scans with it (they skip without it, as on a laptop).
       - name: Tesseract (the OCR image's engine)

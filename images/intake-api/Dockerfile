@@ -3,15 +3,18 @@
 # when it was chosen.
 FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
 
-RUN pip install --no-cache-dir "fastapi==0.142.4" "starlette==1.7.0" "uvicorn==0.54.0" \
-      "boto3==1.43.109" "pyyaml==6.0.3" "jsonschema==4.26.0" \
+# 24.4: a hashed lock (requirements/intake-api.in, compiled by scripts/lock.py), installed
+# with --require-hashes --no-deps. It includes setuptools, dip's build backend.
+COPY requirements/intake-api.txt /tmp/intake-api.txt
+RUN pip install --no-cache-dir --require-hashes --no-deps -r /tmp/intake-api.txt \
+ && rm /tmp/intake-api.txt \
  && useradd --uid 10001 --no-create-home --shell /usr/sbin/nologin api
 
 # --no-deps: the dependencies above are the ones the API needs (openpyxl is not: the API
-# never parses a file).
+# never parses a file). --no-build-isolation: the locked setuptools builds it.
 COPY pyproject.toml /tmp/dip/pyproject.toml
 COPY dip/ /tmp/dip/dip/
-RUN pip install --no-cache-dir --no-deps /tmp/dip && rm -rf /tmp/dip
+RUN pip install --no-cache-dir --no-deps --no-build-isolation /tmp/dip && rm -rf /tmp/dip
 COPY packs/ /app/packs/
 ENV DIP_CONTRACT_DIRS=/app/packs/healthcare/contracts:/app/packs/finance/contracts
 

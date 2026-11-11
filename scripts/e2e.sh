@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run the end-to-end tests against the running stack (after smoke.sh): the research-track
 # FHIR flow, then the file-feed cases in tests/e2e/cases.yaml.
-# Needs boto3, psycopg and pyyaml: uses .venv if present (pip install -e ".[dev]").
+# Needs boto3, psycopg and pyyaml: uses .venv if present (requirements/e2e.txt or dev.txt).
 # shellcheck source=scripts/lib.sh
 source "$(dirname "$0")/lib.sh"
 require terraform kubectl
