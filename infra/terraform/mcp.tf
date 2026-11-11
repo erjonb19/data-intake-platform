@@ -244,6 +244,8 @@ resource "kubernetes_secret_v1" "mcp" {
     DIP_MARQUEZ_URL      = local.observability ? local.marquez_url : ""
     DIP_PROMETHEUS_URL   = local.observability ? "http://prometheus-server.${local.obs_ns}.svc.cluster.local" : ""
     DIP_K8S_NAMESPACE    = local.airflow_ns # S11.6: get_k8s_events reads this namespace
+    # 24.8: the kill switch for the agents' propose and act tools (docs/agents/kill-switch.md).
+    DIP_AGENTS_WRITE_DISABLED = var.agents_write_disabled ? "1" : ""
   }
 }
 

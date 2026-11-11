@@ -31,6 +31,8 @@ locals {
       DIP_ORCHESTRATOR_KEY = random_password.mcp_team_key["intake_orchestrator"].result
       ANTHROPIC_API_KEY    = var.anthropic_api_key
       GEMINI_API_KEY       = var.gemini_api_key
+      # 24.8: while set, the chain and the intake team claim nothing.
+      DIP_AGENTS_WRITE_DISABLED = var.agents_write_disabled ? "1" : ""
     }
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod

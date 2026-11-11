@@ -329,6 +329,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   a model (`docs/agents/EVALS.md`, `agents/evals/`)
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
+- [x] A kill switch for the agents' write tools: one setting refuses every agent propose and act
+  call (audited) and stops the scheduled agents (`docs/agents/kill-switch.md`; 24.8)
 
 **Access**
 
