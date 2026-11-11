@@ -140,9 +140,10 @@ The dump holds everything in the `warehouse` database except the rows of `ops_se
 `ops_secret.deid_key`, the de-identification key, is dumped as an empty table, so the key
 never sits in the bucket in plain text. After a restore, the next `fhir_intake` run installs
 the key again from the `dip-deid` Secret (or run `python -m dip deid-key-install` with
-`DIP_DEID_KEY` set); the key itself lives in that Secret and in Terraform's state, so keep a copy of it
-(`terraform -chdir=infra/terraform output -raw` is not enough: read the `dip-deid` Secret) wherever the
-owner keeps secrets, or a restored warehouse's pseudonyms cannot be reproduced. The rest of
+`DIP_DEID_KEY` set); the key itself lives in that Secret and in Terraform's state. Keep a copy of it
+wherever you keep secrets (`kubectl -n dip-airflow get secret dip-deid -o
+jsonpath='{.data.key}' | base64 -d`): with a new key, a restored warehouse's pseudonyms
+cannot be reproduced. The rest of
 the dump is still the warehouse's data: treat the bucket as secret. It holds no roles: those are cluster-wide
 and come from `postgres-roles.sql` and the init script, which a fresh cluster already has.
 
