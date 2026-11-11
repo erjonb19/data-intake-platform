@@ -25,6 +25,8 @@ Apache-2.0.
 Stage and item numbers never change, because the README checklist and its test look items up
 by number. Work the stages in this order instead:
 
+**First (owner, 2026-11-09): 24.1, the security audit** (plan only), after any PR already in progress. The items it adds are placed by the owner when he merges it.
+
 1. **Stage 12** to the end: 12.5 to 12.8, then 12.9 and 12.10. Tag `v0.12.0` when Stage 12
    is done.
 2. **Stage 14**, backups, restore and versioned migrations. These come up more in data
@@ -100,8 +102,14 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
 - [x] **12.5 `.wslconfig` guidance** (#85)
 - [x] **12.6 Demos for Stages 4 and 5** (#86, #87)
 - [x] **12.7 §8.9 status table refresh** (#100) and the README screenshot (#99)
-- [ ] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
-- [ ] **12.9 Merge rules and supply-chain checks** **(ask)** before building.
+- [x] **12.8 PDF decompression-bomb check before inflating** (#97; a security fix)
+  Runbook 07 does not name `PDF.DECOMPRESSION_BOMB` yet: a runbook edit changes the incident
+  recordings, so it waits for 18.1 and its re-recording **(ask)**.
+  Follow-ups the security review found outside this item: pdfminer's own content-stream
+  parsing is quadratic in CPU, so a text stream of a few MB can take minutes inside the
+  budget (a wall-clock limit on the read is the fix); and pdfium decodes image XObjects at
+  their own /Width and /Height when a scan is rendered, outside this budget.
+- [x] **12.9 Merge rules and supply-chain checks** **(ask)** before building.
   - Branch protection on `main`, requiring the `lint`, `test` and `e2e` checks (not
     `upgrade`, which runs only when certain paths change). The user turns this on in
     GitHub's settings; write the steps in the PR and check afterwards with
@@ -113,6 +121,14 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   - CodeQL for Python and for the workflows.
   - Demo: a PR with a deliberately vulnerable pin fails the scan; a PR with a red `test`
     cannot be merged.
+  **Done (2026-11-10, #116).** The first scan (on Airflow 3.2.2) failed on about 20 fixable
+  CRITICAL findings, nearly all in the upstream image. A newer image of the same major
+  version fixed them: #121 moved to `apache/airflow:3.4.0-python3.12` (on Debian 13), and
+  the OCR image's own Pillow pin went to 13.0.0. The scan then passed on all four images, so
+  `.trivyignore` accepts nothing. Ticked for what the repo itself can do: branch protection
+  on `main` is the user's step in GitHub's settings and was not on as of 2026-11-10 (#116 has
+  the steps), so "a PR with a red `test` cannot be merged" waits on it. The scan's demo is a
+  manual run on an old public image instead of a PR with a vulnerable pin (decisions log).
 - [ ] **12.10 Versioned releases** **(ask)** before building. A `release` workflow that runs
   on a `v*` tag: builds the repo's images, pushes them to GHCR
   (`ghcr.io/erjonb19/...`) tagged with the version and the commit, and creates a GitHub
@@ -163,13 +179,24 @@ drops `gold.member_eligibility`; `dip restore --latest --verify` brings it back 
 counts and checksums match the pre-drop snapshot.
 Incident: the dropped table (runbook `14-restore.md`).
 
-- [ ] **14.1 Backup CronJob:** `pg_dump` of the warehouse to a MinIO bucket, retention of
+- [x] **14.1 Backup CronJob:** `pg_dump` of the warehouse to a MinIO bucket, retention of
   7 dumps, an `ops.backup` row per run, alert `BackupMissing` (none in 26 h)
-- [ ] **14.2 Restore drill** in the proof workflow: drop, restore, verify counts and
+- [x] **14.2 Restore drill** in the proof workflow: drop, restore, verify counts and
   checksums, time-to-restore recorded
+  - Built in the kind E2E (every push) instead of a proof-workflow job: see PLAN.md's
+    decisions log, 2026-11-09.
+  - Runbook `14-restore.md` is deferred: `docs/runbooks/` is the incident agent's search
+    input, so a new runbook changes the incident recordings, and that re-recording needs
+    the user's approval first. The drill's steps are in `docs/backups.md` until then.
 - [ ] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database
+  Found 2026-11-09 (#115's e2e, run 42617255988): every intake task runs `Warehouse.init`,
+  which re-applies all of `warehouse.sql`, `ALTER TABLE` included, and its exclusive locks
+  deadlocked with the MCP server's `propose_operation` query (Postgres: `deadlock detected`,
+  the init's `pg_advisory_xact_lock` transaction against a `select ... from ops.quarantine`).
+  The break loop's proposal failed; the other e2e run on the same commit passed. Applying migrations once,
+  before the services start, and not on every task removes it.
 
 ## Stage 15: Tracing with Jaeger
 
@@ -365,3 +392,55 @@ No incident: this stage changes documentation only.
 - [ ] **23.2 A three-minute walkthrough:** a script in `docs/demos/` for the user to record
   (file drop, quarantine, agent proposal, approval, gold, Grafana and the trace), linked from
   the README with a screenshot (overlaps #99 in 12.7; reuse it)
+
+## Stage 24: Security hardening (owner, 2026-11-09)
+
+Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's standard for every repo, and a plan to close each gap. The items after 24.1 come from the audit.
+
+- [x] **24.1 Security audit (plan only).** Plan only, change no code. Audit the repo against Section 19.3 of `docs/SECURITY_STANDARDS.md` and every section that applies to this stack, and report each gap in the file's SEVERITY format. Add one backlog item per gap, numbered after this one, with anything Critical (CVSS 9+) first in the Order of work. Propose a `.claude/settings.json` from Section 17.2, tailored so unattended runs don't stall: keep the deny list, and explain each change to the ask list. Check every vendor-specific setting (npm, uv, GitHub, Claude Code permission syntax) against the vendor's current docs before proposing it. One docs-only PR, which the owner reviews and merges himself (security decisions are his).
+
+  Done 2026-11-10: `docs/reports/security-audit-2026-11-10.md`. No Critical finding, so
+  the Order of work is unchanged; 3 High, 14 Medium, 24 Low, one item each below. Where
+  they go in the Order of work is the owner's call.
+
+- [ ] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
+- [ ] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
+- [ ] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool **(ask)**.
+- [ ] **24.5 GitHub Actions pinned by commit SHA** (Medium): every `uses:` in the 8 workflows, with a `# vN.M` comment; Dependabot keeps them current.
+- [ ] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
+- [ ] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
+- [ ] **24.8 A kill switch for the agents' write tools** (Medium): `DIP_AGENTS_WRITE_DISABLED` checked in `Registry.check`: every propose and act call by an agent refused and audited as denied; the chain DAG skips while it is set.
+- [ ] **24.9 Least privilege for the agent-chain pod** (Medium): a dedicated warehouse login instead of the owner DSN; each step's agent key in its own pod, or at least incident/triage split from the intake team.
+- [ ] **24.10 The server, not the agent, issues run and chain ids** (Medium): an HMAC-signed run token minted when a job is claimed and checked in `on_call_tool`; a test that a key cannot read another chain's profile.
+- [ ] **24.11 Approvals: one token per person** (Medium): hashed per-person tokens (like `DIP_AGENT_KEYS`); the reviewer name comes from the token, not the `X-Reviewer` header.
+- [ ] **24.12 Backups without the de-identification key in plaintext** (Medium): `--exclude-schema=ops_secret` with the key backed up separately, or client-side encryption of each dump; MinIO SSE on `backups`.
+- [ ] **24.13 MinIO root password out of Job specs** (Medium): the `MC_HOST_local` URI in a Secret, read with `secret_key_ref` (`minio.tf`, `intake_api.tf`, `mcp.tf`, `backups.tf`).
+- [ ] **24.14 An append-only audit log no app login can rewrite** (Medium): a separate owner role for the `ops` schema, writers with INSERT only, the app connecting as a non-owner (with 14.3's migrations).
+- [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
+- [ ] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
+- [ ] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
+- [ ] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
+- [ ] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
+- [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
+- [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
+- [ ] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
+- [ ] **24.23 Dependabot cooldown of 7 days** (Low): `cooldown: { default-days: 7 }` per ecosystem.
+- [ ] **24.24 SECURITY.md and private vulnerability reporting** **(owner)** (Low): turn reporting on; a SECURITY.md pointing to it, with no personal email.
+- [ ] **24.25 No expressions inlined into `run:` in `release.yml`** (Low): the token and actor through `env:` (`release.yml:94`).
+- [ ] **24.26 More `.gitignore` patterns** (Low): `*.p12`, `secrets/`, credential JSON, and `.claude/worktrees/`.
+- [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
+- [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
+- [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
+- [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
+- [ ] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
+- [ ] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
+- [ ] **24.33 Security headers on the approvals page** (Low): CSP with `frame-ancestors 'none'`, nosniff, no-referrer, no-store on `/api`.
+- [ ] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
+- [ ] **24.35 Generic errors to callers and the model** (Low): a correlation id back, the full error logged on the server (`mcp_server.py:134`, `gateway.py`).
+- [ ] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
+- [ ] **24.37 The approvals negative test covers every route** (Low): loop over `app.routes`, 401 for every `/api` path without the token.
+- [ ] **24.38 TLS and encryption at rest in the cluster** (Low): a self-signed CA, Postgres `sslmode=verify-full`, MinIO TLS and SSE; needed before anything is hosted.
+- [ ] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
+- [ ] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
+- [ ] **24.41 Retention and a second backup copy** (Low): MinIO lifecycle rules for `airflow-logs` (per-layer retention is 22.2); optionally a host copy of the newest dump.
+- [ ] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).

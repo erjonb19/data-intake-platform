@@ -30,16 +30,27 @@ File-level codes: PDF.INVALID (anything the parser cannot read, wherever it fail
 PDF.EMPTY, PDF.TOO_MANY_PAGES (over 20), FILE.TOO_LARGE (over 20 MB), PDF.PAGE_TOO_LARGE
 (a page that would render over 40 Mpx), OCR.TIMEOUT (60 s per page), OCR.FAILED (Tesseract
 could not read a page), OCR.UNAVAILABLE (the
-task is not in the OCR image), OCR.LOW_CONFIDENCE, PDF.MISSING_FIELD:<column>. The limits
-bound what one file can cost; a stream that inflates to gigabytes (a decompression bomb)
-is not detected before pdfminer inflates it, and is bounded only by the pod's memory limit
-(a follow-up in PLAN.md section 8.7).
+task is not in the OCR image), OCR.LOW_CONFIDENCE, PDF.MISSING_FIELD:<column>,
+PDF.DECOMPRESSION_BOMB (its Flate streams would inflate past MAX_INFLATED_BYTES). The limits
+bound what one file can cost.
+
+The decompression check (12.8, #97) counts what pdfminer itself decodes, while it reads the
+file: its Flate, LZW and RunLength decoders (the filters that expand data) are swapped, for
+the length of `_read`, for versions that share one budget of MAX_INFLATED_BYTES and stop
+the moment it is spent, so a bomb is refused before it is in memory, whatever its filter
+chain or however its stream is written. ASCII85, ASCIIHex and the predictors only shrink or
+keep the size. Image streams are not decoded to read text; a scan is rendered by pdfium,
+whose pixels MAX_PIXELS bounds. The swap is process-wide while a file is read, which is
+safe because a task reads one file at a time.
 """
 
 from __future__ import annotations
 
 import io
 import re
+import zlib
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from typing import Any
 
@@ -54,6 +65,12 @@ MAX_BYTES = 20 * 1024 * 1024
 MAX_PAGES = 20
 MAX_PIXELS = 40_000_000  # per rendered page: a letter page at 600 dpi is 33.7 Mpx
 OCR_TIMEOUT_S = 60  # per page
+# Everything pdfminer decodes from one file, in total. A sixth of the OCR task pod's 768Mi,
+# since a decode holds its pieces and their join at once (twice the budget at the peak). Text and
+# fonts are a few MB even for a long invoice; images are not decoded to read text.
+MAX_INFLATED_BYTES = 128 * 1024 * 1024
+_INFLATE_CHUNK = 1024 * 1024
+_MAX_COLUMNS = 1_000_000  # PNG predictor rows: about 9 MB of row buffer at most
 
 
 class _Refused(Exception):
@@ -110,6 +127,137 @@ def _ocr(page: Any, cap: int) -> tuple[str, list[float]]:
     return "\n".join(" ".join(ws) for _, ws in sorted(lines.items())), confidences
 
 
+class _Budget:
+    """Bytes decoded so far from one file; past the limit, the file is refused."""
+
+    def __init__(self, limit: int):
+        self.limit, self.spent = limit, 0
+
+    def charge(self, n: int) -> None:
+        self.spent += n
+        if self.spent > self.limit:
+            raise _Refused(
+                "PDF.DECOMPRESSION_BOMB",
+                f"its streams decode to more than {self.limit} bytes",
+            )
+
+
+def _inflate(data: bytes, budget: _Budget, strict: bool = True) -> bytes:
+    """zlib.decompress, charged chunk by chunk. Strict, it raises zlib.error on a truncated
+    stream as zlib.decompress does (pdfminer then retries leniently); lenient, it keeps
+    what decoded before the error, as pdfminer's decompress_corrupted does."""
+    inflater, out, view = zlib.decompressobj(), [], memoryview(data)
+    try:
+        for start in range(0, len(view), 65536):
+            chunk = inflater.decompress(view[start : start + 65536], _INFLATE_CHUNK)
+            while True:
+                budget.charge(len(chunk))
+                out.append(chunk)
+                if not inflater.unconsumed_tail:
+                    break
+                chunk = inflater.decompress(inflater.unconsumed_tail, _INFLATE_CHUNK)
+            if inflater.eof:
+                break
+    except zlib.error:
+        if strict:
+            raise
+    if strict and not inflater.eof:
+        raise zlib.error("incomplete or truncated stream")
+    return b"".join(out)
+
+
+def _rldecode(data: bytes, budget: _Budget) -> bytes:
+    """pdfminer's RunLengthDecode (PDF 1.4 section 3.3.4), charged run by run: a two-byte
+    run can stand for 128 bytes."""
+    out, i, n = bytearray(), 0, len(data)
+    while i < n and data[i] != 128:
+        length = data[i]
+        if length < 128:
+            run = data[i + 1 : i + 2 + length]
+            i += 2 + length
+        else:
+            run = data[i + 1 : i + 2] * (257 - length)
+            i += 2
+        budget.charge(len(run))
+        out += run
+    return bytes(out)
+
+
+class _ChargedZlib:
+    """The `zlib` module as pdfminer.pdftypes sees it, with `decompress` charged."""
+
+    def __init__(self, budget: _Budget):
+        self._budget = budget
+
+    def decompress(self, data: bytes, *args: Any, **kwargs: Any) -> bytes:
+        return _inflate(data, self._budget)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(zlib, name)
+
+
+def _refuse_ccitt(data: bytes, params: Any) -> bytes:
+    """CCITTFax is a fax image encoding: a few bytes stand for any number of white rows
+    (/Columns sets their width), and pdfminer decodes it in pure Python. Images are not
+    decoded to read text, so pdfminer reaches this only for a content stream or a font
+    marked CCITT, which no real invoice has: refused, not decoded."""
+    raise _Refused(
+        "PDF.DECOMPRESSION_BOMB", "a CCITTFax-encoded content or font stream is not decoded"
+    )
+
+
+def _png_predictor(original: Any) -> Any:
+    """pdfminer's PNG predictor, refusing a row wider than the data. It allocates a row of
+    /Columns entries before it reads any data, so a few bytes with `/Columns 100000000`
+    would take about a GB, at about 9 bytes per column whatever the bits per component. A
+    real row is at most the data, and a page at 600 dpi is 5,100 columns wide."""
+
+    def apply(pred: int, colors: int, columns: int, bpc: int, data: bytes) -> bytes:
+        if columns > _MAX_COLUMNS or colors * columns * bpc // 8 > len(data):
+            raise _Refused(
+                "PDF.DECOMPRESSION_BOMB",
+                f"a PNG predictor row of {columns} columns over {len(data)} bytes of data",
+            )
+        return original(pred, colors, columns, bpc, data)
+
+    return apply
+
+
+@contextmanager
+def _decode_budget(limit: int) -> Iterator[None]:
+    """While reading one file, every Flate, LZW and RunLength decode pdfminer does is
+    charged to one budget, CCITTFax is refused, and a PNG predictor row wider than its data
+    is refused (those are the steps that expand data or allocate from the file's word)."""
+    from pdfminer import pdftypes
+    from pdfminer.lzw import LZWDecoder
+
+    budget = _Budget(limit)
+
+    def lzwdecode(data: bytes) -> bytes:
+        out = []
+        for piece in LZWDecoder(io.BytesIO(data)).run():
+            budget.charge(len(piece))
+            out.append(piece)
+        return b"".join(out)
+
+    swaps = {
+        "zlib": _ChargedZlib(budget),
+        "decompress_corrupted": lambda data: _inflate(data, budget, strict=False),
+        "lzwdecode": lzwdecode,
+        "rldecode": lambda data: _rldecode(data, budget),
+        "ccittfaxdecode": _refuse_ccitt,
+        "apply_png_predictor": _png_predictor(pdftypes.apply_png_predictor),
+    }
+    saved = {name: getattr(pdftypes, name) for name in swaps}
+    for name, value in swaps.items():
+        setattr(pdftypes, name, value)
+    try:
+        yield
+    finally:
+        for name, value in saved.items():
+            setattr(pdftypes, name, value)
+
+
 def _page_count(pdf: Any) -> int:
     """From the page tree's /Count, before pdfplumber builds a Page for every page."""
     from pdfminer.pdftypes import resolve1
@@ -124,7 +272,7 @@ def _read(data: bytes, fmt: dict[str, Any]) -> tuple[str, float | None]:
         raise _Refused("OCR.UNAVAILABLE", f"no PDF reader in this task: {exc}") from exc
     if len(data) > MAX_BYTES:
         raise _Refused("FILE.TOO_LARGE", f"{len(data)} bytes (limit {MAX_BYTES})")
-    with pdfplumber.open(io.BytesIO(data)) as pdf:
+    with _decode_budget(MAX_INFLATED_BYTES), pdfplumber.open(io.BytesIO(data)) as pdf:
         count = _page_count(pdf)
         if count == 0:
             raise _Refused("PDF.EMPTY", "the PDF has no pages")
@@ -164,9 +312,29 @@ def read_text(
     except _Refused as refused:
         result.file_violations.append(refused.violation)
     except Exception as exc:  # noqa: BLE001 - untrusted input: any parser failure
-        result.file_violations.append(
-            Violation("PDF.INVALID", f"not a readable PDF: {type(exc).__name__}: {exc}"[:500])
-        )
+        if (refused := _refusal_inside(exc)) is not None:
+            result.file_violations.append(refused.violation)
+        else:
+            result.file_violations.append(
+                Violation("PDF.INVALID", f"not a readable PDF: {type(exc).__name__}: {exc}"[:500])
+            )
+    return None
+
+
+def _refusal_inside(exc: BaseException) -> _Refused | None:
+    """A refusal raised inside pdfminer and wrapped on the way out (pdfplumber raises
+    `PdfminerException(e)` from its layout step), found through the arguments, the cause
+    and the context."""
+    seen: set[int] = set()
+    todo: list[Any] = [exc]
+    while todo:
+        e = todo.pop()
+        if not isinstance(e, BaseException) or id(e) in seen:
+            continue
+        seen.add(id(e))
+        if isinstance(e, _Refused):
+            return e
+        todo += [*e.args, e.__cause__, e.__context__]
     return None
 
 

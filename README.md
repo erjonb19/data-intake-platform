@@ -190,7 +190,7 @@ tested here:
 
 | Namespace | Component | Notes |
 |---|---|---|
-| `dip-airflow` | Airflow 3.2.2 (official Helm chart 1.22.0) | KubernetesExecutor: every task is its own pod; task logs go to MinIO |
+| `dip-airflow` | Airflow 3.4.0 (official Helm chart 1.22.0) | KubernetesExecutor: every task is its own pod; task logs go to MinIO |
 | `dip-data` | Postgres 17 | Shared instance with `airflow`, `warehouse` (bronze, silver, gold, ops schemas) and `marquez` databases |
 | `dip-data` | MinIO | Buckets: `landing`, `raw`, `quarantine`, `airflow-logs` |
 | `dip-data` | SFTP server, intake API | Vendor channels (Stage 2) |
@@ -265,8 +265,11 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [ ] A bad-release drill: not yet built (13.3)
 - [ ] Autoscaling (metrics-server, HPAs): not yet built (13.4)
 - [ ] OpenTofu checked in CI: not yet built (13.5)
-- [ ] Merge rules enforced by GitHub, dependency updates, image and code scanning: not yet
-  built (12.9)
+- [x] Dependency updates (`.github/dependabot.yml`), Trivy scans of every image we build,
+  failing on a fixable CRITICAL (`.github/workflows/security.yml`, `.trivyignore`), and
+  CodeQL for Python and the workflows (`.github/workflows/codeql.yml`; 12.9). Branch
+  protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
+  the steps)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
@@ -275,7 +278,18 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `packs/`); dbt tests on every layer, their results carried into lineage
   (`tests/e2e/lineage.py`)
 - [x] Lineage in Marquez (OpenLineage), checked by the E2E
-- [ ] Nightly Postgres backups to MinIO and a restore drill: not yet built (14.1, 14.2)
+- [x] Untrusted PDFs are refused before they are parsed when too large, too long or a
+  decompression bomb (`dip/pdffeed.py`, `tests/unit/test_pdffeed.py`; 12.8)
+- [x] Nightly Postgres backups to MinIO: the `warehouse-backup` CronJob
+  (`infra/terraform/backups.tf`, `dip/backup.py`) keeps 7 dumps, writes an `ops.backup` row
+  per run, alerts `BackupMissing` after 26 h without a good one, and `dip backup now` runs it
+  on demand; the E2E reads a dump back with `pg_restore --list` (`tests/e2e/backup.py`;
+  restore notes in `docs/backups.md`; 14.1)
+- [x] A restore drill that proves a dump brings a table back: `dip drill drop_table` drops
+  `gold.member_eligibility` after a snapshot of its count and checksum, and
+  `dip restore --latest --verify` restores the newest dump into `warehouse_restore`, brings
+  the table back and compares; the kind E2E runs it on every push and reports the time to
+  restore (`dip/restore.py`, `tests/e2e/restore.py`, `docs/backups.md`; 14.2)
 - [ ] Versioned warehouse migrations: not yet built (14.3); today the schemas are
   `create ... if not exists` at startup (`dip/sql/warehouse.sql`)
 - [ ] Backpressure on a flood of files: not yet built (16.1)

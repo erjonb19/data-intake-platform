@@ -76,3 +76,53 @@ written up in `infra/helm-charts/README.md`.
 Prometheus and Grafana charts still come from their GitHub Pages repos in the observability
 profile, which every `e2e` run deploys; that CDN has not failed so far, and they move to
 the same folder if it does. An alert on a red `main` is still missing (Stage 16.3).
+
+## 2026-11-09: the first backup's E2E hung, and promtool refused the alert (Stage 14)
+
+**What broke.** The first CI run of 14.1 (#118, e2e run 42564406558) took a real backup in
+the kind cluster: the Job ran, `ops.backup` row 1 was `ok`, and the 917 KB dump's size and
+SHA-256 matched the row. The next check then hung for 300 s and failed: it piped the dump
+into `kubectl exec -i postgres-0 -- pg_restore --list`, and `pg_restore` reading a custom
+archive from stdin that way never returned. The same run's `lint` job failed too: promtool
+refused `rules.yml` with "1 duplicate rule(s) found", because the two `BackupMissing` rules
+(a stale backup, and no backup ever) had the same name and the same labels.
+
+**How we knew.** Both jobs went red on the PR. The e2e log ended in
+`subprocess.TimeoutExpired ... pg_restore --list ... timed out after 300 seconds`, right
+after the checks that passed, and the lint log named the duplicate.
+
+**How we fixed it.** The E2E now writes the dump into the pod and lists it from the file. The
+two rules carry `reason: stale` and `reason: none_yet`, which keeps them distinct and says
+which case fired; the promtool tests expect those labels. The restore steps in
+`docs/backups.md` copy the file in first too, since they had the same stdin pipe.
+
+**What stops it coming back.** The E2E runs a real `pg_restore --list` on every push, and
+promtool checks the rules in `lint`. The full restore, timed, is 14.2's drill.
+
+## 2026-11-09: the restore drill's dump arrived in the pod changed (Stage 14, #119)
+
+**What broke.** The first `e2e` run of the 14.2 restore drill (run 42619586313) failed at
+`dip restore --latest --verify`. The 919,644-byte dump downloaded from MinIO matched its
+`ops.backup` SHA-256 on the runner. It was then piped into `postgres-0` with
+`kubectl exec -i postgres-0 -- sh -c 'cat > /tmp/dip-restore.dump'`, and the file in the pod
+had a different SHA-256. The table the drill had dropped stayed dropped, and the run failed.
+In 14.1, pg_restore reading the same kind of stream from stdin never returned, and
+`pg_restore --list` on a piped copy passed only because it reads the archive's table of
+contents at the start.
+
+**How we knew.** The restore checks the dump's hash in the pod before it restores anything,
+and it stopped with `the copy in the pod has SHA-256 2144c7e0..., not ea8dae7f...`. No
+restore ran on a damaged file.
+
+**How we fixed it.** The dump no longer goes through `kubectl exec` stdin. The restore signs
+a GET URL for that one object (5 minutes, as the MinIO admin) and passes it on stdin as a
+single short line. `postgres-0` downloads the dump from MinIO inside the cluster with
+`wget`, and the restore checks the size and SHA-256 in the pod against the row. The manual
+steps in `docs/backups.md` use `kubectl cp` and say to check the hash in the pod.
+
+**Check.** The `e2e` run on #119's final commit: `tests/e2e/restore.py` passes, and the
+job summary shows the time to restore. `pytest tests/unit/test_restore.py` covers a size
+or hash mismatch, which stops before any restore.
+
+**What stops it coming back.** Large files no longer go through `kubectl exec` stdin. The
+in-pod size and hash check stays, whatever the transport.
