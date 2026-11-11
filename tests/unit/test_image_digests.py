@@ -22,7 +22,7 @@ def test_every_dockerfile_base_is_pinned_by_digest():
     bad = []
     for f in sorted((ROOT / "images").glob("*/Dockerfile")):
         for line in f.read_text(encoding="utf-8").splitlines():
-            if line.startswith("FROM ") and "${" not in line:  # ocr: FROM ${BASE}, built here
-                if not DIGEST.search(line.split()[1]):
-                    bad.append(f"{f.parent.name}: {line}")
+            # ocr's `FROM ${BASE}` is the Airflow image built here
+            if line.startswith("FROM ") and "${" not in line and not DIGEST.search(line.split()[1]):
+                bad.append(f"{f.parent.name}: {line}")
     assert bad == [], f"not pinned by digest: {bad}"
