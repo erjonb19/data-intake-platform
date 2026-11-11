@@ -50,14 +50,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # `dip approvals execute` cuts the contract branch from main
 
       - name: A local main for the contract branch
         run: git branch -f main origin/main 2>/dev/null || true
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.6"
           terraform_wrapper: false
@@ -121,7 +121,7 @@ jobs:
           ! grep -q FAILED artifacts/commit/checks.md
 
       - name: Upload the results to commit
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-commit
           path: |
@@ -131,7 +131,7 @@ jobs:
 
       - name: Upload the proof
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: s10-6-proof
           path: |
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-diagnostics
           path: artifacts/
@@ -175,9 +175,9 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -237,7 +237,7 @@ jobs:
       # Only when every step succeeded: a recording that holds the key, an auth header, or
       # does not replay is never uploaded, so never committed.
       - name: Upload the recordings
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gemini-incident-recordings
           path: |
@@ -262,9 +262,9 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -317,7 +317,7 @@ jobs:
       # Only when every step succeeded: a recording that holds the key, an auth header, or
       # does not replay is never uploaded, so never committed.
       - name: Upload the recordings
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: claude-incident-recordings
           path: |
@@ -337,9 +337,9 @@ jobs:
     env:
       TF_VAR_profiles: '["core", "observability"]'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.6"
           terraform_wrapper: false
@@ -402,7 +402,7 @@ jobs:
           ! grep -q FAILED artifacts/commit/checks.md
 
       - name: Upload the results to commit
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-commit
           path: |
@@ -412,7 +412,7 @@ jobs:
 
       - name: Upload the proof
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: s11-10-drills
           path: artifacts/proof/
@@ -424,7 +424,7 @@ jobs:
 
       - name: Upload diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: drills-diagnostics
           path: artifacts/
@@ -451,11 +451,11 @@ jobs:
       run:
         working-directory: fresh
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: fresh
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.6"
           terraform_wrapper: false
@@ -498,7 +498,7 @@ jobs:
 
       - name: Upload diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fresh-clone-diagnostics
           path: fresh/artifacts/
@@ -528,9 +528,9 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
@@ -564,7 +564,7 @@ jobs:
           ! grep -q FAILED artifacts/commit/checks.md
 
       - name: Upload the results to commit
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-commit
           path: |
@@ -585,7 +585,7 @@ jobs:
 
       - name: Upload drift.md
         if: always() && steps.keycheck.outcome == 'success'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: live-eval
           path: artifacts/live-eval/
@@ -624,11 +624,11 @@ jobs:
 
       # The commit the run was started from: the push below is refused if the branch has
       # moved since (the files were made for this commit).
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ steps.which.outputs.artifact }}
           path: ${{ runner.temp }}/incoming
