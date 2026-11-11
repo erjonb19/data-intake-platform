@@ -427,7 +427,11 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   warehouse owner login is still in every pod: that is 24.9 and 24.14.
 - [ ] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
 - [ ] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
-- [ ] **24.5 GitHub Actions pinned by commit SHA** (Medium): every `uses:` in the 8 workflows, with a `# vN.M` comment; Dependabot keeps them current.
+- [x] **24.5 GitHub Actions pinned by commit SHA** (Medium): every `uses:` in the 8 workflows, with a `# vN.M` comment; Dependabot keeps them current.
+  Done 2026-11-11: all 46 `uses:` in the workflows pinned to the commit their major tag pointed at,
+  with the exact version in a comment (checkout v7.0.1, setup-python v7.1.0, cache v6.1.0,
+  upload-artifact v7.0.2, download-artifact v8.0.2, codeql-action v4.39.3, setup-terraform v4.0.1);
+  `tests/unit/test_actions_pinned.py` fails on a tag pin.
 - [ ] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
   2026-11-11: classic branch protection is on for `main`: required checks `lint`, `test`,
   `e2e`, `trivy` and both CodeQL `analyze` jobs; force push and deletion blocked. Not set:

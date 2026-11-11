@@ -275,6 +275,7 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch
   protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
   the steps)
+- [x] Every GitHub Action pinned by commit SHA, its version in a comment (`tests/unit/test_actions_pinned.py`; 24.5)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
