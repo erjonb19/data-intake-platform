@@ -182,3 +182,14 @@ variable "backup_keep" {
     error_message = "backup_keep must be at least 1."
   }
 }
+
+# 24.11: the people who may decide on the approvals page, one token each.
+variable "approvers" {
+  description = "Approvals page reviewers (letters, digits, . _ -); each gets its own token."
+  type        = list(string)
+  default     = ["owner"]
+  validation {
+    condition     = length(var.approvers) > 0 && alltrue([for a in var.approvers : can(regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$", a))])
+    error_message = "approvers: at least one name, each letters, digits, '.', '_' or '-'."
+  }
+}

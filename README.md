@@ -324,6 +324,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Guardrails: per-agent keys and Read, Propose and Act tiers on the MCP server
   (`docs/agents/mcp-read.md`); a person approves every change (`python -m dip approvals`,
   the approvals page); every agent action in `ops.audit_log`
+- [x] The approvals page gives each person their own token and records a decision as the
+  token's owner (`dip/agents/gateway.py`, `tests/integration/test_gateway.py`; 24.11)
 - [x] Agent evals in CI, where every case must pass: recorded model turns replay in the
   `ci` test job, and a changed prompt, tool or tool result fails the replay; CI never calls
   a model (`docs/agents/EVALS.md`, `agents/evals/`)

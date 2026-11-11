@@ -4,6 +4,8 @@ decide but never execute, and the approval rules are the CLI's (dip.agents.appro
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 
 from dip.agents import approvals
@@ -15,7 +17,8 @@ ROLES_SQL = REPO_ROOT / "infra/terraform/files/postgres-roles.sql"
 # A fixed, public test password: fine for a throwaway CI database, never for a deployment.
 PASSWORD = "ci-approver-0123456789"
 HOST = "testserver"  # the Host header TestClient sends
-TOKEN = "ci-approvals-token"
+TOKEN = "ci-approvals-token"  # alice's (24.11: one token per person)
+BOB_TOKEN = "ci-approvals-token-bob"
 
 
 def approver_conn():
@@ -37,7 +40,10 @@ def page(warehouse):
         cur.execute(f"alter role dip_approver password '{PASSWORD}'")
     warehouse.conn.commit()
     warehouse.init()  # the role exists now: its grants apply
-    app = create_app(approver_conn, [HOST], token=TOKEN)
+    people = {
+        n: hashlib.sha256(k.encode()).hexdigest() for n, k in (("alice", TOKEN), ("bob", BOB_TOKEN))
+    }
+    app = create_app(approver_conn, [HOST], people)
     with TestClient(app, headers={"Authorization": f"Bearer {TOKEN}"}) as client:
         yield client
 
@@ -260,3 +266,17 @@ def test_a_chains_trace(page, warehouse):
     with approver_conn() as conn, conn.cursor() as cur:  # the view, never the tables
         cur.execute("select has_table_privilege('dip_approver', 'ops.model_call', 'select')")
         assert cur.fetchone() == (False,)
+
+
+def test_a_decision_is_recorded_as_the_tokens_owner(page, warehouse):
+    """24.11: bob's token cannot decide as alice, and decides as bob."""
+    a = _propose(warehouse)
+    bob = {"Authorization": f"Bearer {BOB_TOKEN}"}
+    r = page.post(f"/api/approvals/{a}/decision", json={"decision": "approve"},
+                  headers={**bob, "X-Reviewer": "alice"})  # fmt: skip
+    assert r.status_code == 403
+    assert rows(warehouse, "select status from ops.approvals where approval_id = %s", (a,)) == [
+        ("pending",)]  # fmt: skip
+    r = page.post(f"/api/approvals/{a}/decision", json={"decision": "approve"},
+                  headers={**bob, "X-Reviewer": "bob"})  # fmt: skip
+    assert r.status_code == 200 and r.json()["decided_by"] == "human:bob@dip_approver"

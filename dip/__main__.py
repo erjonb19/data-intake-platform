@@ -256,11 +256,17 @@ def _approvals_serve(args: argparse.Namespace) -> int:
     from dip.agents.gateway import create_app
 
     dsn = os.environ["DIP_WAREHOUSE_DSN"]
-    token = os.environ.get("DIP_APPROVALS_TOKEN") or None
-    if token is None and args.host not in ("127.0.0.1", "localhost", "::1"):
-        raise SystemExit("approvals-serve beyond loopback needs DIP_APPROVALS_TOKEN")
+    # 24.11: one token per person, as a JSON object of name -> SHA-256 of the token.
+    raw = os.environ.get("DIP_APPROVER_TOKENS") or ""
+    people = json.loads(raw) if raw else None
+    if people is not None and (not isinstance(people, dict) or not people
+                               or not all(isinstance(v, str) and len(v) == 64
+                                          for v in people.values())):  # fmt: skip
+        raise SystemExit("DIP_APPROVER_TOKENS must be a JSON object of name -> SHA-256 hex")
+    if people is None and args.host not in ("127.0.0.1", "localhost", "::1"):
+        raise SystemExit("approvals-serve beyond loopback needs DIP_APPROVER_TOKENS")
     hosts = args.allowed_host or ["127.0.0.1", "localhost"]
-    app = create_app(lambda: psycopg.connect(dsn), hosts, token)
+    app = create_app(lambda: psycopg.connect(dsn), hosts, people)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
 
