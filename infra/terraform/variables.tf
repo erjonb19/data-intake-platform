@@ -82,7 +82,7 @@ variable "sftp_image" {
 variable "postgres_image" {
   description = "Postgres image shared by Airflow metadata, the warehouse, and Marquez."
   type        = string
-  default     = "postgres:17.6-alpine"
+  default     = "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94"
 }
 
 # Official MinIO images are no longer published to Docker Hub or quay.io.
@@ -120,13 +120,13 @@ variable "grafana_chart_version" {
 variable "marquez_image" {
   description = "Marquez API (OpenLineage), observability profile."
   type        = string
-  default     = "marquezproject/marquez:0.51.1"
+  default     = "marquezproject/marquez:0.51.1@sha256:0721c976cff17d8b14f7949d85d6dac9c7ea37cb9fe857caa19833730fcb1a50"
 }
 
 variable "marquez_web_image" {
   description = "Marquez web UI, observability profile."
   type        = string
-  default     = "marquezproject/marquez-web:0.51.1"
+  default     = "marquezproject/marquez-web:0.51.1@sha256:7312112ca0e611b0a37b00d3da6a677485ae4a97622b23d3ae24d849a927868b"
 }
 
 variable "mcp_image_repository" {
