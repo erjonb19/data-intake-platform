@@ -42,9 +42,8 @@ locals {
   })
   # Versioned names, as for the intake API's user (intake_api.tf): mc refuses to attach a
   # policy that is already attached.
-  backup_minio_suffix = substr(sha256(local.backup_minio_policy), 0, 8)
+  backup_minio_suffix = substr(sha256("24.13:${local.backup_minio_policy}"), 0, 8) # 24.13: new Job spec, new name
   backup_minio_user   = "warehouse-backup-${local.backup_minio_suffix}"
-  backup_mc_host      = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
 }
 
 resource "kubernetes_config_map_v1" "backup_minio_policy" {
@@ -72,15 +71,29 @@ resource "kubernetes_job_v1" "backup_minio_user" {
         dynamic "init_container" {
           for_each = {
             "1-policy" = ["admin", "policy", "create", "local", "warehouse-backup-${local.backup_minio_suffix}", "/policy/policy.json"]
-            "2-user"   = ["admin", "user", "add", "local", local.backup_minio_user, local.pw["minio_backup"]]
+            "2-user"   = ["admin", "user", "add", "local", local.backup_minio_user, "$(NEW_USER_PASSWORD)"]
           }
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
             args  = init_container.value
             env {
-              name  = "MC_HOST_local"
-              value = local.backup_mc_host
+              name = "NEW_USER_PASSWORD"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_user_passwords.metadata[0].name
+                  key  = "backup"
+                }
+              }
+            }
+            env {
+              name = "MC_HOST_local"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                  key  = "MC_HOST_local"
+                }
+              }
             }
             env {
               name  = "MC_CONFIG_DIR"
@@ -103,8 +116,13 @@ resource "kubernetes_job_v1" "backup_minio_user" {
           args = ["admin", "policy", "attach", "local", "warehouse-backup-${local.backup_minio_suffix}",
           "--user", local.backup_minio_user]
           env {
-            name  = "MC_HOST_local"
-            value = local.backup_mc_host
+            name = "MC_HOST_local"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                key  = "MC_HOST_local"
+              }
+            }
           }
           env {
             name  = "MC_CONFIG_DIR"

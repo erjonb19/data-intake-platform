@@ -25,10 +25,9 @@ locals {
       { Effect = "Allow", Action = ["s3:ListBucket"], Resource = ["arn:aws:s3:::raw", "arn:aws:s3:::quarantine"] },
     ]
   })
-  # The policy and the password: a new password re-runs the user Job. (mc takes the
-  # secret as an argument, as in intake_api.tf; the Job's spec is readable to anyone who
-  # can read Jobs in dip-data: a follow-up to pass it from a secret.)
-  mcp_minio_suffix = substr(sha256("${local.mcp_minio_policy}${local.pw["minio_mcp"]}"), 0, 8)
+  # The policy and the password: a new password re-runs the user Job. (24.13: the password
+  # reaches mc's arguments from a Secret, $(NEW_USER_PASSWORD), not from the Job's spec.)
+  mcp_minio_suffix = substr(sha256("24.13:${local.mcp_minio_policy}${local.pw["minio_mcp"]}"), 0, 8)
   mcp_minio_user   = "mcp-read-${local.mcp_minio_suffix}"
   mcp_airflow_user = "mcp-viewer"
 }
@@ -79,15 +78,29 @@ resource "kubernetes_job_v1" "mcp_minio_user" {
         dynamic "init_container" {
           for_each = {
             "1-policy" = ["admin", "policy", "create", "local", "mcp-read-${local.mcp_minio_suffix}", "/policy/policy.json"]
-            "2-user"   = ["admin", "user", "add", "local", local.mcp_minio_user, local.pw["minio_mcp"]]
+            "2-user"   = ["admin", "user", "add", "local", local.mcp_minio_user, "$(NEW_USER_PASSWORD)"]
           }
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
             args  = init_container.value
             env {
-              name  = "MC_HOST_local"
-              value = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
+              name = "NEW_USER_PASSWORD"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_user_passwords.metadata[0].name
+                  key  = "mcp"
+                }
+              }
+            }
+            env {
+              name = "MC_HOST_local"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                  key  = "MC_HOST_local"
+                }
+              }
             }
             env {
               name  = "MC_CONFIG_DIR"
@@ -110,8 +123,13 @@ resource "kubernetes_job_v1" "mcp_minio_user" {
           args = ["admin", "policy", "attach", "local", "mcp-read-${local.mcp_minio_suffix}",
           "--user", local.mcp_minio_user]
           env {
-            name  = "MC_HOST_local"
-            value = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
+            name = "MC_HOST_local"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                key  = "MC_HOST_local"
+              }
+            }
           }
           env {
             name  = "MC_CONFIG_DIR"
