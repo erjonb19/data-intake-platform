@@ -111,3 +111,9 @@ output "mcp_team_keys" {
   value       = { for a, k in random_password.mcp_team_key : a => k.result }
   sensitive   = true
 }
+
+output "run_token_key" {
+  description = "24.10: signs chain run ids. Set DIP_RUN_TOKEN_KEY to it to run a chain from a laptop against the cluster's MCP server."
+  value       = random_password.run_token_key.result
+  sensitive   = true
+}
