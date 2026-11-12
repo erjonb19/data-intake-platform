@@ -429,7 +429,12 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 
 - [ ] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
 - [ ] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
-- [ ] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
+- [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
+  Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
+  compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
+  every `pip install` in the workflows and images reads one with `--require-hashes --no-deps`,
+  and dip is built with the locked setuptools (`--no-build-isolation`). CI's lint job fails on a
+  stale lock; `tests/unit/test_locks.py` fails on an unlocked install.
 - [x] **24.5 GitHub Actions pinned by commit SHA** (Medium): every `uses:` in the 8 workflows, with a `# vN.M` comment; Dependabot keeps them current.
   Done 2026-11-11: all 46 `uses:` in the workflows pinned to the commit their major tag pointed at,
   with the exact version in a comment (checkout v7.0.1, setup-python v7.1.0, cache v6.1.0,

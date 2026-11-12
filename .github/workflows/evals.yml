@@ -42,7 +42,10 @@ jobs:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -e ".[dev]"
+        run: |
+          pip install --require-hashes --no-deps -r requirements/build.txt && pip install --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
+          pip install --no-deps --no-build-isolation -e .
+          pip check
 
       # The job is never given a model key (no secret is mapped into it); this step only
       # guards against one being added to its environment by mistake.
