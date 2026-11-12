@@ -410,12 +410,19 @@ record, but it is long.
 Demo on its own: the page and the video.
 No incident: this stage changes documentation only.
 
-- [ ] **23.1 One-page architecture:** `docs/ARCHITECTURE.md` with one diagram, "how it scales
+- [x] **23.1 One-page architecture:** `docs/ARCHITECTURE.md` with one diagram, "how it scales
   and where it breaks" using Stage 19's numbers, and the main trade-offs, each linked to its
   PLAN.md decision
+  Done 2026-11-12: `docs/ARCHITECTURE.md` (one Mermaid diagram, how a file moves, the agents'
+  guardrails, what is measured, where it breaks, the trade-offs linked to PLAN.md). Stage 19 is not
+  built, so its scale table holds the numbers measured so far and says so; it takes Stage 19's
+  numbers when that stage lands.
 - [ ] **23.2 A three-minute walkthrough:** a script in `docs/demos/` for the user to record
   (file drop, quarantine, agent proposal, approval, gold, Grafana and the trace), linked from
   the README with a screenshot (overlaps #99 in 12.7; reuse it)
+  2026-11-12: the script is `docs/demos/walkthrough.md` (five scenes, commands checked, the
+  recorded agent path by default at $0). Left open: the owner records the video and its link goes
+  into the README.
 
 ## Stage 24: Security hardening (owner, 2026-11-09)
 
