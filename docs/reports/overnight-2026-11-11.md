@@ -39,6 +39,8 @@ it; every blocking finding was fixed and re-checked before the merge.
 - **#141** (grouped Python updates): it widened paramiko to `<5.2` again, five of its bumps
   were inside the lock's 7-day cooldown, and the locks were not recompiled. #147 fixed the
   Dependabot config so the next one can merge.
+- **#125** (the old grouped Python PR): not merged, as asked; after `@dependabot recreate`,
+  Dependabot closed it itself as superseded.
 
 ## Open
 
@@ -46,7 +48,6 @@ it; every blocking finding was fixed and re-checked before the merge.
   (RSA keys and SHA-1). **Needs the owner:** it conflicts with "paramiko stays on 3.5.x", and
   the fix exists only in 5.0.0. The platform uses Ed25519 keys only (`dags/sftp_sync.py`), so
   the RSA path is not used.
-- **#125** (the old grouped Python PR): not merged, as asked.
 
 ## Found and fixed on the way
 
