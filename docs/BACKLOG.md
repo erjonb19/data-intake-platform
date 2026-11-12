@@ -471,7 +471,11 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   Done 2026-11-11: Terraform's `approvers` (default `owner`), a token each, only their SHA-256 in
   `DIP_APPROVER_TOKENS`; a decision is recorded as the token's owner and refused (403) when
   `X-Reviewer` names someone else.
-- [ ] **24.12 Backups without the de-identification key in plaintext** (Medium): `--exclude-schema=ops_secret` with the key backed up separately, or client-side encryption of each dump; MinIO SSE on `backups`.
+- [x] **24.12 Backups without the de-identification key in plaintext** (Medium): `--exclude-schema=ops_secret` with the key backed up separately, or client-side encryption of each dump; MinIO SSE on `backups`.
+  Done 2026-11-11: `pg_dump --exclude-table-data='ops_secret.*'`: the key's table is dumped
+  empty and the key stays in the `dip-deid` Secret (fhir_intake reinstalls it after a restore);
+  the E2E checks the archive holds no `ops_secret` rows. MinIO SSE on `backups` needs a KMS key
+  on MinIO and goes with encryption at rest in 24.38.
 - [ ] **24.13 MinIO root password out of Job specs** (Medium): the `MC_HOST_local` URI in a Secret, read with `secret_key_ref` (`minio.tf`, `intake_api.tf`, `mcp.tf`, `backups.tf`).
 - [ ] **24.14 An append-only audit log no app login can rewrite** (Medium): a separate owner role for the `ops` schema, writers with INSERT only, the app connecting as a non-owner (with 14.3's migrations).
 - [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
