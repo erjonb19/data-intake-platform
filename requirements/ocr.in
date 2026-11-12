@@ -1,0 +1,7 @@
+# images/ocr: added to the platform Airflow image's environment, resolved against Airflow's
+# constraints. Pillow 13.0.0 fixes the CRITICAL findings 12.9's Trivy scan reported in 12.3.0.
+pdfplumber==0.11.10
+pdfminer.six==20260107
+pypdfium2==5.14.0
+pytesseract==0.3.13
+pillow==13.0.0
