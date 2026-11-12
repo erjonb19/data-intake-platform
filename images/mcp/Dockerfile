@@ -3,7 +3,7 @@
 # and packages pinned; every version was at least two weeks old when it was chosen. No
 # Anthropic SDK: the server never calls a model, agents do. The same image serves the
 # approvals page (Stage 9, S9.2: python -m dip approvals-serve, FastAPI, its own login).
-FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
+FROM python:3.12.16-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 
 # 24.4: hashed locks (requirements/mcp.in and dbt.in, compiled by scripts/lock.py),
 # installed with --require-hashes --no-deps. mcp.txt includes setuptools, dip's build backend.
