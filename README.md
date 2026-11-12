@@ -339,6 +339,10 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   a model (`docs/agents/EVALS.md`, `agents/evals/`)
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
+- [x] A hard spend cap on the scheduled agents: per run and per calendar month, counted from `ops.model_call`,
+  failing closed, and no run at all with a paid key and no cap (`dip/agents/llm.py`,
+  `tests/unit/test_spend_cap.py`; 24.3). The provider-side limit in the Anthropic Console is the
+  owner's step
 
 **Access**
 

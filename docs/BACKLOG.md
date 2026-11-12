@@ -425,7 +425,13 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   airflow-logs, not backups) in the `minio` connection; `DIP_DEID_KEY` only in `fhir_intake`'s
   `transform` pod and the four `DIP_SFTP_*` only in `sftp_sync`'s `sync` pod. The
   warehouse owner login is still in every pod: that is 24.9 and 24.14.
-- [ ] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
+- [x] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
+  Done 2026-11-11 for what the repo can do: `DIP_SPEND_CAP_USD` (0.25 a run) and `DIP_MONTHLY_CAP_USD` (5)
+  in the `dip-agent-chain` Secret; before each live Anthropic call the request's worst case
+  is added to this month's live total in `ops.model_call` and refused past the cap, failing
+  closed when that total cannot be read; `chain_job` and `intake_runner` claim nothing with a
+  paid key and either cap unset; an unpriced model is refused. Left for the owner: the
+  provider-side limit in the Anthropic Console.
 - [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
   Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
   compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
