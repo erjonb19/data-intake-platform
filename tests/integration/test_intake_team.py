@@ -174,7 +174,12 @@ def test_the_runner_claims_nothing_without_keys_and_records_each_outcome(warehou
     keys = {v: "k" for v in ("DIP_MCP_URL", *intake_runner.KEYS.values())}
     assert intake_runner.run(warehouse.conn, env=keys)["claimed"] == 0  # no model key
     assert intake_runner.run(warehouse.conn, env={"ANTHROPIC_API_KEY": "x"})["claimed"] == 0
-    env = {**keys, "ANTHROPIC_API_KEY": "x"}
+    env = {
+        **keys,
+        "ANTHROPIC_API_KEY": "x",
+        "DIP_SPEND_CAP_USD": "0.25",
+        "DIP_MONTHLY_CAP_USD": "5",
+    }
 
     def runner(conn, job, env_, providers):
         if job["job_id"] == a:
