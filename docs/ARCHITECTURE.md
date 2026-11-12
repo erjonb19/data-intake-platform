@@ -63,7 +63,7 @@ flowchart LR
   arguments and the result, never the data itself.
 - **Limits that fail closed.** A spend cap per run and per calendar month counted from
   `ops.model_call` (24.3), a kill switch that refuses every agent write (24.8), chain ids signed
-  by the platform (24.10), and each runner on its own least-privilege warehouse login.
+  by the platform (24.10). The runners' own least-privilege warehouse login is next (24.9).
 - **Evals in CI.** Recorded model turns replay on every push. A changed prompt, tool or tool
   result fails the replay, so CI never calls a model and never drifts silently.
 
