@@ -1,6 +1,7 @@
 """Command line: `python -m dip <command>`.
 
-  db-init                      create the bronze and ops tables
+  db-init                      create the bronze and ops tables (= migrate)
+  migrate [--status]           apply the pending warehouse migrations (14.3); --status lists them
   land <feed> <files...>       copy local files into the landing bucket
   intake                       process everything in the landing bucket
   vocab-load                   load the OMOP vocabulary: the pinned Eunomia shard, or
@@ -256,11 +257,17 @@ def _approvals_serve(args: argparse.Namespace) -> int:
     from dip.agents.gateway import create_app
 
     dsn = os.environ["DIP_WAREHOUSE_DSN"]
-    token = os.environ.get("DIP_APPROVALS_TOKEN") or None
-    if token is None and args.host not in ("127.0.0.1", "localhost", "::1"):
-        raise SystemExit("approvals-serve beyond loopback needs DIP_APPROVALS_TOKEN")
+    # 24.11: one token per person, as a JSON object of name -> SHA-256 of the token.
+    raw = os.environ.get("DIP_APPROVER_TOKENS") or ""
+    people = json.loads(raw) if raw else None
+    if people is not None and (not isinstance(people, dict) or not people
+                               or not all(isinstance(v, str) and len(v) == 64
+                                          for v in people.values())):  # fmt: skip
+        raise SystemExit("DIP_APPROVER_TOKENS must be a JSON object of name -> SHA-256 hex")
+    if people is None and args.host not in ("127.0.0.1", "localhost", "::1"):
+        raise SystemExit("approvals-serve beyond loopback needs DIP_APPROVER_TOKENS")
     hosts = args.allowed_host or ["127.0.0.1", "localhost"]
-    app = create_app(lambda: psycopg.connect(dsn), hosts, token)
+    app = create_app(lambda: psycopg.connect(dsn), hosts, people)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
 
@@ -644,6 +651,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--store-dir", default="data/store")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("db-init")
+    mig = sub.add_parser("migrate")
+    mig.add_argument(
+        "--status", action="store_true", help="list applied and pending, apply nothing"
+    )
     land = sub.add_parser("land")
     land.add_argument("feed")
     land.add_argument("files", nargs="+", type=Path)
@@ -771,6 +782,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "db-init":
         _warehouse().init()
+    elif args.command == "migrate":
+        from dip import migrations
+
+        conn = _warehouse().conn
+        if args.status:
+            done = migrations.applied(conn)
+            for m in migrations.migrations():
+                print(f"{'applied' if m.version in done else 'pending'}  {m.name}")
+        else:
+            names = migrations.migrate(conn)
+            print(f"applied {', '.join(names)}" if names else "the warehouse is current")
     elif args.command == "land":
         store = _store(args)
         for f in args.files:

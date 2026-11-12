@@ -93,5 +93,13 @@ def test_providers_follow_the_config_order_and_need_a_key():
 
 def test_the_chain_job_tries_every_configured_provider():
     mcp = {"DIP_MCP_URL": "u", "DIP_INCIDENT_KEY": "k1", "DIP_TRIAGE_KEY": "k2"}
-    p = chain_job.plan({**mcp, "ANTHROPIC_API_KEY": "a", "GEMINI_API_KEY": "g"})
+    p = chain_job.plan(
+        {
+            **mcp,
+            "ANTHROPIC_API_KEY": "a",
+            "GEMINI_API_KEY": "g",
+            "DIP_SPEND_CAP_USD": "0.25",
+            "DIP_MONTHLY_CAP_USD": "5",
+        }
+    )
     assert p.runnable and p.providers == ("anthropic", "gemini")

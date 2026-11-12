@@ -84,11 +84,13 @@ with that key. A local `mcp-serve` without the key checks nothing.
 The same decisions in a browser (Stage 9, S9.2): `python -m dip approvals-serve` (or, in the
 cluster, `kubectl -n dip-data port-forward svc/approvals 8081`) serves http://127.0.0.1:8081,
 a list of proposals with each one's payload (and a contract PR's diff), approve and reject
-buttons, and the audit log with filters. Enter the page's token (`terraform output -raw
-approvals_token`; every API call needs it, so another pod in the cluster cannot approve by
-calling the Service; use 127.0.0.1, not `[::1]`) and your name as reviewer: it is sent as the
-`X-Reviewer` header and recorded as `human:<name>@<database login>`, the CLI's shape, and is
-just as self-asserted. The page calls the CLI's `approvals.decide` and writes the CLI's
+buttons, and the audit log with filters. Enter your own token and your name as reviewer
+(24.11: one token per person in Terraform's `approvers`, `terraform output -json
+approver_tokens`; `approvals_token` is the first approver's, `owner` by default). Every API
+call needs a token, so another pod in the cluster cannot approve by calling the Service (use
+127.0.0.1, not `[::1]`). A decision is recorded as `human:<the token's owner>@<database
+login>`, the CLI's shape; the reviewer name the page sends must be that owner's, so one
+person cannot decide as another. The page calls the CLI's `approvals.decide` and writes the CLI's
 audit row (plus a `denied` row for a refused decision). It cannot execute: its database login,
 `dip_approver`, may set only the decision columns (`dip/agents/gateway.py`).
 

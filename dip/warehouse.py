@@ -10,7 +10,6 @@ import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from importlib.resources import files
 from typing import TYPE_CHECKING, Any
 
 from dip.fhir import Resource
@@ -47,23 +46,16 @@ class QuarantineRecord:
     quarantine_key: str
 
 
-def init_sql() -> str:
-    return files("dip").joinpath("sql/warehouse.sql").read_text("utf-8")
-
-
 class Warehouse:
     def __init__(self, conn: Any):
         self.conn = conn
 
     def init(self) -> None:
-        from dip.vocab import STCM_DDL
+        """The warehouse schema at the current migration (14.3, dip/migrations.py): one read
+        when it is current, the pending migrations otherwise. Commits."""
+        from dip.migrations import ensure
 
-        with self.conn.cursor() as cur:
-            cur.execute(init_sql())
-            # Every dbt build reads it (source_to_standard). Created here too, not only by a
-            # vocabulary load: a warehouse whose vocabulary predates the table never reloads.
-            cur.execute(STCM_DDL)
-        self.conn.commit()
+        ensure(self.conn)
 
     def already_processed(self, feed: str, file_sha256: str) -> bool:
         with self.conn.cursor() as cur:

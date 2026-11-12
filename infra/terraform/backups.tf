@@ -20,7 +20,7 @@
 # Least privilege:
 #   warehouse  the dip_backup login: pg_read_all_data (read everything, write nothing),
 #              plus INSERT and UPDATE on ops.backup alone (postgres-roles.sql,
-#              ops.grant_backup() in dip/sql/warehouse.sql)
+#              ops.grant_backup() in dip/sql/migrations/0001_baseline.sql)
 #   MinIO      its own user and policy: list, put and delete in `backups`, nothing else
 #              (it cannot read a dump back; the restore in 14.2 is a person's)
 #   Kubernetes no service-account token mounted: the job calls no Kubernetes API
