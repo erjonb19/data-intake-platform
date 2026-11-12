@@ -1,7 +1,7 @@
 # Intake API (Stage 2, the api channel): the dip package served by uvicorn. Build context
 # is the repo root. Base and packages pinned; every version was at least two weeks old
 # when it was chosen.
-FROM python:3.12.14-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
+FROM python:3.12.16-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b
 
 # 24.4: a hashed lock (requirements/intake-api.in, compiled by scripts/lock.py), installed
 # with --require-hashes --no-deps --no-build-isolation after the hashed build lock
