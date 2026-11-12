@@ -6,7 +6,7 @@
   server with both agents' keys and policies, the LangGraph graph, the approvals and the
   audit log.
 - **No setup:** it starts a throwaway Postgres in Docker and removes it afterwards (or uses
-  `DIP_EVAL_DSN`). It needs Python with the dev extras (`pip install -e ".[dev]"`).
+  `DIP_EVAL_DSN`). It needs Python with the dev lock (`pip install --require-hashes --no-deps -r requirements/dev.txt`, then `pip install --no-deps --no-build-isolation -e .`).
 - **CI runs it too,** in `tests/integration/test_demo.py`.
 
 A recording keeps a fingerprint of what the model was sent at every turn. If the platform
@@ -94,8 +94,8 @@ git clone https://github.com/erjonb19/data-intake-platform && cd data-intake-pla
 bash scripts/prereqs.sh
 TF_VAR_profiles='["core", "observability"]' bash scripts/up.sh
 bash scripts/smoke.sh
-python -m venv .venv && .venv/Scripts/python -m pip install "boto3==1.43.*" \
-  "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5" "jsonschema==4.*"
+python -m venv .venv && .venv/Scripts/python -m pip install --require-hashes --no-deps \
+  -r requirements/e2e.txt
 bash scripts/e2e.sh
 bash scripts/down.sh
 ```
