@@ -4,7 +4,8 @@ then trigger the intake DAG of each feed that received files.
 Logs in to every account in DIP_SFTP_ACCOUNTS with the platform's key (DIP_SFTP_KEY) and
 checks the server against its pinned host key (DIP_SFTP_HOST_KEY): an unknown host key is
 refused, never accepted on first use. All four come from the dip-sftp Secret that
-Terraform writes. The rules for what is taken are in dip/sftp_sync.py.
+Terraform writes, mounted only into this task's pod (24.2), not into every Airflow pod.
+The rules for what is taken are in dip/sftp_sync.py.
 
 Scheduled every 10 minutes; like every DAG here it starts paused, and the E2E test
 triggers it directly.
@@ -17,6 +18,26 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.standard.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.sdk import dag, task
 
+# Env var -> key in the dip-sftp Secret.
+SFTP_ENV = {
+    "DIP_SFTP_HOST": "host",
+    "DIP_SFTP_HOST_KEY": "host_key",
+    "DIP_SFTP_KEY": "key",
+    "DIP_SFTP_ACCOUNTS": "accounts",
+}
+
+
+def _sftp_pod() -> dict:
+    """The sync task's pod, the only one with the platform's SFTP login key (24.2)."""
+    from kubernetes.client import models as k8s
+
+    return {"pod_override": k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(
+        name="base",
+        env=[k8s.V1EnvVar(name=env, value_from=k8s.V1EnvVarSource(
+                secret_key_ref=k8s.V1SecretKeySelector(name="dip-sftp", key=key, optional=True)))
+             for env, key in SFTP_ENV.items()],
+    )]))}  # fmt: skip
+
 
 @dag(
     dag_id="sftp_sync",
@@ -28,7 +49,7 @@ from airflow.sdk import dag, task
     doc_md=__doc__,
 )
 def sftp_sync():
-    @task
+    @task(executor_config=_sftp_pod())
     def sync() -> dict:
         import base64
         import io

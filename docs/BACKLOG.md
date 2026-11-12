@@ -420,7 +420,11 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   the Order of work is unchanged; 3 High, 14 Medium, 24 Low, one item each below. Where
   they go in the Order of work is the owner's call.
 
-- [ ] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
+- [x] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
+  Done 2026-11-11: Airflow's own MinIO user (`airflow-<hash>`: landing, raw, quarantine and
+  airflow-logs, not backups) in the `minio` connection; `DIP_DEID_KEY` only in `fhir_intake`'s
+  `transform` pod and the four `DIP_SFTP_*` only in `sftp_sync`'s `sync` pod. The
+  warehouse owner login is still in every pod: that is 24.9 and 24.14.
 - [x] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
   Done 2026-11-11 for what the repo can do: `DIP_SPEND_CAP_USD` (0.25 a run) and `DIP_MONTHLY_CAP_USD` (5)
   in the `dip-agent-chain` Secret; before each live Anthropic call the request's worst case
