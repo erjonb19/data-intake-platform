@@ -38,7 +38,9 @@ def scraped(module_warehouse, tmp_path_factory):
         cur.execute(ROLES_SQL.read_text(encoding="utf-8"))
         cur.execute(f"alter role dip_metrics password '{PASSWORD}'")
     wh.conn.commit()
-    wh.init()  # the role exists now: the grants on the intake tables apply
+    from dip.migrations import reapply_grants
+
+    reapply_grants(wh.conn)  # the role exists now: its grants apply (14.3: as the deploy Job does)
     store = LocalStore(tmp_path_factory.mktemp("store"))
     for name in ("good/invoices_good.xlsx", "bad/invoices_sheet_renamed.xlsx"):
         data = (FIXTURES / name).read_bytes()
