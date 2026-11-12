@@ -5,7 +5,7 @@
 #
 # No API key and no model call: the agents' turns are replayed from
 # agents/evals/demo/recordings/ through the real intake, MCP server, policies and graph.
-# Needs Python with the dev extras (pip install -e ".[dev]") and, unless DIP_EVAL_DSN
+# Needs Python with the dev extras (requirements/dev.txt, see requirements/README.md) and, unless DIP_EVAL_DSN
 # names a throwaway database, Docker: a Postgres container is started for the demo and
 # removed afterwards. Every value is invented.
 # shellcheck source=scripts/lib.sh
