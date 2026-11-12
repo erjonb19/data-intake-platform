@@ -29,7 +29,8 @@ ops.quarantine    (one row per quarantined file or record, with a reason code)
 ### Try it
 
 ```bash
-pip install -e ".[dev]"
+pip install --require-hashes --no-deps -r requirements/dev.txt
+pip install --no-deps --no-build-isolation -e .
 bash packs/healthcare/generators/synthea.sh 25 data/synthea   # needs Docker, not Java
 pytest -q                                                      # unit tests
 DIP_TEST_DSN=postgresql://... DIP_SYNTHEA_DIR=data/synthea pytest -q -s tests/integration
