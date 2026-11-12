@@ -12,17 +12,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
       - name: Ruff
         run: |
-          pip install "ruff==0.17.*"
+          pip install --require-hashes --no-deps -r requirements/build.txt && pip install --require-hashes --no-deps --no-build-isolation -r requirements/tools.txt
           ruff check .
           ruff format --check .
+
+      # 24.4: every hashed lock in requirements/ matches a fresh compile at its cutoff.
+      - name: Python locks are current
+        run: python scripts/lock.py --check
 
       - name: No MIMIC data committed
         run: bash scripts/check_no_mimic_data.sh
@@ -45,7 +49,7 @@ jobs:
           python observability/grafana/make_dashboards.py
           git diff --exit-code observability/grafana
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.6"
           terraform_wrapper: false
@@ -73,14 +77,17 @@ jobs:
     env:
       DIP_TEST_DSN: postgresql://dip:dip@localhost:5432/dip_test
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -e ".[dev]"
+        run: |
+          pip install --require-hashes --no-deps -r requirements/build.txt && pip install --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
+          pip install --no-deps --no-build-isolation -e .
+          pip check
 
       # Stage 3: the PDF invoice tests OCR scans with it (they skip without it, as on a laptop).
       - name: Tesseract (the OCR image's engine)
@@ -89,7 +96,7 @@ jobs:
           sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-eng
 
       - name: Cache Synthea jar and vocabulary
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: data/cache
           key: research-cache-${{ hashFiles('packs/healthcare/generators/synthea.sha256', 'dip/vocab.py') }}

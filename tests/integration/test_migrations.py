@@ -62,15 +62,35 @@ def test_a_warehouse_ahead_of_this_code_is_not_an_error(warehouse):
 
 
 def test_a_failed_migration_applies_none_of_the_batch(warehouse, monkeypatch):
+    """Every migration from 2 on is pending, then a broken one after the real ones: the
+    real ones run first in the same transaction and are rolled back with it."""
+    real = migrations.migrations()
     with warehouse.conn.cursor() as cur:
-        cur.execute("delete from ops.schema_migration where version = 2")
+        cur.execute("delete from ops.schema_migration where version >= 2")
         cur.execute("drop table vocab.source_to_concept_map")
     warehouse.conn.commit()
-    broken = migrations.Migration(3, "0003_broken.sql", "select * from no_such_table;")
-    real = migrations.migrations()
+    n = len(real) + 1
+    broken = migrations.Migration(n, f"{n:04d}_broken.sql", "select * from no_such_table;")
     monkeypatch.setattr(migrations, "migrations", lambda: [*real, broken])
     with pytest.raises(Exception, match="no_such_table"):
         migrations.migrate(warehouse.conn)
-    # 0002 ran first in the same transaction, and was rolled back with 0003
     assert rows(warehouse, "select to_regclass('vocab.source_to_concept_map') is null") == [(True,)]
     assert rows(warehouse, "select max(version) from ops.schema_migration") == [(1,)]
+
+
+def test_a_login_created_after_the_migrations_gets_its_grants_on_reapply(warehouse):
+    """A login the roles Job creates after the migration that defines its grants: the
+    deploy Job's reapply_grants gives it what the migration would have (14.3 review)."""
+    with warehouse.conn.cursor() as cur:
+        cur.execute(
+            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname ="
+            " 'dip_platform_check') THEN CREATE ROLE dip_platform_check NOLOGIN; END IF; END $$"
+        )
+        cur.execute("revoke all on ops.platform_check from dip_platform_check")
+    warehouse.conn.commit()
+    assert rows(warehouse, "select has_table_privilege('dip_platform_check',"
+                " 'ops.platform_check', 'INSERT')") == [(False,)]  # fmt: skip
+    names = migrations.reapply_grants(warehouse.conn)
+    assert "grant_platform_check" in names
+    assert rows(warehouse, "select has_table_privilege('dip_platform_check',"
+                " 'ops.platform_check', 'INSERT')") == [(True,)]  # fmt: skip

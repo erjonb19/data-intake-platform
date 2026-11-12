@@ -115,7 +115,7 @@ def test_model_calls_and_the_month_meter_work_as_the_runner(runner_conn):
 @pytest.mark.parametrize(
     "sql",
     [
-        "select * from bronze.csv_row limit 1",
+        "select * from bronze.csv_record limit 1",
         "select key from ops_secret.deid_key",
         "insert into ops.approvals default values",
         "update ops.incident set closed_at = now()",
