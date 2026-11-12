@@ -491,7 +491,11 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [x] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
   Done 2026-11-11: the Airflow base, Postgres, Marquez and Marquez web pinned by digest (resolved
   from Docker Hub); `tests/unit/test_image_digests.py` fails on a tag-only image.
-- [ ] **24.23 Dependabot cooldown of 7 days** (Low): `cooldown: { default-days: 7 }` per ecosystem.
+- [x] **24.23 Dependabot cooldown of 7 days** (Low): `cooldown: { default-days: 7 }` per ecosystem.
+  Done 2026-11-12: `cooldown: default-days: 7` for pip, docker and actions, the same 7 days
+  `scripts/lock.py` locks to; pip with `versioning-strategy: increase` (no more widened pins) and
+  paramiko ignored by version (`>=3.6`). Found by #141 (closed): five of its bumps were inside
+  the lock's cooldown, and paramiko was widened again.
 - [ ] **24.24 SECURITY.md and private vulnerability reporting** **(owner)** (Low): turn reporting on; a SECURITY.md pointing to it, with no personal email.
   Reporting turned on by the owner 2026-11-11 (the API says enabled); the SECURITY.md is left.
 - [ ] **24.25 No expressions inlined into `run:` in `release.yml`** (Low): the token and actor through `env:` (`release.yml:94`).
