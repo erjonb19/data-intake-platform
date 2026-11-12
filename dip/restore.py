@@ -256,10 +256,19 @@ def restore_latest(verify: bool = False, run: Callable[..., str] = kubectl,
             say(f"{table} is already in {LIVE_DB}: not brought back")
         else:
             entries = toc_entries(in_pod(run, "pg_restore", "--list", POD_DUMP), table)
-            in_pod(run, "sh", "-c", f"cat > {POD_LIST}",
-                   stdin=("\n".join(entries) + "\n").encode())  # fmt: skip
+            # As arguments, not stdin: `kubectl exec -i` sometimes loses a short stdin, and
+            # `pg_restore -L` with an empty list restores nothing and still exits 0 (the
+            # upgrade E2E's second drill failed that way three times, 2026-11-11). The
+            # entries are lines of the dump's table of contents, nothing secret.
+            in_pod(run, "sh", "-c", f'printf "%s\\n" "$@" > {POD_LIST}', "sh", *entries)
+            written = in_pod(run, "sh", "-c", f"grep -c . {POD_LIST} || true").strip()
+            if written != str(len(entries)):
+                raise DrillError(f"the restore list in the pod has {written or 0} lines,"
+                                 f" not {len(entries)}")  # fmt: skip
             in_pod(run, "pg_restore", "-U", "postgres", "-d", LIVE_DB, "--exit-on-error",
                    "--single-transaction", "-L", POD_LIST, POD_DUMP)  # fmt: skip
+            if psql(run, LIVE_DB, f"select to_regclass('{table}') is not null") != "t":
+                raise DrillError(f"pg_restore exited 0 but {table} is not in {LIVE_DB}")
             say(f"brought {table} back into {LIVE_DB} ({len(entries)} entries of the dump)")
         mark(f"back into {LIVE_DB}")
         live = snapshot_of(run, LIVE_DB, table)

@@ -82,7 +82,7 @@ variable "sftp_image" {
 variable "postgres_image" {
   description = "Postgres image shared by Airflow metadata, the warehouse, and Marquez."
   type        = string
-  default     = "postgres:17.6-alpine"
+  default     = "postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94"
 }
 
 # Official MinIO images are no longer published to Docker Hub or quay.io.
@@ -120,13 +120,13 @@ variable "grafana_chart_version" {
 variable "marquez_image" {
   description = "Marquez API (OpenLineage), observability profile."
   type        = string
-  default     = "marquezproject/marquez:0.51.1"
+  default     = "marquezproject/marquez:0.51.1@sha256:0721c976cff17d8b14f7949d85d6dac9c7ea37cb9fe857caa19833730fcb1a50"
 }
 
 variable "marquez_web_image" {
   description = "Marquez web UI, observability profile."
   type        = string
-  default     = "marquezproject/marquez-web:0.51.1"
+  default     = "marquezproject/marquez-web:0.51.1@sha256:7312112ca0e611b0a37b00d3da6a677485ae4a97622b23d3ae24d849a927868b"
 }
 
 variable "mcp_image_repository" {
@@ -194,6 +194,17 @@ variable "backup_keep" {
   validation {
     condition     = var.backup_keep >= 1
     error_message = "backup_keep must be at least 1."
+  }
+}
+
+# 24.11: the people who may decide on the approvals page, one token each.
+variable "approvers" {
+  description = "Approvals page reviewers (letters, digits, . _ -); each gets its own token."
+  type        = list(string)
+  default     = ["owner"]
+  validation {
+    condition     = length(var.approvers) > 0 && alltrue([for a in var.approvers : can(regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$", a))])
+    error_message = "approvers: at least one name, each letters, digits, '.', '_' or '-'."
   }
 }
 

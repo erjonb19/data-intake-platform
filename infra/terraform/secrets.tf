@@ -24,6 +24,7 @@ locals {
     "pg_backup",          # the warehouse-backup CronJob's login: pg_read_all_data (14.1)
     "minio_backup",       # the backup's MinIO user: list, put and delete in backups (14.1)
     "pg_agent_runner",    # the scheduled agent runners' warehouse login (24.9)
+    "minio_airflow",      # Airflow's MinIO user: landing, raw, quarantine, airflow-logs (24.2)
   ])
 }
 

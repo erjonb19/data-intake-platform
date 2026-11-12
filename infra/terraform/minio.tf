@@ -177,8 +177,13 @@ resource "kubernetes_job_v1" "minio_buckets" {
           args  = concat(["mb", "--ignore-existing"], [for b in var.minio_buckets : "local/${b}"])
 
           env {
-            name  = "MC_HOST_local"
-            value = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
+            name = "MC_HOST_local"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                key  = "MC_HOST_local"
+              }
+            }
           }
           env {
             name  = "MC_CONFIG_DIR"
@@ -206,4 +211,31 @@ resource "kubernetes_job_v1" "minio_buckets" {
   }
 
   depends_on = [kubernetes_deployment_v1.minio, kubernetes_service_v1.minio]
+}
+
+# 24.13: MinIO root's credentials for the mc Jobs, and the passwords those Jobs give the
+# users they create, in Secrets the Jobs read (secret_key_ref, and $(VAR) in args, which
+# the kubelet expands), so neither is in a Job's spec, which anyone who can read Jobs in
+# dip-data could see.
+resource "kubernetes_secret_v1" "minio_admin" {
+  metadata {
+    name      = "minio-admin"
+    namespace = kubernetes_namespace_v1.data.metadata[0].name
+  }
+  data = {
+    MC_HOST_local = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
+  }
+}
+
+resource "kubernetes_secret_v1" "minio_user_passwords" {
+  metadata {
+    name      = "minio-user-passwords"
+    namespace = kubernetes_namespace_v1.data.metadata[0].name
+  }
+  data = {
+    intake_api = local.pw["minio_intake_api"]
+    mcp        = local.pw["minio_mcp"]
+    backup     = local.pw["minio_backup"]
+    airflow    = local.pw["minio_airflow"]
+  }
 }

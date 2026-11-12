@@ -17,6 +17,8 @@ import urllib.request
 
 URL = os.environ["APPROVALS_URL"]
 TOKEN = os.environ["APPROVALS_TOKEN"]
+# 24.11: the token is one person's; Terraform's first approver is "owner" by default.
+REVIEWER = os.environ.get("APPROVALS_REVIEWER", "owner")
 
 
 def call(method: str, path: str, body: dict | None = None, headers: dict | None = None):
@@ -69,7 +71,14 @@ def main() -> int:
             "POST",
             f"/api/approvals/{aid}/decision",
             {"decision": "reject", "reason": "other"},
-            {"X-Reviewer": "e2e"},
+            {"X-Reviewer": "someone-else"},
+        )
+        check(status == 403, f"24.11: a token decides only as its owner: {status}")
+        status, body = call(
+            "POST",
+            f"/api/approvals/{aid}/decision",
+            {"decision": "reject", "reason": "other"},
+            {"X-Reviewer": REVIEWER},
         )
         check(status == 409 and "not pending" in body, f"deciding an executed row: {status}")
     status, denied = call("GET", "/api/audit?decision=denied&tool=execute_approved_operation")
@@ -79,7 +88,7 @@ def main() -> int:
     )
     status, refused = call("GET", "/api/audit?decision=denied&tool=approvals.reject")
     check(
-        status == 200 and any(r["principal"] == "human:e2e@dip_approver" for r in refused),
+        status == 200 and any(r["principal"] == f"human:{REVIEWER}@dip_approver" for r in refused),
         "the page's refused decision is audited as dip_approver",
     )
     # Stage 11 (S11.2): a chain's trace. intake_jobs.py ran the validator's check_dbt_models
