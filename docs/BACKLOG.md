@@ -488,7 +488,9 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
 - [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
-- [ ] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
+- [x] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
+  Done 2026-11-11: the Airflow base, Postgres, Marquez and Marquez web pinned by digest (resolved
+  from Docker Hub); `tests/unit/test_image_digests.py` fails on a tag-only image.
 - [ ] **24.23 Dependabot cooldown of 7 days** (Low): `cooldown: { default-days: 7 }` per ecosystem.
 - [ ] **24.24 SECURITY.md and private vulnerability reporting** **(owner)** (Low): turn reporting on; a SECURITY.md pointing to it, with no personal email.
   Reporting turned on by the owner 2026-11-11 (the API says enabled); the SECURITY.md is left.

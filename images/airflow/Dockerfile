@@ -1,6 +1,6 @@
 # Platform Airflow image: the official image plus our DAGs, the `dip` package, the domain
 # packs (contracts) and the dbt project. Build context is the repo root.
-FROM apache/airflow:3.4.0-python3.12
+FROM apache/airflow:3.4.0-python3.12@sha256:818f94affc5bd7ce0be0cc04f2ace09aa8382e65190a73a08881229ff32700cb
 
 # 24.4: every pip install reads a hashed lock from requirements/ (scripts/lock.py) with
 # --require-hashes --no-deps, so no unpinned or unhashed file is ever downloaded.
