@@ -277,6 +277,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch
   protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
   the steps)
+- [x] The SFTP sync refuses unsafe names and files over 50 MiB before reading them
+  (`dip/sftp_sync.py`; 24.36)
 - [x] The platform's own image bases and Terraform's image defaults pinned by digest
   (`tests/unit/test_image_digests.py`; 24.22). The Prometheus and Grafana charts still pull
   their default images by tag

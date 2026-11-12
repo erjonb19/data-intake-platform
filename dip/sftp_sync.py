@@ -26,6 +26,7 @@ The intake then treats it like any other landed file (and would still quarantine
 
 from __future__ import annotations
 
+import re
 import stat
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -36,6 +37,14 @@ from dip.contracts import Contract
 from dip.storage import ObjectStore
 
 UPLOAD_ROOT = "/upload"
+# 24.36: a name that is safe as an object key and a path segment (the intake API's rule),
+# and a size checked from the listing before a byte is read (the sync task's pod would
+# otherwise read a vendor's file of any size into memory). The cap is the largest any feed
+# accepts (X12, dip/x12feed.py), so a file within its own feed's limit is never refused
+# here; one over its feed's smaller limit still reaches the intake and is quarantined with
+# FILE.TOO_LARGE, as before. A refused file stays on the server and is logged each pass.
+SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
+MAX_BYTES = 50 * 1024 * 1024
 DONE = ".done"
 NEVER_TAKEN = (".part", ".tmp", ".filepart", DONE)  # .filepart: WinSCP
 
@@ -98,12 +107,23 @@ def sync_account(
             if not marked and age < quiet_seconds:
                 result.waiting.append(remote)
                 continue
+            # Left on the server, reported: the vendor renames or splits it.
+            if not SAFE_NAME.match(name) or ".." in name:
+                result.refused.append((remote, "file name: letters, digits, '.', '_' and '-'"))
+                continue
+            if (attr.st_size or 0) > MAX_BYTES:
+                result.refused.append((remote, f"over the {MAX_BYTES}-byte limit"))
+                continue
             key = f"{feed}/{name}"
             if store.exists(BUCKET_LANDING, key):
                 result.waiting.append(remote)
                 continue
             with client.open(remote, "rb") as fh:
-                data = fh.read()
+                # One byte past the limit at most, in case the file grew after the listing.
+                data = fh.read(MAX_BYTES + 1)
+            if len(data) > MAX_BYTES:
+                result.refused.append((remote, f"over the {MAX_BYTES}-byte limit"))
+                continue
             store.put(
                 BUCKET_LANDING, key, data, metadata={CHANNEL_KEY: "sftp", "dip-sftp-user": account}
             )
