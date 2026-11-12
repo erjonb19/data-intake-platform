@@ -197,6 +197,17 @@ variable "backup_keep" {
   }
 }
 
+# 24.11: the people who may decide on the approvals page, one token each.
+variable "approvers" {
+  description = "Approvals page reviewers (letters, digits, . _ -); each gets its own token."
+  type        = list(string)
+  default     = ["owner"]
+  validation {
+    condition     = length(var.approvers) > 0 && alltrue([for a in var.approvers : can(regex("^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$", a))])
+    error_message = "approvers: at least one name, each letters, digits, '.', '_' or '-'."
+  }
+}
+
 # 24.8: the kill switch. true refuses every propose and act call by an agent on the MCP server
 # and stops the scheduled agent runners from claiming work (docs/agents/kill-switch.md).
 variable "agents_write_disabled" {

@@ -158,7 +158,7 @@ def approvals_page(p: Page, e: dict) -> None:
     p.go("http://127.0.0.1:8081/", settle=1)
     token = json.dumps(e["APPROVALS_TOKEN"])
     p.js(f"sessionStorage.setItem('dip.token', {token});"
-         "localStorage.setItem('dip.reviewer', 'reviewer')")  # fmt: skip
+         "localStorage.setItem('dip.reviewer', 'owner')")  # 24.11: the token's owner  # fmt: skip
 
 
 def main() -> int:

@@ -467,7 +467,10 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   MCP server refuses and audits a run id without its chain's valid, unexpired token (a bare
   run id is its own chain). The
   token is minted by the platform's runner code, not by the model, which never sees it.
-- [ ] **24.11 Approvals: one token per person** (Medium): hashed per-person tokens (like `DIP_AGENT_KEYS`); the reviewer name comes from the token, not the `X-Reviewer` header.
+- [x] **24.11 Approvals: one token per person** (Medium): hashed per-person tokens (like `DIP_AGENT_KEYS`); the reviewer name comes from the token, not the `X-Reviewer` header.
+  Done 2026-11-11: Terraform's `approvers` (default `owner`), a token each, only their SHA-256 in
+  `DIP_APPROVER_TOKENS`; a decision is recorded as the token's owner and refused (403) when
+  `X-Reviewer` names someone else.
 - [ ] **24.12 Backups without the de-identification key in plaintext** (Medium): `--exclude-schema=ops_secret` with the key backed up separately, or client-side encryption of each dump; MinIO SSE on `backups`.
 - [ ] **24.13 MinIO root password out of Job specs** (Medium): the `MC_HOST_local` URI in a Secret, read with `secret_key_ref` (`minio.tf`, `intake_api.tf`, `mcp.tf`, `backups.tf`).
 - [ ] **24.14 An append-only audit log no app login can rewrite** (Medium): a separate owner role for the `ops` schema, writers with INSERT only, the app connecting as a non-owner (with 14.3's migrations).
