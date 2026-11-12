@@ -8,18 +8,19 @@ it. Everything runs on Kubernetes locally (kind), on synthetic and public data o
 
 ```mermaid
 flowchart LR
+  L[(MinIO landing/)]
   subgraph Vendors
     SFTP[SFTP push] --> L
     S3[S3 upload] --> L
     API[Intake API<br/>per-vendor keys] --> L
   end
-  L[(MinIO landing/)] --> D
+  L --> D
 
   subgraph Airflow["Airflow 3, KubernetesExecutor (one pod per task)"]
     D[land: immutable raw copy] --> V{YAML data contract}
     V -- pass --> B[(bronze)]
     V -- fail --> Q[(quarantine + reason codes)]
-    B --> DBT[dbt: silver, gold, OMOP;<br/>tests and DQ results]
+    B --> DBT[dbt: silver, gold, OMOP,<br/>tests and DQ results]
   end
 
   DBT --> W[(Postgres warehouse<br/>versioned migrations)]
@@ -40,7 +41,7 @@ flowchart LR
 
 ## How a file moves
 
-1. **Land.** The file is copied to `raw/<feed>/<date>/<sha256>` before anything else, and that
+1. **Land.** The file is copied to `raw/<feed>/<date>/<sha256><ext>` before anything else, and that
    copy is never changed, so any run can be replayed (`dip/intake.py`).
 2. **Check.** Its feed's contract (`packs/*/contracts/*.yaml`: columns, types, patterns, an
    arrival schedule, a bad-row threshold) decides: load it, load it without the bad rows, or
@@ -50,9 +51,10 @@ flowchart LR
 4. **Watch.** Lineage goes to Marquez, metrics to Prometheus, and failures, late feeds and
    quarantines open incidents in `ops.incident`.
 5. **Fix.** The incident agent diagnoses an incident from read-only tools, hands a typed
-   diagnosis to the triage agent, and the triage agent proposes an action (resend, release,
-   discard, a contract change as a pull request). A person approves it on the approvals page.
-   Only then can the proposing agent carry it out, and only that exact payload.
+   diagnosis to the triage agent, and the triage agent proposes an action (ask the vendor to
+   resend, replay or discard quarantined rows, or a contract change as a pull request). A person
+   approves it on the approvals page. Only then can the proposing agent carry out a resend,
+   replay or discard, and only that exact payload; a contract change is merged by a person.
 
 ## Guardrails on the agents
 
@@ -75,7 +77,7 @@ Measured so far (the kind cluster on a GitHub runner, 15.6 GiB):
 | --- | --- |
 | Whole platform, peak memory during the E2E | 5.0 GiB (run 42617546697) |
 | Restore drill: download, restore, verify one table | 2.4 s (run 42623049816) |
-| Live agent eval, 8 cases | $0.0354 a run |
+| Live agent eval, 8 cases | $0.0354 a run (run 41618947945) |
 
 Proof at scale is **Stage 19, not built yet**: 100k and 1M synthetic members, incremental dbt
 models and partitioned gold tables, a load test, and `docs/benchmarks.md`. Until then, these are
