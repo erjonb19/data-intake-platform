@@ -31,6 +31,8 @@ locals {
       DIP_ORCHESTRATOR_KEY = random_password.mcp_team_key["intake_orchestrator"].result
       ANTHROPIC_API_KEY    = var.anthropic_api_key
       GEMINI_API_KEY       = var.gemini_api_key
+      # 24.8: while set, the chain and the intake team claim nothing.
+      DIP_AGENTS_WRITE_DISABLED = var.agents_write_disabled ? "1" : ""
       # 24.3: both caps, so a paid key never runs uncapped (the runners refuse without them).
       DIP_SPEND_CAP_USD   = var.agent_spend_cap_usd
       DIP_MONTHLY_CAP_USD = var.agent_monthly_cap_usd

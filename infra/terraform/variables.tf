@@ -196,3 +196,11 @@ variable "backup_keep" {
     error_message = "backup_keep must be at least 1."
   }
 }
+
+# 24.8: the kill switch. true refuses every propose and act call by an agent on the MCP server
+# and stops the scheduled agent runners from claiming work (docs/agents/kill-switch.md).
+variable "agents_write_disabled" {
+  description = "Switch off the agents' write tools (DIP_AGENTS_WRITE_DISABLED)."
+  type        = bool
+  default     = false
+}

@@ -458,7 +458,8 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [x] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
   Done by the owner 2026-11-11: alerts, grouped security updates and malware alerts on (checked
   through the API: `vulnerability-alerts` 204, `automated-security-fixes` enabled).
-- [ ] **24.8 A kill switch for the agents' write tools** (Medium): `DIP_AGENTS_WRITE_DISABLED` checked in `Registry.check`: every propose and act call by an agent refused and audited as denied; the chain DAG skips while it is set.
+- [x] **24.8 A kill switch for the agents' write tools** (Medium): `DIP_AGENTS_WRITE_DISABLED` checked in `Registry.check`: every propose and act call by an agent refused and audited as denied; the chain DAG skips while it is set.
+  Done 2026-11-11: `DIP_AGENTS_WRITE_DISABLED` (Terraform `agents_write_disabled`, in the MCP and `dip-agent-chain` Secrets); `docs/agents/kill-switch.md`.
 - [ ] **24.9 Least privilege for the agent-chain pod** (Medium): a dedicated warehouse login instead of the owner DSN; each step's agent key in its own pod, or at least incident/triage split from the intake team.
 - [x] **24.10 The server, not the agent, issues run and chain ids** (Medium): an HMAC-signed run token minted when a job is claimed and checked in `on_call_tool`; a test that a key cannot read another chain's profile.
   Done 2026-11-11: chain run ids carry an HMAC token (`dip/agents/run_token.py`, key
