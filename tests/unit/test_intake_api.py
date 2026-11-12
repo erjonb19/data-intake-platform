@@ -149,7 +149,15 @@ def test_refused_requests_are_counted_for_prometheus(setup):
         ).status_code
         == 401
     )
+    # the finance vendor's key, sent to a healthcare feed: not its pack's
+    finance = {"Authorization": f"Bearer {KEYS['finance']}"}
+    assert (
+        api.post(
+            "/v1/feeds/healthcare.eligibility/files?filename=a.csv", headers=finance
+        ).status_code
+        == 403
+    )
     text = api.get("/metrics").text
     assert 'dip_intake_api_refused_total{reason="unauthorized"} 2' in text
-    assert 'dip_intake_api_refused_total{reason="forbidden"} 0' in text
-    assert "healthcare" not in text
+    assert 'dip_intake_api_refused_total{reason="forbidden"} 1' in text
+    assert "healthcare" not in text and "finance" not in text

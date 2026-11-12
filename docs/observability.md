@@ -57,7 +57,7 @@ what it is refused.
 | `dip_incidents_open{feed,kind}` | Open incidents (`FEED.LATE`) |
 | `airflow_dagrun_failed_count{dag_id}`, `airflow_dagrun_duration{dag_id}`, ... | Airflow, via StatsD |
 | `dip_agent_denied_calls_1h{principal}` | Tool calls refused in the last hour, by agent, or `human` (24.18) |
-| `dip_intake_api_refused_total{reason}` | Intake API uploads refused, `unauthorized` or `forbidden` (the API's own `/metrics`; 24.18) |
+| `dip_intake_api_refused_total{reason}` | Intake API uploads refused: `unauthorized` (no key, or an unknown one) or `forbidden` (a key sending to a feed outside its patterns; the API's own `/metrics`; 24.18) |
 
 Alerts (`observability/prometheus/rules.yml`) appear on Prometheus's `/alerts` page:
 
@@ -67,7 +67,8 @@ Alerts (`observability/prometheus/rules.yml`) appear on Prometheus's `/alerts` p
 - **DataQualityError**: a dbt test's latest result is an error. A warning is a finding, not an alert
 - **DagRunFailing**: a failed run in the last hour
 - **MetricsQueryFailing**, **TargetDown**
-- **AgentCallsDenied**: 5 or more of one agent's tool calls refused in an hour (24.18)
+- **AgentCallsDenied**: 5 or more tool calls refused in an hour for one agent, or for people
+  together (`principal="human"`) (24.18)
 - **IntakeApiAuthFailures**: over 20 uploads with no or a wrong key in 15 minutes (24.18)
 
 The thresholds suit the demo feeds. The E2E quarantines files on purpose, so after a run
