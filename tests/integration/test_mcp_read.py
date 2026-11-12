@@ -41,7 +41,9 @@ def reader(module_warehouse, tmp_path_factory):
         cur.execute(ROLES_SQL.read_text(encoding="utf-8"))
         cur.execute(f"alter role dip_mcp password '{PASSWORD}'")
     wh.conn.commit()
-    wh.init()  # the role exists now: its grants apply
+    from dip.migrations import reapply_grants
+
+    reapply_grants(wh.conn)  # the role exists now: its grants apply (14.3: as the deploy Job does)
     store = LocalStore(tmp_path_factory.mktemp("store"))
     for name in ("good/elig_good.csv", "bad/elig_bad_rows.csv"):
         store.put(BUCKET_LANDING, f"{FEED}/{Path(name).name}", (FIXTURES / name).read_bytes())

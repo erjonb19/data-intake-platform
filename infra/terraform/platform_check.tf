@@ -92,10 +92,17 @@ resource "kubernetes_secret_v1" "platform_check" {
 # the warehouse owner's DSN from airflow-connections), not first on an intake or
 # agent_chain run: until then the platform check has no ops.platform_check to write and
 # no grants, so a scheduler that never starts could not be recorded as down (the S11.10
-# proof's drills found it). Renamed, so re-run, when the schema file or the image changes.
+# proof's drills found it). Renamed, so re-run, when a migration or the image changes.
+# 14.3: it applies the pending versioned migrations (dip/migrations.py) before the services
+# start; tasks then find the warehouse current and apply nothing.
+locals {
+  migrations_dir = "${path.module}/../../dip/sql/migrations"
+  migrations_sha = sha256(join(",", [for f in sort(fileset(local.migrations_dir, "*.sql")) : "${f}=${filesha256("${local.migrations_dir}/${f}")}"]))
+}
+
 resource "kubernetes_job_v1" "warehouse_init" {
   metadata {
-    name      = "warehouse-init-${substr(sha256("${var.airflow_image_tag}:${filesha256("${path.module}/../../dip/sql/warehouse.sql")}"), 0, 8)}"
+    name      = "warehouse-init-${substr(sha256("${var.airflow_image_tag}:${local.migrations_sha}"), 0, 8)}"
     namespace = local.airflow_ns
   }
   spec {
@@ -109,7 +116,7 @@ resource "kubernetes_job_v1" "warehouse_init" {
           # there without its dependencies, so not `python -m dip db-init`).
           name    = "db-init"
           image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
-          command = ["python", "-c", "import os, psycopg2; from dip.warehouse import Warehouse; Warehouse(psycopg2.connect(os.environ['DIP_WAREHOUSE_DSN'])).init(); print('warehouse schema and grants applied')"]
+          command = ["python", "-c", "import os, psycopg2; from dip.migrations import migrate, reapply_grants; c = psycopg2.connect(os.environ['DIP_WAREHOUSE_DSN']); n = migrate(c); g = reapply_grants(c); print('applied: ' + (', '.join(n) or 'none, the warehouse is current') + '; grants: ' + ', '.join(g))"]
           env {
             name = "DIP_WAREHOUSE_DSN"
             value_from {
