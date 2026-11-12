@@ -2,7 +2,9 @@
 
 **Reviewing this for a clinical research informatics or data engineering role? Start with
 [docs/FOR_REVIEWERS.md](docs/FOR_REVIEWERS.md)**: each thing these roles ask for mapped to the
-file, the PR and the result, a two-minute tour, and an architecture diagram.
+file, the PR and the result, a two-minute tour, and an architecture diagram. The design on one
+page, with how it scales, where it breaks and its main trade-offs:
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 A free, enterprise-style platform for vendor and partner files that arrive late, change
 format, or contain bad records. Files are checked against YAML data contracts, then

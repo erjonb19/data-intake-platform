@@ -29,6 +29,8 @@ to a model provider.
 6. **Proof it runs:** the GitHub Actions `e2e` workflow brings the whole stack up on kind
    (Kubernetes in Docker) and runs every end-to-end case on every push; `upgrade` deploys
    the previous version, loads data, upgrades in place and runs the E2E again.
+7. **The design on one page:** how a file moves, the agents' guardrails, what has been
+   measured, where it breaks, and the main trade-offs: [docs/ARCHITECTURE.md](ARCHITECTURE.md).
 
 ```mermaid
 flowchart LR
