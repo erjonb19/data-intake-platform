@@ -93,6 +93,19 @@ class Policy:
         )
 
 
+# 24.8: the kill switch for the agents' write tools. With DIP_AGENTS_WRITE_DISABLED set to
+# 1, true or yes, every propose and act call by an agent is refused (and audited as denied,
+# like any refusal); read tools and people at the CLI or the approvals page are unaffected.
+# Read on every call, so the MCP pod obeys it as soon as it runs with it; the scheduled
+# runners (chain_job, intake_runner) claim nothing while it is set.
+WRITE_SWITCH = "DIP_AGENTS_WRITE_DISABLED"
+
+
+def writes_disabled(env: dict[str, str] | None = None) -> bool:
+    env = os.environ if env is None else env
+    return env.get(WRITE_SWITCH, "").strip().lower() in {"1", "true", "yes"}
+
+
 # A person at the CLI: every tool, every tier. Their calls are audited like an agent's.
 def human_policy(name: str) -> Policy:
     return Policy(f"human:{name}", "act", frozenset({"*"}), is_human=True)
@@ -222,6 +235,8 @@ class Registry:
             return f"{name!r} is not in {policy.agent}'s policy"
         if TIERS.index(tool.tier) > TIERS.index(policy.max_tier):
             return f"{name!r} is tier {tool.tier}; {policy.agent} may use up to {policy.max_tier}"
+        if tool.tier != "read" and not policy.is_human and writes_disabled():
+            return f"agent write tools are switched off ({WRITE_SWITCH})"
         key = (policy.agent, run_id or "")
         if self._calls[key] >= policy.limits.get("max_calls_per_run", 10**9):
             return f"over {policy.limits['max_calls_per_run']} calls in this run"

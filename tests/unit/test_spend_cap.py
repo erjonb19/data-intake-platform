@@ -39,6 +39,7 @@ def model(usage, max_tokens=1000):
 @pytest.fixture(autouse=True)
 def fresh_meter(monkeypatch):
     monkeypatch.setitem(llm.SPENT, "usd", 0.0)
+    monkeypatch.delenv("DIP_MONTHLY_CAP_USD", raising=False)
 
 
 def call(m):
@@ -91,3 +92,71 @@ def test_a_cache_write_costs_more_than_a_read():
     write = llm.cost_usd([{"cache_creation_input_tokens": 1_000_000}], "claude-haiku-5-5")
     read = llm.cost_usd([{"cache_read_input_tokens": 1_000_000}], "claude-haiku-5-5")
     assert write == pytest.approx(0.125) and read == pytest.approx(0.10)
+
+
+# --- 24.3: the monthly cap, counted from ops.model_call, and unpriced models -------------
+
+
+def test_the_monthly_cap_counts_this_months_live_spend(monkeypatch):
+    monkeypatch.delenv("DIP_SPEND_CAP_USD", raising=False)
+    monkeypatch.setenv("DIP_MONTHLY_CAP_USD", "5")
+    m = model({"input_tokens": 10, "output_tokens": 10}, max_tokens=1000)
+    token = llm.MONTH_METER.set(lambda: 4.0)
+    try:
+        call(m)  # $4 spent, the worst case is a fraction of a cent
+        llm.MONTH_METER.set(lambda: 4.9999)
+        with pytest.raises(SpendCap, match="5.00 monthly cap"):
+            call(m)
+    finally:
+        llm.MONTH_METER.reset(token)
+    assert m.client.calls == 1
+
+
+def test_the_monthly_cap_fails_closed_without_a_meter(monkeypatch):
+    monkeypatch.setenv("DIP_MONTHLY_CAP_USD", "5")
+    m = model({"input_tokens": 10, "output_tokens": 10})
+    with pytest.raises(SpendCap, match="cannot be counted"):
+        call(m)
+    assert m.client.calls == 0
+
+
+def test_the_monthly_cap_fails_closed_when_the_meter_fails(monkeypatch):
+    monkeypatch.setenv("DIP_MONTHLY_CAP_USD", "5")
+    m = model({"input_tokens": 10, "output_tokens": 10})
+
+    def broken():
+        raise ConnectionError("password=secret in a driver message")
+
+    token = llm.MONTH_METER.set(broken)
+    try:
+        with pytest.raises(SpendCap, match="ConnectionError") as e:
+            call(m)
+    finally:
+        llm.MONTH_METER.reset(token)
+    assert "secret" not in str(e.value)  # only the error's type, never its text
+    assert m.client.calls == 0
+
+
+def test_an_unpriced_model_is_refused(monkeypatch):
+    monkeypatch.delenv("DIP_SPEND_CAP_USD", raising=False)
+    m = model({"input_tokens": 10, "output_tokens": 10})
+    m.model = "claude-opus-5-5"
+    with pytest.raises(SpendCap, match="no price"):
+        call(m)
+    assert m.client.calls == 0
+    assert not is_failover(SpendCap("no price"))
+
+
+def test_spend_caps_missing_only_for_a_paid_provider():
+    assert llm.spend_caps_missing(["gemini"], {}) is None
+    assert "DIP_MONTHLY_CAP_USD" in llm.spend_caps_missing(
+        ["anthropic"], {"DIP_SPEND_CAP_USD": "1"})  # fmt: skip
+    assert llm.spend_caps_missing(
+        ["anthropic"], {"DIP_SPEND_CAP_USD": "1", "DIP_MONTHLY_CAP_USD": "5"}) is None  # fmt: skip
+
+
+def test_spend_cap_of_finds_a_cap_inside_an_exception_group():
+    cap = SpendCap("over")
+    assert llm.spend_cap_of(cap) is cap
+    assert llm.spend_cap_of(ExceptionGroup("g", [ValueError(), ExceptionGroup("h", [cap])])) is cap
+    assert llm.spend_cap_of(ExceptionGroup("g", [ValueError()])) is None

@@ -159,6 +159,12 @@ PLACEHOLDERS = ", ".join(["%s"] * len(COLUMNS))
 INSERT = f"insert into ops.model_call ({', '.join(COLUMNS)}) values ({PLACEHOLDERS})"
 
 
+MONTH_SQL = (
+    "select coalesce(sum(cost_usd), 0) from ops.model_call where source = 'live'"
+    " and started_at >= date_trunc('month', now() at time zone 'UTC') at time zone 'UTC'"
+)
+
+
 class WarehouseSink:
     """Writes each row on its own autocommit connection, opened at the first row (with a
     5-second connect timeout, so an unreachable warehouse cannot stall the agent for long)
@@ -185,6 +191,18 @@ class WarehouseSink:
             self.close()
             raise
 
+    def month_live_usd(self) -> float:
+        """This calendar month's (UTC) live spend in ops.model_call: what
+        DIP_MONTHLY_CAP_USD is checked against (24.3). Replayed calls cost nothing and are
+        left out. Raises when the warehouse cannot be read, so the cap fails closed."""
+        if self.conn is None:
+            import psycopg
+
+            self.conn = psycopg.connect(self.dsn, autocommit=True, connect_timeout=5)
+        with self.conn.cursor() as cur:
+            cur.execute(MONTH_SQL)
+            return float(cur.fetchone()[0])
+
     def close(self) -> None:
         if self.conn is not None:
             try:
@@ -200,10 +218,14 @@ def to_warehouse(dsn: str | None) -> Iterator[None]:
     if not dsn:
         yield
         return
+    from dip.agents.llm import MONTH_METER
+
     sink = WarehouseSink(dsn)
     token = SINK.set(sink)
+    meter_token = MONTH_METER.set(sink.month_live_usd)  # 24.3: DIP_MONTHLY_CAP_USD
     try:
         yield
     finally:
+        MONTH_METER.reset(meter_token)
         SINK.reset(token)
         sink.close()

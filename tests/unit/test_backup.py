@@ -211,3 +211,12 @@ def test_backup_now_refuses_any_cluster_but_kind_dip():
     with pytest.raises(DrillError, match="kind-dip"):
         backup.now_job(run, sleep=lambda s: None)
     assert len(calls) == 1  # nothing created
+
+
+def test_the_dump_leaves_out_the_deid_keys_rows():
+    """24.12: the backup never carries ops_secret.deid_key's rows into the bucket."""
+    from pathlib import Path
+
+    tf = (Path(__file__).resolve().parents[2] / "infra/terraform/backups.tf").read_text("utf-8")
+    dump = tf[tf.index("if pg_dump") : tf.index("--file=/backup/warehouse.dump")]
+    assert "--exclude-table-data='ops_secret.*'" in dump

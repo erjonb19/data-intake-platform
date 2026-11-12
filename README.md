@@ -262,6 +262,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   in `infra/terraform/`); the `bad_secret` drill (runbook 11)
 - [x] No password in any Job's spec: MinIO root and new users' passwords come from Secrets
   (`infra/terraform/minio.tf`, `tests/unit/test_job_secrets.py`; 24.13)
+- [x] Airflow pods hold no master secret: Airflow's own MinIO user limited to its four buckets,
+  and the de-identification and SFTP keys only in the one task pod that uses each
+  (`infra/terraform/airflow.tf`, `tests/unit/test_airflow_secrets.py`; 24.2)
 - [ ] Liveness probes beyond MinIO: not yet built (13.1)
 - [ ] Rolling updates with `maxUnavailable: 0` and `dip rollback`: not yet built (13.2)
 - [ ] A bad-release drill: not yet built (13.3)
@@ -297,8 +300,10 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `dip restore --latest --verify` restores the newest dump into `warehouse_restore`, brings
   the table back and compares; the kind E2E runs it on every push and reports the time to
   restore (`dip/restore.py`, `tests/e2e/restore.py`, `docs/backups.md`; 14.2)
-- [ ] Versioned warehouse migrations: not yet built (14.3); today the schemas are
-  `create ... if not exists` at startup (`dip/sql/warehouse.sql`)
+- [x] Versioned warehouse migrations: numbered SQL files applied once each and recorded in
+  `ops.schema_migration`, by the `warehouse-init` Job before the services start; tasks find the
+  warehouse current and apply nothing (`dip/migrations.py`, `dip/sql/migrations/`,
+  `docs/migrations.md`; 14.3)
 - [ ] Backpressure on a flood of files: not yet built (16.1)
 - [ ] Signed inbound webhooks: not yet built (16.2)
 - [ ] Measured scale: a volume generator, incremental dbt models, partitioned gold tables
@@ -313,7 +318,7 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   (`observability/prometheus/rules.yml`); Grafana dashboards for feeds, DAG runs and
   agents (`observability/grafana/`)
 - [x] Agent traces as database rows: `ops.trace_span`, `ops.model_call`, `ops.audit_log`
-  (`dip/agents/trace.py`, `dip/sql/warehouse.sql`)
+  (`dip/agents/trace.py`, `dip/sql/migrations/0001_baseline.sql`)
 - [x] Break-and-fix: `python -m dip break` (`dip/breakages.py`) and runbooks 01–08
   (`docs/runbooks/`); the whole loop runs in the kind E2E (`tests/e2e/break_loop.py`)
 - [x] Platform drills (scheduler down, OOMKilled, bad secret, stuck queued; runbooks 09–12),
@@ -331,6 +336,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Guardrails: per-agent keys and Read, Propose and Act tiers on the MCP server
   (`docs/agents/mcp-read.md`); a person approves every change (`python -m dip approvals`,
   the approvals page); every agent action in `ops.audit_log`
+- [x] The approvals page gives each person their own token and records a decision as the
+  token's owner (`dip/agents/gateway.py`, `tests/integration/test_gateway.py`; 24.11)
 - [x] Chain run ids are signed by the platform and checked by the MCP server, so an agent key
   cannot act as another chain (`dip/agents/run_token.py`, `tests/unit/test_run_token.py`; 24.10)
 - [x] Agent evals in CI, where every case must pass: recorded model turns replay in the
@@ -338,6 +345,12 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   a model (`docs/agents/EVALS.md`, `agents/evals/`)
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
+- [x] A kill switch for the agents' write tools: one setting refuses every agent propose and act
+  call (audited) and stops the scheduled agents (`docs/agents/kill-switch.md`; 24.8)
+- [x] A hard spend cap on the scheduled agents: per run and per calendar month, counted from `ops.model_call`,
+  failing closed, and no run at all with a paid key and no cap (`dip/agents/llm.py`,
+  `tests/unit/test_spend_cap.py`; 24.3). The provider-side limit in the Anthropic Console is the
+  owner's step
 
 **Access**
 

@@ -236,5 +236,6 @@ resource "kubernetes_secret_v1" "minio_user_passwords" {
     intake_api = local.pw["minio_intake_api"]
     mcp        = local.pw["minio_mcp"]
     backup     = local.pw["minio_backup"]
+    airflow    = local.pw["minio_airflow"]
   }
 }
