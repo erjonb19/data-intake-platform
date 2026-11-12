@@ -85,7 +85,10 @@ def test_the_values_are_the_warehouse_state(scraped):
         "select record_ref from ops.quarantine",
         "select source_key from ops.intake_file",
         "select count(*) from gold.vendor_invoice",
-        "select count(*) from ops.audit_log",
+        # 24.18: it may read when, who and the decision of an audit row, nothing else
+        "select reason from ops.audit_log",
+        "select args_sha256 from ops.audit_log",
+        "select run_id from ops.audit_log",
     ],
 )
 def test_the_login_reads_nothing_else(scraped, sql):
