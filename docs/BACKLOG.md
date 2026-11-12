@@ -476,7 +476,10 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   empty and the key stays in the `dip-deid` Secret (fhir_intake reinstalls it after a restore);
   the E2E checks the archive holds no `ops_secret` rows. MinIO SSE on `backups` needs a KMS key
   on MinIO and goes with encryption at rest in 24.38.
-- [ ] **24.13 MinIO root password out of Job specs** (Medium): the `MC_HOST_local` URI in a Secret, read with `secret_key_ref` (`minio.tf`, `intake_api.tf`, `mcp.tf`, `backups.tf`).
+- [x] **24.13 MinIO root password out of Job specs** (Medium): the `MC_HOST_local` URI in a Secret, read with `secret_key_ref` (`minio.tf`, `intake_api.tf`, `mcp.tf`, `backups.tf`).
+  Done 2026-11-11: `MC_HOST_local` from the `minio-admin` Secret and each new user's password
+  from `minio-user-passwords` (`$(NEW_USER_PASSWORD)` in the args, expanded by the kubelet);
+  `tests/unit/test_job_secrets.py` fails on any password in a Job's spec.
 - [ ] **24.14 An append-only audit log no app login can rewrite** (Medium): a separate owner role for the `ops` schema, writers with INSERT only, the app connecting as a non-owner (with 14.3's migrations).
 - [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
 - [ ] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.

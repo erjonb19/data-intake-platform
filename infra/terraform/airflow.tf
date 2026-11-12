@@ -75,7 +75,7 @@ locals {
     ]
   })
   # Versioned like mcp.tf: a changed policy or password gets a fresh user and Job.
-  airflow_minio_suffix = substr(sha256("${local.airflow_minio_policy}${local.pw["minio_airflow"]}"), 0, 8)
+  airflow_minio_suffix = substr(sha256("24.13:${local.airflow_minio_policy}${local.pw["minio_airflow"]}"), 0, 8)
   airflow_minio_user   = "airflow-${local.airflow_minio_suffix}"
 }
 
@@ -102,15 +102,29 @@ resource "kubernetes_job_v1" "airflow_minio_user" {
         dynamic "init_container" {
           for_each = {
             "1-policy" = ["admin", "policy", "create", "local", local.airflow_minio_user, "/policy/policy.json"]
-            "2-user"   = ["admin", "user", "add", "local", local.airflow_minio_user, local.pw["minio_airflow"]]
+            "2-user"   = ["admin", "user", "add", "local", local.airflow_minio_user, "$(NEW_USER_PASSWORD)"]
           }
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
             args  = init_container.value
             env {
-              name  = "MC_HOST_local"
-              value = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
+              name = "NEW_USER_PASSWORD"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_user_passwords.metadata[0].name
+                  key  = "airflow"
+                }
+              }
+            }
+            env {
+              name = "MC_HOST_local"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                  key  = "MC_HOST_local"
+                }
+              }
             }
             env {
               name  = "MC_CONFIG_DIR"
@@ -132,8 +146,13 @@ resource "kubernetes_job_v1" "airflow_minio_user" {
           image = var.minio_client_image
           args  = ["admin", "policy", "attach", "local", local.airflow_minio_user, "--user", local.airflow_minio_user]
           env {
-            name  = "MC_HOST_local"
-            value = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
+            name = "MC_HOST_local"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                key  = "MC_HOST_local"
+              }
+            }
           }
           env {
             name  = "MC_CONFIG_DIR"
