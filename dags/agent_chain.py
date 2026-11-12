@@ -23,8 +23,9 @@ from airflow.sdk import dag, task
 
 
 def _executor_config(secret: str) -> dict:
-    """The task's pod: the agent environment from its Secret (optional, so the DAG is
-    valid before Terraform has created it) and limits an agent run cannot exceed. 24.9:
+    """The task's pod: the agent environment from its Secret (optional, so the DAG parses
+    before Terraform has created it; a task then fails in _agent_dsn, on purpose) and limits
+    an agent run cannot exceed. 24.9:
     run_chain mounts dip-agent-chain (the incident and triage keys), intake_jobs mounts
     dip-intake-team (the team's keys); neither holds the other's."""
     from kubernetes.client import models as k8s
@@ -37,6 +38,15 @@ def _executor_config(secret: str) -> dict:
             requests={"cpu": "100m", "memory": "256Mi"},
             limits={"cpu": "1", "memory": "512Mi"}),
     )]))}  # fmt: skip
+
+
+def _runner_env() -> dict[str, str]:
+    """The task's environment for the runner, without Airflow's own connections: every
+    Airflow pod holds AIRFLOW_CONN_WAREHOUSE (the warehouse owner) and AIRFLOW_CONN_MINIO,
+    and the runner must have only its own login (24.9)."""
+    import os
+
+    return {k: v for k, v in os.environ.items() if not k.startswith("AIRFLOW_CONN_")}
 
 
 def _agent_dsn() -> str:
@@ -91,7 +101,7 @@ def agent_chain():
         cmd = [python, "-m", "dip.agents.chain_job", "--limit", "3"]
         if run_id:
             cmd += ["--dag-run-id", run_id]
-        env = {**os.environ, "DIP_WAREHOUSE_DSN": _agent_dsn()}
+        env = {**_runner_env(), "DIP_WAREHOUSE_DSN": _agent_dsn()}
         p = subprocess.run(cmd, env=env, capture_output=True, text=True)
         print(p.stdout[-4000:], p.stderr[-4000:], sep="\n")
         if p.returncode != 0:
@@ -135,7 +145,7 @@ def agent_chain():
             print(f"not taken: {line}")
         print(f"onboarding: queued {out['queued']}, feed already open {out['already_open']}")
         python = os.environ.get("DIP_AGENT_PYTHON", "/opt/airflow/agent-venv/bin/python")
-        env = {**os.environ, "DIP_WAREHOUSE_DSN": _agent_dsn()}
+        env = {**_runner_env(), "DIP_WAREHOUSE_DSN": _agent_dsn()}
         cmd = [python, "-m", "dip.agents.intake_runner", "--limit", "1"]
         try:
             from airflow.sdk import get_current_context
