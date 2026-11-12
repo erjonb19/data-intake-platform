@@ -513,7 +513,11 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
 - [ ] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
 - [ ] **24.41 Retention and a second backup copy** (Low): MinIO lifecycle rules for `airflow-logs` (per-layer retention is 22.2); optionally a host copy of the newest dump.
-- [ ] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).
+- [x] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).
+  Done 2026-11-12: the audit's `.claude/settings.json`, plus denies the owner added on
+  2026-11-11 (`git tag`, pushes to `main`, tag pushes, for Bash and PowerShell);
+  `.claude/worktrees/` and `.claude/settings.local.json` gitignored. Merged on the owner's
+  explicit OK in chat.
 - [ ] **24.43 The three open CodeQL alerts** (Low; found 2026-11-11, not in the audit): #3
   `py/clear-text-logging-sensitive-data`, `scripts/check_model.py:38`, prints the key's variable
   name, not the key (false positive: dismiss with that reason); #1
