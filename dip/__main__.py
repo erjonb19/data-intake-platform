@@ -1,6 +1,7 @@
 """Command line: `python -m dip <command>`.
 
-  db-init                      create the bronze and ops tables
+  db-init                      create the bronze and ops tables (= migrate)
+  migrate [--status]           apply the pending warehouse migrations (14.3); --status lists them
   land <feed> <files...>       copy local files into the landing bucket
   intake                       process everything in the landing bucket
   vocab-load                   load the OMOP vocabulary: the pinned Eunomia shard, or
@@ -650,6 +651,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--store-dir", default="data/store")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("db-init")
+    mig = sub.add_parser("migrate")
+    mig.add_argument(
+        "--status", action="store_true", help="list applied and pending, apply nothing"
+    )
     land = sub.add_parser("land")
     land.add_argument("feed")
     land.add_argument("files", nargs="+", type=Path)
@@ -777,6 +782,17 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "db-init":
         _warehouse().init()
+    elif args.command == "migrate":
+        from dip import migrations
+
+        conn = _warehouse().conn
+        if args.status:
+            done = migrations.applied(conn)
+            for m in migrations.migrations():
+                print(f"{'applied' if m.version in done else 'pending'}  {m.name}")
+        else:
+            names = migrations.migrate(conn)
+            print(f"applied {', '.join(names)}" if names else "the warehouse is current")
     elif args.command == "land":
         store = _store(args)
         for f in args.files:

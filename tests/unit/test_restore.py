@@ -60,6 +60,9 @@ class Kube:
         self.calls: list[tuple] = []
         self.stdin: dict[str, bytes] = {}
         self.sql: list[tuple[str, str]] = []
+        self.list_lines: list[str] = []
+        self.lost_list = False  # the pod's list file ends up empty (a lost write)
+        self.restored = False
 
     def __call__(self, *args, check=True, stdin=None, timeout=900):
         self.calls.append(args)
@@ -68,6 +71,14 @@ class Kube:
         cmd = list(args[args.index("--") + 1 :])
         if stdin is not None:
             self.stdin[cmd[-1]] = stdin
+        if cmd[0] == "sh" and cmd[2].startswith("printf") and restore.POD_LIST in cmd[2]:
+            self.list_lines = [] if self.lost_list else cmd[4:]
+            return ""
+        if cmd[0] == "sh" and "grep -c" in cmd[-1]:
+            return str(len(self.list_lines))
+        if cmd[0] == "pg_restore" and "-L" in cmd:
+            self.restored = True
+            return ""
         if cmd[0] == "sh" and "sha256sum" in cmd[-1]:
             return f"   {self.copy_size}\n{self.copy_sha}  {restore.POD_DUMP}"
         if cmd[:2] == ["pg_restore", "--list"]:
@@ -84,7 +95,7 @@ class Kube:
         if "datdba" in sql:
             return "warehouse"
         if "to_regclass" in sql:
-            return "t" if self.there else "f"
+            return "t" if self.there or self.restored else "f"
         if "md5(string_agg" in sql:
             return "|".join(("42", "abc") if db == restore.RESTORE_DB else self.live)
         if "relacl" in sql:
@@ -130,7 +141,7 @@ def test_restore_brings_the_table_back_and_verifies_it():
     assert not any(c[0] == "dropdb" and "warehouse" in c[-1:] for c in execs)
     assert [c for c in execs if c[0] == "pg_restore" and "warehouse" in c and "-L" not in c] == []
     # only the dropped table's own entries go back
-    assert k.stdin[f"cat > {restore.POD_LIST}"].decode().splitlines() == [
+    assert k.list_lines == [
         "3101; 1259 16500 TABLE gold member_eligibility warehouse",
         "3201; 0 16500 TABLE DATA gold member_eligibility warehouse",
         "3301; 0 0 ACL gold TABLE member_eligibility warehouse",
@@ -246,3 +257,13 @@ def test_a_restore_without_a_drill_takes_the_newest_backup():
     run_restore(k, verify=False)
     asked = [sql for _, sql in k.sql if sql.startswith("select backup_id, object_key")]
     assert asked == [restore.NEWEST_BACKUP_SQL]
+
+
+def test_a_list_lost_on_its_way_into_the_pod_stops_the_restore():
+    """The upgrade E2E's second drill, 2026-11-11: an empty list made `pg_restore -L`
+    restore nothing and exit 0. Now the list's lines are counted in the pod first."""
+    k = Kube()
+    k.lost_list = True
+    with pytest.raises(DrillError, match="restore list in the pod has 0 lines"):
+        run_restore(k)
+    assert not k.restored
