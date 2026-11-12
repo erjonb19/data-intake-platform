@@ -38,11 +38,11 @@ CREATE TABLE IF NOT EXISTS ops.incident (
     detail        text,
     target        text                    -- Stage 11 (S11.6): platform incidents
 );
--- an upgraded warehouse's table predates the column (warehouse.sql adds it too)
+-- an upgraded warehouse's table predates the column (migration 0001 adds it too)
 ALTER TABLE ops.incident ADD COLUMN IF NOT EXISTS target text;
 CREATE UNIQUE INDEX IF NOT EXISTS incident_one_per_window
     ON ops.incident (feed, kind, window_start, (coalesce(target, '')));
--- The metrics exporter reads open incidents (dip/sql/warehouse.sql).
+-- The metrics exporter reads open incidents (dip/sql/migrations/0001_baseline.sql).
 DO $$ BEGIN
     IF to_regprocedure('ops.grant_metrics_reader()') IS NOT NULL THEN
         PERFORM ops.grant_metrics_reader();

@@ -11,20 +11,22 @@ person approved), and the approvals table's trigger still holds it to the one-wa
 machine. Decisions go through `dip.agents.approvals.decide`, the CLI's function, so the
 approval rules (pending only, expiry, the approved payload's hash) live in one place.
 
-Who decided: the `X-Reviewer` header, recorded as `human:<name>@<database login>`, the
-same shape as the CLI's `human:<OS user>@<database login>`. Like the CLI's, the name is
-self-asserted: anyone who can reach this page can decide, as anyone with the warehouse
-DSN can with the CLI. Reaching it means holding its token: every /api route needs
-`Authorization: Bearer <DIP_APPROVALS_TOKEN>` (Terraform's `approvals_token` output; the
-page asks for it once), so another pod in the cluster cannot approve as a person by
-calling the Service. Two browser-side guards besides: the Host header must be one this
-server was told to accept (a DNS-rebinding page cannot reach it through a port-forward),
-and a decision needs the custom header and a JSON body, which a cross-site form cannot
-send.
+Who decided (24.11): each person has their own token, and the decision is recorded as
+`human:<that person>@<database login>`, the same shape as the CLI's `human:<OS
+user>@<login>`. Every /api route needs `Authorization: Bearer <token>`; the server keeps
+only each token's SHA-256 (`DIP_APPROVER_TOKENS`, a JSON object of name -> hash, like the
+MCP server's `DIP_AGENT_KEYS`), so another pod in the cluster cannot approve by calling
+the Service, and one person cannot decide as another. The `X-Reviewer` header must name
+the token's owner (the page sends what the person typed). Without tokens (a laptop: the
+CLI refuses to listen beyond loopback then), the header's name is recorded as given, like
+the CLI's. Two browser-side guards besides: the Host header must be one this server was
+told to accept (a DNS-rebinding page cannot reach it through a port-forward), and a
+decision needs the custom header and a JSON body, which a cross-site form cannot send.
 """
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import re
 import time
@@ -65,13 +67,22 @@ Conn = Annotated[Any, Depends(_db)]
 
 
 def _authorized(request: Request) -> None:
-    token = request.app.state.token
-    if token is None:
+    """With per-person tokens, the bearer token's owner goes in request.state.person."""
+    people: dict[str, str] | None = request.app.state.people
+    request.state.person = None
+    if people is None:
         return
-    given = request.headers.get("authorization", "")
-    if not hmac.compare_digest(given.encode(), f"Bearer {token}".encode()):
+    scheme, _, given = request.headers.get("authorization", "").partition(" ")
+    digest = hashlib.sha256(given.encode()).hexdigest()
+    # Every entry is compared, so the time taken says nothing about which name matched.
+    match = None
+    for name, want in people.items():
+        if hmac.compare_digest(digest.encode(), want.encode()) and scheme == "Bearer" and given:
+            match = name
+    if match is None:
         raise HTTPException(401, "a valid approvals token is required",
                             headers={"WWW-Authenticate": "Bearer"})  # fmt: skip
+    request.state.person = match
 
 
 API = [Depends(_authorized)]
@@ -118,15 +129,16 @@ def _provider(conn: Any, run_id: str | None) -> str | None:
 
 
 def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
-               token: str | None = None) -> FastAPI:  # fmt: skip
+               people: dict[str, str] | None = None) -> FastAPI:  # fmt: skip
     """`connect` opens a warehouse connection (one per request: the page is for a few
-    people, and a dropped connection never outlives a request). With `token`, every /api
-    route needs it as a bearer token; without, the server is for a laptop only (the CLI
-    refuses to listen beyond loopback without one)."""
+    people, and a dropped connection never outlives a request). With `people` (name ->
+    SHA-256 of that person's token), every /api route needs one of the tokens as a bearer
+    token, and a decision is recorded as its owner's; without, the server is for a laptop
+    only (the CLI refuses to listen beyond loopback without them)."""
     app = FastAPI(title="dip approvals", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
     app.state.connect = connect
-    app.state.token = token or None
+    app.state.people = dict(people) if people else None
 
     @contextmanager
     def unavailable() -> Iterator[None]:
@@ -170,16 +182,20 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
         return a
 
     @app.post("/api/approvals/{approval_id}/decision", dependencies=API)
-    def decide(approval_id: int, body: Decision, conn: Conn,
+    def decide(approval_id: int, body: Decision, conn: Conn, request: Request,
                x_reviewer: str | None = Header(default=None)) -> dict[str, Any]:  # fmt: skip
         if not x_reviewer or not REVIEWER.fullmatch(x_reviewer):
             raise HTTPException(400, "an X-Reviewer header (letters, digits, . _ -) is required")
+        person = request.state.person
+        if person is not None and x_reviewer != person:
+            raise HTTPException(403, "this token is not the named reviewer's")
+        name = person or x_reviewer
         with unavailable():
             with conn.cursor() as cur:
                 cur.execute("select session_user")
                 (db_user,) = cur.fetchone()
             conn.commit()
-            me = human_policy(f"{x_reviewer}@{db_user}")
+            me = human_policy(f"{name}@{db_user}")
             tool = f"approvals.{body.decision}"
             args = {"approval_id": approval_id}
             started = time.monotonic()

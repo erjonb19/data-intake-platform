@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run the end-to-end tests against the running stack (after smoke.sh): the research-track
 # FHIR flow, then the file-feed cases in tests/e2e/cases.yaml.
-# Needs boto3, psycopg and pyyaml: uses .venv if present (pip install -e ".[dev]").
+# Needs boto3, psycopg and pyyaml: uses .venv if present (requirements/e2e.txt or dev.txt).
 # shellcheck source=scripts/lib.sh
 source "$(dirname "$0")/lib.sh"
 require terraform kubectl
@@ -114,7 +114,7 @@ MCP_URL="http://127.0.0.1:$MCP_PORT" MCP_READER_KEY="$(tf output -raw mcp_reader
 # (the agent_chain DAG's intake_jobs task) and from an executed propose_contract_change.
 MCP_URL="http://127.0.0.1:$MCP_PORT" MCP_READER_KEY="$(tf output -raw mcp_reader_key)" \
   MCP_TRIAGE_KEY="$(tf output -raw mcp_triage_key)" MCP_TEAM_KEYS="$(tf output -json mcp_team_keys)" \
-  "$py" "$REPO_ROOT/tests/e2e/intake_jobs.py"
+  DIP_RUN_TOKEN_KEY="$(tf output -raw run_token_key)" "$py" "$REPO_ROOT/tests/e2e/intake_jobs.py"
 
 # Stage 9 (S9.2): the approvals page, after the break loop left an executed approval and
 # a denied Act call behind. It runs as its own login (dip_approver).

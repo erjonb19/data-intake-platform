@@ -168,3 +168,23 @@ def test_filepart_is_never_taken_and_an_orphan_marker_is_removed(tmp_path, contr
     assert sorted(p.name for p in (server / "upload" / FEED).iterdir()) == [
         "elig_20261022.csv.filepart"
     ]
+
+
+def test_an_unsafe_name_or_an_oversized_file_is_refused_and_left(tmp_path, contracts, monkeypatch):
+    """24.36: checked from the listing, before a byte is read; the file stays on the server."""
+    from dip import sftp_sync
+
+    monkeypatch.setattr(sftp_sync, "MAX_BYTES", 1000)
+    server, store = tmp_path / "srv", LocalStore(tmp_path / "store")
+    upload(server, FEED, "elig_20261022.csv", b"x" * 1001)
+    upload(server, FEED, "elig 20261023.csv", b"x")
+    upload(server, FEED, "-elig.csv", b"x")
+    r = sync_account(FakeSFTP(server), "healthcare", store, contracts, NOW)
+    assert r.moved == []
+    assert sorted(why for _, why in r.refused) == [
+        "file name: letters, digits, '.', '_' and '-'",
+        "file name: letters, digits, '.', '_' and '-'",
+        "over the 1000-byte limit",
+    ]
+    assert len(list((server / "upload" / FEED).iterdir())) == 3
+    assert store.list(BUCKET_LANDING) == []

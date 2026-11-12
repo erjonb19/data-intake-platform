@@ -7,7 +7,7 @@ name: upgrade
 #
 # It is two full deploys (about twice e2e.yml), so it runs nightly, on demand, and on PRs
 # that touch what an upgrade exercises: dbt, Terraform and Helm values (infra/), the
-# images, and the warehouse DDL (dip/sql/warehouse.sql, applied by dip/warehouse.py).
+# images, and the warehouse migrations (dip/sql/migrations/, applied by dip/migrations.py).
 #   PR:              from = the base (HEAD^1),         to = the PR merged into its base
 #   nightly, manual: from = the previous main (HEAD^1), to = main
 
@@ -21,6 +21,7 @@ on:
       - "infra/**"
       - "images/**"
       - "dip/warehouse.py"
+      - "dip/migrations.py"
       - "dip/sql/**"
       - "scripts/up.sh"
       - "scripts/upgrade_snapshot.sh"
@@ -41,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 100  # Stage 11: two E2E runs, each with the platform drills
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -58,7 +59,7 @@ jobs:
           # The same snapshot script runs before and after, whatever the old version has.
           cp scripts/upgrade_snapshot.sh "$RUNNER_TEMP/upgrade_snapshot.sh"
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.6"
           terraform_wrapper: false
@@ -73,7 +74,7 @@ jobs:
       - name: E2E dependencies
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5" "jsonschema==4.*"
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/build.txt && .venv/bin/pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/e2e.txt
 
       # Phase 1: the old version, with data. State (tfstate, kubeconfig, .venv) is
       # gitignored, so it stays in place when the checkout moves to the new version.
@@ -114,7 +115,7 @@ jobs:
 
       - name: Upload diagnostics
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: upgrade-diagnostics
           path: artifacts/

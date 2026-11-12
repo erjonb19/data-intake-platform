@@ -32,7 +32,7 @@ ALTER ROLE dip_cohort_reader SET idle_in_transaction_session_timeout = '60s';
 ALTER ROLE dip_cohort_reader SET search_path = omop_shareable;
 
 -- Read-only login for the warehouse metrics exporter (S3.2, dip/metrics.py). It reads only
--- the ops columns its queries name: ops.grant_metrics_reader() (dip/sql/warehouse.sql)
+-- the ops columns its queries name: ops.grant_metrics_reader() (dip/sql/migrations/0001_baseline.sql)
 -- grants them where each table is created. Nothing in bronze, silver, gold or the research
 -- tiers. Its password is set by postgres-roles-password.psql from a Kubernetes secret.
 DO $$
@@ -50,7 +50,7 @@ ALTER ROLE dip_metrics SET search_path = ops;
 
 -- The MCP server's login (S3.4, the Read tier, infra/terraform/mcp.tf). It reads the ops
 -- tables its read tools name and appends to ops.audit_log (every call is audited), by the
--- grants in ops.grant_mcp_reader() (dip/sql/warehouse.sql). Not read-only by default: the
+-- grants in ops.grant_mcp_reader() (dip/sql/migrations/0001_baseline.sql). Not read-only by default: the
 -- audit insert is a write. Nothing in bronze, silver, gold or the research tiers.
 DO $$
 BEGIN
@@ -67,7 +67,7 @@ ALTER ROLE dip_mcp SET search_path = ops;
 
 -- The approvals page's login (Stage 9, S9.2, infra/terraform/approvals.tf): reads
 -- ops.approvals and ops.audit_log, appends to the audit log, and sets an approval's
--- decision columns, by the grants in ops.grant_approver() (dip/sql/warehouse.sql). It
+-- decision columns, by the grants in ops.grant_approver() (dip/sql/migrations/0001_baseline.sql). It
 -- cannot execute an approval or touch any data table.
 DO $$
 BEGIN
@@ -85,7 +85,7 @@ ALTER ROLE dip_approver SET search_path = ops;
 -- The platform check's login (Stage 11, S11.6; dip/platform_check.py, a CronJob in
 -- dip-airflow). It opens and closes platform incidents and records what it saw: insert and
 -- update on ops.incident (the decision columns only) and insert on ops.platform_check, by
--- ops.grant_platform_check() (dip/sql/warehouse.sql). Nothing else.
+-- ops.grant_platform_check() (dip/sql/migrations/0001_baseline.sql). Nothing else.
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'dip_platform_check') THEN
@@ -104,7 +104,7 @@ ALTER ROLE dip_platform_check SET search_path = ops;
 -- predefined pg_read_all_data (Postgres 14+): SELECT everywhere, no writes, no superuser,
 -- no replication. INHERIT, so the membership's privileges apply (the other logins are
 -- NOINHERIT and hold no roles). Its one write is its own row in ops.backup, by
--- ops.grant_backup() (dip/sql/warehouse.sql). No statement_timeout: a dump of a large
+-- ops.grant_backup() (dip/sql/migrations/0001_baseline.sql). No statement_timeout: a dump of a large
 -- warehouse takes minutes (pg_dump sets its own session timeouts to 0 anyway).
 DO $$
 BEGIN

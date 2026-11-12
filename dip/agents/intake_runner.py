@@ -20,7 +20,8 @@ from collections.abc import Callable
 from typing import Any
 
 from dip.agents.chain_job import _llm_for, merge_version, set_versions
-from dip.agents.llm import NoProvider, provider_names
+from dip.agents.llm import NoProvider, provider_names, spend_cap_of, spend_caps_missing
+from dip.agents.registry import WRITE_SWITCH, writes_disabled
 
 KEYS = {
     "profile": "DIP_PROFILE_KEY",
@@ -33,12 +34,16 @@ KEYS = {
 
 def plan(env: dict[str, str]) -> tuple[tuple[str, ...], str | None]:
     """(providers, None) when jobs can run here, else ((), why not)."""
+    if writes_disabled(env):  # 24.8: the jobs wait until the switch is off
+        return (), f"agent write tools are switched off ({WRITE_SWITCH})"
     missing = [v for v in ("DIP_MCP_URL", *KEYS.values()) if not env.get(v)]
     if missing:
         return (), f"no intake-team MCP configuration: {', '.join(missing)} unset"
     names = provider_names(env)
     if not names:
         return (), "no model key (ANTHROPIC_API_KEY or GEMINI_API_KEY) in the agent environment"
+    if why := spend_caps_missing(names, env):  # 24.3: fails closed
+        return (), why
     return tuple(names), None
 
 
@@ -119,6 +124,10 @@ def run(
             continue
         except Exception as exc:  # the team's errors are the record, not a crash
             conn.rollback()
+            if cap := spend_cap_of(exc):  # 24.3: back to the queue, not failed
+                requeue(conn, job["job_id"], f"spend cap: {cap}", dag_run_id)
+                summary["done"][job["job_id"]] = "queued"
+                break
             finish(
                 conn,
                 job["job_id"],
