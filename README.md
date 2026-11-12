@@ -287,6 +287,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Every GitHub Action pinned by commit SHA, its version in a comment (`tests/unit/test_actions_pinned.py`; 24.5)
 - [x] Claude Code project settings: a deny list (secrets, force pushes, tags, pushes to
   `main`) and asks for installs and destructive commands (`.claude/settings.json`; 24.42)
+- [x] Dependabot proposes only versions public for 7 days, and raises pins without widening
+  them (`.github/dependabot.yml`; 24.23)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
