@@ -23,7 +23,11 @@ def backup_login(warehouse) -> dict:
         cur.execute((REPO_ROOT / "infra/terraform/files/postgres-roles.sql").read_text("utf-8"))
         cur.execute("alter role dip_backup password 'ci-backup-0123'")
     warehouse.conn.commit()
-    warehouse.init()  # the role exists now: its grants apply
+    from dip.migrations import reapply_grants
+
+    reapply_grants(
+        warehouse.conn
+    )  # the role exists now: its grants apply (14.3: as the deploy Job does)
     info = psycopg.conninfo.conninfo_to_dict(warehouse.conn.info.dsn)
     info.update(user="dip_backup", password="ci-backup-0123")
     return info

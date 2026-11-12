@@ -205,7 +205,7 @@ Incident: the dropped table (runbook `14-restore.md`).
   - Runbook `14-restore.md` is deferred: `docs/runbooks/` is the incident agent's search
     input, so a new runbook changes the incident recordings, and that re-recording needs
     the user's approval first. The drill's steps are in `docs/backups.md` until then.
-- [ ] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
+- [x] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database
   Found 2026-11-09 (#115's e2e, run 42617255988): every intake task runs `Warehouse.init`,
@@ -214,6 +214,13 @@ Incident: the dropped table (runbook `14-restore.md`).
   the init's `pg_advisory_xact_lock` transaction against a `select ... from ops.quarantine`).
   The break loop's proposal failed; the other e2e run on the same commit passed. Applying migrations once,
   before the services start, and not on every task removes it.
+  Done 2026-11-11: numbered SQL files in `dip/sql/migrations/` (0001 is the old
+  `warehouse.sql`, unchanged, so an earlier release's warehouse takes it as is; 0002 the
+  `source_to_concept_map` table), applied once each under an advisory lock, all-or-nothing, and
+  recorded with their SHA-256 in `ops.schema_migration` (`dip/migrations.py`). The
+  `warehouse-init` Job runs `migrate` at deploy; `Warehouse.init` now reads the table and
+  applies nothing when current, so tasks no longer take the DDL's locks. An edited migration is
+  refused. The `upgrade` workflow applies them to the previous release's database.
 
 ## Stage 15: Tracing with Jaeger
 
@@ -420,8 +427,18 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   the Order of work is unchanged; 3 High, 14 Medium, 24 Low, one item each below. Where
   they go in the Order of work is the owner's call.
 
-- [ ] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
-- [ ] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
+- [x] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
+  Done 2026-11-11: Airflow's own MinIO user (`airflow-<hash>`: landing, raw, quarantine and
+  airflow-logs, not backups) in the `minio` connection; `DIP_DEID_KEY` only in `fhir_intake`'s
+  `transform` pod and the four `DIP_SFTP_*` only in `sftp_sync`'s `sync` pod. The
+  warehouse owner login is still in every pod: that is 24.9 and 24.14.
+- [x] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
+  Done 2026-11-11 for what the repo can do: `DIP_SPEND_CAP_USD` (0.25 a run) and `DIP_MONTHLY_CAP_USD` (5)
+  in the `dip-agent-chain` Secret; before each live Anthropic call the request's worst case
+  is added to this month's live total in `ops.model_call` and refused past the cap, failing
+  closed when that total cannot be read; `chain_job` and `intake_runner` claim nothing with a
+  paid key and either cap unset; an unpriced model is refused. Left for the owner: the
+  provider-side limit in the Anthropic Console.
 - [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
   Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
   compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
