@@ -1,0 +1,17 @@
+# images/mcp (dip is installed after, --no-deps).
+-r build.in
+mcp==2.3.0
+fastapi==0.142.4
+mcp-types==2.3.0
+starlette==1.7.0
+uvicorn==0.54.0
+httpx==0.28.1
+pydantic==2.14.1
+anyio==4.15.1
+sse-starlette==3.5.0
+psycopg[binary]==3.3.6
+boto3==1.43.116
+pyyaml==6.0.3
+jsonschema==4.26.0
+openpyxl==3.1.5
+et-xmlfile==2.0.0
