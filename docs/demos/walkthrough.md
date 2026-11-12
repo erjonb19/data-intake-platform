@@ -14,7 +14,8 @@ TF_VAR_profiles='["core", "observability"]' bash scripts/up.sh   # the stack on 
 tf() { terraform -chdir=infra/terraform "$@"; }
 export KUBECONFIG="$(tf output -raw kubeconfig_path)"
 bash scripts/smoke.sh                                             # everything answers
-bash scripts/creds.sh                                             # Airflow and Grafana logins
+bash scripts/creds.sh                                             # the Airflow login
+tf output -raw grafana_admin_password                             # Grafana, user admin
 tf output -raw airflow_url                                        # Airflow, already on a host port
 kubectl -n dip-data port-forward svc/approvals 8081 &
 kubectl -n dip-obs port-forward svc/grafana 3000:80 &              # user admin
@@ -59,8 +60,9 @@ feed's data contract."
 
 ## Scene 2, 0:30 to 1:00: quarantine with a reason
 
-**Show** the run in Airflow and the intake task's log: the file is `quarantined` with
-`SCHEMA.MISSING_COLUMN:plan_code`. The run itself succeeds: a quarantine is an outcome the
+**Show** the run in Airflow and the intake task's log: the file is `quarantined` with two
+reason codes, `SCHEMA.MISSING_COLUMN:plan_code` and `SCHEMA.UNEXPECTED_COLUMN:plan` (the
+contract allows no extra columns). The run itself succeeds: a quarantine is an outcome the
 pipeline handles, not a crash. Then Grafana's Feeds dashboard, "Files quarantined whole (24 h)",
 for five seconds.
 
