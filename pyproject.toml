@@ -58,7 +58,7 @@ build-backend = "setuptools.build_meta"
 include = ["dip*"]
 
 [tool.setuptools.package-data]
-dip = ["*.json", "sql/*.sql", "agents/*.html"]
+dip = ["*.json", "sql/*.sql", "sql/migrations/*.sql", "agents/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit", "tests/integration"]

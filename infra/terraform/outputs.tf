@@ -101,8 +101,14 @@ output "mcp_incident_key" {
 }
 
 output "approvals_token" {
-  description = "The approvals page's bearer token (Stage 9, S9.2): paste it into the page once"
-  value       = random_password.approvals_token.result
+  description = "The first approver's token for the approvals page (Stage 9, S9.2; 24.11): paste it into the page once, with that name as Reviewer"
+  value       = random_password.approver_token[var.approvers[0]].result
+  sensitive   = true
+}
+
+output "approver_tokens" {
+  description = "24.11: each approver's own approvals page token, by name."
+  value       = { for a in var.approvers : a => random_password.approver_token[a].result }
   sensitive   = true
 }
 

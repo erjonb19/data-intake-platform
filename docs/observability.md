@@ -39,7 +39,7 @@ reference, file names, or the audit log. It is read-only, with 10 s statements a
 3 connections (`infra/terraform/files/postgres-roles.sql`).
 
 The grants are made where each table is created, by `ops.grant_metrics_reader()` in
-`dip/sql/warehouse.sql`, which `dip/sla.py` and the dbt `store_dq_results` hook also call. So
+`dip/sql/migrations/0001_baseline.sql`, which `dip/sla.py` and the dbt `store_dq_results` hook also call. So
 a table created later is readable as soon as it exists. A query that cannot run yet shows
 as `dip_metrics_query_ok{query=...} 0`, and the other queries still report.
 `tests/integration/test_metrics.py` connects as the role and checks both what it reads and
