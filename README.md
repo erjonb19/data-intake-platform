@@ -5,6 +5,7 @@
 file, the PR and the result, a two-minute tour, and an architecture diagram. The design on one
 page, with how it scales, where it breaks and its main trade-offs:
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+A three-minute walkthrough to record: [docs/demos/walkthrough.md](docs/demos/walkthrough.md).
 
 A free, enterprise-style platform for vendor and partner files that arrive late, change
 format, or contain bad records. Files are checked against YAML data contracts, then

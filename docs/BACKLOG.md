@@ -420,6 +420,9 @@ No incident: this stage changes documentation only.
 - [ ] **23.2 A three-minute walkthrough:** a script in `docs/demos/` for the user to record
   (file drop, quarantine, agent proposal, approval, gold, Grafana and the trace), linked from
   the README with a screenshot (overlaps #99 in 12.7; reuse it)
+  2026-11-12: the script is `docs/demos/walkthrough.md` (five scenes, commands checked, the
+  recorded agent path by default at $0). Left open: the owner records the video and its link goes
+  into the README.
 
 ## Stage 24: Security hardening (owner, 2026-11-09)
 
