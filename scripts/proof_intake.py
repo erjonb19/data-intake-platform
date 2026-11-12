@@ -79,14 +79,17 @@ def run_team(cap: str) -> dict:
         ],  # fmt: skip
         # The later source wins: the run's key over the DAG Secret's empty one.
         "envFrom": [
-            {"secretRef": {"name": "dip-agent-chain"}},
+            {"secretRef": {"name": "dip-intake-team"}},  # 24.9: the team's own Secret
             {"secretRef": {"name": "dip-proof-model"}},
         ],  # fmt: skip
         "env": [
             {"name": "DIP_SPEND_CAP_USD", "value": cap},
             {
                 "name": "DIP_WAREHOUSE_DSN",
-                "valueFrom": {"secretKeyRef": {"name": "airflow-connections", "key": "warehouse"}},
+                # 24.9: the runners' own login, as the DAG task gets it
+                "valueFrom": {
+                    "secretKeyRef": {"name": "dip-intake-team", "key": "DIP_AGENT_WAREHOUSE_DSN"}
+                },
             },
         ],  # fmt: skip
         # The agent_chain DAG's task limits.

@@ -357,6 +357,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   a model (`docs/agents/EVALS.md`, `agents/evals/`)
 - [x] Nightly agent evals gate on every case and every started eval
   (`.github/workflows/evals.yml`, `scripts/check_eval_reports.py`; 12.1)
+- [x] The scheduled agents run as their own warehouse login with only the grants they use, and
+  each runner holds only its own agents' MCP keys (`dip/sql/migrations/0003_agent_runner.sql`,
+  `tests/integration/test_agent_runner_login.py`; 24.9)
 - [x] A kill switch for the agents' write tools: one setting refuses every agent propose and act
   call (audited) and stops the scheduled agents (`docs/agents/kill-switch.md`; 24.8)
 - [x] A hard spend cap on the scheduled agents: per run and per calendar month, counted from `ops.model_call`,

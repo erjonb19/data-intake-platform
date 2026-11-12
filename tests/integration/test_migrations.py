@@ -62,16 +62,18 @@ def test_a_warehouse_ahead_of_this_code_is_not_an_error(warehouse):
 
 
 def test_a_failed_migration_applies_none_of_the_batch(warehouse, monkeypatch):
+    """Every migration from 2 on is pending, then a broken one after the real ones: the
+    real ones run first in the same transaction and are rolled back with it."""
+    real = migrations.migrations()
     with warehouse.conn.cursor() as cur:
-        cur.execute("delete from ops.schema_migration where version = 2")
+        cur.execute("delete from ops.schema_migration where version >= 2")
         cur.execute("drop table vocab.source_to_concept_map")
     warehouse.conn.commit()
-    broken = migrations.Migration(3, "0003_broken.sql", "select * from no_such_table;")
-    real = migrations.migrations()
+    n = len(real) + 1
+    broken = migrations.Migration(n, f"{n:04d}_broken.sql", "select * from no_such_table;")
     monkeypatch.setattr(migrations, "migrations", lambda: [*real, broken])
     with pytest.raises(Exception, match="no_such_table"):
         migrations.migrate(warehouse.conn)
-    # 0002 ran first in the same transaction, and was rolled back with 0003
     assert rows(warehouse, "select to_regclass('vocab.source_to_concept_map') is null") == [(True,)]
     assert rows(warehouse, "select max(version) from ops.schema_migration") == [(1,)]
 

@@ -1,6 +1,22 @@
 locals {
   airflow_ns = kubernetes_namespace_v1.airflow.metadata[0].name
 
+  # What both scheduled agent runners get (dip-agent-chain, dip-intake-team).
+  agent_runner_env = {
+    DIP_MCP_URL       = "http://mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local:8765/mcp"
+    ANTHROPIC_API_KEY = var.anthropic_api_key
+    GEMINI_API_KEY    = var.gemini_api_key
+    # 24.3: both caps, so a paid key never runs uncapped (the runners refuse without them).
+    DIP_SPEND_CAP_USD   = var.agent_spend_cap_usd
+    DIP_MONTHLY_CAP_USD = var.agent_monthly_cap_usd
+    # 24.8: while set, the chain and the intake team claim nothing.
+    DIP_AGENTS_WRITE_DISABLED = var.agents_write_disabled ? "1" : ""
+    # 24.9: the runners' own warehouse login (dip_agent_runner), not the owner's.
+    DIP_AGENT_WAREHOUSE_DSN = "postgresql://dip_agent_runner:${local.pw["pg_agent_runner"]}@${local.postgres_host}:5432/warehouse"
+    # 24.10: signs the chains these runners start (the MCP server checks them).
+    DIP_RUN_TOKEN_KEY = random_password.run_token_key.result
+  }
+
   airflow_secrets = {
     "airflow-metadata"       = { connection = "postgresql://airflow:${local.pw["pg_airflow"]}@${local.postgres_host}:5432/airflow" }
     "airflow-fernet-key"     = { "fernet-key" = local.airflow_fernet_key }
@@ -15,30 +31,24 @@ locals {
       accounts = join(",", local.sftp_accounts)
     }
 
-    # Stage 9 (S9.1): the agent_chain DAG's pod environment (dags/agent_chain.py). The
-    # in-cluster MCP URL, the incident and triage agents' keys, and a model key if one
-    # was passed to Terraform. Only that DAG's pods mount it (env_from in its
+    # Stage 9 (S9.1): the agent_chain DAG's run_chain pod environment (dags/agent_chain.py):
+    # the in-cluster MCP URL, the incident and triage agents' keys, and what both runners
+    # share (local.agent_runner_env). Only that task's pod mounts it (env_from in its
     # pod_override); the chart's `secret` list does not include it.
-    "dip-agent-chain" = {
-      DIP_MCP_URL      = "http://mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local:8765/mcp"
+    # 24.9: the intake team's keys are in their own Secret, dip-intake-team, mounted only by
+    # the intake_jobs task, so neither pod holds the other's MCP keys.
+    "dip-agent-chain" = merge(local.agent_runner_env, {
       DIP_INCIDENT_KEY = random_password.mcp_incident_key.result
       DIP_TRIAGE_KEY   = random_password.mcp_triage_key.result
-      # Stage 10 (S10.6): the intake team (dip/agents/intake_runner.py).
+    })
+    # Stage 10 (S10.6): the intake team (dip/agents/intake_runner.py).
+    "dip-intake-team" = merge(local.agent_runner_env, {
       DIP_PROFILE_KEY      = random_password.mcp_team_key["profile"].result
       DIP_AUTHOR_KEY       = random_password.mcp_team_key["contract_author"].result
       DIP_VALIDATOR_KEY    = random_password.mcp_team_key["validator"].result
       DIP_REVIEWER_KEY     = random_password.mcp_team_key["reviewer"].result
       DIP_ORCHESTRATOR_KEY = random_password.mcp_team_key["intake_orchestrator"].result
-      ANTHROPIC_API_KEY    = var.anthropic_api_key
-      GEMINI_API_KEY       = var.gemini_api_key
-      # 24.8: while set, the chain and the intake team claim nothing.
-      DIP_AGENTS_WRITE_DISABLED = var.agents_write_disabled ? "1" : ""
-      # 24.3: both caps, so a paid key never runs uncapped (the runners refuse without them).
-      DIP_SPEND_CAP_USD   = var.agent_spend_cap_usd
-      DIP_MONTHLY_CAP_USD = var.agent_monthly_cap_usd
-      # 24.10: signs the chains this runner starts (the MCP server checks them).
-      DIP_RUN_TOKEN_KEY = random_password.run_token_key.result
-    }
+    })
 
     # Airflow connections, injected as AIRFLOW_CONN_* env vars into every Airflow pod
     # (including KubernetesExecutor task pods) via the chart's `secret` list.
