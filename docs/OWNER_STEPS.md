@@ -31,19 +31,21 @@ gh api repos/erjonb19/data-intake-platform/branches/main/protection --jq '.requi
 
 It prints an object (not nothing) once the rule is on. Tell Claude, and 24.6 is ticked.
 
-### [ ] Approve the re-recording for runbook `14-restore.md`
+### [ ] Approve one re-recording for runbooks `13-bad-release.md` and `14-restore.md`
 
-**Why.** Stage 14's last open piece is its runbook. Everything in `docs/runbooks/` is what
+**Why.** Two runbooks are waiting on a recording: Stage 14's restore runbook and 13.3's bad
+release, which also brings a new incident eval case. Everything in `docs/runbooks/` is what
 the incident agent searches, so adding a runbook changes the recorded incident cases, and
-those have to be recorded again (CLAUDE.md, "Model recordings"). Until then the restore steps
-live in `docs/backups.md`.
+those have to be recorded again (CLAUDE.md, "Model recordings"). Doing both in one run pays
+for the re-recording once. Until then the restore steps live in `docs/backups.md`.
 
-**Cost.** About $0.03 to $0.10 on the Haiku key, under a $0.25 cap per run, inside the
+**Cost.** About $0.05 to $0.15 on the Haiku key, under a $0.25 cap per run, inside the
 $5-a-month budget. CI replays the recordings for free afterwards.
 
-**Steps.** Say "OK to re-record for 14-restore" in chat. Claude then adds the runbook on an
-stage branch (`s11-*` to `s29-*`), dispatches the recording run and opens the PR. If you prefer to dispatch it
-yourself once that branch exists:
+**Steps.** Say "OK to re-record for runbooks 13 and 14" in chat. Claude builds the 13.3 drill
+first, then adds both runbooks and the new case on a stage branch (`s13-*`), dispatches the
+recording run and opens the PR. If you prefer to dispatch it yourself once that branch
+exists:
 
 ```powershell
 gh workflow run proof.yml --ref <the branch Claude names> -f job=claude-recordings -f spend_cap_usd=0.25
