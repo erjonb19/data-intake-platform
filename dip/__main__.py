@@ -62,6 +62,9 @@
   drill NAME [--undo]          break the platform on purpose, on the kind cluster only,
                                and undo it (Stage 11: scheduler_down, oom_task, bad_secret,
                                stuck_queued; 14.2: drop_table)
+  rollback SERVICE             a Deployment back to its previous revision and Ready again
+                               (intake-api, mcp, approvals, metrics, marquez, marquez-web;
+                               kind-dip only; 13.2)
   platform-check               the scheduler's heartbeat (and from S11.7 the pods), as
                                platform incidents (Stage 11, S11.6; the CronJob runs it)
   backup now                   a warehouse backup now (pg_dump to s3://backups/), as a Job
@@ -760,6 +763,8 @@ def main(argv: list[str] | None = None) -> int:
     drl = sub.add_parser("drill")
     drl.add_argument("name")
     drl.add_argument("--undo", action="store_true")
+    rbk = sub.add_parser("rollback")
+    rbk.add_argument("service")
     bkp = sub.add_parser("backup")
     bkp.add_argument("action", choices=["now"])
     rst = sub.add_parser("restore")
@@ -931,6 +936,16 @@ def main(argv: list[str] | None = None) -> int:
         try:
             print(drills.drill(args.name, args.undo))
         except drills.DrillError as exc:
+            print(f"refused: {exc}", file=sys.stderr)
+            return 1
+        return 0
+    elif args.command == "rollback":
+        from dip import rollback
+        from dip.drills import DrillError
+
+        try:
+            print(rollback.rollback(args.service))
+        except DrillError as exc:
             print(f"refused: {exc}", file=sys.stderr)
             return 1
         return 0
