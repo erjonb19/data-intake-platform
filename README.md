@@ -299,10 +299,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   them (`.github/dependabot.yml`; 24.23)
 - [x] No open code scanning or Dependabot alert: paramiko 5.1 everywhere (the version Airflow
   runs), and the three CodeQL alerts traced and dismissed with their reasons (24.43)
-- [ ] Trivy's misconfiguration checks on `infra/` (the Terraform files and the vendored Helm
-  charts at their default values) on every pull request, push to `main` and weekly: report
-  only so far, a gate once pod security and network policies land (`security.yml`'s `iac`
-  job; 24.40)
+- [ ] A CI gate on misconfigurations in `infra/`: not yet built (24.40). Today Trivy's checks
+  run report-only on every pull request, push to `main` and weekly (`security.yml`'s `iac`
+  job), over the Terraform files and the vendored Helm charts at their default values
 - [x] Versioned releases: a `v*` tag builds the four images, pushes them to GHCR tagged with
   the version and the commit, and publishes a GitHub release with notes from
   `docs/PROGRESS.md` (`.github/workflows/release.yml`; 12.10, first release `v0.12.0`)
