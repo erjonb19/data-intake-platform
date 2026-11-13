@@ -4,7 +4,7 @@
 
 Please report security issues privately through GitHub's private vulnerability reporting:
 the **Security** tab of this repository, then **Report a vulnerability**. That opens a
-private advisory that only the maintainer can see.
+private advisory that only you and the maintainer can see.
 
 Please do not open a public issue or pull request for a vulnerability, and do not include
 real patient or personal data in a report: this project uses synthetic and public data only.
