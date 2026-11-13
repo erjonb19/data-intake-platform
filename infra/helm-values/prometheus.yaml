@@ -46,3 +46,7 @@ scrapeConfigs:
   dip-metrics:
     static_configs:
       - targets: ["dip-metrics.dip-data.svc.cluster.local:9187"]
+  # 24.18: the intake API's refused uploads (dip/intake_api.py, /metrics: counts only).
+  intake-api:
+    static_configs:
+      - targets: ["intake-api.dip-data.svc.cluster.local:8000"]
