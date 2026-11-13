@@ -17,7 +17,7 @@ those after a recording was made breaks its replay.
   recordings: plan the re-recording (and ask, see the cost rule) or keep the text elsewhere.
   Incident write-ups go in `docs/incidents.md`.
 - **Recordings reach the branch through the proof workflow.** Dispatch
-  `gemini-recordings` or `claude-recordings` on an `s11-*` branch; its `commit-results`
+  `gemini-recordings` or `claude-recordings` on a stage branch (`s11-*` to `s29-*`); its `commit-results`
   job commits the files to that branch only after the scrub, the key and auth-header check
   and the replay check pass. A push by the workflow's token starts no CI, so the branch's
   next push by a person (the decisions-log line, say) is the one CI must pass.

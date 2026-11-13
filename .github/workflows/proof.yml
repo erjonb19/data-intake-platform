@@ -9,8 +9,8 @@ name: proof
 # The screenshots and results.md are uploaded; the cluster is torn down.
 #
 # Stage 11: commit-results commits what a run made (recordings, a proof's results) to the
-# s11-* branch the run was started from, once every check passed (the scrub, the key and
-# auth-header check, and for recordings their replay). It has contents: write and nothing
+# stage branch (s11-* to s29-*) the run was started from, once every check passed (the
+# scrub, the key and auth-header check, and for recordings their replay). It has contents: write and nothing
 # else, no model key, never pushes to main and never forces: a branch that moved since the
 # run started is refused. A push made with the workflow's token starts no other workflow,
 # so CI runs on the branch's next push by a person (the PR still needs a fresh review and
@@ -519,7 +519,7 @@ jobs:
   # Stage 11 (S11.11): the live eval (scripts/live_eval.py). Two recorded cases per agent run
   # live once against a Postgres service (no kind), scored by their own harnesses and
   # compared with agents/evals/baseline.json; drift.md is uploaded, and committed by
-  # commit-results on an s11-* branch. Fails on drift. Also the job a scheduled run would
+  # commit-results on a stage branch. Fails on drift. Also the job a scheduled run would
   # take (inputs are empty then). Its cap is fixed at $0.10, whatever spend_cap_usd says.
   live-eval:
     if: inputs.job == 'live-eval' || github.event_name == 'schedule'
@@ -602,12 +602,15 @@ jobs:
           path: artifacts/live-eval/
           retention-days: 30
 
-  # Stage 11: commit what the run made to the s11-* branch it was started from. See the
-  # header. Runs only when every job that ran succeeded (every check in it passed).
+  # Stage 11: commit what the run made to the stage branch it was started from (s11-* to
+  # s29-*; widened from s11-* for 13.3). See the header. Runs only when every job that ran
+  # succeeded (every check in it passed). The `if` can only test a prefix; the step's regex
+  # is the real check.
   commit-results:
     needs: [proof, drills, fresh-clone, live-eval, gemini-recordings, claude-recordings]
     if: >-
-      always() && github.ref_type == 'branch' && startsWith(github.ref_name, 's11-') &&
+      always() && github.ref_type == 'branch' &&
+      (startsWith(github.ref_name, 's1') || startsWith(github.ref_name, 's2')) &&
       contains(needs.*.result, 'success') && !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
@@ -625,7 +628,8 @@ jobs:
           GEMINI: ${{ needs.gemini-recordings.result }}
           CLAUDE: ${{ needs.claude-recordings.result }}
         run: |
-          [[ "$BRANCH" =~ ^s11-[A-Za-z0-9._-]+$ ]] || { echo "not an s11-* branch: $BRANCH"; exit 1; }
+          [[ "$BRANCH" =~ ^s(1[1-9]|2[0-9])-[A-Za-z0-9._-]+$ ]] \
+            || { echo "not a stage branch (s11-* to s29-*): $BRANCH"; exit 1; }
           if [ "$PROOF" = success ] || [ "$DRILLS" = success ] || [ "$LIVE" = success ]; then
             name=proof-commit
           elif [ "$GEMINI" = success ]; then name=gemini-incident-recordings
