@@ -51,6 +51,33 @@ exists:
 gh workflow run proof.yml --ref <the branch Claude names> -f job=claude-recordings -f spend_cap_usd=0.25
 ```
 
+### [ ] Choose how CI installs OpenTofu (13.5)
+
+**Why.** 13.5 checks that the Terraform code also works under OpenTofu, the open-source
+fork: a CI job runs `tofu init` and `tofu validate`. That adds one new tool to CI, and a new
+dependency needs your OK (CLAUDE.md). Both ways are free.
+
+**Steps.** Say in chat which one:
+- **(a)** the `opentofu/setup-opentofu` GitHub Action, pinned by commit SHA like the other
+  actions (recommended: the same shape as `setup-terraform`);
+- **(b)** the official `ghcr.io/opentofu/opentofu` image run with `docker run`, pinned by
+  digest, the way CI runs Trivy and promtool;
+- or skip 13.5 for now.
+
+### [ ] Decide on the last paramiko alert (Dependabot #43)
+
+**Why.** paramiko is 5.1.0 everywhere since #155, and two of its three alerts closed. The one
+left is on `requirements/e2e.in`, which pins `paramiko==5.1.*`; GitHub has not re-read it
+since 2026-11-12, most likely because it does not resolve a wildcard pin in an `.in` file.
+The lock that is installed (`requirements/e2e.txt`) has 5.1.0 and its alert closed.
+
+**Steps.** Say "dismiss #43" in chat, and Claude dismisses it as inaccurate with that reason;
+or leave it, and it may close on a later rescan. To look at it yourself:
+
+```powershell
+gh api repos/erjonb19/data-intake-platform/dependabot/alerts/43 --jq '{state, manifest: .dependency.manifest_path}'
+```
+
 ### [ ] Decide on the `.claude/settings.json` review notes (#132)
 
 **Why.** The review of the project settings (24.42) found forms the deny list does not

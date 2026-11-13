@@ -1,8 +1,9 @@
 # 13.4: autoscaling. metrics-server (a Helm release in kube-system) reports pod CPU, and two
 # HorizontalPodAutoscalers scale the intake API and the MCP server from 1 to 3 pods on it.
-# Both behind var.metrics_server_enabled: off, neither is installed and the two Deployments
-# stay at their one replica. Their `replicas` is left to the HPA (ignore_changes in
-# intake_api.tf and mcp.tf), so an apply never scales a busy service back to one.
+# Both behind var.metrics_server_enabled: off, neither is installed. The two Deployments'
+# `replicas` is left to the HPA (ignore_changes in intake_api.tf and mcp.tf), so an apply
+# never scales a busy service back to one; for the same reason, turning the switch off after
+# a scale-up leaves that count until it is scaled back by hand (see the variable).
 
 resource "helm_release" "metrics_server" {
   count      = var.metrics_server_enabled ? 1 : 0
