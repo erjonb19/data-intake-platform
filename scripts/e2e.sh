@@ -147,6 +147,10 @@ KUBECONFIG="$(tf output -raw kubeconfig_path)" "$py" "$REPO_ROOT/tests/e2e/resto
 KUBECONFIG="$(tf output -raw kubeconfig_path)" PROMETHEUS_URL="$PROMETHEUS_URL" \
   "$py" "$REPO_ROOT/tests/e2e/platform_drill.py"
 
+# 13.2: a rollout of the intake API and `dip rollback intake-api`, each without dropping
+# below one available pod (maxUnavailable: 0).
+KUBECONFIG="$(tf output -raw kubeconfig_path)" "$py" "$REPO_ROOT/tests/e2e/rollback.py"
+
 # 13.1: no container was restarted for failing its liveness or startup probe during the
 # run. A probe that can never pass restarts its pod in a loop, and every check above could
 # still pass between restarts (#159's review found one: the approvals gateway's Host check).
