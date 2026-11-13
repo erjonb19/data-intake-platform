@@ -277,9 +277,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   failing on a fixable CRITICAL (`.github/workflows/security.yml`, `.trivyignore`), and
   CodeQL for Python and the workflows (`.github/workflows/codeql.yml`; 12.9); Dependabot
   alerts and grouped security updates, and private vulnerability reporting, on in the repo's
-  settings (24.7). Branch
-  protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
-  the steps)
+  settings (24.7). Branch protection on `main`: `lint`, `test`, `e2e`, `trivy` and both CodeQL
+  analyses required, for admins too, with force pushes and deletion blocked; requiring a pull
+  request is still the owner's step (24.6, `docs/OWNER_STEPS.md`)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script
@@ -299,7 +299,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   them (`.github/dependabot.yml`; 24.23)
 - [x] No open code scanning or Dependabot alert: paramiko 5.1 everywhere (the version Airflow
   runs), and the three CodeQL alerts traced and dismissed with their reasons (24.43)
-- [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
+- [x] Versioned releases: a `v*` tag builds the four images, pushes them to GHCR tagged with
+  the version and the commit, and publishes a GitHub release with notes from
+  `docs/PROGRESS.md` (`.github/workflows/release.yml`; 12.10, first release `v0.12.0`)
 
 **Data**
 
@@ -373,8 +375,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   call (audited) and stops the scheduled agents (`docs/agents/kill-switch.md`; 24.8)
 - [x] A hard spend cap on the scheduled agents: per run and per calendar month, counted from `ops.model_call`,
   failing closed, and no run at all with a paid key and no cap (`dip/agents/llm.py`,
-  `tests/unit/test_spend_cap.py`; 24.3). The provider-side limit in the Anthropic Console is the
-  owner's step
+  `tests/unit/test_spend_cap.py`; 24.3), and a $5/month spend limit in the Anthropic Console on
+  the project's own workspace and key
 
 **Access**
 

@@ -142,7 +142,7 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   on `main` is the user's step in GitHub's settings and was not on as of 2026-11-10 (#116 has
   the steps), so "a PR with a red `test` cannot be merged" waits on it. The scan's demo is a
   manual run on an old public image instead of a PR with a vulnerable pin (decisions log).
-- [ ] **12.10 Versioned releases** **(ask)** before building. A `release` workflow that runs
+- [x] **12.10 Versioned releases** **(ask)** before building. A `release` workflow that runs
   on a `v*` tag: builds the repo's images, pushes them to GHCR
   (`ghcr.io/erjonb19/...`) tagged with the version and the commit, and creates a GitHub
   release whose notes come from the `docs/PROGRESS.md` lines since the last tag. The kind
@@ -159,6 +159,9 @@ hard-coded report count), how we knew (the nightly run failed), the fix.
   run failed on the GHCR push (`denied` on `dip-airflow`): the packages are not yet
   linked to the repo. The owner links them and re-runs the release; 12.10 stays open until
   that run passes.
+  **Done 2026-11-13:** the owner linked `dip-airflow` to the repo and re-ran the release;
+  `v0.12.0` is published (the GitHub release and the GHCR images). The re-run needed the
+  SHA-pin rule off for a moment, since the `v0.12.0` workflow predates 24.5; it is back on.
 
 ## Stage 13: Deployment hardening
 
@@ -423,6 +426,8 @@ No incident: this stage changes documentation only.
   2026-11-12: the script is `docs/demos/walkthrough.md` (five scenes, commands checked, the
   recorded agent path by default at $0). Left open: the owner records the video and its link goes
   into the README.
+  2026-11-13: the recording is the owner's last step in `docs/OWNER_STEPS.md`, with the
+  setup in PowerShell; the owner records it when everything else is finished.
 
 ## Stage 24: Security hardening (owner, 2026-11-09)
 
@@ -446,6 +451,9 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   closed when that total cannot be read; `chain_job` and `intake_runner` claim nothing with a
   paid key and either cap unset; an unpriced model is refused. Left for the owner: the
   provider-side limit in the Anthropic Console.
+  Owner's step done 2026-11-13: the key was rotated into its own `data-intake-platform`
+  workspace with a $5/month Console spend limit, the old key deleted, and the
+  `ANTHROPIC_API_KEY` GitHub secret updated.
 - [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
   Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
   compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
@@ -462,6 +470,8 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   `e2e`, `trivy` and both CodeQL `analyze` jobs; force push and deletion blocked. Not set:
   required reviews, and the rules are not enforced for admins. Left open for the owner to say
   whether that is all 24.6 asks.
+  2026-11-13: the rules now apply to admins too (`enforce_admins` on). Still not set: a
+  required pull request, the owner's open step in `docs/OWNER_STEPS.md`.
 - [x] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
   Done by the owner 2026-11-11: alerts, grouped security updates and malware alerts on (checked
   through the API: `vulnerability-alerts` 204, `automated-security-fixes` enabled).
