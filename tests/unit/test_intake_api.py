@@ -143,3 +143,28 @@ def test_no_schema_or_docs_are_served_without_a_key(setup):
     _, api = setup
     for path in ("/openapi.json", "/docs", "/redoc"):
         assert api.get(path).status_code == 404, path
+
+
+def test_refused_requests_are_counted_for_prometheus(setup):
+    """24.18: /metrics counts refused uploads by reason, with no feed or client names."""
+    _, api = setup
+    assert api.post("/v1/feeds/healthcare.eligibility/files?filename=a.csv").status_code == 401
+    assert (
+        api.post(
+            "/v1/feeds/healthcare.eligibility/files?filename=a.csv",
+            headers={"Authorization": "Bearer wrong"},
+        ).status_code
+        == 401
+    )
+    # the finance vendor's key, sent to a healthcare feed: not its pack's
+    finance = {"Authorization": f"Bearer {KEYS['finance']}"}
+    assert (
+        api.post(
+            "/v1/feeds/healthcare.eligibility/files?filename=a.csv", headers=finance
+        ).status_code
+        == 403
+    )
+    text = api.get("/metrics").text
+    assert 'dip_intake_api_refused_total{reason="unauthorized"} 2' in text
+    assert 'dip_intake_api_refused_total{reason="forbidden"} 1' in text
+    assert "healthcare" not in text and "finance" not in text

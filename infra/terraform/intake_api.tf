@@ -16,7 +16,7 @@ locals {
   })
   # Versioned names: a changed policy gets a fresh user and policy (mc refuses to attach a
   # policy that is already attached, so re-running the same names would fail).
-  api_minio_suffix = substr(sha256(local.api_minio_policy), 0, 8)
+  api_minio_suffix = substr(sha256("24.13:${local.api_minio_policy}"), 0, 8) # 24.13: new Job spec, new name
   api_minio_user   = "intake-api-${local.api_minio_suffix}"
 }
 
@@ -43,15 +43,29 @@ resource "kubernetes_job_v1" "intake_api_minio_user" {
         dynamic "init_container" {
           for_each = {
             "1-policy" = ["admin", "policy", "create", "local", "intake-api-landing-${local.api_minio_suffix}", "/policy/policy.json"]
-            "2-user"   = ["admin", "user", "add", "local", local.api_minio_user, local.pw["minio_intake_api"]]
+            "2-user"   = ["admin", "user", "add", "local", local.api_minio_user, "$(NEW_USER_PASSWORD)"]
           }
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
             args  = init_container.value
             env {
-              name  = "MC_HOST_local"
-              value = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
+              name = "NEW_USER_PASSWORD"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_user_passwords.metadata[0].name
+                  key  = "intake_api"
+                }
+              }
+            }
+            env {
+              name = "MC_HOST_local"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                  key  = "MC_HOST_local"
+                }
+              }
             }
             env {
               name  = "MC_CONFIG_DIR"
@@ -74,8 +88,13 @@ resource "kubernetes_job_v1" "intake_api_minio_user" {
           args = ["admin", "policy", "attach", "local", "intake-api-landing-${local.api_minio_suffix}",
           "--user", local.api_minio_user]
           env {
-            name  = "MC_HOST_local"
-            value = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
+            name = "MC_HOST_local"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                key  = "MC_HOST_local"
+              }
+            }
           }
           env {
             name  = "MC_CONFIG_DIR"

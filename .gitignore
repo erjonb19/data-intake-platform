@@ -4,6 +4,17 @@
 !.env.example
 *.pem
 *.key
+# 24.26: certificate bundles, a secrets folder, cloud credential files
+*.p12
+*.pfx
+*.jks
+secrets/
+*-sa.json
+*credentials*.json
+service-account*.json
+*.serviceaccount.json
+.netrc
+.pypirc
 
 # python
 __pycache__/
@@ -63,3 +74,8 @@ packs/*/data/
 packs/*/**/*.csv
 packs/*/**/*.json
 datapackage.json
+
+# Claude Code (24.42): the project settings are committed; agent worktrees and personal
+# settings are not.
+.claude/worktrees/
+.claude/settings.local.json

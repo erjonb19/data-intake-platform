@@ -110,10 +110,13 @@ def test_eunomia_provenance_unchanged(warehouse):
 
 def test_warehouse_init_creates_the_map_for_an_older_vocabulary(warehouse):
     # A warehouse whose vocabulary was loaded before source_to_concept_map existed is
-    # never reloaded (needs_load is false), but every dbt build reads the map.
+    # never reloaded (needs_load is false), but every dbt build reads the map. 14.3: such
+    # a warehouse predates the migrations too, so migration 0002 is pending on it and
+    # creates the map the first time init() runs.
     vocab.load(warehouse.conn, vocab.fetch(vocab.CACHE_DIR))
     with warehouse.conn.cursor() as cur:
         cur.execute("drop table vocab.source_to_concept_map")
+        cur.execute("delete from ops.schema_migration where version = 2")
     warehouse.conn.commit()
     assert vocab.needs_load(warehouse.conn) is False
     warehouse.init()

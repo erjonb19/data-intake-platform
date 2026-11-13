@@ -126,3 +126,29 @@ or hash mismatch, which stops before any restore.
 
 **What stops it coming back.** Large files no longer go through `kubectl exec` stdin. The
 in-pod size and hash check stays, whatever the transport.
+
+## 2026-11-11: the restore drill "brought the table back" and it was not there (Stage 14)
+
+**What broke.** The `upgrade` workflow's second E2E pass failed three times in a day, on
+three unrelated PRs (#136, #137 and #133; runs 42971578210, 42971617128, 43153224864). Its
+restore drill printed `brought gold.member_eligibility back into warehouse (2 entries of
+the dump)`, and the next query in the live warehouse said `relation
+"gold.member_eligibility" does not exist`. Other runs of the same code passed, and the first
+pass's drill in the same jobs always passed.
+
+**How we knew.** The upgrade job's FAIL lines, then its diagnostics artifact: the Postgres
+log had only the failed lookup, and the Airflow scheduler log showed no DAG running in the
+seconds around it, so no dbt run had rebuilt or renamed the table under the drill. That
+left the drill's own steps. To bring the table back, `dip/restore.py` wrote the list of the
+dump's entries for that table into the pod through `kubectl exec -i`'s stdin, then ran
+`pg_restore -L` on it. Nothing checked the list. When that short stdin is lost (`kubectl
+exec -i` does this now and then), the file is empty, `pg_restore -L` restores nothing and
+exits 0, and the "2 entries" in the message was the drill's own count, not the pod's.
+
+**How we fixed it.** In #133 (14.3), which the failure was holding back. The list goes into
+the pod as `printf` arguments, not stdin (its lines are the dump's table of contents,
+nothing secret); its lines are counted in the pod before `pg_restore` runs; and the table
+must exist afterwards, or the drill fails with that message instead of a confusing one
+later. A unit test loses the list on purpose and checks the drill stops. The signed URL the
+pod downloads with still goes through stdin, so it never appears in a process list; a lost
+URL already fails the size and SHA-256 check that follows.

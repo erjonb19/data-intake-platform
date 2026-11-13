@@ -9,11 +9,21 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 2
+    # Raise a pin, never widen it into a range: #125 and #141 turned `pytest==9.1.*` into
+    # `>=9.1,<9.3` and `paramiko==3.5.*` into `>=3.5,<5.2`.
+    versioning-strategy: increase
+    # 24.23: only versions public for 7 days, the same cooldown scripts/lock.py applies, so
+    # every version proposed can be locked. A pip PR still needs `python scripts/lock.py`
+    # added by a person (requirements/README.md).
+    cooldown:
+      default-days: 7
     ignore:
-      # Owner, 2026-11-11: paramiko stays on 3.5.x (pyproject pins "==3.5.*"); a grouped PR
-      # (#125) had widened it to ">=3.5,<5.2", two major versions at once.
+      # Owner, 2026-11-12: paramiko stays on 5.1.x (pyproject and e2e.in pin "==5.1.*"), the
+      # version Airflow's constraints install in the cluster, so dev, the E2E driver and the
+      # DAG run the same one. Was 3.5.x (2026-11-11) until its SHA-1 alert (#146, closed).
+      # update-types did not stop a grouped PR widening the range (#125, #141), so by version:
       - dependency-name: paramiko
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+        versions: [">=5.2"]
     groups:
       python:
         patterns: ["*"]
@@ -31,6 +41,8 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7  # 24.23
     ignore:
       # Owner, 2026-11-11: the base images stay on Python 3.12 (patch updates only) until
       # dbt-core installs on a newer one. On python:3.15, dbt-core 1.12.6 needs
@@ -47,6 +59,8 @@ updates:
       interval: weekly
       day: monday
     open-pull-requests-limit: 2
+    cooldown:
+      default-days: 7  # 24.23
     groups:
       actions:
         patterns: ["*"]

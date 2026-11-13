@@ -14,6 +14,7 @@ USER airflow
 
 # Each version was at least two weeks old when chosen. Pillow 13.0.0 (2026-10-16) fixes
 # the CRITICAL findings the 12.9 Trivy scan reported in 12.3.0 (CVE-2026-112393 and others).
-# pdfplumber's own dependencies are pinned too, so a rebuild cannot move them.
-RUN pip install --no-cache-dir "pdfplumber==0.11.10" "pdfminer.six==20260107" \
-      "pypdfium2==5.14.0" "pytesseract==0.3.13" "pillow==13.0.0"
+# 24.4: a hashed lock of the whole tree (requirements/ocr.in), resolved against Airflow's
+# constraints so it never moves a package Airflow ships.
+COPY --chown=airflow:root requirements/ocr.txt /tmp/ocr.txt
+RUN pip install --no-cache-dir --require-hashes --no-deps --no-build-isolation -r /tmp/ocr.txt && rm /tmp/ocr.txt

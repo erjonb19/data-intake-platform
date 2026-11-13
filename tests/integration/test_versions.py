@@ -78,7 +78,8 @@ def test_runs_record_each_steps_version(warehouse):
         jid = queue(cur, "finance.a", "onboard", "a" * 64, "landing")
     warehouse.conn.commit()
     keys = {v: "k" for v in ("DIP_MCP_URL", *intake_runner.KEYS.values())}
-    intake_runner.run(warehouse.conn, env={**keys, "ANTHROPIC_API_KEY": "x"},
+    intake_runner.run(warehouse.conn, env={**keys, "ANTHROPIC_API_KEY": "x",
+                                           "DIP_SPEND_CAP_USD": "0.25", "DIP_MONTHLY_CAP_USD": "5"},
                       runner=lambda *a: {"outcome": "no_change", "chain_id": "intake-a",
                                          "versions": {"map": versions["incident"]}})  # fmt: skip
     assert rows(warehouse, "select versions from ops.intake_job where job_id = %s", (jid,)) == [
