@@ -196,6 +196,13 @@ Incident: the bad release (runbook `13-bad-release.md`).
   (its recording **(ask)**)
   Prerequisite done 2026-11-13: `commit-results` accepts stage branches `s11-*` to `s29-*`
   (`tests/unit/test_proof_branches.py`).
+  2026-11-13, the drill and its alert (no recording): `dip drill bad_release` patches the
+  intake API's command to an app that does not exist, so its new pod crashes and never gets
+  Ready; a 3-minute progress deadline marks the rollout stalled; the platform check opens
+  `PLATFORM.ROLLOUT_STALLED` (a read-only Role on deployments in dip-data) and
+  `ReleaseStalled` fires; the undo is `dip rollback intake-api`. The kind E2E runs it last.
+  Left for the recording (the owner's OK, `docs/OWNER_STEPS.md`): runbook 13, the incident
+  agent's root cause and prompt line for the new kind, and its eval case.
 - [ ] **13.4 Autoscaling:** metrics-server in kind, behind an on/off value in its Helm
   values, with its memory on the laptop measured and reported; HPAs for the intake API and
   MCP server; the scaling proof in the proof workflow
