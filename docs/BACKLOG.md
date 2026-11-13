@@ -520,7 +520,9 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   Done 2026-11-11: the GHCR login's token and actor through `env:`; `proof.yml`'s run ids, SHAs and
   artifact name too (`$GITHUB_RUN_ID`, `$GITHUB_SHA`, `env:`), and `tests/unit/test_workflow_expressions.py`
   fails on any `${{ }}` in a `run:` script.
-- [ ] **24.26 More `.gitignore` patterns** (Low): `*.p12`, `secrets/`, credential JSON, and `.claude/worktrees/`.
+- [x] **24.26 More `.gitignore` patterns** (Low): `*.p12`, `secrets/`, credential JSON, and `.claude/worktrees/`.
+  Done 2026-11-11: `*.p12`, `*.pfx`, `*.jks`, `secrets/`, credential and service-account JSON,
+  `.netrc`, `.pypirc`; `.claude/worktrees/` is in 24.42's PR with the settings it guards.
 - [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
 - [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
