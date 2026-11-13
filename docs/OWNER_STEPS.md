@@ -42,11 +42,11 @@ live in `docs/backups.md`.
 $5-a-month budget. CI replays the recordings for free afterwards.
 
 **Steps.** Say "OK to re-record for 14-restore" in chat. Claude then adds the runbook on an
-`s11-*` branch, dispatches the recording run and opens the PR. If you prefer to dispatch it
+stage branch (`s11-*` to `s29-*`), dispatches the recording run and opens the PR. If you prefer to dispatch it
 yourself once that branch exists:
 
 ```powershell
-gh workflow run proof.yml --ref <the s11 branch Claude names> -f job=claude-recordings -f spend_cap_usd=0.25
+gh workflow run proof.yml --ref <the branch Claude names> -f job=claude-recordings -f spend_cap_usd=0.25
 ```
 
 ### [ ] Decide on the `.claude/settings.json` review notes (#132)

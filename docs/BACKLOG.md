@@ -189,6 +189,8 @@ Incident: the bad release (runbook `13-bad-release.md`).
   `commit-results` jobs accept only `s11-*` branches; widen that to later stages' branches
   first, in its own PR
   (its recording **(ask)**)
+  Prerequisite done 2026-11-13: `commit-results` accepts stage branches `s11-*` to `s29-*`
+  (`tests/unit/test_proof_branches.py`).
 - [ ] **13.4 Autoscaling:** metrics-server in kind, behind an on/off value in its Helm
   values, with its memory on the laptop measured and reported; HPAs for the intake API and
   MCP server; the scaling proof in the proof workflow
