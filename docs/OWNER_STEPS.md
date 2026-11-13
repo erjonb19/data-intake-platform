@@ -2,7 +2,7 @@
 
 Everything that needs the owner by hand: commands on the laptop, GitHub or Console settings,
 and recordings. One section per step. Commands are for **Windows PowerShell**, run from the
-repo folder (`cd C:\Users\Erjon\data-intake-platform`). No secret is ever written here: a
+repo folder (the clone of `data-intake-platform`). No secret is ever written here: a
 command that needs one reads it from Terraform or prompts for it.
 
 Claude adds a step here whenever one comes up and ticks it when the owner says it is done

@@ -148,8 +148,8 @@ the stricter rule wins.
    and Dependabot ignore rules stay. A new dependency still needs the owner's OK. In an
    unattended run, write it under its backlog item and move on instead of waiting.
 2. **Destructive and deploy commands (directive 13).** It covers real environments: anything hosted, a published release or image, and data the owner keeps. Terraform, Helm and kubectl against the throwaway kind clusters that CI and the local tests create and delete are normal work.
-3. **`.claude/settings.json` (Section 17.2).** Not added yet. The security audit proposes one
-   tailored so unattended runs don't stall, keeping the deny list; the owner reviews it.
+3. **`.claude/settings.json` (Section 17.2).** Added by 24.42 (#132), from the security audit's
+   proposal, with the owner's extra denies; any change to it is the owner's to merge.
 4. **Vulnerability reporting.** No `SECURITY.md` with a personal email address on this public
    repo. Use GitHub's private vulnerability reporting, which the owner turns on in the repo's
    settings; a `SECURITY.md` may point to it.

@@ -470,6 +470,8 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   `e2e`, `trivy` and both CodeQL `analyze` jobs; force push and deletion blocked. Not set:
   required reviews, and the rules are not enforced for admins. Left open for the owner to say
   whether that is all 24.6 asks.
+  2026-11-13: the rules now apply to admins too (`enforce_admins` on). Still not set: a
+  required pull request, the owner's open step in `docs/OWNER_STEPS.md`.
 - [x] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
   Done by the owner 2026-11-11: alerts, grouped security updates and malware alerts on (checked
   through the API: `vulnerability-alerts` 204, `automated-security-fixes` enabled).
