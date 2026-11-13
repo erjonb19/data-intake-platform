@@ -21,6 +21,8 @@ import json
 import os
 import re
 import tomllib
+from collections.abc import Callable
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
@@ -77,6 +79,11 @@ class AnthropicLLM:
         self.client = anthropic.Anthropic(api_key=os.environ.get(cfg["api_key_env"]))
 
     def create(self, *, system: str, tools: list[dict], messages: list[dict]) -> Message:
+        if self.model not in PRICES:
+            # 24.3: an unpriced model would be metered at Haiku's rate, so every cap below
+            # could be wrong by any factor. Refused, not a failover.
+            raise SpendCap(f"model {self.model!r} has no price in dip.agents.llm.PRICES, so "
+                           "no spend cap can count it; add its price first")  # fmt: skip
         check_spend(self.model, self.max_tokens, system, tools, messages)
         response = self.client.messages.create(
             model=self.model,
@@ -103,30 +110,88 @@ class AnthropicLLM:
 # request over 100K input tokens is priced at the long-context rate (5x). One gap: a
 # request the SDK retried after a timeout may have been billed and is not counted, so keep
 # the cap well above the run's expected cost.
+#
+# 24.3, a monthly cap across processes: with DIP_MONTHLY_CAP_USD set, each request's worst
+# case is also added to this calendar month's (UTC) live spend in ops.model_call, read
+# through MONTH_METER (set by dip.agents.model_calls.to_warehouse beside the sink that
+# writes those rows). It fails closed: with the cap set and no meter, or a meter that
+# cannot be read, the request is refused. It counts this warehouse's rows only; the
+# provider-side limit in the Anthropic Console covers everything else.
 
 SPENT = {"usd": 0.0}
 
+MONTH_METER: ContextVar[Callable[[], float] | None] = ContextVar("dip_month_meter", default=None)
+
+# Both caps must be set for a paid provider in the scheduled runners (chain_job,
+# intake_runner): without them they claim nothing (spend_caps_missing).
+CAP_VARS = ("DIP_SPEND_CAP_USD", "DIP_MONTHLY_CAP_USD")
+PAID_PROVIDERS = ("anthropic",)
+
 
 class SpendCap(RuntimeError):
-    """The next request could pass DIP_SPEND_CAP_USD."""
+    """The next request could pass DIP_SPEND_CAP_USD or DIP_MONTHLY_CAP_USD, or cannot be
+    priced or counted."""
+
+
+def spend_cap_of(exc: BaseException) -> SpendCap | None:
+    """The SpendCap behind `exc`, also inside an exception group (an MCP client's task
+    group wraps what failed in it), or None. The runners put the job back instead of
+    failing it, so reaching a cap never uses up an incident or an onboarding job."""
+    if isinstance(exc, SpendCap):
+        return exc
+    if isinstance(exc, BaseExceptionGroup):
+        for e in exc.exceptions:
+            if found := spend_cap_of(e):
+                return found
+    return None
+
+
+def spend_caps_missing(providers: list[str] | tuple[str, ...],
+                       env: dict[str, str] | None = None) -> str | None:  # fmt: skip
+    """Why a scheduled runner must not start with these providers, or None."""
+    env = os.environ if env is None else env
+    if not any(p in PAID_PROVIDERS for p in providers):
+        return None
+    unset = [v for v in CAP_VARS if not env.get(v)]
+    return f"a paid model key with no spend cap: {', '.join(unset)} unset" if unset else None
 
 
 def check_spend(model: str, max_tokens: int, system: str, tools: list[dict],
                 messages: list[dict]) -> None:  # fmt: skip
     cap = os.environ.get("DIP_SPEND_CAP_USD")
-    if not cap:
+    monthly = os.environ.get("DIP_MONTHLY_CAP_USD")
+    if not cap and not monthly:
         return
+    worst = worst_case_usd(model, max_tokens, system, tools, messages)
+    if cap and SPENT["usd"] + worst > float(cap):
+        raise SpendCap(
+            f"spent ${SPENT['usd']:.4f}; the next request could cost ${worst:.4f}, "
+            f"past the ${float(cap):.2f} cap (DIP_SPEND_CAP_USD)"
+        )
+    if monthly:
+        meter = MONTH_METER.get()
+        if meter is None:
+            raise SpendCap("DIP_MONTHLY_CAP_USD is set but this run records no model calls, "
+                           "so the month's spend cannot be counted")  # fmt: skip
+        try:
+            month = float(meter())
+        except Exception as e:
+            raise SpendCap(f"cannot read this month's spend ({type(e).__name__})") from None
+        if month + worst > float(monthly):
+            raise SpendCap(
+                f"this month's live spend is ${month:.4f}; the next request could cost "
+                f"${worst:.4f}, past the ${float(monthly):.2f} monthly cap (DIP_MONTHLY_CAP_USD)"
+            )
+
+
+def worst_case_usd(model: str, max_tokens: int, system: str, tools: list[dict],
+                   messages: list[dict]) -> float:  # fmt: skip
     pin, pout = PRICES.get(model, (0.10, 0.50))
     size = len(system) + len(json.dumps(tools)) + len(json.dumps(messages))
     tokens = size / 3
     if tokens > 100_000:  # Haiku 5.5's long-context price
         pin, pout = pin * 5, pout * 5
-    worst = 1.25 * tokens * pin / 1e6 + max_tokens * pout / 1e6
-    if SPENT["usd"] + worst > float(cap):
-        raise SpendCap(
-            f"spent ${SPENT['usd']:.4f}; the next request could cost ${worst:.4f}, "
-            f"past the ${float(cap):.2f} cap (DIP_SPEND_CAP_USD)"
-        )
+    return 1.25 * tokens * pin / 1e6 + max_tokens * pout / 1e6
 
 
 _DATES = re.compile(r"\d{4}-\d{2}-\d{2}(T[0-9:.+-]+Z?)?")

@@ -31,6 +31,20 @@ FEED = "finance.purchase_orders"
 SAMPLE = b"po_number,vendor_id,order_date,amount,currency\nPO-0001,V-001,2026-10-29,120.50,USD\n"
 
 
+def run_token(chain: str) -> str | None:
+    """24.10: the chain's signed token, as dip/agents/run_token.py makes it (this venv has
+    no dip package), with the key Terraform gave the MCP server (DIP_RUN_TOKEN_KEY)."""
+    import hmac
+    import time
+
+    key = os.environ.get("DIP_RUN_TOKEN_KEY", "")
+    if not key:
+        return None
+    expires = int(time.time() + 7200)
+    mac = hmac.new(key.encode(), f"{chain}|{expires}".encode(), hashlib.sha256).hexdigest()
+    return f"{expires}.{mac}"
+
+
 def main() -> int:
     import boto3
     import psycopg
@@ -137,7 +151,8 @@ def team_checks(check) -> None:
     # allows 120 s).
     result = s.post("tools/call", {"name": "check_dbt_models",
                                    "arguments": {"candidate_id": cid,
-                                                 "_run_id": "e2e-dbt/validate"}},
+                                                 "_run_id": "e2e-dbt/validate",
+                                                 "_run_token": run_token("e2e-dbt")}},
                     timeout=150)  # fmt: skip
     text = result["content"][0]["text"]
     try:

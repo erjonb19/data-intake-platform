@@ -18,6 +18,19 @@ from airflow.sdk import dag, task
 FEED = "healthcare.fhir_patient_bundle"
 
 
+def _deid_key_pod() -> dict:
+    """The transform task's pod, the only one with the de-identification key (24.2): it is
+    not in the chart's global secret list, so no other Airflow pod holds it. Optional, so a
+    missing Secret fails in install_key with its own message, not as a pod that never starts."""
+    from kubernetes.client import models as k8s
+
+    return {"pod_override": k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(
+        name="base",
+        env=[k8s.V1EnvVar(name="DIP_DEID_KEY", value_from=k8s.V1EnvVarSource(
+            secret_key_ref=k8s.V1SecretKeySelector(name="dip-deid", key="key", optional=True)))],
+    )]))}  # fmt: skip
+
+
 def _dsn(hook: PostgresHook) -> str:
     from dip.dbt_runner import connection_dsn
 
@@ -58,7 +71,7 @@ def fhir_intake():
             statuses.append(o.status)
         return {s: statuses.count(s) for s in sorted(set(statuses))}
 
-    @task
+    @task(executor_config=_deid_key_pod())
     def transform(intake_summary: dict) -> None:
         import os
 

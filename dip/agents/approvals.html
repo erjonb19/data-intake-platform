@@ -111,7 +111,8 @@ async function api(path, opts) {
   const token = $("token").value.trim();
   opts.headers = Object.assign({}, opts.headers, token ? { Authorization: "Bearer " + token } : {});
   const r = await fetch(path, opts);
-  if (r.status === 401) throw new Error("enter the approvals token (terraform output -raw approvals_token)");
+  if (r.status === 401) throw new Error("enter your approvals token (terraform output -json approver_tokens)");
+  if (r.status === 403) throw new Error("this token is not the named reviewer's: enter your own name as Reviewer");
   const body = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(body.detail ? (typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)) : r.statusText);
   return body;

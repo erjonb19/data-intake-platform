@@ -4,7 +4,8 @@ incidents the chain has not run on and run the incident -> triage chain on each
 approve executes: the chain ends in pending proposals, as it does from the CLI.
 
 The task runs in the platform image (the agents' dependencies are in it) with the
-`dip-agent-chain` Secret as its environment: the in-cluster MCP URL, the incident and
+`dip-agent-chain` Secret as its environment (24.9: the intake team's task mounts
+`dip-intake-team` instead): the in-cluster MCP URL, the incident and
 triage agents' keys, and, when a person has set one, a model key. Without a model key
 the task claims nothing and still succeeds: the cluster never needs a paid key to be
 healthy, and the incidents wait for one. Like every DAG here it starts paused.
@@ -21,19 +22,44 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.sdk import dag, task
 
 
-def _executor_config() -> dict:
-    """The task's pod: the agent environment from the Secret (optional, so the DAG is
-    valid before Terraform has created it) and limits an agent run cannot exceed."""
+def _executor_config(secret: str) -> dict:
+    """The task's pod: the agent environment from its Secret (optional, so the DAG parses
+    before Terraform has created it; a task then fails in _agent_dsn, on purpose) and limits
+    an agent run cannot exceed. 24.9:
+    run_chain mounts dip-agent-chain (the incident and triage keys), intake_jobs mounts
+    dip-intake-team (the team's keys); neither holds the other's."""
     from kubernetes.client import models as k8s
 
     return {"pod_override": k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(
         name="base",
         env_from=[k8s.V1EnvFromSource(
-            secret_ref=k8s.V1SecretEnvSource(name="dip-agent-chain", optional=True))],
+            secret_ref=k8s.V1SecretEnvSource(name=secret, optional=True))],
         resources=k8s.V1ResourceRequirements(
             requests={"cpu": "100m", "memory": "256Mi"},
             limits={"cpu": "1", "memory": "512Mi"}),
     )]))}  # fmt: skip
+
+
+def _runner_env() -> dict[str, str]:
+    """The task's environment for the runner, without Airflow's own connections: every
+    Airflow pod holds AIRFLOW_CONN_WAREHOUSE (the warehouse owner) and AIRFLOW_CONN_MINIO,
+    and the runner must have only its own login (24.9)."""
+    import os
+
+    return {k: v for k, v in os.environ.items() if not k.startswith("AIRFLOW_CONN_")}
+
+
+def _agent_dsn() -> str:
+    """24.9: the runners' own warehouse login (dip_agent_runner, from the task's Secret),
+    never the owner's that Airflow's warehouse connection holds. Without it the task fails
+    rather than run the agents as the owner."""
+    import os
+
+    dsn = os.environ.get("DIP_AGENT_WAREHOUSE_DSN")
+    if not dsn:
+        raise RuntimeError("DIP_AGENT_WAREHOUSE_DSN is not set: the agent runners' login "
+                           "comes from the task's Secret (infra/terraform/airflow.tf)")  # fmt: skip
+    return dsn
 
 
 @dag(
@@ -48,7 +74,8 @@ def _executor_config() -> dict:
 def agent_chain():
     # Shorter than chain_job.STALE_AFTER, so a live task's claim is never taken back; a
     # hung MCP or model call fails the task instead of holding max_active_runs forever.
-    @task(executor_config=_executor_config(), execution_timeout=timedelta(minutes=20))
+    @task(executor_config=_executor_config("dip-agent-chain"),
+          execution_timeout=timedelta(minutes=20))  # fmt: skip
     def run_chain() -> dict:
         import json
         import os
@@ -56,7 +83,6 @@ def agent_chain():
 
         from airflow.sdk import get_current_context
 
-        from dip.dbt_runner import connection_dsn
         from dip.warehouse import Warehouse
 
         try:
@@ -75,7 +101,7 @@ def agent_chain():
         cmd = [python, "-m", "dip.agents.chain_job", "--limit", "3"]
         if run_id:
             cmd += ["--dag-run-id", run_id]
-        env = {**os.environ, "DIP_WAREHOUSE_DSN": connection_dsn(hook.get_connection("warehouse"))}
+        env = {**_runner_env(), "DIP_WAREHOUSE_DSN": _agent_dsn()}
         p = subprocess.run(cmd, env=env, capture_output=True, text=True)
         print(p.stdout[-4000:], p.stderr[-4000:], sep="\n")
         if p.returncode != 0:
@@ -93,7 +119,8 @@ def agent_chain():
     # agent venv (dip/agents/intake_runner.py); without a model key, or without the team's
     # MCP keys, it claims nothing, as the chain does. Shorter than the 30-minute stale
     # claim, like run_chain.
-    @task(executor_config=_executor_config(), execution_timeout=timedelta(minutes=20))
+    @task(executor_config=_executor_config("dip-intake-team"),
+          execution_timeout=timedelta(minutes=20))  # fmt: skip
     def intake_jobs() -> dict:
         import json
         import os
@@ -102,7 +129,6 @@ def agent_chain():
         from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
         from dip.contracts import load_contracts
-        from dip.dbt_runner import connection_dsn
         from dip.intake_jobs import scan_onboarding
         from dip.storage import S3Store
         from dip.warehouse import Warehouse
@@ -119,7 +145,7 @@ def agent_chain():
             print(f"not taken: {line}")
         print(f"onboarding: queued {out['queued']}, feed already open {out['already_open']}")
         python = os.environ.get("DIP_AGENT_PYTHON", "/opt/airflow/agent-venv/bin/python")
-        env = {**os.environ, "DIP_WAREHOUSE_DSN": connection_dsn(hook.get_connection("warehouse"))}
+        env = {**_runner_env(), "DIP_WAREHOUSE_DSN": _agent_dsn()}
         cmd = [python, "-m", "dip.agents.intake_runner", "--limit", "1"]
         try:
             from airflow.sdk import get_current_context

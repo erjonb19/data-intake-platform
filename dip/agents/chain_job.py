@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
 
-from dip.agents.llm import NoProvider
+from dip.agents.llm import NoProvider, spend_cap_of
 
 MCP_VARS = ("DIP_MCP_URL", "DIP_INCIDENT_KEY", "DIP_TRIAGE_KEY")
 # A claim older than this is a dead pod's: dags/agent_chain.py's execution timeout is
@@ -50,10 +50,17 @@ def plan(env: dict[str, str] | None = None) -> Plan:
     missing = [v for v in MCP_VARS if not env.get(v)]
     if missing:
         return Plan(False, reason=f"no MCP configuration: {', '.join(missing)} unset")
-    from dip.agents.llm import provider_names
+    from dip.agents.registry import WRITE_SWITCH, writes_disabled
+
+    if writes_disabled(env):  # 24.8: the incidents wait until the switch is off
+        return Plan(False, reason=f"agent write tools are switched off ({WRITE_SWITCH})")
+    from dip.agents.llm import provider_names, spend_caps_missing
 
     names = provider_names(env)
     if names:
+        # 24.3: a paid key with no spend caps claims nothing (fails closed).
+        if why := spend_caps_missing(names, env):
+            return Plan(False, reason=why)
         return Plan(True, providers=tuple(names))
     return Plan(
         False, reason="no model key (ANTHROPIC_API_KEY or GEMINI_API_KEY) in the agent environment"
@@ -266,6 +273,10 @@ def run(
             continue
         except Exception as exc:  # the chain's own errors are the record, not a crash
             conn.rollback()  # a failed statement in the chain leaves the transaction aborted
+            if cap := spend_cap_of(exc):  # 24.3: the incident waits for the next month
+                finish(conn, incident, "skipped", reason=f"spend cap: {cap}")
+                summary["skipped"] = [*summary.get("skipped", []), incident]
+                break  # the next request would pass the cap too: stop this run
             finish(
                 conn,
                 incident,

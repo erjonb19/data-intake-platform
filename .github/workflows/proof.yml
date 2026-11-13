@@ -50,14 +50,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # `dip approvals execute` cuts the contract branch from main
 
       - name: A local main for the contract branch
         run: git branch -f main origin/main 2>/dev/null || true
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.6"
           terraform_wrapper: false
@@ -81,7 +81,8 @@ jobs:
       - name: E2E
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q -e ".[dev]"  # boto3, PyYAML, openpyxl, websocket-client, dbt
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/build.txt && .venv/bin/pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt  # boto3, PyYAML, openpyxl, websocket-client, dbt
+          .venv/bin/pip install -q --no-deps --no-build-isolation -e .
           bash scripts/e2e.sh
 
       - name: The intake team, once, with the key
@@ -114,14 +115,14 @@ jobs:
           mkdir -p "$OUT" artifacts/commit
           cp artifacts/proof/results.md artifacts/proof/audit.json "$OUT"/
           cp artifacts/proof/*.png "$OUT"/ 2>/dev/null || true
-          { echo "job: proof (run ${{ github.run_id }})"
+          { echo "job: proof (run $GITHUB_RUN_ID)"
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
             echo "replay check: n/a (a proof's results, not recordings)"
           } | tee artifacts/commit/checks.md
           ! grep -q FAILED artifacts/commit/checks.md
 
       - name: Upload the results to commit
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-commit
           path: |
@@ -131,7 +132,7 @@ jobs:
 
       - name: Upload the proof
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: s10-6-proof
           path: |
@@ -146,7 +147,7 @@ jobs:
 
       - name: Upload diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-diagnostics
           path: artifacts/
@@ -175,14 +176,17 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -q -e ".[dev]"
+        run: |
+          pip install -q --require-hashes --no-deps -r requirements/build.txt && pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
+          pip install -q --no-deps --no-build-isolation -e .
+          pip check
 
       - name: Record the incident cases on Gemini, one at a time
         env:
@@ -194,7 +198,7 @@ jobs:
           set -o pipefail  # the recording's own exit status, not tee's
           bash scripts/record_gemini_incidents.sh 2>&1 | tee artifacts-gemini.log
           mkdir -p artifacts/commit
-          { echo "job: gemini-recordings (run ${{ github.run_id }})"
+          { echo "job: gemini-recordings (run $GITHUB_RUN_ID)"
             grep -hE "^(PASS|FAIL) " artifacts/gemini/*.log || true
             grep -x "scrub: ok" artifacts-gemini.log
             python -I scripts/check_recordings.py --key-env GEMINI_API_KEY \
@@ -237,7 +241,7 @@ jobs:
       # Only when every step succeeded: a recording that holds the key, an auth header, or
       # does not replay is never uploaded, so never committed.
       - name: Upload the recordings
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gemini-incident-recordings
           path: |
@@ -262,14 +266,17 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
       - name: Install
-        run: pip install -q -e ".[dev]"
+        run: |
+          pip install -q --require-hashes --no-deps -r requirements/build.txt && pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
+          pip install -q --no-deps --no-build-isolation -e .
+          pip check
 
       - name: A second database, for the demo
         run: PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_demo_eval"
@@ -287,7 +294,7 @@ jobs:
           set -o pipefail  # the recording's own exit status, not tee's
           bash scripts/record_claude_incidents.sh 2>&1 | tee artifacts-claude.log
           mkdir -p artifacts/commit
-          { echo "job: claude-recordings (run ${{ github.run_id }})"
+          { echo "job: claude-recordings (run $GITHUB_RUN_ID)"
             grep -E "^(PASS|FAIL) |spent " artifacts-claude.log || true
             grep -x "scrub: ok" artifacts-claude.log
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY \
@@ -317,7 +324,7 @@ jobs:
       # Only when every step succeeded: a recording that holds the key, an auth header, or
       # does not replay is never uploaded, so never committed.
       - name: Upload the recordings
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: claude-incident-recordings
           path: |
@@ -337,9 +344,9 @@ jobs:
     env:
       TF_VAR_profiles: '["core", "observability"]'
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.6"
           terraform_wrapper: false
@@ -364,7 +371,8 @@ jobs:
       - name: Install
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q -e ".[dev]"
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/build.txt && .venv/bin/pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
+          .venv/bin/pip install -q --no-deps --no-build-isolation -e .
 
       - name: The drills, with the incident agent live
         env:
@@ -395,14 +403,14 @@ jobs:
           set -o pipefail
           mkdir -p "$OUT" artifacts/commit
           cp artifacts/proof/results.md artifacts/proof/results.json "$OUT"/
-          { echo "job: proof (drills, run ${{ github.run_id }})"
+          { echo "job: proof (drills, run $GITHUB_RUN_ID)"
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
             echo "replay check: n/a (a proof's results, not recordings)"
           } | tee artifacts/commit/checks.md
           ! grep -q FAILED artifacts/commit/checks.md
 
       - name: Upload the results to commit
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-commit
           path: |
@@ -412,7 +420,7 @@ jobs:
 
       - name: Upload the proof
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: s11-10-drills
           path: artifacts/proof/
@@ -424,7 +432,7 @@ jobs:
 
       - name: Upload diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: drills-diagnostics
           path: artifacts/
@@ -451,11 +459,11 @@ jobs:
       run:
         working-directory: fresh
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: fresh
 
-      - uses: hashicorp/setup-terraform@v4
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
         with:
           terraform_version: "1.16.6"
           terraform_wrapper: false
@@ -489,7 +497,7 @@ jobs:
       - name: The whole E2E, including the break loop
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install -q "boto3==1.43.*" "psycopg[binary]==3.3.*" "pyyaml==6.*" "paramiko==3.5.*" "openpyxl==3.1.5" "jsonschema==4.*"
+          .venv/bin/pip install -q --require-hashes --no-deps -r requirements/build.txt && .venv/bin/pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/e2e.txt
           bash scripts/e2e.sh
 
       - name: Collect diagnostics
@@ -498,7 +506,7 @@ jobs:
 
       - name: Upload diagnostics
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fresh-clone-diagnostics
           path: fresh/artifacts/
@@ -528,15 +536,18 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
 
       # Before the key is in any step's environment.
       - name: Install
-        run: pip install -q -e ".[dev]"
+        run: |
+          pip install -q --require-hashes --no-deps -r requirements/build.txt && pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
+          pip install -q --no-deps --no-build-isolation -e .
+          pip check
 
       - name: The sample, live, against the recorded baseline
         env:
@@ -557,14 +568,14 @@ jobs:
           set -o pipefail
           mkdir -p "$OUT" artifacts/commit
           cp artifacts/live-eval/drift.md artifacts/live-eval/live.json "$OUT"/
-          { echo "job: proof (live-eval, run ${{ github.run_id }})"
+          { echo "job: proof (live-eval, run $GITHUB_RUN_ID)"
             python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY "$OUT"
             echo "replay check: n/a (a live eval's results, not recordings)"
           } | tee artifacts/commit/checks.md
           ! grep -q FAILED artifacts/commit/checks.md
 
       - name: Upload the results to commit
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: proof-commit
           path: |
@@ -585,7 +596,7 @@ jobs:
 
       - name: Upload drift.md
         if: always() && steps.keycheck.outcome == 'success'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: live-eval
           path: artifacts/live-eval/
@@ -624,11 +635,11 @@ jobs:
 
       # The commit the run was started from: the push below is refused if the branch has
       # moved since (the files were made for this commit).
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ steps.which.outputs.artifact }}
           path: ${{ runner.temp }}/incoming
@@ -664,14 +675,15 @@ jobs:
         env:
           BRANCH: ${{ github.ref_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ARTIFACT: ${{ steps.which.outputs.artifact }}  # 24.25: through env
         run: |
           grep -v '^artifacts/' "$RUNNER_TEMP/files" | xargs -r git add --
           if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          { echo "Stage 11: ${{ steps.which.outputs.artifact }} from proof run ${{ github.run_id }}"
+          { echo "Stage 11: $ARTIFACT from proof run $GITHUB_RUN_ID"
             echo
-            echo "Made on ${{ github.sha }} by $RUN_URL"
+            echo "Made on $GITHUB_SHA by $RUN_URL"
             echo
             echo "Files:"
             git diff --cached --name-status | sed 's/^/  /'
@@ -685,6 +697,6 @@ jobs:
           # The branch must still be at the run's commit: not moved on, nor reset or deleted
           # (a non-forced push would accept those), so the files match what is there.
           now=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)
-          [ "$now" = "${{ github.sha }}" ] \
-            || { echo "$BRANCH is at ${now:-nothing}, not ${{ github.sha }}: refused"; exit 1; }
+          [ "$now" = "$GITHUB_SHA" ] \
+            || { echo "$BRANCH is at ${now:-nothing}, not $GITHUB_SHA: refused"; exit 1; }
           git push origin "HEAD:refs/heads/$BRANCH"

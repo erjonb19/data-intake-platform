@@ -136,3 +136,28 @@ def test_another_packs_feed_names_cannot_be_probed(setup):
     _, api = setup
     assert post(api, feed="healthcare.nothing", key=KEYS["finance"]).status_code == 403
     assert post(api, feed="healthcare.nothing").status_code == 404  # its own pack: 404
+
+
+def test_refused_requests_are_counted_for_prometheus(setup):
+    """24.18: /metrics counts refused uploads by reason, with no feed or client names."""
+    _, api = setup
+    assert api.post("/v1/feeds/healthcare.eligibility/files?filename=a.csv").status_code == 401
+    assert (
+        api.post(
+            "/v1/feeds/healthcare.eligibility/files?filename=a.csv",
+            headers={"Authorization": "Bearer wrong"},
+        ).status_code
+        == 401
+    )
+    # the finance vendor's key, sent to a healthcare feed: not its pack's
+    finance = {"Authorization": f"Bearer {KEYS['finance']}"}
+    assert (
+        api.post(
+            "/v1/feeds/healthcare.eligibility/files?filename=a.csv", headers=finance
+        ).status_code
+        == 403
+    )
+    text = api.get("/metrics").text
+    assert 'dip_intake_api_refused_total{reason="unauthorized"} 2' in text
+    assert 'dip_intake_api_refused_total{reason="forbidden"} 1' in text
+    assert "healthcare" not in text and "finance" not in text
