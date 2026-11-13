@@ -545,10 +545,16 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   2026-11-11 (`git tag`, pushes to `main`, tag pushes, for Bash and PowerShell);
   `.claude/worktrees/` and `.claude/settings.local.json` gitignored. Merged on the owner's
   explicit OK in chat.
-- [ ] **24.43 The three open CodeQL alerts** (Low; found 2026-11-11, not in the audit): #3
+- [x] **24.43 The three open CodeQL alerts** (Low; found 2026-11-11, not in the audit): #3
   `py/clear-text-logging-sensitive-data`, `scripts/check_model.py:38`, prints the key's variable
   name, not the key (false positive: dismiss with that reason); #1
   `py/clear-text-storage-sensitive-data`, `tests/fixtures/fhir/make_fixtures.py:221`, writes a
   synthetic fixture (false positive); #2 the same rule at `dip/storage.py:66`, the local object
   store writing object metadata to disk: trace what reaches `metadata` and fix it if a secret or
   PHI can, otherwise dismiss with the reason.
+  Done 2026-11-12, all three dismissed on the owner's word: #3 false positive (it prints the
+  variable's name); #1 used in tests (synthetic fixtures); #2 false positive: CodeQL's only path
+  is the synthetic fixture `bad_missing_birthdate()` (`tests/integration/test_intake_postgres.py`),
+  every `put` caller passes vendor file bytes, a quarantine reason or demo and eval fixtures, the
+  de-identification key goes only to `ops_secret.deid_key` (`dip/deid.py`), extracts carry only
+  its fingerprint, and `LocalStore` runs only in tests, evals, the demo and the CLI.

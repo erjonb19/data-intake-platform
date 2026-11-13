@@ -296,6 +296,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `main`) and asks for installs and destructive commands (`.claude/settings.json`; 24.42)
 - [x] Dependabot proposes only versions public for 7 days, and raises pins without widening
   them (`.github/dependabot.yml`; 24.23)
+- [x] No open code scanning or Dependabot alert: paramiko 5.1 everywhere (the version Airflow
+  runs), and the three CodeQL alerts traced and dismissed with their reasons (24.43)
 - [ ] Versioned releases, with tagged images on GHCR: not yet built (12.10)
 
 **Data**
