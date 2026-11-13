@@ -112,7 +112,7 @@ variable "prometheus_chart_version" {
 }
 
 variable "metrics_server_enabled" {
-  description = "13.4: install metrics-server and the HPAs of the intake API and the MCP server (autoscaling.tf). false keeps both at one pod."
+  description = "13.4: install metrics-server and the HPAs of the intake API and the MCP server (autoscaling.tf). false removes both; a Deployment the HPA had scaled up keeps its count (replicas is ignored) until scaled back by hand: kubectl -n dip-data scale deploy/intake-api deploy/mcp --replicas=1."
   type        = bool
   default     = true
 }

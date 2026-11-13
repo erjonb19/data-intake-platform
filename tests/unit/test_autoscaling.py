@@ -34,6 +34,13 @@ def test_each_scaled_deployment_has_a_cpu_request_and_leaves_replicas_to_the_hpa
         assert "ignore_changes = [spec[0].replicas]" in block, f"{name}: replicas not ignored"
 
 
+def test_the_mcp_server_keeps_no_session_in_the_pod():
+    """Review of #163: with 2 or 3 MCP pods behind a Service with no affinity, in-memory
+    sessions would 404 on another pod. Stateless HTTP: every request stands alone."""
+    src = (ROOT / "dip/agents/mcp_server.py").read_text(encoding="utf-8")
+    assert "stateless_http=True," in src
+
+
 def test_the_hpas_scale_one_to_three():
     auto = text("autoscaling.tf")
     assert "min_replicas = 1" in auto and "max_replicas = 3" in auto

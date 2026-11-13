@@ -58,7 +58,13 @@ def hpa() -> tuple[int, str]:
 
 def wait_for(what: str, ok, limit: float, started: float, log: list) -> bool:
     while time.monotonic() - started < limit:
-        replicas, util = hpa()
+        try:
+            replicas, util = hpa()
+        except (RuntimeError, ValueError, subprocess.TimeoutExpired) as exc:
+            # a failed read is a FAIL in the results, not a crash that writes none
+            print(f"{what}: cannot read the HPA: {exc}", file=sys.stderr)
+            log.append({"t": round(time.monotonic() - started), "replicas": "?", "cpu": ""})
+            return False
         log.append({"t": round(time.monotonic() - started), "replicas": replicas, "cpu": util})
         if ok(replicas, util):
             print(f"{what}: yes after {log[-1]['t']} s ({replicas} pods, CPU {util}%)")
@@ -89,10 +95,13 @@ def main(out_dir: str) -> int:
         "securityContext": {"runAsNonRoot": True, "allowPrivilegeEscalation": False},
     }
     overrides = json.dumps({"spec": {"containers": [container]}})
-    kubectl("run", LOAD, f"--image={image}", "--restart=Never", f"--overrides={overrides}")
     t1 = time.monotonic()
     try:
+        kubectl("run", LOAD, f"--image={image}", "--restart=Never", f"--overrides={overrides}")
         steps["up: 3 pods under load"] = wait_for("up", lambda r, u: r >= 3, 420, t1, log)
+    except RuntimeError as exc:
+        print(f"up: the load pod did not start: {exc}", file=sys.stderr)
+        steps["up: 3 pods under load"] = False
     finally:
         kubectl("delete", "pod", LOAD, "--ignore-not-found", "--wait=false", check=False)
     t2 = time.monotonic()

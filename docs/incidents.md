@@ -159,8 +159,8 @@ URL already fails the size and SHA-256 check that follows.
 gateway's was an HTTP check of `/healthz`, which needs no login. But the gateway runs
 Starlette's `TrustedHostMiddleware`, which answers 400 to any `Host` header not on its list,
 and the kubelet sends the pod's IP as the `Host`. Every check would fail, and the kubelet
-would restart the gateway about every 70 seconds (a 10 s delay plus three failures 20 s
-apart), for as long as it ran. The readiness probe beside it was TCP for exactly this reason,
+would restart the gateway within a minute of every start (checks at 10, 30 and 50 s, the
+third failure kills it), then again after each back-off, for as long as it ran. The readiness probe beside it was TCP for exactly this reason,
 and its comment said so.
 
 **How we knew.** Not from CI. The PR's tests and the first E2E were green, because nothing
@@ -174,7 +174,7 @@ gateway allows, so it is still a real HTTP check. A unit test fails on any HTTP 
 server started with `--allowed-host` that sends no Host header, or one not on its list (it
 reads the real arguments, and fails if it finds no such server to check).
 
-**What stops it coming back.** The kind E2E now ends by failing if any container was
+**What stops it coming back.** Near its end, the kind E2E now fails if any container was
 restarted by a liveness or startup probe during the run (the kubelet's `Killing` events), and
 the check itself fails if it cannot read the events. The first green run printed `no container
 restarted by a liveness or startup probe`. 13.3's bad release crashes at start instead of
