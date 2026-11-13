@@ -23,6 +23,7 @@ codes and test names, all from contracts and the dbt project), so the series sta
                                                platform check saw it (S11.6)
   dip_backup_last_success_timestamp_seconds    when the newest good warehouse backup
                                                finished (14.1); none before the first
+  dip_agent_denied_calls_1h{principal}         tool calls refused in the last hour (24.18)
   dip_metrics_query_ok{query}                  1, or 0 when a query failed (a table not
                                                created yet, a missing grant)
 
@@ -179,6 +180,16 @@ QUERIES: dict[str, tuple[str, str, str]] = {
         "select extract(epoch from max(finished_at)) from ops.backup where status = 'ok'"
         " having max(finished_at) is not null",
     ),
+    # 24.18: tool calls the MCP server (or the approvals page) refused in the last hour, by
+    # principal: an agent's id from its policy file, or `human` for any person, never a
+    # person's name. A spike is the AgentCallsDenied alert.
+    "dip_agent_denied_calls_1h": (
+        "Tool calls refused in the last hour (ops.audit_log), by agent, or human for a person.",
+        "gauge",
+        "select case when principal like 'human:%' then 'human' else principal end, count(*)"
+        " from ops.audit_log where decision = 'denied' and at > now() - interval '1 hour'"
+        " group by 1",
+    ),
 }
 LABELS: dict[str, tuple[str, ...]] = {
     "dip_intake_files": ("feed", "status"),
@@ -197,6 +208,7 @@ LABELS: dict[str, tuple[str, ...]] = {
     "dip_model_latency_p95_seconds_24h": ("agent",),
     "dip_airflow_scheduler_heartbeat_age_seconds": (),
     "dip_backup_last_success_timestamp_seconds": (),
+    "dip_agent_denied_calls_1h": ("principal",),
 }
 
 

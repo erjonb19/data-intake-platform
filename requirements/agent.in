@@ -1,0 +1,16 @@
+# The Airflow image's agent venv (images/airflow): the agents' SDKs and dip's own
+# dependencies (dip itself is installed after, --no-deps). Same pins as the dev extra.
+-r build.in
+pyyaml>=6
+jsonschema>=4
+boto3>=1.34
+openpyxl>=3.1
+anthropic==1.12.0
+mcp==2.3.0
+langgraph==1.2.14
+langchain-core==1.6.9
+langgraph-checkpoint==4.2.0
+langgraph-prebuilt==1.1.0
+langgraph-sdk==0.4.6
+psycopg[binary]==3.3.6
+httpx==0.28.1

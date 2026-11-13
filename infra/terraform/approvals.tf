@@ -6,12 +6,15 @@
 # in ops.grant_approver()): reads ops.approvals and ops.audit_log, appends to the audit
 # log, and sets an approval's decision columns. No MinIO, no Airflow, no execution: a
 # person's approval is carried out by `dip approvals execute` or the proposing agent's
-# Act tier, never by this page. Every /api route needs the bearer token generated here
-# (output `approvals_token`), so other pods cannot approve by calling the Service.
+# Act tier, never by this page. Every /api route needs a bearer token generated here.
+# 24.11: one token per person in var.approvers (output `approver_tokens`; `approvals_token`
+# is the first one's), and a decision is recorded as that person's. The Secret holds only
+# each token's SHA-256.
 
-resource "random_password" "approvals_token" {
-  length  = 40
-  special = false
+resource "random_password" "approver_token" {
+  for_each = toset(var.approvers)
+  length   = 40
+  special  = false
 }
 
 resource "kubernetes_secret_v1" "approvals" {
@@ -21,7 +24,7 @@ resource "kubernetes_secret_v1" "approvals" {
   }
   data = {
     DIP_WAREHOUSE_DSN   = "postgresql://dip_approver:${local.pw["pg_approver"]}@${local.postgres_host}:5432/warehouse"
-    DIP_APPROVALS_TOKEN = random_password.approvals_token.result
+    DIP_APPROVER_TOKENS = jsonencode({ for a in var.approvers : a => sha256(random_password.approver_token[a].result) })
   }
 }
 

@@ -125,6 +125,23 @@ groups:
           description: >-
             Metered spend on live model calls today (UTC) is over $0.50 (ops.model_call,
             dip.agents.llm.cost_usd, which errs high).
+  # 24.18: security events. Refused tool calls (dip/metrics.py, from ops.audit_log) and
+  # refused intake API uploads (the API's own /metrics). Spikes, not single refusals: an
+  # agent refused now and then is the policy working.
+  - name: dip-security
+    rules:
+      - alert: AgentCallsDenied
+        expr: sum by (principal) (dip_agent_denied_calls_1h) >= 5
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $labels.principal }}: {{ $value }} tool calls refused in the last hour"
+          description: "Read ops.audit_log (decision = 'denied') for the reasons; docs/agents/kill-switch.md stops the agents' writes."
+      - alert: IntakeApiAuthFailures
+        expr: sum(increase(dip_intake_api_refused_total{reason="unauthorized"}[15m])) > 20
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value | printf \"%.0f\" }} intake API uploads with no or a wrong key in 15 minutes"
+          description: "Someone is trying keys against the intake API, or a vendor's key was rotated without them."
   # Stage 14 (14.1): the nightly warehouse backup (dip/backup.py, ops.backup). Its own group,
   # so Terraform leaves it out when backups_enabled is false (observability.tf).
   - name: dip-backups
