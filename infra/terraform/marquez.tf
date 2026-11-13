@@ -114,8 +114,9 @@ resource "kubernetes_deployment_v1" "marquez" {
               path = "/healthcheck"
               port = 5001
             }
-            period_seconds    = 10
-            failure_threshold = 30
+            initial_delay_seconds = 20 # the readiness probe's window: 20 s + 30 x 10 s
+            period_seconds        = 10
+            failure_threshold     = 30
           }
           liveness_probe {
             http_get {

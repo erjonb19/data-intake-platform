@@ -59,6 +59,24 @@ def test_every_container_has_liveness_and_readiness_probes():
     assert missing == [], "\n".join(missing)
 
 
+def test_http_probes_on_a_host_checked_server_send_an_allowed_host():
+    """A server started with `--allowed-host` (the approvals gateway) answers 400 to the
+    kubelet's default Host, the pod IP: an HTTP probe there must send an allowed Host, or a
+    liveness probe restarts the pod in a loop (found in review, #159)."""
+    for name, resource in workloads().items():
+        for c in containers(resource):
+            if "--allowed-host" not in c:
+                continue
+            for m in re.finditer(r"(liveness|readiness|startup)_probe \{", c):
+                probe = block(c, m.end() - 1)
+                if "http_get {" in probe:
+                    host = re.search(r'name\s*=\s*"Host"\s*value\s*=\s*"([^"]+)"', probe)
+                    assert host, f"{name}: an HTTP {m.group(1)} probe without a Host header"
+                    assert f'"{host.group(1)}"' in c.split("liveness_probe")[0], (
+                        f"{name}: probe Host {host.group(1)} is not an --allowed-host"
+                    )
+
+
 def test_a_container_without_probes_is_caught():
     fake = 'resource "kubernetes_deployment_v1" "x" { spec { container { name = "a" } } }'
     (c,) = containers(block(fake, fake.index("{")))

@@ -73,11 +73,17 @@ resource "kubernetes_deployment_v1" "approvals" {
             }
             period_seconds = 5
           }
-          # 13.1: restart a gateway that stops answering (the same /healthz, no login needed).
+          # 13.1: restart a gateway that stops answering. HTTP /healthz (no login needed), sent
+          # with `Host: localhost`: the kubelet's default Host is the pod IP, which the gateway's
+          # host check refuses with a 400, and that would restart the pod in a loop.
           liveness_probe {
             http_get {
               path = "/healthz"
               port = 8081
+              http_header {
+                name  = "Host"
+                value = "localhost"
+              }
             }
             initial_delay_seconds = 10
             period_seconds        = 20
