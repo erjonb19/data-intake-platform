@@ -55,6 +55,12 @@ those after a recording was made breaks its replay.
 - **The README stays honest.** The cluster is local, so it says "runs on Kubernetes
   locally" unless a piece moves to a cloud host.
 - **If blocked,** write the reason under the item in `docs/BACKLOG.md` and stop.
+- **Owner steps (owner, 2026-11-13).** Every step that needs the owner (anything done by
+  hand: laptop commands, GitHub or Console settings, recordings) goes into
+  `docs/OWNER_STEPS.md` as a checklist: one section per step, with a title, why it matters,
+  and exact copy-paste commands for Windows PowerShell (the laptop has no bash by default).
+  Never a secret in it. It changes through a PR, merged under the standing merge rule. When
+  the owner says a step is done, tick it.
 
 ### Built into every stage
 
