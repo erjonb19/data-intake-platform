@@ -280,6 +280,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch
   protection on `main` is the owner's step in GitHub's settings and is not on yet (#116 has
   the steps)
+- [x] No `${{ }}` expression inlined into a workflow's shell script
+  (`tests/unit/test_workflow_expressions.py`; 24.25)
 - [x] Private vulnerability reporting, and a `SECURITY.md` that points to it (24.24)
 - [x] The SFTP sync refuses unsafe names and files over 50 MiB before reading them
   (`dip/sftp_sync.py`; 24.36)
