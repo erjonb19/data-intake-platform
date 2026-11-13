@@ -64,3 +64,31 @@ jobs:
             echo "::endgroup::"
           done
           exit "$status"
+
+  # 24.40: the Terraform and Helm values under infra/ against Trivy's misconfiguration checks
+  # (the same pinned image). Report only for now: its findings overlap 24.15 (pod security)
+  # and 24.16 (network policies), and it becomes a failing gate on CRITICAL once those land.
+  # Its own job, so a finding never hides the image scan's result.
+  iac:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Scan infra/ (report only)
+        run: |
+          set -uo pipefail
+          docker run --rm -v "$PWD:/src:ro" -v trivy-cache:/root/.cache \
+            "$TRIVY_IMAGE" config --quiet --severity HIGH,CRITICAL --exit-code 0 \
+            --format table /src/infra | tee "$RUNNER_TEMP/iac.txt"
+          rc=${PIPESTATUS[0]}
+          {
+            echo "## Trivy IaC scan of infra/ (report only, 24.40)"
+            echo
+            # A scan that did not run must not read as "no findings".
+            if [ "$rc" -ne 0 ]; then echo "**Trivy exited $rc: no results, see the log.**"; echo; fi
+            echo '```'
+            tail -c 60000 "$RUNNER_TEMP/iac.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" -ne 0 ]; then echo "::warning::trivy config exited $rc"; fi
