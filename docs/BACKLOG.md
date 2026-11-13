@@ -182,8 +182,13 @@ Incident: the bad release (runbook `13-bad-release.md`).
   Prometheus come from their charts with both probes on by default (the repo's values leave
   them on). `tests/unit/test_probes.py` fails on any Deployment or StatefulSet container
   without both.
-- [ ] **13.2 Rolling update strategy** (`maxUnavailable: 0`) on every Deployment, and
+- [x] **13.2 Rolling update strategy** (`maxUnavailable: 0`) on every Deployment, and
   `dip rollback <service>` (`kubectl rollout undo` against `kind-dip` only)
+  Done 2026-11-13: `RollingUpdate` with `maxUnavailable: 0`, `maxSurge: 1` on the six
+  stateless Deployments; MinIO and SFTP keep `Recreate`, since their volumes are
+  ReadWriteOnce and a second pod could not mount them (the test allows Recreate only with a
+  volume). `dip rollback SERVICE` (`dip/rollback.py`), kind-dip only. The kind E2E restarts
+  the intake API and rolls it back, never below one available pod.
 - [ ] **13.3 The `bad_release` drill**, its alert, runbook 13 and an incident eval case.
   Prerequisite: the proof workflow's `gemini-recordings`, `claude-recordings` and
   `commit-results` jobs accept only `s11-*` branches; widen that to later stages' branches

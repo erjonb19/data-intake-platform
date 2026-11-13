@@ -158,6 +158,15 @@ resource "kubernetes_deployment_v1" "intake_api" {
   }
   spec {
     replicas = 1
+    # 13.2: roll without downtime: the new pod must be Ready before the old one
+    # goes, so a release that never gets Ready stalls with the old pod serving.
+    strategy {
+      type = "RollingUpdate"
+      rolling_update {
+        max_unavailable = "0"
+        max_surge       = "1"
+      }
+    }
     selector {
       match_labels = { app = "intake-api" }
     }
