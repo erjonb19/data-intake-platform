@@ -259,3 +259,24 @@ def test_cli_output_that_is_not_json_is_a_drill_error():
 def test_cli_json_between_log_lines_is_read():
     out = '[2026-11-03] INFO - start\n[{"dag_id": "drill_queue"}]\n[2026-11-03] INFO - done'
     assert drills._json_list(out) == [{"dag_id": "drill_queue"}]
+
+
+def test_bad_release_ships_a_release_that_never_gets_ready_and_rolls_back():
+    """13.3: the drill patches the intake API's command to an app that does not exist (the
+    pod crashes at start, so its liveness probe never fires); the undo is dip rollback."""
+    k = Kubectl()
+    drills.drill("bad_release", run=k)
+    [patch] = [c for c in k.calls if "patch" in c]
+    assert patch[:5] == ("-n", "dip-data", "patch", "deployment", "intake-api")
+    [op] = json.loads(patch[patch.index("-p") + 1])
+    assert op["path"] == "/spec/template/spec/containers/0/command"
+    assert "dip.intake_api:no_such_app" in op["value"]
+    drills.drill("bad_release", undo=True, run=k)
+    assert ("-n", "dip-data", "rollout", "undo", "deployment/intake-api") in k.calls
+
+
+def test_bad_release_refuses_any_cluster_but_kind():
+    k = Kubectl(context="prod-eu")
+    with pytest.raises(drills.DrillError, match="not the kind cluster"):
+        drills.drill("bad_release", run=k)
+    assert not any("patch" in c for c in k.calls)

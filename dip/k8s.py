@@ -41,9 +41,17 @@ class K8s:
         )
 
     def get(self, path: str) -> Any:
+        return self._fetch(f"{self.base}/api/v1/namespaces/{self.namespace}/{path}")
+
+    def deployments(self, namespace: str) -> list[dict[str, Any]]:
+        """The Deployments of `namespace` (13.3: the platform check's stalled-rollout check;
+        a Role in that namespace allows get and list on deployments, nothing else)."""
+        url = f"{self.base}/apis/apps/v1/namespaces/{namespace}/deployments"
+        return self._fetch(url).get("items", [])
+
+    def _fetch(self, url: str) -> Any:
         if self.http is None and not self.base:
             raise LookupError("no Kubernetes API here (not in a cluster, DIP_K8S_API unset)")
-        url = f"{self.base}/api/v1/namespaces/{self.namespace}/{path}"
         headers = {"Accept": "application/json"}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"

@@ -272,7 +272,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Rolling updates with `maxUnavailable: 0` and `dip rollback SERVICE`; the kind E2E rolls
   the intake API out and back without dropping below one available pod (`dip/rollback.py`,
   `tests/e2e/rollback.py`; 13.2)
-- [ ] A bad-release drill: not yet built (13.3)
+- [ ] A bad-release drill with its runbook and incident eval case: not yet built (13.3). The
+  drill, its incident and the `ReleaseStalled` alert run in the kind E2E today
 - [ ] Autoscaling (metrics-server, HPAs): not yet built (13.4)
 - [ ] OpenTofu checked in CI: not yet built (13.5)
 - [x] Dependency updates (`.github/dependabot.yml`), Trivy scans of every image we build,

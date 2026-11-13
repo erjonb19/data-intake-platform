@@ -389,3 +389,53 @@ def test_more_paused_dags_than_one_page_counts_no_scheduled_task(warehouse):
     out = platform_check.run(warehouse.conn, health(waiting=[held, queued], paused=["a"],
                              paused_total=250), now=NOW, env={})  # fmt: skip
     assert out["stuck_queued"] == ["drill_queue.wait_for_room"]
+
+
+def deployments(*stalled: str, healthy=("mcp",), fail=False):
+    """13.3: the Deployments of dip-data as the API lists them; `stalled` ones passed their
+    progress deadline."""
+
+    def dep(name, ok):
+        cond = ({"type": "Progressing", "status": "True", "reason": "NewReplicaSetAvailable"}
+                if ok else
+                {"type": "Progressing", "status": "False", "reason": "ProgressDeadlineExceeded",
+                 "message": f'ReplicaSet "{name}-7f9c" has timed out progressing.'})  # fmt: skip
+        return {"metadata": {"name": name}, "status": {"conditions": [cond]}}
+
+    def http(url, headers):
+        if url.endswith("/apis/apps/v1/namespaces/dip-data/deployments"):
+            if fail:
+                raise ConnectionError("forbidden")
+            return {"items": [dep(n, False) for n in stalled] + [dep(n, True) for n in healthy]}
+        return {"items": []}
+
+    return K8s(base="https://k8s", http=http)
+
+
+def open_stalled(wh):
+    return rows(wh, "select target from ops.incident where kind = 'PLATFORM.ROLLOUT_STALLED'"
+                    " and closed_at is null order by target")  # fmt: skip
+
+
+def test_a_stalled_rollout_opens_its_incident_until_it_is_rolled_back(warehouse):
+    out = platform_check.run(warehouse.conn, health(), deployments("intake-api"), now=NOW, env={})
+    assert out["rollouts_stalled"] == ["intake-api"]
+    assert open_stalled(warehouse) == [("intake-api",)]
+    [(detail,)] = rows(warehouse, "select detail from ops.incident"
+                                  " where kind = 'PLATFORM.ROLLOUT_STALLED'")  # fmt: skip
+    assert "dip-data/intake-api" in detail and "timed out progressing" in detail
+    platform_check.run(warehouse.conn, health(), deployments("intake-api"), now=NOW, env={})
+    assert len(open_stalled(warehouse)) == 1  # still one
+    healthy = deployments(healthy=("intake-api", "mcp"))
+    platform_check.run(warehouse.conn, health(), healthy, now=NOW, env={})
+    assert open_stalled(warehouse) == []
+
+
+def test_a_rollout_check_that_cannot_read_decides_nothing(warehouse):
+    platform_check.run(warehouse.conn, health(), deployments("intake-api"), now=NOW, env={})
+    out = platform_check.run(warehouse.conn, health(), deployments(fail=True), now=NOW, env={})
+    assert out["rollouts"].startswith("unknown")
+    assert open_stalled(warehouse) == [("intake-api",)]  # not closed on an unreadable API
+    # and a Deployment that is gone (not seen) does not close its incident either
+    platform_check.run(warehouse.conn, health(), deployments(healthy=("mcp",)), now=NOW, env={})
+    assert open_stalled(warehouse) == [("intake-api",)]

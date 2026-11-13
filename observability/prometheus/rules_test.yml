@@ -196,6 +196,26 @@ tests:
                 A task stayed scheduled or queued past the platform check's threshold (incident
                 TASK.STUCK_QUEUED, opened by the platform-check CronJob). Runbook
                 docs/runbooks/12-stuck-queued.md.
+  # Stage 13 (13.3): an open PLATFORM.ROLLOUT_STALLED incident fires; none, no alert.
+  - interval: 30s
+    input_series:
+      - series: 'dip_incidents_open{feed="_platform",kind="PLATFORM.ROLLOUT_STALLED"}'
+        values: "0 0 1x10"
+    alert_rule_test:
+      - eval_time: 30s
+        alertname: ReleaseStalled
+        exp_alerts: []
+      - eval_time: 2m
+        alertname: ReleaseStalled
+        exp_alerts:
+          - exp_labels: {severity: warning, kind: PLATFORM.ROLLOUT_STALLED}
+            exp_annotations:
+              summary: "A rollout has stalled (1 deployment(s))"
+              description: >-
+                A Deployment's new pod did not get Ready within its progress deadline (incident
+                PLATFORM.ROLLOUT_STALLED, opened by the platform-check CronJob). The old pod is
+                still serving (maxUnavailable 0). Roll it back with `python -m dip rollback
+                <service>`, then fix the release in Terraform.
   # Stage 14 (14.1): the last good backup finished at time 0 and none since: 25 h old, no
   # alert; 27 h old, BackupMissing.
   - interval: 1h

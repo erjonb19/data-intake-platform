@@ -20,6 +20,8 @@ it healthy again:
   PLATFORM.SCHEDULER_DOWN   the Airflow scheduler's heartbeat is stale (target: scheduler)
   TASK.OOMKILLED            a task's pod was killed for memory (target: <dag>.<task>)
   TASK.STUCK_QUEUED         a task waited in scheduled or queued too long (<dag>.<task>)
+  PLATFORM.ROLLOUT_STALLED  a Deployment's rollout passed its progress deadline (13.3;
+                            target: the Deployment)
 
 The incident agent diagnoses an open incident and reports to `ops.incident_diagnosis`
 (dip/agents/incident_tools.py); the LangGraph chain hands quarantined records to triage
@@ -31,8 +33,9 @@ from __future__ import annotations
 from typing import Any
 
 KINDS = ("FEED.LATE", "FILE.QUARANTINED", "DAG.FAILED", "PLATFORM.SCHEDULER_DOWN",
-         "TASK.OOMKILLED", "TASK.STUCK_QUEUED")  # fmt: skip
-PLATFORM_KINDS = ("PLATFORM.SCHEDULER_DOWN", "TASK.OOMKILLED", "TASK.STUCK_QUEUED")
+         "TASK.OOMKILLED", "TASK.STUCK_QUEUED", "PLATFORM.ROLLOUT_STALLED")  # fmt: skip
+PLATFORM_KINDS = ("PLATFORM.SCHEDULER_DOWN", "TASK.OOMKILLED", "TASK.STUCK_QUEUED",
+                  "PLATFORM.ROLLOUT_STALLED")  # fmt: skip
 PLATFORM_FEED = "_platform"
 
 
