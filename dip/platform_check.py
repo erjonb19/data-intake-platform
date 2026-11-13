@@ -42,6 +42,12 @@ opens or closes a platform incident (dip/incidents.py, feed `_platform`):
               The API cannot order by waiting time, so with more than 100 waiting tasks
               some may go unseen, and the check then closes nothing
 
+  rollouts    (13.3) Deployments in dip-data whose rollout passed its progress deadline
+              (Progressing False, ProgressDeadlineExceeded): each opens
+              PLATFORM.ROLLOUT_STALLED (target the Deployment); one seen rolling normally
+              again (completed, or `dip rollback`) closes. A read-only Role in dip-data
+              allows get and list on deployments
+
 The exporter turns the latest heartbeat into dip_airflow_scheduler_heartbeat_age_seconds,
 and the AirflowSchedulerDown alert fires above 180 s. TaskPodOOMKilled and TaskQueuedTooLong
 fire on the open incidents (dip_incidents_open).
@@ -135,6 +141,47 @@ def check_oomkilled(cur: Any, k8s: Any) -> dict:
     return {"oomkilled": sorted(killed)}
 
 
+ROLLOUT_NAMESPACE = "dip-data"
+
+
+def stalled_rollouts(deployments: list[dict[str, Any]]) -> dict[str, str]:
+    """Deployments whose rollout passed its progress deadline: Kubernetes sets the
+    Progressing condition to False with reason ProgressDeadlineExceeded. With
+    maxUnavailable 0 (13.2) the old pod is still serving; the new one never got Ready."""
+    out = {}
+    for d in deployments:
+        for c in (d.get("status") or {}).get("conditions") or []:
+            if (c.get("type") == "Progressing" and c.get("status") == "False"
+                    and c.get("reason") == "ProgressDeadlineExceeded"):  # fmt: skip
+                out[d["metadata"]["name"]] = c.get("message") or ""
+    return out
+
+
+def check_rollouts(cur: Any, k8s: Any, namespace: str = ROLLOUT_NAMESPACE) -> dict:
+    """13.3: a stalled rollout in dip-data opens PLATFORM.ROLLOUT_STALLED (target: the
+    Deployment); one that completes, or is rolled back, closes it."""
+    try:
+        deployments = k8s.deployments(namespace)
+    except Exception as exc:  # noqa: BLE001 - recorded; no incident is decided on it
+        record(cur, "k8s_api", namespace, False, detail=f"{type(exc).__name__}: {exc}")
+        return {"rollouts": "unknown (the Kubernetes API did not answer)"}
+    stalled = stalled_rollouts(deployments)
+    for name, message in sorted(stalled.items()):
+        record(cur, "rollout", name, False, detail=message)
+        detail = f"the rollout of deployment {namespace}/{name} stalled: {message}"
+        _open_platform(cur, "PLATFORM.ROLLOUT_STALLED", name, detail)
+    seen = {d["metadata"]["name"] for d in deployments}
+    cur.execute("select target from ops.incident where feed = %s"
+                " and kind = 'PLATFORM.ROLLOUT_STALLED' and closed_at is null",
+                (PLATFORM_FEED,))  # fmt: skip
+    for (target,) in cur.fetchall():
+        # a Deployment that is gone (deleted, a profile turned off) is not healthy: only
+        # one the check saw rolling normally closes its incident
+        if target in seen and target not in stalled:
+            close_platform(cur, "PLATFORM.ROLLOUT_STALLED", target)
+    return {"rollouts_stalled": sorted(stalled)}
+
+
 def check_dag_runs(cur: Any, services: Any) -> dict:
     try:
         # newest first, at most 100 (Airflow's default maximum_page_limit)
@@ -224,6 +271,7 @@ def run(conn: Any, services: Any, k8s: Any = None, now: datetime | None = None,
                                   float(env.get("DIP_QUEUED_STALE_SECONDS", "300")))  # fmt: skip
         if k8s is not None and (k8s.base or k8s.http):
             out |= check_oomkilled(cur, k8s)
+            out |= check_rollouts(cur, k8s)
     conn.commit()
     return out
 

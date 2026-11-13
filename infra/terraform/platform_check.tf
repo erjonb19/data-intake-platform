@@ -48,6 +48,37 @@ resource "kubernetes_role_binding_v1" "platform_check" {
   }
 }
 
+# 13.3: the stalled-rollout check reads the Deployments of dip-data: get and list on
+# deployments there, nothing else (not their pods, secrets or config).
+resource "kubernetes_role_v1" "data_deployment_reader" {
+  metadata {
+    name      = "dip-data-deployment-reader"
+    namespace = kubernetes_namespace_v1.data.metadata[0].name
+  }
+  rule {
+    api_groups = ["apps"]
+    resources  = ["deployments"]
+    verbs      = ["get", "list"]
+  }
+}
+
+resource "kubernetes_role_binding_v1" "platform_check_deployments" {
+  metadata {
+    name      = "platform-check-deployment-reader"
+    namespace = kubernetes_namespace_v1.data.metadata[0].name
+  }
+  role_ref {
+    api_group = "rbac.authorization.k8s.io"
+    kind      = "Role"
+    name      = kubernetes_role_v1.data_deployment_reader.metadata[0].name
+  }
+  subject {
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account_v1.platform_check.metadata[0].name
+    namespace = local.airflow_ns
+  }
+}
+
 # The MCP server's service account (it had none: the default one, with no Role), bound in
 # dip-airflow to the same read-only Role.
 resource "kubernetes_service_account_v1" "mcp" {

@@ -61,7 +61,7 @@
                                records) and the models a run uses (Stage 11, S11.3)
   drill NAME [--undo]          break the platform on purpose, on the kind cluster only,
                                and undo it (Stage 11: scheduler_down, oom_task, bad_secret,
-                               stuck_queued; 14.2: drop_table)
+                               stuck_queued; 14.2: drop_table; 13.3: bad_release)
   rollback SERVICE             a Deployment back to its previous revision and Ready again
                                (intake-api, mcp, approvals, metrics, marquez, marquez-web;
                                kind-dip only; 13.2)

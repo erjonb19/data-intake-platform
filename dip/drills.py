@@ -19,6 +19,9 @@ workflow, never on the laptop (decisions log, 2026-10-30).
   drop_table       snapshot gold.member_eligibility (rows, checksum, grants) into
                    ops.restore_drill and drop it, in one transaction; the undo is the
                    restore, `dip restore --latest --verify` (dip/restore.py; 14.2)
+  bad_release      a release of the intake API whose pod never gets Ready: the rollout
+                   stalls with the old pod serving; the undo is `dip rollback intake-api`
+                                                                    (13.3)
 """
 
 from __future__ import annotations
@@ -261,12 +264,40 @@ def drop_table_undo(run: Callable[..., str] = kubectl) -> str:
     return f"{out['table']} is back and matches the snapshot ({out['seconds']} s)"
 
 
+BAD_RELEASE_DEPLOY = ("dip-data", "intake-api")
+# The release's mistake: an entrypoint naming an app factory that does not exist, so the
+# new pod exits at start, crash-loops and never gets Ready. (It crashes rather than hangs,
+# so its liveness probe never fires: the E2E's liveness check stays meaningful.)
+BAD_RELEASE_COMMAND = ["uvicorn", "dip.intake_api:no_such_app", "--factory", "--host",
+                       "0.0.0.0", "--port", "8000"]  # fmt: skip
+
+
+def bad_release(run: Callable[..., str] = kubectl) -> str:
+    """13.3: ship a release of the intake API that never gets Ready. With maxUnavailable 0
+    (13.2) the rollout stalls with the old pod serving; past the 3-minute progress deadline
+    the platform check opens PLATFORM.ROLLOUT_STALLED and ReleaseStalled fires."""
+    ns, name = BAD_RELEASE_DEPLOY
+    patch = [{"op": "add", "path": "/spec/template/spec/containers/0/command",
+              "value": BAD_RELEASE_COMMAND}]  # fmt: skip
+    run("-n", ns, "patch", "deployment", name, "--type", "json", "-p", json.dumps(patch))
+    return (f"{ns}/{name}: a release whose pod never gets Ready is rolling out; the old pod"
+            " keeps serving, and after 3 minutes the rollout is marked stalled")  # fmt: skip
+
+
+def bad_release_undo(run: Callable[..., str] = kubectl) -> str:
+    """The undo is the fix the runbook gives: `dip rollback intake-api`."""
+    from dip import rollback
+
+    return rollback.rollback("intake-api", run=run)
+
+
 DRILLS: dict[str, tuple[Callable[..., str], Callable[..., str]]] = {
     "scheduler_down": (scheduler_down, scheduler_down_undo),
     "oom_task": (oom_task, oom_task_undo),
     "bad_secret": (bad_secret, bad_secret_undo),
     "stuck_queued": (stuck_queued, stuck_queued_undo),
     "drop_table": (drop_table, drop_table_undo),
+    "bad_release": (bad_release, bad_release_undo),
 }
 
 

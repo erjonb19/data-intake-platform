@@ -85,6 +85,17 @@ groups:
             A task stayed scheduled or queued past the platform check's threshold (incident
             TASK.STUCK_QUEUED, opened by the platform-check CronJob). Runbook
             docs/runbooks/12-stuck-queued.md.
+      # Stage 13 (13.3): a release whose new pod never got Ready (the check's incident).
+      - alert: ReleaseStalled
+        expr: sum by (kind) (dip_incidents_open{feed="_platform",kind="PLATFORM.ROLLOUT_STALLED"}) > 0
+        labels: {severity: warning}
+        annotations:
+          summary: "A rollout has stalled ({{ $value }} deployment(s))"
+          description: >-
+            A Deployment's new pod did not get Ready within its progress deadline (incident
+            PLATFORM.ROLLOUT_STALLED, opened by the platform-check CronJob). The old pod is
+            still serving (maxUnavailable 0). Roll it back with `python -m dip rollback
+            <service>`, then fix the release in Terraform.
       - alert: TargetDown
         expr: up == 0
         for: 5m

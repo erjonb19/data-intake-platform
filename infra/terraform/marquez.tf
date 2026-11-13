@@ -200,6 +200,9 @@ resource "kubernetes_deployment_v1" "marquez_web" {
         max_surge       = "1"
       }
     }
+    # 13.3: a rollout whose new pod is not Ready in 3 minutes is marked stalled
+    # (Progressing False), which the platform check turns into an incident.
+    progress_deadline_seconds = 180
     selector {
       match_labels = { app = "marquez-web" }
     }
