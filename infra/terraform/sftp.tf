@@ -139,6 +139,16 @@ resource "kubernetes_deployment_v1" "sftp" {
             }
             period_seconds = 5
           }
+          # 13.1
+          liveness_probe {
+            tcp_socket {
+              port = 22
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 20
+            timeout_seconds       = 5
+            failure_threshold     = 3
+          }
           resources {
             requests = { cpu = "20m", memory = "16Mi" }
             limits   = { memory = "64Mi" }

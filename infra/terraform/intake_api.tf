@@ -189,6 +189,17 @@ resource "kubernetes_deployment_v1" "intake_api" {
             }
             period_seconds = 5
           }
+          # 13.1: restart an API that stops answering.
+          liveness_probe {
+            http_get {
+              path = "/healthz"
+              port = 8000
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 20
+            timeout_seconds       = 5
+            failure_threshold     = 3
+          }
           security_context {
             run_as_non_root            = true
             run_as_user                = 10001

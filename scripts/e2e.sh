@@ -146,3 +146,15 @@ KUBECONFIG="$(tf output -raw kubeconfig_path)" "$py" "$REPO_ROOT/tests/e2e/resto
 # The platform check runs on demand from its CronJob; dip drill runs only against kind-dip.
 KUBECONFIG="$(tf output -raw kubeconfig_path)" PROMETHEUS_URL="$PROMETHEUS_URL" \
   "$py" "$REPO_ROOT/tests/e2e/platform_drill.py"
+
+# 13.1: no container was restarted for failing its liveness or startup probe during the
+# run. A probe that can never pass restarts its pod in a loop, and every check above could
+# still pass between restarts (#159's review found one: the approvals gateway's Host check).
+# Reading the events must succeed (set -e): a check that read nothing must not pass.
+kubeconfig="$(tf output -raw kubeconfig_path)"
+events="$(kubectl --kubeconfig "$kubeconfig" get events -A --field-selector reason=Killing \
+  -o jsonpath='{range .items[*]}{.involvedObject.namespace}/{.involvedObject.name}: {.message}{"\n"}{end}')"
+kills="$(grep -iE 'failed (liveness|startup) probe' <<<"$events" || true)"
+[[ -z "$kills" ]] || die "containers restarted by a liveness or startup probe:
+$kills"
+log "no container restarted by a liveness or startup probe"

@@ -268,7 +268,7 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Airflow pods hold no master secret: Airflow's own MinIO user limited to its four buckets,
   and the de-identification and SFTP keys only in the one task pod that uses each
   (`infra/terraform/airflow.tf`, `tests/unit/test_airflow_secrets.py`; 24.2)
-- [ ] Liveness probes beyond MinIO: not yet built (13.1)
+- [x] Liveness and readiness probes on every long-running service (`tests/unit/test_probes.py`; 13.1)
 - [ ] Rolling updates with `maxUnavailable: 0` and `dip rollback`: not yet built (13.2)
 - [ ] A bad-release drill: not yet built (13.3)
 - [ ] Autoscaling (metrics-server, HPAs): not yet built (13.4)
