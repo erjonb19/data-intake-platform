@@ -86,3 +86,32 @@ def test_rollback_refuses_an_unknown_service():
     with pytest.raises(DrillError, match="unknown service"):
         rollback.rollback("minio", run=k)
     assert k.calls == []
+
+
+class StalledOnce(Kubectl):
+    """`rollout status` fails like kubectl does in the sync right after undoing a stalled
+    rollout, `fails` times, then succeeds."""
+
+    def __init__(self, fails, message='deployment "intake-api" exceeded its progress deadline'):
+        super().__init__()
+        self.fails, self.message = fails, message
+
+    def __call__(self, *args, check=True):
+        if "status" in args and self.fails:
+            self.calls.append(args)
+            self.fails -= 1
+            raise DrillError(f"kubectl -n dip-data rollout: error: {self.message}")
+        return super().__call__(*args, check=check)
+
+
+def test_rollback_waits_out_the_stale_deadline_right_after_the_undo():
+    k, slept = StalledOnce(fails=2), []
+    rollback.rollback("intake-api", run=k, sleep=slept.append)
+    assert sum("status" in c for c in k.calls) == 3 and slept == [3, 3]
+
+
+def test_rollback_still_fails_on_any_other_error_or_a_deadline_that_stays():
+    with pytest.raises(DrillError, match="not found"):
+        rollback.rollback("intake-api", run=StalledOnce(1, "not found"), sleep=lambda s: None)
+    with pytest.raises(DrillError, match="progress deadline"):
+        rollback.rollback("intake-api", run=StalledOnce(9), sleep=lambda s: None)

@@ -153,7 +153,7 @@ def stalled_rollouts(deployments: list[dict[str, Any]]) -> dict[str, str]:
         for c in (d.get("status") or {}).get("conditions") or []:
             if (c.get("type") == "Progressing" and c.get("status") == "False"
                     and c.get("reason") == "ProgressDeadlineExceeded"):  # fmt: skip
-                out[d["metadata"]["name"]] = c.get("message") or ""
+                out[(d.get("metadata") or {}).get("name", "?")] = c.get("message") or ""
     return out
 
 
@@ -170,7 +170,7 @@ def check_rollouts(cur: Any, k8s: Any, namespace: str = ROLLOUT_NAMESPACE) -> di
         record(cur, "rollout", name, False, detail=message)
         detail = f"the rollout of deployment {namespace}/{name} stalled: {message}"
         _open_platform(cur, "PLATFORM.ROLLOUT_STALLED", name, detail)
-    seen = {d["metadata"]["name"] for d in deployments}
+    seen = {(d.get("metadata") or {}).get("name") for d in deployments}
     cur.execute("select target from ops.incident where feed = %s"
                 " and kind = 'PLATFORM.ROLLOUT_STALLED' and closed_at is null",
                 (PLATFORM_FEED,))  # fmt: skip

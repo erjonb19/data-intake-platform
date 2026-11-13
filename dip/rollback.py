@@ -14,6 +14,7 @@ image Terraform names back; fix the release there too (runbook 13, with 13.3).
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 
 from dip.drills import DrillError, kubectl, require_kind
@@ -31,7 +32,8 @@ SERVICES: dict[str, tuple[str, str]] = {
 }
 
 
-def rollback(service: str, run: Callable[..., str] = kubectl, timeout: str = "180s") -> str:
+def rollback(service: str, run: Callable[..., str] = kubectl, timeout: str = "180s",
+             sleep: Callable[[float], None] = time.sleep) -> str:  # fmt: skip
     if service not in SERVICES:
         raise DrillError(f"unknown service {service!r}; one of: {', '.join(sorted(SERVICES))}")
     require_kind(run)
@@ -39,7 +41,17 @@ def rollback(service: str, run: Callable[..., str] = kubectl, timeout: str = "18
     before = run("-n", ns, "get", f"deployment/{deploy}",
                  "-o", "jsonpath={.spec.template.spec.containers[0].image}")  # fmt: skip
     run("-n", ns, "rollout", "undo", f"deployment/{deploy}")
-    run("-n", ns, "rollout", "status", f"deployment/{deploy}", f"--timeout={timeout}")
+    # Undoing a stalled rollout: for one sync after the undo the controller can still
+    # report ProgressDeadlineExceeded at the new generation, and `rollout status` fails at
+    # once on that. It clears on the next sync, so try again a few times (review of #162).
+    for attempt in range(4):
+        try:
+            run("-n", ns, "rollout", "status", f"deployment/{deploy}", f"--timeout={timeout}")
+            break
+        except DrillError as exc:
+            if "progress deadline" not in str(exc) or attempt == 3:
+                raise
+            sleep(3)
     after = run("-n", ns, "get", f"deployment/{deploy}",
                 "-o", "jsonpath={.spec.template.spec.containers[0].image}")  # fmt: skip
     return f"{service}: rolled back from {before} to {after}, and Ready"

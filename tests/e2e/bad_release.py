@@ -58,10 +58,11 @@ def main() -> int:
             time.sleep(2)
 
     watcher = threading.Thread(target=watch, daemon=True)
-    print(dip("drill", "bad_release"))
     started = time.monotonic()
     watcher.start()
     try:
+        # inside the try: a drill that fails after its patch went through is still undone
+        print(dip("drill", "bad_release"))
         while not stalled() and time.monotonic() - started < 300:  # deadline 180 s
             time.sleep(10)
         check(stalled(), "Kubernetes marked the rollout stalled (ProgressDeadlineExceeded)")
@@ -81,9 +82,11 @@ def main() -> int:
                     time.sleep(15)
             check(seen, "the ReleaseStalled alert fires")
     finally:
-        print(dip("drill", "bad_release", "--undo"))
-        stop.set()
-        watcher.join(5)
+        try:
+            print(dip("drill", "bad_release", "--undo"))
+        finally:
+            stop.set()
+            watcher.join(5)
     check(low[0] >= 1, f"the old pod served throughout (fewest available: {low[0]})")
     undone, closed = time.monotonic(), False
     while not closed and time.monotonic() - undone < 180:
