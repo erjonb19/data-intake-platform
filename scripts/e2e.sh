@@ -147,6 +147,10 @@ KUBECONFIG="$(tf output -raw kubeconfig_path)" "$py" "$REPO_ROOT/tests/e2e/resto
 KUBECONFIG="$(tf output -raw kubeconfig_path)" PROMETHEUS_URL="$PROMETHEUS_URL" \
   "$py" "$REPO_ROOT/tests/e2e/platform_drill.py"
 
+# 13.4: metrics-server works and both HPAs read their pods' CPU (the 1 to 3 pods load test
+# is the proof workflow's `scaling` job).
+KUBECONFIG="$(tf output -raw kubeconfig_path)" "$py" "$REPO_ROOT/tests/e2e/autoscaling.py"
+
 # 13.2: a rollout of the intake API and `dip rollback intake-api`, each without dropping
 # below one available pod (maxUnavailable: 0).
 KUBECONFIG="$(tf output -raw kubeconfig_path)" "$py" "$REPO_ROOT/tests/e2e/rollback.py"

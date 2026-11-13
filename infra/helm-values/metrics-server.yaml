@@ -1,0 +1,21 @@
+# 13.4: metrics-server (kubernetes-sigs chart), so the HorizontalPodAutoscalers of the intake
+# API and the MCP server can read pod CPU. Off with `metrics_server_enabled = false`
+# (infra/terraform/autoscaling.tf), which also drops the two HPAs.
+
+image:
+  # 0.9.0 (the chart's appVersion), pinned by its index digest like the platform's own
+  # images (24.22): a moved tag cannot change what runs.
+  tag: "v0.9.0@sha256:d9862115e7c7881280d3d75ca26bda8ffc0fc213315979575bf23ce9826205c0"
+
+# kind's kubelets serve self-signed certificates; a local cluster only (the README says so).
+args:
+  - --kubelet-insecure-tls
+
+# Sized for one small kind node, well under the chart's 100m / 200Mi default; the measured
+# peak goes in docs/PROGRESS.md (CLAUDE.md's memory budget).
+resources:
+  requests:
+    cpu: 20m
+    memory: 48Mi
+  limits:
+    memory: 128Mi

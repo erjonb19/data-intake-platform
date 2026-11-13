@@ -228,7 +228,11 @@ resource "kubernetes_deployment_v1" "intake_api" {
     }
   }
   wait_for_rollout = true
-  depends_on       = [kubernetes_job_v1.intake_api_minio_user]
+  # 13.4: the HPA owns the replica count (autoscaling.tf); an apply must not reset it.
+  lifecycle {
+    ignore_changes = [spec[0].replicas]
+  }
+  depends_on = [kubernetes_job_v1.intake_api_minio_user]
 }
 
 resource "kubernetes_service_v1" "intake_api" {

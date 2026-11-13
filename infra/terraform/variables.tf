@@ -111,6 +111,18 @@ variable "prometheus_chart_version" {
   default     = "29.35.0"
 }
 
+variable "metrics_server_enabled" {
+  description = "13.4: install metrics-server and the HPAs of the intake API and the MCP server (autoscaling.tf). false removes both; a Deployment the HPA had scaled up keeps its count (replicas is ignored) until scaled back by hand: kubectl -n dip-data scale deploy/intake-api deploy/mcp --replicas=1."
+  type        = bool
+  default     = true
+}
+
+variable "metrics_server_chart_version" {
+  description = "kubernetes-sigs/metrics-server chart; app 0.9.0 (its image pinned by digest in helm-values/metrics-server.yaml)."
+  type        = string
+  default     = "3.14.0"
+}
+
 variable "grafana_chart_version" {
   description = "grafana-community/grafana chart; app 13.2.3."
   type        = string

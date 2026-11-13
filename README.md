@@ -274,7 +274,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `tests/e2e/rollback.py`; 13.2)
 - [ ] A bad-release drill with its runbook and incident eval case: not yet built (13.3). The
   drill, its incident and the `ReleaseStalled` alert run in the kind E2E today
-- [ ] Autoscaling (metrics-server, HPAs): not yet built (13.4)
+- [x] Autoscaling: metrics-server and HPAs on the intake API and the MCP server, 1 to 3 pods
+  and back, proved in the proof workflow's `scaling` job (`infra/terraform/autoscaling.tf`,
+  `scripts/proof_scaling.py`; 13.4)
 - [ ] OpenTofu checked in CI: not yet built (13.5)
 - [x] Dependency updates (`.github/dependabot.yml`), Trivy scans of every image we build,
   failing on a fixable CRITICAL (`.github/workflows/security.yml`, `.trivyignore`), and

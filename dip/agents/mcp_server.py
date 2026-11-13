@@ -177,6 +177,11 @@ def http_app(
     audience, so the resource-indicator check is off."""
     hosts = allowed_hosts or ["127.0.0.1:*", "localhost:*", "[::1]:*"]
     return server.streamable_http_app(
+        # 13.4: no session state in the pod. Every request carries its own bearer key and
+        # needs no Mcp-Session-Id, so any of the HPA's 1 to 3 pods can answer it, and a
+        # scale-down drops no one's session (review of #163: in-memory sessions behind a
+        # Service with no affinity would 404 once a second pod came up).
+        stateless_http=True,
         auth=AuthSettings(issuer_url=url, resource_server_url=url, validate_token_resource=False),
         token_verifier=ApiKeyVerifier(key_hashes),
         transport_security=TransportSecuritySettings(

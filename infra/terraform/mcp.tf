@@ -372,6 +372,10 @@ resource "kubernetes_deployment_v1" "mcp" {
     }
   }
   wait_for_rollout = true
+  # 13.4: the HPA owns the replica count (autoscaling.tf); an apply must not reset it.
+  lifecycle {
+    ignore_changes = [spec[0].replicas]
+  }
   depends_on = [
     kubernetes_job_v1.mcp_minio_user,
     kubernetes_job_v1.mcp_airflow_viewer,

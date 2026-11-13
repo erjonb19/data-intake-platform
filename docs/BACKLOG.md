@@ -203,9 +203,14 @@ Incident: the bad release (runbook `13-bad-release.md`).
   `ReleaseStalled` fires; the undo is `dip rollback intake-api`. The kind E2E runs it last.
   Left for the recording (the owner's OK, `docs/OWNER_STEPS.md`): runbook 13, the incident
   agent's root cause and prompt line for the new kind, and its eval case.
-- [ ] **13.4 Autoscaling:** metrics-server in kind, behind an on/off value in its Helm
+- [x] **13.4 Autoscaling:** metrics-server in kind, behind an on/off value in its Helm
   values, with its memory on the laptop measured and reported; HPAs for the intake API and
   MCP server; the scaling proof in the proof workflow
+  Done 2026-11-13: metrics-server 0.9.0 (chart 3.14.0, digest-pinned, 20m/48Mi) and HPAs
+  (1 to 3 pods at 70% of the CPU request) behind `metrics_server_enabled`; the MCP server
+  runs stateless HTTP so a second pod can answer any request. The E2E's peak memory went from
+  5.0 to 5.1 GiB of 15.6 (run 43478136516). The proof workflow's `scaling` job (run
+  43478066459): 1 to 3 pods in 40 s under load, back to 1 in 171 s after it.
 - [ ] **13.5 OpenTofu:** a CI job that runs `tofu init` and `tofu validate` on
   `infra/terraform/` so the code works under the open-source fork; README names both
 
