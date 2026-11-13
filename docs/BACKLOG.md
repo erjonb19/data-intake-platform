@@ -205,7 +205,7 @@ Incident: the dropped table (runbook `14-restore.md`).
   - Runbook `14-restore.md` is deferred: `docs/runbooks/` is the incident agent's search
     input, so a new runbook changes the incident recordings, and that re-recording needs
     the user's approval first. The drill's steps are in `docs/backups.md` until then.
-- [ ] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
+- [x] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database
   Found 2026-11-09 (#115's e2e, run 42617255988): every intake task runs `Warehouse.init`,
@@ -214,6 +214,13 @@ Incident: the dropped table (runbook `14-restore.md`).
   the init's `pg_advisory_xact_lock` transaction against a `select ... from ops.quarantine`).
   The break loop's proposal failed; the other e2e run on the same commit passed. Applying migrations once,
   before the services start, and not on every task removes it.
+  Done 2026-11-11: numbered SQL files in `dip/sql/migrations/` (0001 is the old
+  `warehouse.sql`, unchanged, so an earlier release's warehouse takes it as is; 0002 the
+  `source_to_concept_map` table), applied once each under an advisory lock, all-or-nothing, and
+  recorded with their SHA-256 in `ops.schema_migration` (`dip/migrations.py`). The
+  `warehouse-init` Job runs `migrate` at deploy; `Warehouse.init` now reads the table and
+  applies nothing when current, so tasks no longer take the DDL's locks. An edited migration is
+  refused. The `upgrade` workflow applies them to the previous release's database.
 
 ## Stage 15: Tracing with Jaeger
 
@@ -403,12 +410,19 @@ record, but it is long.
 Demo on its own: the page and the video.
 No incident: this stage changes documentation only.
 
-- [ ] **23.1 One-page architecture:** `docs/ARCHITECTURE.md` with one diagram, "how it scales
+- [x] **23.1 One-page architecture:** `docs/ARCHITECTURE.md` with one diagram, "how it scales
   and where it breaks" using Stage 19's numbers, and the main trade-offs, each linked to its
   PLAN.md decision
+  Done 2026-11-12: `docs/ARCHITECTURE.md` (one Mermaid diagram, how a file moves, the agents'
+  guardrails, what is measured, where it breaks, the trade-offs linked to PLAN.md). Stage 19 is not
+  built, so its scale table holds the numbers measured so far and says so; it takes Stage 19's
+  numbers when that stage lands.
 - [ ] **23.2 A three-minute walkthrough:** a script in `docs/demos/` for the user to record
   (file drop, quarantine, agent proposal, approval, gold, Grafana and the trace), linked from
   the README with a screenshot (overlaps #99 in 12.7; reuse it)
+  2026-11-12: the script is `docs/demos/walkthrough.md` (five scenes, commands checked, the
+  recorded agent path by default at $0). Left open: the owner records the video and its link goes
+  into the README.
 
 ## Stage 24: Security hardening (owner, 2026-11-09)
 
@@ -420,10 +434,29 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   the Order of work is unchanged; 3 High, 14 Medium, 24 Low, one item each below. Where
   they go in the Order of work is the owner's call.
 
-- [ ] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
-- [ ] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
-- [ ] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
-- [ ] **24.5 GitHub Actions pinned by commit SHA** (Medium): every `uses:` in the 8 workflows, with a `# vN.M` comment; Dependabot keeps them current.
+- [x] **24.2 Airflow pods stop holding the master secrets** (High): Airflow's own bucket-scoped MinIO user instead of root (`airflow.tf:247`); `DIP_DEID_KEY` and the SFTP key only in the pod_override of the DAGs that need them, not the chart's global `secret:` list.
+  Done 2026-11-11: Airflow's own MinIO user (`airflow-<hash>`: landing, raw, quarantine and
+  airflow-logs, not backups) in the `minio` connection; `DIP_DEID_KEY` only in `fhir_intake`'s
+  `transform` pod and the four `DIP_SFTP_*` only in `sftp_sync`'s `sync` pod. The
+  warehouse owner login is still in every pod: that is 24.9 and 24.14.
+- [x] **24.3 A hard spend cap on the scheduled agent chain** (High): `DIP_SPEND_CAP_USD` in the `dip-agent-chain` Secret; a pre-call check against the month's `ops.model_call` total that refuses at $5; refuse an unknown `DIP_LLM_MODEL`; **(owner)** a provider-side limit in the Anthropic Console.
+  Done 2026-11-11 for what the repo can do: `DIP_SPEND_CAP_USD` (0.25 a run) and `DIP_MONTHLY_CAP_USD` (5)
+  in the `dip-agent-chain` Secret; before each live Anthropic call the request's worst case
+  is added to this month's live total in `ops.model_call` and refused past the cap, failing
+  closed when that total cannot be read; `chain_job` and `intake_runner` claim nothing with a
+  paid key and either cap unset; an unpriced model is refused. Left for the owner: the
+  provider-side limit in the Anthropic Console.
+- [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
+  Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
+  compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
+  every `pip install` in the workflows and images reads one with `--require-hashes --no-deps`,
+  and dip is built with the locked setuptools (`--no-build-isolation`). CI's lint job fails on a
+  stale lock; `tests/unit/test_locks.py` fails on an unlocked install.
+- [x] **24.5 GitHub Actions pinned by commit SHA** (Medium): every `uses:` in the 8 workflows, with a `# vN.M` comment; Dependabot keeps them current.
+  Done 2026-11-11: all 46 `uses:` in the workflows pinned to the commit their major tag pointed at,
+  with the exact version in a comment (checkout v7.0.1, setup-python v7.1.0, cache v6.1.0,
+  upload-artifact v7.0.2, download-artifact v8.0.2, codeql-action v4.39.3, setup-terraform v4.0.1);
+  `tests/unit/test_actions_pinned.py` fails on a tag pin.
 - [ ] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
   2026-11-11: classic branch protection is on for `main`: required checks `lint`, `test`,
   `e2e`, `trivy` and both CodeQL `analyze` jobs; force push and deletion blocked. Not set:
@@ -432,24 +465,57 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [x] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
   Done by the owner 2026-11-11: alerts, grouped security updates and malware alerts on (checked
   through the API: `vulnerability-alerts` 204, `automated-security-fixes` enabled).
-- [ ] **24.8 A kill switch for the agents' write tools** (Medium): `DIP_AGENTS_WRITE_DISABLED` checked in `Registry.check`: every propose and act call by an agent refused and audited as denied; the chain DAG skips while it is set.
-- [ ] **24.9 Least privilege for the agent-chain pod** (Medium): a dedicated warehouse login instead of the owner DSN; each step's agent key in its own pod, or at least incident/triage split from the intake team.
-- [ ] **24.10 The server, not the agent, issues run and chain ids** (Medium): an HMAC-signed run token minted when a job is claimed and checked in `on_call_tool`; a test that a key cannot read another chain's profile.
-- [ ] **24.11 Approvals: one token per person** (Medium): hashed per-person tokens (like `DIP_AGENT_KEYS`); the reviewer name comes from the token, not the `X-Reviewer` header.
-- [ ] **24.12 Backups without the de-identification key in plaintext** (Medium): `--exclude-schema=ops_secret` with the key backed up separately, or client-side encryption of each dump; MinIO SSE on `backups`.
-- [ ] **24.13 MinIO root password out of Job specs** (Medium): the `MC_HOST_local` URI in a Secret, read with `secret_key_ref` (`minio.tf`, `intake_api.tf`, `mcp.tf`, `backups.tf`).
+- [x] **24.8 A kill switch for the agents' write tools** (Medium): `DIP_AGENTS_WRITE_DISABLED` checked in `Registry.check`: every propose and act call by an agent refused and audited as denied; the chain DAG skips while it is set.
+  Done 2026-11-11: `DIP_AGENTS_WRITE_DISABLED` (Terraform `agents_write_disabled`, in the MCP and `dip-agent-chain` Secrets); `docs/agents/kill-switch.md`.
+- [x] **24.9 Least privilege for the agent-chain pod** (Medium): a dedicated warehouse login instead of the owner DSN; each step's agent key in its own pod, or at least incident/triage split from the intake team.
+  Done 2026-11-11: the runners connect as `dip_agent_runner` (migration 0003's grants: read the
+  incident side, write `ops.agent_run`, the run columns of `ops.intake_job`, and inserts into
+  `ops.model_call` and `ops.audit_log`; nothing in bronze, silver, gold, research or
+  `ops_secret`), never the owner; the DAG fails rather than fall back. The intake team's keys
+  moved to their own Secret, `dip-intake-team`, so `run_chain` and `intake_jobs` each hold only
+  their own agents' keys.
+- [x] **24.10 The server, not the agent, issues run and chain ids** (Medium): an HMAC-signed run token minted when a job is claimed and checked in `on_call_tool`; a test that a key cannot read another chain's profile.
+  Done 2026-11-11: chain run ids carry an HMAC token (`dip/agents/run_token.py`, key
+  `DIP_RUN_TOKEN_KEY` from Terraform in the MCP server's and the runners' Secrets only); the
+  MCP server refuses and audits a run id without its chain's valid, unexpired token (a bare
+  run id is its own chain). The
+  token is minted by the platform's runner code, not by the model, which never sees it.
+- [x] **24.11 Approvals: one token per person** (Medium): hashed per-person tokens (like `DIP_AGENT_KEYS`); the reviewer name comes from the token, not the `X-Reviewer` header.
+  Done 2026-11-11: Terraform's `approvers` (default `owner`), a token each, only their SHA-256 in
+  `DIP_APPROVER_TOKENS`; a decision is recorded as the token's owner and refused (403) when
+  `X-Reviewer` names someone else.
+- [x] **24.12 Backups without the de-identification key in plaintext** (Medium): `--exclude-schema=ops_secret` with the key backed up separately, or client-side encryption of each dump; MinIO SSE on `backups`.
+  Done 2026-11-11: `pg_dump --exclude-table-data='ops_secret.*'`: the key's table is dumped
+  empty and the key stays in the `dip-deid` Secret (fhir_intake reinstalls it after a restore);
+  the E2E checks the archive holds no `ops_secret` rows. MinIO SSE on `backups` needs a KMS key
+  on MinIO and goes with encryption at rest in 24.38.
+- [x] **24.13 MinIO root password out of Job specs** (Medium): the `MC_HOST_local` URI in a Secret, read with `secret_key_ref` (`minio.tf`, `intake_api.tf`, `mcp.tf`, `backups.tf`).
+  Done 2026-11-11: `MC_HOST_local` from the `minio-admin` Secret and each new user's password
+  from `minio-user-passwords` (`$(NEW_USER_PASSWORD)` in the args, expanded by the kubelet);
+  `tests/unit/test_job_secrets.py` fails on any password in a Job's spec.
 - [ ] **24.14 An append-only audit log no app login can rewrite** (Medium): a separate owner role for the `ops` schema, writers with INSERT only, the app connecting as a non-owner (with 14.3's migrations).
 - [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
 - [ ] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
 - [ ] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
-- [ ] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
+- [x] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
+  Done 2026-11-11: `AgentCallsDenied` (`dip_agent_denied_calls_1h`, from the audit log;
+  migration 0004 grants the exporter three of its columns) and `IntakeApiAuthFailures` (the
+  API's own `/metrics`, a new scrape job), with promtool tests. Routing waits for 16.3's
+  Alertmanager: today they show on Prometheus's `/alerts` page, like the others.
 - [ ] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
 - [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
-- [ ] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
-- [ ] **24.23 Dependabot cooldown of 7 days** (Low): `cooldown: { default-days: 7 }` per ecosystem.
-- [ ] **24.24 SECURITY.md and private vulnerability reporting** **(owner)** (Low): turn reporting on; a SECURITY.md pointing to it, with no personal email.
-  Reporting turned on by the owner 2026-11-11 (the API says enabled); the SECURITY.md is left.
+- [x] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
+  Done 2026-11-11: the Airflow base, Postgres, Marquez and Marquez web pinned by digest (resolved
+  from Docker Hub); `tests/unit/test_image_digests.py` fails on a tag-only image.
+- [x] **24.23 Dependabot cooldown of 7 days** (Low): `cooldown: { default-days: 7 }` per ecosystem.
+  Done 2026-11-12: `cooldown: default-days: 7` for pip, docker and actions, the same 7 days
+  `scripts/lock.py` locks to; pip with `versioning-strategy: increase` (no more widened pins) and
+  paramiko ignored by version (`>=3.6`). Found by #141 (closed): five of its bumps were inside
+  the lock's cooldown, and paramiko was widened again.
+- [x] **24.24 SECURITY.md and private vulnerability reporting** **(owner)** (Low): turn reporting on; a SECURITY.md pointing to it, with no personal email.
+  Reporting turned on by the owner 2026-11-11 (the API says enabled). `SECURITY.md` (2026-11-11)
+  points to it, with no email address.
 - [x] **24.25 No expressions inlined into `run:` in `release.yml`** (Low): the token and actor through `env:` (`release.yml:94`).
   Done 2026-11-11: the GHCR login's token and actor through `env:`; `proof.yml`'s run ids, SHAs and
   artifact name too (`$GITHUB_RUN_ID`, `$GITHUB_SHA`, `env:`), and `tests/unit/test_workflow_expressions.py`
@@ -464,13 +530,19 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.33 Security headers on the approvals page** (Low): CSP with `frame-ancestors 'none'`, nosniff, no-referrer, no-store on `/api`.
 - [ ] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
 - [ ] **24.35 Generic errors to callers and the model** (Low): a correlation id back, the full error logged on the server (`mcp_server.py:134`, `gateway.py`).
-- [ ] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
+- [x] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
+  Done 2026-11-11: the intake API's name rule and a 50 MiB limit (the largest feed's), checked from the listing before
+  reading (and the read stops one byte past it); a refused file stays on the server, reported.
 - [ ] **24.37 The approvals negative test covers every route** (Low): loop over `app.routes`, 401 for every `/api` path without the token.
 - [ ] **24.38 TLS and encryption at rest in the cluster** (Low): a self-signed CA, Postgres `sslmode=verify-full`, MinIO TLS and SSE; needed before anything is hosted.
 - [ ] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
 - [ ] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
 - [ ] **24.41 Retention and a second backup copy** (Low): MinIO lifecycle rules for `airflow-logs` (per-layer retention is 22.2); optionally a host copy of the newest dump.
-- [ ] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).
+- [x] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).
+  Done 2026-11-12: the audit's `.claude/settings.json`, plus denies the owner added on
+  2026-11-11 (`git tag`, pushes to `main`, tag pushes, for Bash and PowerShell);
+  `.claude/worktrees/` and `.claude/settings.local.json` gitignored. Merged on the owner's
+  explicit OK in chat.
 - [ ] **24.43 The three open CodeQL alerts** (Low; found 2026-11-11, not in the audit): #3
   `py/clear-text-logging-sensitive-data`, `scripts/check_model.py:38`, prints the key's variable
   name, not the key (false positive: dismiss with that reason); #1

@@ -13,8 +13,8 @@ For each drill in turn (scheduler_down, oom_task, bad_secret, stuck_queued):
    image runs `python -m dip.agents.chain_job --limit 1 --incident ID` in the agent venv
    with the agent_chain DAG's Secret plus the model key (a Secret made for the run and
    deleted after) and DIP_SPEND_CAP_USD (the run's cap shared out across the drills).
-   During bad_secret the pod reaches the warehouse with the password the drill saved
-   (the airflow-connections Secret holds the wrong one by design).
+   The pod reaches the warehouse as the agent runners' own login (24.9), which the
+   bad_secret drill does not touch (it breaks the owner's password in airflow-connections).
 4. The diagnosis's root cause against the expected one; the chain's model calls and cost
    (ops.agent_run_cost, by its chain id).
 5. `dip drill NAME --undo`; the check until the incident closes.
@@ -102,7 +102,6 @@ def alert_seen(alert: str, dag: str, timeout: float) -> bool:
 def run_chain(incident_id: int, drill: str, cap: str) -> dict:
     """The chain once, in the cluster, on one incident; returns the pod's summary."""
     pod = f"chain-proof-{job_tag(drill)}"
-    dsn_secret = "dip-drill-saved-warehouse" if drill == "bad_secret" else "airflow-connections"
     container = {
         "name": pod,
         "image": os.environ["AIRFLOW_IMAGE"],
@@ -126,7 +125,11 @@ def run_chain(incident_id: int, drill: str, cap: str) -> dict:
             {"name": "DIP_SPEND_CAP_USD", "value": cap},
             {
                 "name": "DIP_WAREHOUSE_DSN",
-                "valueFrom": {"secretKeyRef": {"name": dsn_secret, "key": "warehouse"}},
+                # 24.9: the runners' own login, as the DAG task gets it (the
+                # bad_secret drill breaks only the owner's password in airflow-connections)
+                "valueFrom": {
+                    "secretKeyRef": {"name": "dip-agent-chain", "key": "DIP_AGENT_WAREHOUSE_DSN"}
+                },
             },
         ],  # fmt: skip
         "resources": {

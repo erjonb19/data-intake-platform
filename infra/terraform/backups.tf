@@ -20,7 +20,7 @@
 # Least privilege:
 #   warehouse  the dip_backup login: pg_read_all_data (read everything, write nothing),
 #              plus INSERT and UPDATE on ops.backup alone (postgres-roles.sql,
-#              ops.grant_backup() in dip/sql/warehouse.sql)
+#              ops.grant_backup() in dip/sql/migrations/0001_baseline.sql)
 #   MinIO      its own user and policy: list, put and delete in `backups`, nothing else
 #              (it cannot read a dump back; the restore in 14.2 is a person's)
 #   Kubernetes no service-account token mounted: the job calls no Kubernetes API
@@ -42,9 +42,8 @@ locals {
   })
   # Versioned names, as for the intake API's user (intake_api.tf): mc refuses to attach a
   # policy that is already attached.
-  backup_minio_suffix = substr(sha256(local.backup_minio_policy), 0, 8)
+  backup_minio_suffix = substr(sha256("24.13:${local.backup_minio_policy}"), 0, 8) # 24.13: new Job spec, new name
   backup_minio_user   = "warehouse-backup-${local.backup_minio_suffix}"
-  backup_mc_host      = "http://${local.minio_user}:${local.pw["minio_root"]}@${local.minio_host}:9000"
 }
 
 resource "kubernetes_config_map_v1" "backup_minio_policy" {
@@ -72,15 +71,29 @@ resource "kubernetes_job_v1" "backup_minio_user" {
         dynamic "init_container" {
           for_each = {
             "1-policy" = ["admin", "policy", "create", "local", "warehouse-backup-${local.backup_minio_suffix}", "/policy/policy.json"]
-            "2-user"   = ["admin", "user", "add", "local", local.backup_minio_user, local.pw["minio_backup"]]
+            "2-user"   = ["admin", "user", "add", "local", local.backup_minio_user, "$(NEW_USER_PASSWORD)"]
           }
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
             args  = init_container.value
             env {
-              name  = "MC_HOST_local"
-              value = local.backup_mc_host
+              name = "NEW_USER_PASSWORD"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_user_passwords.metadata[0].name
+                  key  = "backup"
+                }
+              }
+            }
+            env {
+              name = "MC_HOST_local"
+              value_from {
+                secret_key_ref {
+                  name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                  key  = "MC_HOST_local"
+                }
+              }
             }
             env {
               name  = "MC_CONFIG_DIR"
@@ -103,8 +116,13 @@ resource "kubernetes_job_v1" "backup_minio_user" {
           args = ["admin", "policy", "attach", "local", "warehouse-backup-${local.backup_minio_suffix}",
           "--user", local.backup_minio_user]
           env {
-            name  = "MC_HOST_local"
-            value = local.backup_mc_host
+            name = "MC_HOST_local"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.minio_admin.metadata[0].name
+                key  = "MC_HOST_local"
+              }
+            }
           }
           env {
             name  = "MC_CONFIG_DIR"
@@ -207,7 +225,11 @@ resource "kubernetes_cron_job_v1" "backup" {
                 set -u
                 rm -f /backup/warehouse.dump /backup/status /backup/error
                 date -u +%Y-%m-%dT%H:%M:%SZ > /backup/started_at
+                # 24.12: not the de-identification key's rows (ops_secret): the dump would
+                # put the key in the bucket in plain text. Its table is kept, empty; the
+                # key itself is in the dip-deid Secret, and fhir_intake installs it again.
                 if pg_dump --format=custom --lock-wait-timeout=60s \
+                     --exclude-table-data='ops_secret.*' \
                      --file=/backup/warehouse.dump 2>/backup/error \
                    && pg_restore --list /backup/warehouse.dump >/dev/null 2>>/backup/error; then
                   echo ok > /backup/status

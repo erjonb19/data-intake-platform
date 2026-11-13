@@ -11,7 +11,8 @@
 #      of principal, run, tool and decision, or the live eval's scores and costs, all from
 #      the synthetic stack or invented eval data, committed by the proof workflow's
 #      commit-results job after its checks), and the live eval's baseline
-#      (agents/evals/baseline.json, scores and costs of the recordings replayed).
+#      (agents/evals/baseline.json, scores and costs of the recordings replayed), and the Claude
+#      Code project settings (.claude/settings.json, permission rules, no data; 24.42).
 #   3. Content that only real MIMIC data or a local-only extract would contain: a MIMIC FHIR
 #      identifier with a value, a MIMIC FHIR profile URL, or a package marked local-only.
 #   4. An OHDSI Athena vocabulary file, or MIT-LCP's lab map (licensed to the downloader).
@@ -29,7 +30,7 @@ fi
 
 bulk="$(files | grep -E '(^|/)mimic-iv-[^/]*/|\.ndjson(\.gz)?$|\.csv\.gz$' || true)"
 data="$(files | grep -E '\.(csv|parquet|duckdb|json)$' \
-  | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$|^agents/evals/[a-z_]+/(recordings|recordings/gemini|results)/[a-z0-9_]+\.json$|^observability/grafana/[a-z0-9-]+\.json$|^docs/demos/proof/run-[0-9]+/(results|audit|live)\.json$|^agents/evals/baseline\.json$' || true)"
+  | grep -v -E '^tests/fixtures/|^dbt/seeds/[^/]+\.csv$|^dip/contract\.schema\.json$|^agents/evals/[a-z_]+/(recordings|recordings/gemini|results)/[a-z0-9_]+\.json$|^observability/grafana/[a-z0-9-]+\.json$|^docs/demos/proof/run-[0-9]+/(results|audit|live)\.json$|^agents/evals/baseline\.json$|^\.claude/settings\.json$' || true)"
 athena="$(files | grep -E '(^|/)(CONCEPT[^/]*|DOMAIN|RELATIONSHIP|VOCABULARY|DRUG_STRENGTH)\.csv$|d_labitems_to_loinc\.csv$' || true)"
 
 # This script and the code that writes the local-only marker are the only allowed hits.
