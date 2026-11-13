@@ -63,18 +63,22 @@ def test_http_probes_on_a_host_checked_server_send_an_allowed_host():
     """A server started with `--allowed-host` (the approvals gateway) answers 400 to the
     kubelet's default Host, the pod IP: an HTTP probe there must send an allowed Host, or a
     liveness probe restarts the pod in a loop (found in review, #159)."""
+    checked = 0
     for name, resource in workloads().items():
         for c in containers(resource):
-            if "--allowed-host" not in c:
+            allowed = set(re.findall(r'"--allowed-host",\s*"([^"]+)"', c))
+            if not allowed:
                 continue
+            checked += 1
             for m in re.finditer(r"(liveness|readiness|startup)_probe \{", c):
                 probe = block(c, m.end() - 1)
                 if "http_get {" in probe:
                     host = re.search(r'name\s*=\s*"Host"\s*value\s*=\s*"([^"]+)"', probe)
                     assert host, f"{name}: an HTTP {m.group(1)} probe without a Host header"
-                    assert f'"{host.group(1)}"' in c.split("liveness_probe")[0], (
+                    assert host.group(1) in allowed, (
                         f"{name}: probe Host {host.group(1)} is not an --allowed-host"
                     )
+    assert checked, "no container with --allowed-host found: did the gateway's args move?"
 
 
 def test_a_container_without_probes_is_caught():
