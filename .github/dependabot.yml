@@ -18,11 +18,12 @@ updates:
     cooldown:
       default-days: 7
     ignore:
-      # Owner, 2026-11-11: paramiko stays on 3.5.x (pyproject pins "==3.5.*"); a grouped PR
-      # (#125) had widened it to ">=3.5,<5.2", two major versions at once.
-      # update-types did not stop it widening the range again (#141), so by version:
+      # Owner, 2026-11-12: paramiko stays on 5.1.x (pyproject and e2e.in pin "==5.1.*"), the
+      # version Airflow's constraints install in the cluster, so dev, the E2E driver and the
+      # DAG run the same one. Was 3.5.x (2026-11-11) until its SHA-1 alert (#146, closed).
+      # update-types did not stop a grouped PR widening the range (#125, #141), so by version:
       - dependency-name: paramiko
-        versions: [">=3.6"]
+        versions: [">=5.2"]
     groups:
       python:
         patterns: ["*"]
