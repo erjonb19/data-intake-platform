@@ -37,8 +37,11 @@ threading.Event().wait()
 
 
 def kubectl(*args: str, check: bool = True) -> str:
-    out = subprocess.run(["kubectl", "-n", NS, *args], capture_output=True, text=True,
-                         timeout=120)  # fmt: skip
+    try:
+        out = subprocess.run(["kubectl", "-n", NS, *args], capture_output=True, text=True,
+                             timeout=120)  # fmt: skip
+    except subprocess.TimeoutExpired as exc:  # one kind of error for the callers to handle
+        raise RuntimeError(f"kubectl {' '.join(args[:3])}: timed out") from exc
     if check and out.returncode:
         raise RuntimeError(f"kubectl {' '.join(args[:3])}: {out.stderr.strip()[-300:]}")
     return out.stdout.strip()
@@ -57,14 +60,21 @@ def hpa() -> tuple[int, str]:
 
 
 def wait_for(what: str, ok, limit: float, started: float, log: list) -> bool:
+    errors = 0
     while time.monotonic() - started < limit:
         try:
             replicas, util = hpa()
-        except (RuntimeError, ValueError, subprocess.TimeoutExpired) as exc:
-            # a failed read is a FAIL in the results, not a crash that writes none
-            print(f"{what}: cannot read the HPA: {exc}", file=sys.stderr)
+        except (RuntimeError, ValueError) as exc:
+            # one API blip is retried; three in a row are a FAIL in the results, not a
+            # crash that writes none
+            errors += 1
+            print(f"{what}: cannot read the HPA ({errors}): {exc}", file=sys.stderr)
             log.append({"t": round(time.monotonic() - started), "replicas": "?", "cpu": ""})
-            return False
+            if errors >= 3:
+                return False
+            time.sleep(10)
+            continue
+        errors = 0
         log.append({"t": round(time.monotonic() - started), "replicas": replicas, "cpu": util})
         if ok(replicas, util):
             print(f"{what}: yes after {log[-1]['t']} s ({replicas} pods, CPU {util}%)")
@@ -103,10 +113,16 @@ def main(out_dir: str) -> int:
         print(f"up: the load pod did not start: {exc}", file=sys.stderr)
         steps["up: 3 pods under load"] = False
     finally:
-        kubectl("delete", "pod", LOAD, "--ignore-not-found", "--wait=false", check=False)
+        try:
+            kubectl("delete", "pod", LOAD, "--ignore-not-found", "--wait=false", check=False)
+        except RuntimeError as exc:  # the job's teardown deletes the cluster anyway
+            print(f"the load pod was not deleted: {exc}", file=sys.stderr)
     t2 = time.monotonic()
-    steps["down: back to 1 pod after the load"] = wait_for(
-        "down", lambda r, u: r == 1, 420, t2, log)  # fmt: skip
+    if steps["up: 3 pods under load"]:
+        steps["down: back to 1 pod after the load"] = wait_for(
+            "down", lambda r, u: r == 1, 420, t2, log)  # fmt: skip
+    else:  # 1 pod after no scale-up proves nothing
+        steps["down: back to 1 pod after the load"] = False
     lines = ["# 13.4 scaling proof: the intake API's HPA", ""]
     lines += [f"- {'PASS' if ok else 'FAIL'}: {name}" for name, ok in steps.items()]
     lines += ["", "| seconds into the step | pods | CPU % of request |", "| --- | --- | --- |"]
