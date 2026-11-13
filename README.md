@@ -269,8 +269,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   and the de-identification and SFTP keys only in the one task pod that uses each
   (`infra/terraform/airflow.tf`, `tests/unit/test_airflow_secrets.py`; 24.2)
 - [x] Liveness and readiness probes on every long-running service (`tests/unit/test_probes.py`; 13.1)
-- [x] Rolling updates with `maxUnavailable: 0` and `dip rollback SERVICE`, proved in the kind
-  E2E without dropping below one available pod (`dip/rollback.py`, `tests/e2e/rollback.py`; 13.2)
+- [x] Rolling updates with `maxUnavailable: 0` and `dip rollback SERVICE`; the kind E2E rolls
+  the intake API out and back without dropping below one available pod (`dip/rollback.py`,
+  `tests/e2e/rollback.py`; 13.2)
 - [ ] A bad-release drill: not yet built (13.3)
 - [ ] Autoscaling (metrics-server, HPAs): not yet built (13.4)
 - [ ] OpenTofu checked in CI: not yet built (13.5)

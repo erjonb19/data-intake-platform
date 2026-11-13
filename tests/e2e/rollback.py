@@ -7,7 +7,9 @@
   3. `dip rollback intake-api` puts the previous revision back (the annotation is gone)
      and waits until it is Ready, again never dropping to zero available pods.
 
-The bad release that never gets Ready, its alert and runbook are 13.3's drill.
+With one replica, Kubernetes' default rolling update (25%/25%) also rounds to 0 unavailable,
+so this proves the rollout and the rollback work without downtime, not the explicit setting:
+the unit test guards that, and 13.3's bad release (never Ready) is the real proof.
 
 Env: KUBECONFIG (the kind cluster's, context kind-dip).
 """
@@ -48,7 +50,7 @@ class Watch(threading.Thread):
         while not self.stop.is_set():
             try:
                 self.low = min(self.low, available())
-            except (RuntimeError, ValueError):
+            except (RuntimeError, ValueError, subprocess.TimeoutExpired):
                 self.low = 0  # an unreadable Deployment counts as down
             time.sleep(1)
 
