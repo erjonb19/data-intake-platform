@@ -12,13 +12,13 @@ drop_table`, then `dip restore --latest --verify` (below). The E2E runs it on ev
 | CronJob `warehouse-backup` in `dip-data`, nightly at 02:15 UTC (`backup_schedule`) | `infra/terraform/backups.tf` |
 | Step 1, `dump`: `pg_dump --format=custom`, then `pg_restore --list` to check the archive | init container, `var.postgres_image` |
 | Step 2, `upload`: the `ops.backup` row, the upload, the size check, retention | `dip/backup.py` (Airflow image) |
-| The login `dip_backup`: `pg_read_all_data`, plus INSERT and UPDATE on `ops.backup` | `infra/terraform/files/postgres-roles.sql`, `ops.grant_backup()` in `dip/sql/warehouse.sql` |
+| The login `dip_backup`: `pg_read_all_data`, plus INSERT and UPDATE on `ops.backup` | `infra/terraform/files/postgres-roles.sql`, `ops.grant_backup()` in `dip/sql/migrations/0001_baseline.sql` |
 | The MinIO user: list, put and delete in `backups` only (it cannot read a dump back) | `infra/terraform/backups.tf` |
 | `dip_backup_last_success_timestamp_seconds` and the `BackupMissing` alert (no good backup in 26 h) | `dip/metrics.py`, `observability/prometheus/rules.yml` |
 | `python -m dip backup now`: one run now, as a Job made from the CronJob (kind-dip only) | `dip/backup.py` |
 | E2E: one run, then the object, its hash and `pg_restore --list` | `tests/e2e/backup.py` |
 | The restore drill: `dip drill drop_table`, `dip restore --latest --verify` (14.2) | `dip/drills.py`, `dip/restore.py` |
-| The drill's snapshot and result, one row per drill | `ops.restore_drill` in `dip/sql/warehouse.sql` |
+| The drill's snapshot and result, one row per drill | `ops.restore_drill` in `dip/sql/migrations/0001_baseline.sql` |
 | E2E: the drill on the dump just written, the time to restore in the job summary | `tests/e2e/restore.py` |
 
 Dumps are named `warehouse/warehouse-<UTC start, YYYYMMDDTHHMMSSZ>.dump`, so their names sort
@@ -136,8 +136,15 @@ up a second kind cluster for a few minutes of work (decisions log, PLAN.md, 2026
 
 ## Restore the whole warehouse by hand
 
-The dump holds everything in the `warehouse` database, including `ops_secret.deid_key`, the
-de-identification key. Treat the bucket as secret. It holds no roles: those are cluster-wide
+The dump holds everything in the `warehouse` database except the rows of `ops_secret` (24.12):
+`ops_secret.deid_key`, the de-identification key, is dumped as an empty table, so the key
+never sits in the bucket in plain text. After a restore, the next `fhir_intake` run installs
+the key again from the `dip-deid` Secret (or run `python -m dip deid-key-install` with
+`DIP_DEID_KEY` set); the key itself lives in that Secret and in Terraform's state. Keep a copy of it
+wherever you keep secrets (`kubectl -n dip-airflow get secret dip-deid -o
+jsonpath='{.data.key}' | base64 -d`): with a new key, a restored warehouse's pseudonyms
+cannot be reproduced. The rest of
+the dump is still the warehouse's data: treat the bucket as secret. It holds no roles: those are cluster-wide
 and come from `postgres-roles.sql` and the init script, which a fresh cluster already has.
 
 `python -m dip restore --latest` (no drill waiting) does steps 1 to 3 below for you, into

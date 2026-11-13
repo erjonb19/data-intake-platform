@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from dip import BUCKET_LANDING, CHANNEL_KEY
 from dip.contracts import Contract
@@ -77,11 +77,27 @@ def create_app(
     clients: list[Client],
     max_bytes: int = DEFAULT_MAX_BYTES,
 ) -> FastAPI:
-    app = FastAPI(title="dip intake API", version="1", docs_url=None, redoc_url=None)
+    # 24.34: no /docs, /redoc or /openapi.json: they answer without a key and list every
+    # route and parameter to anyone who can reach the Service.
+    app = FastAPI(title="dip intake API", version="1", docs_url=None, redoc_url=None,
+                  openapi_url=None)  # fmt: skip
+    # 24.18: refused requests, by why, for Prometheus (the IntakeApiAuthFailures alert).
+    # In this process only: a restart starts them at zero, which increase() handles.
+    refused = {"unauthorized": 0, "forbidden": 0}
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.get("/metrics", response_class=PlainTextResponse)
+    def metrics() -> str:
+        """Counts only, no feed or client names: safe without a key, like /healthz."""
+        lines = [
+            "# HELP dip_intake_api_refused_total Upload requests refused, by reason.",
+            "# TYPE dip_intake_api_refused_total counter",
+        ]
+        lines += [f'dip_intake_api_refused_total{{reason="{k}"}} {v}' for k, v in refused.items()]
+        return "\n".join(lines) + "\n"
 
     @app.post("/v1/feeds/{feed}/files", status_code=202)
     async def upload(
@@ -92,9 +108,11 @@ def create_app(
     ) -> Any:
         client = _client_for(clients, authorization)
         if client is None:
+            refused["unauthorized"] += 1
             raise HTTPException(401, "missing or unknown API key", {"WWW-Authenticate": "Bearer"})
         # Authorization first: a client learns nothing about feeds outside its own patterns.
         if not client.may_send(feed):
+            refused["forbidden"] += 1
             raise HTTPException(403, f"client {client.name!r} may not send {feed!r}")
         contract = contracts.get(feed)
         if contract is None:

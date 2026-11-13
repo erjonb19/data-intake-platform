@@ -39,7 +39,7 @@ reference, file names, or the audit log. It is read-only, with 10 s statements a
 3 connections (`infra/terraform/files/postgres-roles.sql`).
 
 The grants are made where each table is created, by `ops.grant_metrics_reader()` in
-`dip/sql/warehouse.sql`, which `dip/sla.py` and the dbt `store_dq_results` hook also call. So
+`dip/sql/migrations/0001_baseline.sql`, which `dip/sla.py` and the dbt `store_dq_results` hook also call. So
 a table created later is readable as soon as it exists. A query that cannot run yet shows
 as `dip_metrics_query_ok{query=...} 0`, and the other queries still report.
 `tests/integration/test_metrics.py` connects as the role and checks both what it reads and
@@ -56,6 +56,8 @@ what it is refused.
 | `dip_dq_test_status{test_name,dq_category,status}`, `dip_dq_test_failures` | Each dbt test's latest result |
 | `dip_incidents_open{feed,kind}` | Open incidents (`FEED.LATE`) |
 | `airflow_dagrun_failed_count{dag_id}`, `airflow_dagrun_duration{dag_id}`, ... | Airflow, via StatsD |
+| `dip_agent_denied_calls_1h{principal}` | Tool calls refused in the last hour, by agent, or `human` (24.18) |
+| `dip_intake_api_refused_total{reason}` | Intake API uploads refused: `unauthorized` (no key, or an unknown one) or `forbidden` (a key sending to a feed outside its patterns; the API's own `/metrics`; 24.18) |
 
 Alerts (`observability/prometheus/rules.yml`) appear on Prometheus's `/alerts` page:
 
@@ -65,6 +67,9 @@ Alerts (`observability/prometheus/rules.yml`) appear on Prometheus's `/alerts` p
 - **DataQualityError**: a dbt test's latest result is an error. A warning is a finding, not an alert
 - **DagRunFailing**: a failed run in the last hour
 - **MetricsQueryFailing**, **TargetDown**
+- **AgentCallsDenied**: 5 or more tool calls refused in an hour for one agent, or for people
+  together (`principal="human"`) (24.18)
+- **IntakeApiAuthFailures**: over 20 uploads with no or a wrong key in 15 minutes (24.18)
 
 The thresholds suit the demo feeds. The E2E quarantines files on purpose, so after a run
 QuarantineRateHigh fires for those feeds. Nothing is sent anywhere, since there is no

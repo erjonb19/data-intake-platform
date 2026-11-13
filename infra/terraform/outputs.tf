@@ -101,13 +101,25 @@ output "mcp_incident_key" {
 }
 
 output "approvals_token" {
-  description = "The approvals page's bearer token (Stage 9, S9.2): paste it into the page once"
-  value       = random_password.approvals_token.result
+  description = "The first approver's token for the approvals page (Stage 9, S9.2; 24.11): paste it into the page once, with that name as Reviewer"
+  value       = random_password.approver_token[var.approvers[0]].result
+  sensitive   = true
+}
+
+output "approver_tokens" {
+  description = "24.11: each approver's own approvals page token, by name."
+  value       = { for a in var.approvers : a => random_password.approver_token[a].result }
   sensitive   = true
 }
 
 output "mcp_team_keys" {
   description = "The intake team's MCP API keys by agent (Stage 10), also in the agent_chain DAG's Secret."
   value       = { for a, k in random_password.mcp_team_key : a => k.result }
+  sensitive   = true
+}
+
+output "run_token_key" {
+  description = "24.10: signs chain run ids. Set DIP_RUN_TOKEN_KEY to it to run a chain from a laptop against the cluster's MCP server."
+  value       = random_password.run_token_key.result
   sensitive   = true
 }

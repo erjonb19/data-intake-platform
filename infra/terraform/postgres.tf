@@ -17,6 +17,7 @@ resource "kubernetes_secret_v1" "postgres" {
     APPROVER_PASSWORD       = local.pw["pg_approver"]
     PLATFORM_CHECK_PASSWORD = local.pw["pg_platform_check"]
     BACKUP_PASSWORD         = local.pw["pg_backup"]
+    AGENT_RUNNER_PASSWORD   = local.pw["pg_agent_runner"]
   }
 }
 
@@ -234,6 +235,15 @@ resource "kubernetes_job_v1" "postgres_roles" {
               secret_key_ref {
                 name = kubernetes_secret_v1.postgres.metadata[0].name
                 key  = "BACKUP_PASSWORD"
+              }
+            }
+          }
+          env {
+            name = "AGENT_RUNNER_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.postgres.metadata[0].name
+                key  = "AGENT_RUNNER_PASSWORD"
               }
             }
           }

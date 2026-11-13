@@ -38,7 +38,9 @@ def scraped(module_warehouse, tmp_path_factory):
         cur.execute(ROLES_SQL.read_text(encoding="utf-8"))
         cur.execute(f"alter role dip_metrics password '{PASSWORD}'")
     wh.conn.commit()
-    wh.init()  # the role exists now: the grants on the intake tables apply
+    from dip.migrations import reapply_grants
+
+    reapply_grants(wh.conn)  # the role exists now: its grants apply (14.3: as the deploy Job does)
     store = LocalStore(tmp_path_factory.mktemp("store"))
     for name in ("good/invoices_good.xlsx", "bad/invoices_sheet_renamed.xlsx"):
         data = (FIXTURES / name).read_bytes()
@@ -83,7 +85,10 @@ def test_the_values_are_the_warehouse_state(scraped):
         "select record_ref from ops.quarantine",
         "select source_key from ops.intake_file",
         "select count(*) from gold.vendor_invoice",
-        "select count(*) from ops.audit_log",
+        # 24.18: it may read when, who and the decision of an audit row, nothing else
+        "select reason from ops.audit_log",
+        "select args_sha256 from ops.audit_log",
+        "select run_id from ops.audit_log",
     ],
 )
 def test_the_login_reads_nothing_else(scraped, sql):
