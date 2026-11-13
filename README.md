@@ -372,8 +372,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   call (audited) and stops the scheduled agents (`docs/agents/kill-switch.md`; 24.8)
 - [x] A hard spend cap on the scheduled agents: per run and per calendar month, counted from `ops.model_call`,
   failing closed, and no run at all with a paid key and no cap (`dip/agents/llm.py`,
-  `tests/unit/test_spend_cap.py`; 24.3). The provider-side limit in the Anthropic Console is the
-  owner's step
+  `tests/unit/test_spend_cap.py`; 24.3), and a $5/month spend limit in the Anthropic Console on
+  the project's own workspace and key
 
 **Access**
 

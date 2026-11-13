@@ -446,6 +446,9 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   closed when that total cannot be read; `chain_job` and `intake_runner` claim nothing with a
   paid key and either cap unset; an unpriced model is refused. Left for the owner: the
   provider-side limit in the Anthropic Console.
+  Owner's step done 2026-11-13: the key was rotated into its own `data-intake-platform`
+  workspace with a $5/month Console spend limit, the old key deleted, and the
+  `ANTHROPIC_API_KEY` GitHub secret updated.
 - [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
   Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
   compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
