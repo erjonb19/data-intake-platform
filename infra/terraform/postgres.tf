@@ -95,6 +95,17 @@ resource "kubernetes_stateful_set_v1" "postgres" {
             }
             period_seconds = 5
           }
+          # 13.1: generous, so a busy database (a restore, a dbt build) is never killed for
+          # being slow: two minutes of failed checks before a restart.
+          liveness_probe {
+            exec {
+              command = ["pg_isready", "-U", "postgres"]
+            }
+            initial_delay_seconds = 30
+            period_seconds        = 20
+            timeout_seconds       = 10
+            failure_threshold     = 6
+          }
 
           resources {
             requests = { cpu = "100m", memory = "256Mi" }

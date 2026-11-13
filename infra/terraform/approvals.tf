@@ -73,6 +73,17 @@ resource "kubernetes_deployment_v1" "approvals" {
             }
             period_seconds = 5
           }
+          # 13.1: restart a gateway that stops answering (the same /healthz, no login needed).
+          liveness_probe {
+            http_get {
+              path = "/healthz"
+              port = 8081
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 20
+            timeout_seconds       = 5
+            failure_threshold     = 3
+          }
           security_context {
             run_as_non_root            = true
             run_as_user                = 10001

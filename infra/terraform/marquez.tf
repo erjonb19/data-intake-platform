@@ -107,6 +107,25 @@ resource "kubernetes_deployment_v1" "marquez" {
             period_seconds        = 10
             failure_threshold     = 30
           }
+          # 13.1: Marquez can take minutes to start (its migrations), so a startup probe holds
+          # the liveness probe off until it first answers.
+          startup_probe {
+            http_get {
+              path = "/healthcheck"
+              port = 5001
+            }
+            period_seconds    = 10
+            failure_threshold = 30
+          }
+          liveness_probe {
+            http_get {
+              path = "/healthcheck"
+              port = 5001
+            }
+            period_seconds    = 20
+            timeout_seconds   = 5
+            failure_threshold = 3
+          }
           volume_mount {
             name       = "config"
             mount_path = "/config"
@@ -188,6 +207,22 @@ resource "kubernetes_deployment_v1" "marquez_web" {
           port {
             name           = "web"
             container_port = 3000
+          }
+          # 13.1: it had no probes.
+          readiness_probe {
+            tcp_socket {
+              port = 3000
+            }
+            period_seconds = 10
+          }
+          liveness_probe {
+            tcp_socket {
+              port = 3000
+            }
+            initial_delay_seconds = 15
+            period_seconds        = 20
+            timeout_seconds       = 5
+            failure_threshold     = 3
           }
           security_context {
             allow_privilege_escalation = false

@@ -174,8 +174,14 @@ rollout stalls with the old pods still serving; `dip rollback intake-api` restor
 script makes the intake API's HPA scale from 1 to 3 pods and back.
 Incident: the bad release (runbook `13-bad-release.md`).
 
-- [ ] **13.1 Liveness probes** on intake API, MCP, approvals, Marquez, Postgres, SFTP,
+- [x] **13.1 Liveness probes** on intake API, MCP, approvals, Marquez, Postgres, SFTP,
   Grafana (only MinIO has one today), with a test that every Deployment has both probes
+  Done 2026-11-13: liveness probes on every Terraform-defined workload (the same endpoint as
+  its readiness probe), and marquez-web, which had none, gets both; Marquez gets a startup probe
+  so its slow first start is not killed, and Postgres two minutes of grace. Grafana and
+  Prometheus come from their charts with both probes on by default (the repo's values leave
+  them on). `tests/unit/test_probes.py` fails on any Deployment or StatefulSet container
+  without both.
 - [ ] **13.2 Rolling update strategy** (`maxUnavailable: 0`) on every Deployment, and
   `dip rollback <service>` (`kubectl rollout undo` against `kind-dip` only)
 - [ ] **13.3 The `bad_release` drill**, its alert, runbook 13 and an incident eval case.

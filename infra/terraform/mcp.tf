@@ -321,6 +321,17 @@ resource "kubernetes_deployment_v1" "mcp" {
             }
             period_seconds = 5
           }
+          # 13.1: restart a server that stops accepting connections. TCP, like readiness: the
+          # MCP endpoint itself needs an agent key.
+          liveness_probe {
+            tcp_socket {
+              port = 8765
+            }
+            initial_delay_seconds = 10
+            period_seconds        = 20
+            timeout_seconds       = 5
+            failure_threshold     = 3
+          }
           security_context {
             run_as_non_root            = true
             run_as_user                = 10001
