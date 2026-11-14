@@ -31,64 +31,19 @@ gh api repos/erjonb19/data-intake-platform/branches/main/protection --jq '.requi
 
 It prints an object (not nothing) once the rule is on. Tell Claude, and 24.6 is ticked.
 
-### [ ] Approve one re-recording for runbooks `13-bad-release.md` and `14-restore.md`
+### [ ] Merge the settings PR (#165)
 
-**Why.** Two runbooks are waiting on a recording: Stage 14's restore runbook and 13.3's bad
-release, which also brings a new incident eval case. Everything in `docs/runbooks/` is what
-the incident agent searches, so adding a runbook changes the recorded incident cases, and
-those have to be recorded again (CLAUDE.md, "Model recordings"). Doing both in one run pays
-for the re-recording once. Until then the restore steps live in `docs/backups.md`.
+**Why.** From #132's review notes, as you chose: more denies for pushes to `main` (`x:main`,
+`refs/heads/main`, `+main`, `--all`, `--mirror`, `--follow-tags`) and the PowerShell forms of
+the Bash denies (`gh release`, `gh repo delete`, `git branch -D` and others). The
+`WebFetch(domain:...)` allows stay. Claude never merges a permission change.
 
-**Cost.** About $0.05 to $0.15 on the Haiku key, under a $0.25 cap per run, inside the
-$5-a-month budget. CI replays the recordings for free afterwards.
-
-**Steps.** Say "OK to re-record for runbooks 13 and 14" in chat. Claude builds the 13.3 drill
-first, then adds both runbooks and the new case on a stage branch (`s13-*`), dispatches the
-recording run and opens the PR. If you prefer to dispatch it yourself once that branch
-exists:
+**Steps.** Read the diff, then merge it once CI is green:
 
 ```powershell
-gh workflow run proof.yml --ref <the branch Claude names> -f job=claude-recordings -f spend_cap_usd=0.25
+gh pr diff 165
+gh pr merge 165 --merge
 ```
-
-### [ ] Choose how CI installs OpenTofu (13.5)
-
-**Why.** 13.5 checks that the Terraform code also works under OpenTofu, the open-source
-fork: a CI job runs `tofu init` and `tofu validate`. That adds one new tool to CI, and a new
-dependency needs your OK (CLAUDE.md). Both ways are free.
-
-**Steps.** Say in chat which one:
-- **(a)** the `opentofu/setup-opentofu` GitHub Action, pinned by commit SHA like the other
-  actions (recommended: the same shape as `setup-terraform`);
-- **(b)** the official `ghcr.io/opentofu/opentofu` image run with `docker run`, pinned by
-  digest, the way CI runs Trivy and promtool;
-- or skip 13.5 for now.
-
-### [ ] Decide on the last paramiko alert (Dependabot #43)
-
-**Why.** paramiko is 5.1.0 everywhere since #155, and two of its three alerts closed. The one
-left is on `requirements/e2e.in`, which pins `paramiko==5.1.*`; GitHub has not re-read it
-since 2026-11-12, most likely because it does not resolve a wildcard pin in an `.in` file.
-The lock that is installed (`requirements/e2e.txt`) has 5.1.0 and its alert closed.
-
-**Steps.** Say "dismiss #43" in chat, and Claude dismisses it as inaccurate with that reason;
-or leave it, and it may close on a later rescan. To look at it yourself:
-
-```powershell
-gh api repos/erjonb19/data-intake-platform/dependabot/alerts/43 --jq '{state, manifest: .dependency.manifest_path}'
-```
-
-### [ ] Decide on the `.claude/settings.json` review notes (#132)
-
-**Why.** The review of the project settings (24.42) found forms the deny list does not
-cover. Nothing was added, since permission settings change only on your word.
-- Pushes to `main` written another way: `x:main`, `HEAD:refs/heads/main`, `--follow-tags`,
-  `--mirror`.
-- The PowerShell side lacks `gh release`, `gh repo delete` and `git branch -D`.
-- The five `WebFetch(domain:...)` allows never apply, because the bare `WebFetch` ask wins.
-
-**Steps.** Say in chat which of these to add. Claude opens a PR and leaves it for you to
-merge (CLAUDE.md: permission settings are never merged by Claude).
 
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
@@ -177,6 +132,31 @@ Upload the video wherever you keep it and tell Claude the link; it goes into the
 "What it looks like" section.
 
 ## Done
+
+### [x] Re-recording for runbooks 13 and 14 approved (2026-11-13)
+
+**Why.** Adding runbooks changes what the incident agent searches, so the incident cases are
+recorded again (CLAUDE.md, "Model recordings"). Approved under a $0.25 cap and
+`DIP_SPEND_CAP_USD`; Claude runs it last on an `s13-*` branch and adds the spend to
+`docs/PROGRESS.md`.
+
+### [x] 13.5: CI installs OpenTofu with the SHA-pinned action (2026-11-13)
+
+**Why.** The owner chose `opentofu/setup-opentofu`, pinned by commit SHA like every other
+action, over the image.
+
+**Check.** `.github/workflows/ci.yml`, the lint job's `OpenTofu init and validate` step.
+
+### [x] Paramiko alert #43 dismissed as inaccurate (2026-11-13)
+
+**Why.** `requirements/e2e.in` pins `paramiko==5.1.*` and the installed lock has 5.1.0 (the
+fix is in 5.0.0); GitHub had not re-read the wildcard pin.
+
+**Check.**
+
+```powershell
+gh api repos/erjonb19/data-intake-platform/dependabot/alerts/43 --jq '{state, dismissed_reason}'
+```
 
 ### [x] 12.10 Link the GHCR packages and re-run the release (2026-11-13)
 

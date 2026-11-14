@@ -211,8 +211,11 @@ Incident: the bad release (runbook `13-bad-release.md`).
   runs stateless HTTP so a second pod can answer any request. The E2E's peak memory went from
   5.0 to 5.1 GiB of 15.6 (run 43478136516). The proof workflow's `scaling` job (run
   43478066459): 1 to 3 pods in 40 s under load, back to 1 in 171 s after it.
-- [ ] **13.5 OpenTofu:** a CI job that runs `tofu init` and `tofu validate` on
+- [x] **13.5 OpenTofu:** a CI job that runs `tofu init` and `tofu validate` on
   `infra/terraform/` so the code works under the open-source fork; README names both
+  Done 2026-11-13: the `ci` lint job installs OpenTofu 1.13.9 with `opentofu/setup-opentofu`
+  (SHA-pinned, the owner's choice) and runs `tofu init -backend=false` and `tofu validate` on
+  `infra/terraform/`, in its own data directory (`.tofu`), after Terraform's check.
 
 ## Stage 14: Backups and database migrations
 
