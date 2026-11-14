@@ -61,6 +61,22 @@ jobs:
           terraform init -backend=false -input=false
           terraform validate
 
+      # 13.5: the same code under OpenTofu, the open-source fork. Its own data directory, so
+      # it downloads providers from its own registry and shares nothing with the step above.
+      # The action checks the binary against the release's SHA256SUMS.
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: "1.13.9"
+          tofu_wrapper: false
+
+      - name: OpenTofu init and validate
+        working-directory: infra/terraform
+        env:
+          TF_DATA_DIR: .tofu
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
