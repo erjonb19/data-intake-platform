@@ -587,6 +587,12 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   2026-11-11 (`git tag`, pushes to `main`, tag pushes, for Bash and PowerShell);
   `.claude/worktrees/` and `.claude/settings.local.json` gitignored. Merged on the owner's
   explicit OK in chat.
+  2026-11-13, from #132's review notes (owner's choice): more denies for pushes to `main`
+  (`x:main`, `refs/heads/main`, `main` before other arguments, `+main`, `--all`, `--mirror`,
+  `--follow-tags`), for Bash and PowerShell, and the PowerShell forms of the Bash denies it
+  lacked (`gh release`, `gh repo delete`, `git branch -D`, `git push --delete`,
+  `gh pr merge --delete-branch`). The `WebFetch(domain:...)` allows stay as they are. The
+  owner merges it.
 - [x] **24.43 The three open CodeQL alerts** (Low; found 2026-11-11, not in the audit): #3
   `py/clear-text-logging-sensitive-data`, `scripts/check_model.py:38`, prints the key's variable
   name, not the key (false positive: dismiss with that reason); #1
