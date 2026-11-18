@@ -18,6 +18,18 @@ X12 envelope (`x12_segment_lost`, `X12.ENVELOPE:SE01`: handled like runbook 4).
 | 7 | [An unreadable scan](07-low-confidence-scan.md) | `OCR.LOW_CONFIDENCE`, `PDF.INVALID` | `truncated_pdf` (and the fixture `invoice_scan_poor.pdf`) |
 | 8 | [Instructions hidden in a vendor file](08-prompt-injection.md) | a denied tool call in `ops.audit_log` | `inject_cell` |
 
+Platform runbooks, for faults in the platform itself rather than in a feed (Stages 11, 13
+and 14). Each drill runs on the kind cluster `kind-dip` only.
+
+| # | Runbook | Signal | Break it with |
+|---|---|---|---|
+| 9 | [The scheduler is down](09-scheduler-down.md) | `PLATFORM.SCHEDULER_DOWN` | `python -m dip drill scheduler_down` |
+| 10 | [A task's pod OOMKilled](10-oomkilled.md) | `TASK.OOMKILLED` | `python -m dip drill oom_task` |
+| 11 | [A bad or rotated secret](11-bad-secret.md) | a `DAG.FAILED` incident whose task log shows a refused login | `python -m dip drill bad_secret` |
+| 12 | [Tasks stuck queued](12-stuck-queued.md) | `TASK.STUCK_QUEUED` | `python -m dip drill stuck_queued` |
+| 13 | [A release that never gets ready](13-bad-release.md) | `PLATFORM.ROLLOUT_STALLED`, alert ReleaseStalled | `python -m dip drill bad_release` |
+| 14 | [A table lost, restored from a backup](14-restore.md) | a missing gold table; alert BackupMissing | `python -m dip drill drop_table` |
+
 ## How every runbook works
 
 1. **Symptom.** A reason code in `ops.quarantine`, an alert in Prometheus (`/alerts`), or a

@@ -40,7 +40,10 @@ A warehouse table that was dropped or damaged: what to do, by what the backups s
 
 ## Check
 
-The restore prints the time to restore and exits 0 only when the count, checksum, owner and
-grants match the snapshot; the drill's row in `ops.restore_drill` has `verified = true`. The
+`dip restore` runs against the kind cluster `kind-dip` only and needs `MINIO_USER` and
+`MINIO_PASSWORD` set (`docs/backups.md`). It prints the time to restore; with `--verify` it
+exits 0 only when the count, checksum, owner and grants match the snapshot, and the drill's
+row in `ops.restore_drill` has `verified = true`. Without `--verify`, compare the table by
+hand. The
 failed DAG run, cleared, now passes, and its `DAG.FAILED` incident closes on its next
 success.

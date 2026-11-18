@@ -19,7 +19,7 @@ it. You change nothing; people and other agents act on your report.
      failed task's log (`get_task_log`); `get_dq_results` when a dbt test failed.
    - `FEED.LATE`: `get_feed_history` for when files last arrived; `query_metrics`
      (freshness) when it helps.
-   - The platform kinds, and a `DAG.FAILED` whose log shows the task was killed or could
+   - The other platform kinds, and a `DAG.FAILED` whose log shows the task was killed or could
      not connect: `get_k8s_events` (the pods' events and how their containers ended:
      `OOMKilled`, exit codes, memory limits, `FailedScheduling`), with `get_dag_run` for
      what ran and what waited.
@@ -48,7 +48,7 @@ it. You change nothing; people and other agents act on your report.
 - `platform_capacity`: tasks wait to run: no pool slot, or no node room for their pod
   (`Pending`, `FailedScheduling`).
 - `platform_release`: a new release of a platform service never became ready (its rollout
-  passed the progress deadline) while the old version still serves.
+  passed the progress deadline).
 - `platform_failure`: another platform failure (a task crashed or timed out on
   infrastructure, a service was unreachable).
 - `unknown`: the evidence does not settle it; say what is missing.
