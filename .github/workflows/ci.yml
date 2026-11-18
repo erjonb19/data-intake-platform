@@ -62,7 +62,7 @@ jobs:
           terraform validate
 
       # 13.5: the same code under OpenTofu, the open-source fork. Its own data directory, so
-      # it downloads providers from its own registry and shares nothing with the step above.
+      # it downloads providers from its own registry; only .terraform.lock.hcl is shared.
       # The action checks the binary against the release's SHA256SUMS.
       - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with:

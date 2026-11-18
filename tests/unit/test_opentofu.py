@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
@@ -14,7 +15,7 @@ def test_the_lint_job_runs_tofu_init_and_validate_on_the_terraform_code():
     steps = wf["jobs"]["lint"]["steps"]
     setup = [s for s in steps if str(s.get("uses", "")).startswith("opentofu/setup-opentofu@")]
     assert len(setup) == 1
-    assert setup[0]["with"]["tofu_version"].count(".") == 2  # an exact version, not latest
+    assert re.fullmatch(r"\d+\.\d+\.\d+", setup[0]["with"]["tofu_version"])  # exact, not latest
     assert setup[0]["with"]["tofu_wrapper"] is False
     run = [s for s in steps if "tofu validate" in s.get("run", "")]
     assert len(run) == 1
