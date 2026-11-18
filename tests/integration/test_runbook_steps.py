@@ -31,8 +31,10 @@ def test_the_index_covers_every_runbook_and_ranks_the_right_one():
         "01-missing-column", "02-unexpected-column", "03-code-values",
         "04-delimiter-encoding", "05-late-file", "06-duplicate-keys",
         "07-low-confidence-scan", "08-prompt-injection", "09-scheduler-down", "10-oomkilled",
-        "11-bad-secret", "12-stuck-queued",
+        "11-bad-secret", "12-stuck-queued", "13-bad-release", "14-restore",
     }  # fmt: skip
+    assert runbooks.search("PLATFORM.ROLLOUT_STALLED rollout stalled")[0]["runbook_id"] == (
+        "13-bad-release")  # fmt: skip
     assert runbooks.search("task stuck queued Pending FailedScheduling")[0]["runbook_id"] == (
         "12-stuck-queued")  # fmt: skip
     assert runbooks.search("password authentication failed")[0]["runbook_id"] == "11-bad-secret"

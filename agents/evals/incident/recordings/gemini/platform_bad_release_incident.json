@@ -1,0 +1,159 @@
+[
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1
+      },
+      "id": "call_10176418770034096471",
+      "name": "get_incident"
+     },
+     "thoughtSignature": "EpwBCpkBAWkUfRNnq/NJcgUFsSJ46ix2sdb5Ra+TQkxbdNfPWq06GE8Z/+92pibw/K+GR3LqjQW4i6lT0fVbfN89SSWE3EwYtpzQKYs26rtR6b+Y2LvBai/5/LNw0Im+VZcanZMWegFlENPrM655gL6OrBcpf7GQ3d3riOKkMX9bVZyordlScOdOGoDmVT3agvkurX2ZvOBbUg+huywu"
+    },
+    "id": "g-e99d67632183",
+    "input": {
+     "incident_id": 1
+    },
+    "name": "get_incident",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "3333027149ba4241998b990d69f82e45f627d049b1ed4cc6388d31f135ca66b9",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 2905,
+   "output_tokens": 16
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "confidence": 1,
+       "evidence": [
+        "The incident detail states: \"the rollout of deployment dip-data/intake-api stalled: ReplicaSet 'intake-api-6f8b9c7d54' has timed out progressing.\""
+       ],
+       "incident_id": 1,
+       "root_cause": "platform_release",
+       "summary": "The platform deployment 'intake-api' has failed to complete its rollout, exceeding the progress deadline. This indicates an issue with the latest release of this service."
+      },
+      "id": "call_237811142809563045",
+      "name": "report_diagnosis"
+     },
+     "thoughtSignature": "EpwBCpkBAWkUfRMNAO0WbZAXGO59n3LSTzFmFVhQcBhJwwV3Ea0xltqhJdYBcEDmxbUCM6BnAWZ++X3ZWMHQWak4r1NImwG9hryGyVP3giPREvg2NpZIRE0T9dpxI8euBt+g6aF1k5mnkkakksRxHgkF8F74L8lfybGv6DFiLrF/06DJhU5yoyx8vfNS/uV9M7LV8jLUyPWoocrmU0ho"
+    },
+    "id": "g-08556b2bc8b1",
+    "input": {
+     "confidence": 1,
+     "evidence": [
+      "The incident detail states: \"the rollout of deployment dip-data/intake-api stalled: ReplicaSet 'intake-api-6f8b9c7d54' has timed out progressing.\""
+     ],
+     "incident_id": 1,
+     "root_cause": "platform_release",
+     "summary": "The platform deployment 'intake-api' has failed to complete its rollout, exceeding the progress deadline. This indicates an issue with the latest release of this service."
+    },
+    "name": "report_diagnosis",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "5717145f96b6f569c1ab657539ba227095d7df95e3aa51da63e73004e7229770",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3152,
+   "output_tokens": 117
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "query": "platform_release"
+      },
+      "id": "call_8031468982197366509",
+      "name": "search_runbooks"
+     },
+     "thoughtSignature": "EpwBCpkBAWkUfRNc3GrS+8a774LVM6wvHkMSx+TpyNRO6LlsNBPF33aM9s2QaDTJMSo+SY7GbUu6iGKHZfXNPAk1WkhUSQNxayv/PTVes8uzAEhrxAZOMbSuiFYkpnGwOO5Q9vVFklVrDRWh6F85dS3j8ELvdYUyboUwyjIzOHsoibdTp44EjDb1JIofyV65emjK6Kg8swpluuCH4NVf"
+    },
+    "id": "g-ec3f65c78d63",
+    "input": {
+     "query": "platform_release"
+    },
+    "name": "search_runbooks",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "5a2fc0c7558919dc2fcd79c2a02ebb34fb02bd2feb5f4bc9d1396b2c782536e8",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 3306,
+   "output_tokens": 19
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "functionCall": {
+      "args": {
+       "incident_id": 1,
+       "runbook_id": "13-bad-release",
+       "steps": [
+        "Identify the stalled service: intake-api is a rolling service.",
+        "Perform a rollback: Execute 'python -m dip rollback intake-api' to revert to the previous ReplicaSet, as the old pods are still serving."
+       ]
+      },
+      "id": "call_7560702817662876096",
+      "name": "propose_runbook_steps"
+     },
+     "thoughtSignature": "EpwBCpkBAWkUfRMCkBgEXP35JMPu1rIZPHc4xOMeQE9QPoua02N1/ltc+ZoqBOBDg2vf5DpQfznrpPcR7emoqDd8fjInf8R/xl7NTdn9exSPXQ+PVOTyCAoV6OUVwdCDbogxgeTN8v3T0b0HeMt7AEly0WUgnJsTvg39HIakozhi8rzbVgvFzIKKbm9IG+IdeXF3KG7dmf4q17jNA0dW"
+    },
+    "id": "g-d03f8d331073",
+    "input": {
+     "incident_id": 1,
+     "runbook_id": "13-bad-release",
+     "steps": [
+      "Identify the stalled service: intake-api is a rolling service.",
+      "Perform a rollback: Execute 'python -m dip rollback intake-api' to revert to the previous ReplicaSet, as the old pods are still serving."
+     ]
+    },
+    "name": "propose_runbook_steps",
+    "type": "tool_use"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "3d3ff71b085765cb5aa5ab8b59e7b8b01c729f77ee9ef25a546d153e0ad68af6",
+  "stop_reason": "tool_use",
+  "usage": {
+   "input_tokens": 4310,
+   "output_tokens": 86
+  }
+ },
+ {
+  "content": [
+   {
+    "_gemini_part": {
+     "text": "The incident 1 involving `PLATFORM.ROLLOUT_STALLED` for `intake-api` has been diagnosed as a `platform_release` issue. The deployment failed to complete its rollout, with Kubernetes reporting `ReplicaSet \"intake-api-6f8b9c7d54\" has timed out progressing`.\n\nI have proposed steps from Runbook 13 (\"a release that never gets ready\") to assist in addressing this.",
+     "thoughtSignature": "EpwBCpkBAWkUfROjXL4eyrb2jr0Uh03vxFZYhqjYVfi+7plMR9jBdzCPcgJB6MIr7yV9wNsINA7ABtE8buPYbJVxKUcHzNakyimxWFJIeSno60PMULKj5XaLuUnPNUI9S3GdXswO2B5VA4XV9gVz9I51B5hOxg2gvdiAvS2Jucl41/szKS3sa/4jEiZC2VwBTNic1VGdm9dx/6/XLmlX"
+    },
+    "text": "The incident 1 involving `PLATFORM.ROLLOUT_STALLED` for `intake-api` has been diagnosed as a `platform_release` issue. The deployment failed to complete its rollout, with Kubernetes reporting `ReplicaSet \"intake-api-6f8b9c7d54\" has timed out progressing`.\n\nI have proposed steps from Runbook 13 (\"a release that never gets ready\") to assist in addressing this.",
+    "type": "text"
+   }
+  ],
+  "model": "gemini-3.1-flash-lite",
+  "request_sha256": "6911a08053205e75ce9d5e4e503890ebd7582f78f84ac1b5c1fba8c37f1cf942",
+  "stop_reason": "end_turn",
+  "usage": {
+   "input_tokens": 4453,
+   "output_tokens": 96
+  }
+ }
+]

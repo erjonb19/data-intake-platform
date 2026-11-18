@@ -213,9 +213,8 @@ tests:
               summary: "A rollout has stalled (1 deployment(s))"
               description: >-
                 A Deployment's new pod did not get Ready within its progress deadline (incident
-                PLATFORM.ROLLOUT_STALLED, opened by the platform-check CronJob). The old pod is
-                still serving (maxUnavailable 0). Roll it back with `python -m dip rollback
-                <service>`, then fix the release in Terraform.
+                PLATFORM.ROLLOUT_STALLED, opened by the platform-check CronJob). Runbook
+                docs/runbooks/13-bad-release.md.
   # Stage 14 (14.1): the last good backup finished at time 0 and none since: 25 h old, no
   # alert; 27 h old, BackupMissing.
   - interval: 1h

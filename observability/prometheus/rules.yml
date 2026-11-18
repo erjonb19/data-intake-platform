@@ -93,9 +93,8 @@ groups:
           summary: "A rollout has stalled ({{ $value }} deployment(s))"
           description: >-
             A Deployment's new pod did not get Ready within its progress deadline (incident
-            PLATFORM.ROLLOUT_STALLED, opened by the platform-check CronJob). The old pod is
-            still serving (maxUnavailable 0). Roll it back with `python -m dip rollback
-            <service>`, then fix the release in Terraform.
+            PLATFORM.ROLLOUT_STALLED, opened by the platform-check CronJob). Runbook
+            docs/runbooks/13-bad-release.md.
       - alert: TargetDown
         expr: up == 0
         for: 5m
