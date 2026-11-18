@@ -23,12 +23,12 @@ and 14). Each drill runs on the kind cluster `kind-dip` only.
 
 | # | Runbook | Signal | Break it with |
 |---|---|---|---|
-| 9 | [The scheduler is down](09-scheduler-down.md) | `PLATFORM.SCHEDULER_DOWN` | `python -m dip drill scheduler_down` |
-| 10 | [A task's pod OOMKilled](10-oomkilled.md) | `TASK.OOMKILLED` | `python -m dip drill oom_task` |
-| 11 | [A bad or rotated secret](11-bad-secret.md) | a `DAG.FAILED` incident whose task log shows a refused login | `python -m dip drill bad_secret` |
-| 12 | [Tasks stuck queued](12-stuck-queued.md) | `TASK.STUCK_QUEUED` | `python -m dip drill stuck_queued` |
+| 9 | [The Airflow scheduler is down](09-scheduler-down.md) | `PLATFORM.SCHEDULER_DOWN` | `python -m dip drill scheduler_down` |
+| 10 | [A task's pod ran out of memory](10-oomkilled.md) | `TASK.OOMKILLED` | `python -m dip drill oom_task` |
+| 11 | [A connection refused for its credentials](11-bad-secret.md) | a `DAG.FAILED` incident whose task log shows a refused login | `python -m dip drill bad_secret` |
+| 12 | [A task stuck in queued](12-stuck-queued.md) | `TASK.STUCK_QUEUED` | `python -m dip drill stuck_queued` |
 | 13 | [A release that never gets ready](13-bad-release.md) | `PLATFORM.ROLLOUT_STALLED`, alert ReleaseStalled | `python -m dip drill bad_release` |
-| 14 | [A table lost, restored from a backup](14-restore.md) | a missing gold table; alert BackupMissing | `python -m dip drill drop_table` |
+| 14 | [A warehouse table lost, restored from a backup](14-restore.md) | a missing gold table; alert BackupMissing | `python -m dip drill drop_table` |
 
 ## How every runbook works
 
