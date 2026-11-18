@@ -124,6 +124,7 @@ never committed, and only aggregate results are published. See
 ## Quick start
 
 Prerequisites: Docker (with about 8 GiB of memory available), kind, Terraform and kubectl.
+(The scripts call `terraform`; CI also validates the same code under OpenTofu.)
 Helm is optional, for debugging only. Check with:
 
 ```bash
@@ -223,7 +224,7 @@ docs/                contracts, research track, agents, runbooks, observability,
 
 ## CI
 
-- `ci` workflow: ruff, shellcheck, Terraform fmt and validate, unit tests, Postgres
+- `ci` workflow: ruff, shellcheck, Terraform fmt and validate, OpenTofu validate, unit tests, Postgres
   integration tests, and a fresh Synthea export pushed through the intake.
 - `e2e` workflow: creates a kind cluster with Terraform on a GitHub runner, deploys the
   stack with the observability profile, and runs the end-to-end tests (file feeds, FHIR,
@@ -277,7 +278,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Autoscaling: metrics-server and HPAs on the intake API and the MCP server, 1 to 3 pods
   and back, proved in the proof workflow's `scaling` job (`infra/terraform/autoscaling.tf`,
   `scripts/proof_scaling.py`; 13.4)
-- [ ] OpenTofu checked in CI: not yet built (13.5)
+- [x] OpenTofu: the same `infra/terraform/` code passes `tofu init` and `tofu validate` in
+  the `ci` lint job, next to Terraform's own check (`.github/workflows/ci.yml`; 13.5)
 - [x] Dependency updates (`.github/dependabot.yml`), Trivy scans of every image we build,
   failing on a fixable CRITICAL (`.github/workflows/security.yml`, `.trivyignore`), and
   CodeQL for Python and the workflows (`.github/workflows/codeql.yml`; 12.9); Dependabot
