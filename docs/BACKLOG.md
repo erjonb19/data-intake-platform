@@ -189,7 +189,7 @@ Incident: the bad release (runbook `13-bad-release.md`).
   ReadWriteOnce and a second pod could not mount them (the test allows Recreate only with a
   volume). `dip rollback SERVICE` (`dip/rollback.py`), kind-dip only. The kind E2E restarts
   the intake API and rolls it back, never below one available pod.
-- [ ] **13.3 The `bad_release` drill**, its alert, runbook 13 and an incident eval case.
+- [x] **13.3 The `bad_release` drill**, its alert, runbook 13 and an incident eval case.
   Prerequisite: the proof workflow's `gemini-recordings`, `claude-recordings` and
   `commit-results` jobs accept only `s11-*` branches; widen that to later stages' branches
   first, in its own PR
@@ -203,6 +203,10 @@ Incident: the bad release (runbook `13-bad-release.md`).
   `ReleaseStalled` fires; the undo is `dip rollback intake-api`. The kind E2E runs it last.
   Left for the recording (the owner's OK, `docs/OWNER_STEPS.md`): runbook 13, the incident
   agent's root cause and prompt line for the new kind, and its eval case.
+  Done 2026-11-18 (part 2): runbooks `13-bad-release.md` and `14-restore.md`, the incident
+  agent's `platform_release` cause (migration 0005 widens the diagnosis table's check) and
+  the `platform_bad_release` eval case; the incident cases re-recorded once for both
+  runbooks, Claude then Gemini (spend in `docs/PROGRESS.md`).
 - [x] **13.4 Autoscaling:** metrics-server in kind, behind an on/off value in its Helm
   values, with its memory on the laptop measured and reported; HPAs for the intake API and
   MCP server; the scaling proof in the proof workflow
@@ -236,6 +240,7 @@ Incident: the dropped table (runbook `14-restore.md`).
   - Runbook `14-restore.md` is deferred: `docs/runbooks/` is the incident agent's search
     input, so a new runbook changes the incident recordings, and that re-recording needs
     the user's approval first. The drill's steps are in `docs/backups.md` until then.
+    Added 2026-11-18 with 13.3's re-recording (`docs/runbooks/14-restore.md`).
 - [x] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database
