@@ -31,20 +31,6 @@ gh api repos/erjonb19/data-intake-platform/branches/main/protection --jq '.requi
 
 It prints an object (not nothing) once the rule is on. Tell Claude, and 24.6 is ticked.
 
-### [ ] Merge the settings PR (#165)
-
-**Why.** From #132's review notes, as you chose: more denies for pushes to `main` (`x:main`,
-`refs/heads/main`, `+main`, `--all`, `--mirror`, `--follow-tags`) and the PowerShell forms of
-the Bash denies (`gh release`, `gh repo delete`, `git branch -D` and others). The
-`WebFetch(domain:...)` allows stay. Claude never merges a permission change.
-
-**Steps.** Read the diff, then merge it once CI is green:
-
-```powershell
-gh pr diff 165
-gh pr merge 165 --merge
-```
-
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,
@@ -133,12 +119,20 @@ Upload the video wherever you keep it and tell Claude the link; it goes into the
 
 ## Done
 
-### [x] Re-recording for runbooks 13 and 14 approved (2026-11-13)
+### [x] Settings PR #165 merged on the owner's word (2026-11-17)
+
+**Why.** From #132's review notes: more denies for pushes to `main` (`x:main`,
+`refs/heads/main`, `+main`, `--all`, `--mirror`, `--follow-tags`) and the PowerShell forms of
+the Bash denies (`gh release`, `gh repo delete`, `git branch -D` and others). The owner
+approved it in chat and asked Claude to merge it.
+
+### [x] Re-recording for runbooks 13 and 14 approved (2026-11-13, confirmed 2026-11-17)
 
 **Why.** Adding runbooks changes what the incident agent searches, so the incident cases are
-recorded again (CLAUDE.md, "Model recordings"). Approved under a $0.25 cap and
-`DIP_SPEND_CAP_USD`; Claude runs it last on an `s13-*` branch and adds the spend to
-`docs/PROGRESS.md`.
+recorded again (CLAUDE.md, "Model recordings"). Confirmed on 2026-11-17: `claude-recordings`
+first under a **$0.10** cap (`spend_cap_usd=0.10`, `DIP_SPEND_CAP_USD`), then
+`gemini-recordings` at $0. Claude runs both last on the `s13-3-runbooks` branch and adds the
+spend to `docs/PROGRESS.md`.
 
 ### [x] 13.5: CI installs OpenTofu with the SHA-pinned action (2026-11-13)
 
