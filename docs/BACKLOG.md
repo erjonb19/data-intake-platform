@@ -211,8 +211,11 @@ Incident: the bad release (runbook `13-bad-release.md`).
   runs stateless HTTP so a second pod can answer any request. The E2E's peak memory went from
   5.0 to 5.1 GiB of 15.6 (run 43478136516). The proof workflow's `scaling` job (run
   43478066459): 1 to 3 pods in 40 s under load, back to 1 in 171 s after it.
-- [ ] **13.5 OpenTofu:** a CI job that runs `tofu init` and `tofu validate` on
-  `infra/terraform/` so the code works under the open-source fork; README names both
+- [x] **13.5 OpenTofu:** a CI job that runs `tofu init` and `tofu validate` on
+  `infra/terraform/` so the code works under the open-source fork; README names both.
+  Done 2026-11-13: the `ci` lint job installs OpenTofu 1.13.9 with `opentofu/setup-opentofu`
+  (SHA-pinned, the owner's choice) and runs `tofu init -backend=false` and `tofu validate` on
+  `infra/terraform/`, in its own data directory (`.tofu`), after Terraform's check.
 
 ## Stage 14: Backups and database migrations
 
@@ -587,6 +590,12 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   2026-11-11 (`git tag`, pushes to `main`, tag pushes, for Bash and PowerShell);
   `.claude/worktrees/` and `.claude/settings.local.json` gitignored. Merged on the owner's
   explicit OK in chat.
+  2026-11-13, from #132's review notes (owner's choice): more denies for pushes to `main`
+  (`x:main`, `refs/heads/main`, `main` before other arguments, `+main`, `--all`, `--mirror`,
+  `--follow-tags`), for Bash and PowerShell, and the PowerShell forms of the Bash denies it
+  lacked (`gh release`, `gh repo delete`, `git branch -D`, `git push --delete`,
+  `gh pr merge --delete-branch`). The `WebFetch(domain:...)` allows stay as they are. The
+  owner merges it.
 - [x] **24.43 The three open CodeQL alerts** (Low; found 2026-11-11, not in the audit): #3
   `py/clear-text-logging-sensitive-data`, `scripts/check_model.py:38`, prints the key's variable
   name, not the key (false positive: dismiss with that reason); #1
@@ -600,3 +609,12 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   every `put` caller passes vendor file bytes, a quarantine reason or demo and eval fixtures, the
   de-identification key goes only to `ops_secret.deid_key` (`dip/deid.py`), extracts carry only
   its fingerprint, and `LocalStore` runs only in tests, evals, the demo and the CLI.
+
+## Later (saved ideas, not started)
+
+*From the "Portfolio project upgrade stages" chat (Oct 25 to Nov 3, 2026), saved by the owner on 2026-11-17 before that chat was deleted. Ideas, not commitments: none is in the Order of work, and each needs the owner's OK before it starts.*
+
+- [ ] **SLA and cost dashboards in Grafana** (proposed Oct 14): each feed's freshness against its
+  SLA, and model spend per stage beside the `cost_usd` meter.
+- [ ] **Self-healing reruns, gated by approval** (proposed Oct 14): the triage agent proposes a
+  rerun of a failed task, a person approves it, then it runs, with the chain in the audit log.
