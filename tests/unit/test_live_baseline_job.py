@@ -29,6 +29,9 @@ def test_it_is_a_manual_choice_and_holds_no_secret():
     assert any(r.strip() == "python scripts/live_eval.py baseline" for r in runs)
     assert any("tests/integration/test_live_eval.py" in r for r in runs)
     assert any("check_recordings.py agents/evals/baseline.json" in r for r in runs)
+    check = next(r for r in runs if "test_live_eval.py" in r)
+    assert check.strip().endswith("! grep -q FAILED artifacts/commit/checks.md")
+    assert "permissions" not in job  # the workflow's contents: read, nothing more
 
 
 def test_commit_results_takes_only_the_baseline_from_it():
@@ -43,4 +46,9 @@ def test_commit_results_takes_only_the_baseline_from_it():
     for bad in ("agents/evals/baseline.jsonx", "agents/evals/other.json",
                 ".github/workflows/proof.yml", "agents/prompts/incident.md"):  # fmt: skip
         assert not allowed.fullmatch(bad), bad
-    assert "live-baseline brought more than baseline.json" in script
+    assert "live-baseline must bring exactly agents/evals/baseline.json" in script
+    # only these two artifacts skip the scrub; recordings never do
+    at = script.index('grep -qx "scrub: ok"')  # the scrub requirement is still there
+    statement = script[script.rindex("\n#", 0, at):at]  # from its comment line to the grep
+    assert sorted(re.findall(r'"\$ARTIFACT" = ([a-z-]+)', statement)) == [
+        "live-baseline", "proof-commit"]  # fmt: skip

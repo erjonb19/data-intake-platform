@@ -659,7 +659,8 @@ jobs:
   # recordings, replayed (`scripts/live_eval.py baseline`). Re-recording a sampled case
   # changes it, and tests/integration/test_live_eval.py fails until it is rewritten. Replays
   # only: no model key in any step, no spend. Runs here because the laptop cannot hold the
-  # Postgres it needs (2026-11-18). commit-results commits it to the stage branch.
+  # Postgres it needs (2026-11-18). commit-results commits it to the stage branch, so
+  # dispatch it on one (s11-* to s29-*): `gh workflow run proof.yml --ref <branch> -f job=live-baseline`.
   live-baseline:
     if: inputs.job == 'live-baseline'
     runs-on: ubuntu-latest
@@ -795,9 +796,9 @@ jobs:
           [ "$ARTIFACT" = proof-commit ] || [ "$ARTIFACT" = live-baseline ] \
             || grep -qx "scrub: ok" "$RUNNER_TEMP/checks.md" || { echo "no scrub: ok"; exit 1; }
           # the baseline job brings only baseline.json
-          if [ "$ARTIFACT" = live-baseline ] && grep -v '^artifacts/' "$RUNNER_TEMP/files" \
-               | grep -vqx "agents/evals/baseline.json"; then
-            echo "live-baseline brought more than baseline.json"; exit 1
+          if [ "$ARTIFACT" = live-baseline ] \
+             && [ "$(grep -v '^artifacts/' "$RUNNER_TEMP/files")" != agents/evals/baseline.json ]; then
+            echo "live-baseline must bring exactly agents/evals/baseline.json"; exit 1
           fi
           grep -v '^artifacts/' "$RUNNER_TEMP/files" | while read -r f; do
             mkdir -p "$(dirname "$f")"; cp "$IN/$f" "$f"
