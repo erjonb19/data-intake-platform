@@ -7,13 +7,17 @@ FROM apache/airflow:3.4.0-python3.12@sha256:818f94affc5bd7ce0be0cc04f2ace09aa838
 # fix is 6.12.117-1 in trixie-security, and no rebuilt apache/airflow image has it yet, so
 # only that package is upgraded here. Drop this step once the base image carries the fix.
 # dip-ocr builds on this image and inherits it.
+# The base is a hardened (+dhi0) build that also keeps one record per package in
+# /var/lib/dpkg/status.d/, which apt does not update and Trivy reads: after the upgrade
+# that record still said 6.12.115 (seen in the build, 2026-11-19). It is rewritten from
+# dpkg's own state, so it names what is installed; the build fails if that is below 6.12.117-1.
 USER root
 RUN apt-get update \
  && apt-get install -y --no-install-recommends --only-upgrade linux-libc-dev \
- && rm -rf /var/lib/apt/lists/*
-# TEMPORARY diagnosis (to be removed before merge): where else the old version is recorded.
-RUN dpkg-query -W linux-libc-dev; ls -la /var/lib/dpkg/status.d 2>/dev/null | head -5; \
-    grep -rIl --exclude-dir=proc --exclude-dir=sys "6.12.115-2+dhi0" / 2>/dev/null | head -20; true
+ && rm -rf /var/lib/apt/lists/* \
+ && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' linux-libc-dev)" ge 6.12.117-1 \
+ && if [ -f /var/lib/dpkg/status.d/linux-libc-dev ]; then \
+      dpkg-query -s linux-libc-dev > /var/lib/dpkg/status.d/linux-libc-dev; fi
 USER airflow
 
 # 24.4: every pip install reads a hashed lock from requirements/ (scripts/lock.py) with
