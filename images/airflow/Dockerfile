@@ -11,6 +11,9 @@ USER root
 RUN apt-get update \
  && apt-get install -y --no-install-recommends --only-upgrade linux-libc-dev \
  && rm -rf /var/lib/apt/lists/*
+# TEMPORARY diagnosis (to be removed before merge): where else the old version is recorded.
+RUN dpkg-query -W linux-libc-dev; ls -la /var/lib/dpkg/status.d 2>/dev/null | head -5; \
+    grep -rIl --exclude-dir=proc --exclude-dir=sys "6.12.115-2+dhi0" / 2>/dev/null | head -20; true
 USER airflow
 
 # 24.4: every pip install reads a hashed lock from requirements/ (scripts/lock.py) with
