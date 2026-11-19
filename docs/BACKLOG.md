@@ -493,13 +493,16 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   with the exact version in a comment (checkout v7.0.1, setup-python v7.1.0, cache v6.1.0,
   upload-artifact v7.0.2, download-artifact v8.0.2, codeql-action v4.39.3, setup-terraform v4.0.1);
   `tests/unit/test_actions_pinned.py` fails on a tag pin.
-- [ ] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
+- [x] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
   2026-11-11: classic branch protection is on for `main`: required checks `lint`, `test`,
   `e2e`, `trivy` and both CodeQL `analyze` jobs; force push and deletion blocked. Not set:
   required reviews, and the rules are not enforced for admins. Left open for the owner to say
   whether that is all 24.6 asks.
   2026-11-13: the rules now apply to admins too (`enforce_admins` on). Still not set: a
   required pull request, the owner's open step in `docs/OWNER_STEPS.md`.
+  Done by the owner 2026-11-19: a pull request is required on `main`, with 0 approving
+  reviews (Claude merges after its separate-agent review). Checked with
+  `gh api repos/erjonb19/data-intake-platform/branches/main/protection`.
 - [x] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
   Done by the owner 2026-11-11: alerts, grouped security updates and malware alerts on (checked
   through the API: `vulnerability-alerts` 204, `automated-security-fixes` enabled).
