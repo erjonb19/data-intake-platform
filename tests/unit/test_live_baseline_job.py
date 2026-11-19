@@ -49,6 +49,6 @@ def test_commit_results_takes_only_the_baseline_from_it():
     assert "live-baseline must bring exactly agents/evals/baseline.json" in script
     # only these two artifacts skip the scrub; recordings never do
     at = script.index('grep -qx "scrub: ok"')  # the scrub requirement is still there
-    statement = script[script.rindex("\n#", 0, at):at]  # from its comment line to the grep
+    statement = script[script.rindex("\n#", 0, at) : at]  # from its comment line to the grep
     assert sorted(re.findall(r'"\$ARTIFACT" = ([a-z-]+)', statement)) == [
         "live-baseline", "proof-commit"]  # fmt: skip
