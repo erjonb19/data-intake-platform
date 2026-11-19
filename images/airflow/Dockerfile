@@ -2,6 +2,17 @@
 # packs (contracts) and the dbt project. Build context is the repo root.
 FROM apache/airflow:3.4.0-python3.12@sha256:818f94affc5bd7ce0be0cc04f2ace09aa8382e65190a73a08881229ff32700cb
 
+# CVE-2026-99306 (CRITICAL, found by the Trivy scan on 2026-11-19): the base image ships
+# linux-libc-dev 6.12.115 (kernel headers only; a container runs the host's kernel). Debian's
+# fix is 6.12.117-1 in trixie-security, and no rebuilt apache/airflow image has it yet, so
+# only that package is upgraded here. Drop this step once the base image carries the fix.
+# dip-ocr builds on this image and inherits it.
+USER root
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends --only-upgrade linux-libc-dev \
+ && rm -rf /var/lib/apt/lists/*
+USER airflow
+
 # 24.4: every pip install reads a hashed lock from requirements/ (scripts/lock.py) with
 # --require-hashes --no-deps, so no unpinned or unhashed file is ever downloaded.
 COPY --chown=airflow:root requirements/ /tmp/req/
