@@ -266,6 +266,10 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   in `infra/terraform/`); the `bad_secret` drill (runbook 11)
 - [x] No password in any Job's spec: MinIO root and new users' passwords come from Secrets
   (`infra/terraform/minio.tf`, `tests/unit/test_job_secrets.py`; 24.13)
+- [x] An audit log no app login can rewrite: `ops.audit_log`, `ops.model_call` and the `ops`
+  schema belong to a role nobody logs in as, and `warehouse`, the login in every Airflow pod,
+  may only read and append to them (`infra/terraform/files/postgres-audit-owner.sql`,
+  `tests/integration/test_audit_owner.py`; 24.14)
 - [x] Airflow pods hold no master secret: Airflow's own MinIO user limited to its four buckets,
   and the de-identification and SFTP keys only in the one task pod that uses each
   (`infra/terraform/airflow.tf`, `tests/unit/test_airflow_secrets.py`; 24.2)

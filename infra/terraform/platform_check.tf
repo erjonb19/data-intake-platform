@@ -172,6 +172,73 @@ resource "kubernetes_job_v1" "warehouse_init" {
   depends_on = [kubernetes_job_v1.postgres_roles]
 }
 
+# 24.14: the append-only logs (ops.audit_log, ops.model_call) and the ops schema move to
+# dip_audit_owner, a role nobody logs in as, and `warehouse` keeps only SELECT and INSERT
+# on them (infra/terraform/files/postgres-audit-owner.sql). As the superuser, so in
+# dip-data beside Postgres and its secret, never in an Airflow pod. It must run after
+# warehouse-init, because the migrations create the tables. It reruns on every apply, like
+# the roles Job, so a table a restore or a migration recreated is moved back.
+resource "kubernetes_job_v1" "postgres_audit_owner" {
+  metadata {
+    name      = "postgres-audit-owner"
+    namespace = kubernetes_namespace_v1.data.metadata[0].name
+  }
+  spec {
+    backoff_limit = 5
+    template {
+      metadata {}
+      spec {
+        restart_policy = "Never"
+        container {
+          name    = "psql"
+          image   = var.postgres_image
+          command = ["psql", "-v", "ON_ERROR_STOP=1", "-1", "-f", "/sql/audit-owner.sql"]
+          env {
+            name  = "PGHOST"
+            value = kubernetes_service_v1.postgres.metadata[0].name
+          }
+          env {
+            name  = "PGUSER"
+            value = "postgres"
+          }
+          env {
+            name  = "PGDATABASE"
+            value = "warehouse"
+          }
+          env {
+            name = "PGPASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret_v1.postgres.metadata[0].name
+                key  = "POSTGRES_PASSWORD"
+              }
+            }
+          }
+          volume_mount {
+            name       = "sql"
+            mount_path = "/sql"
+            read_only  = true
+          }
+        }
+        volume {
+          name = "sql"
+          config_map {
+            name = kubernetes_config_map_v1.postgres_roles.metadata[0].name
+          }
+        }
+      }
+    }
+  }
+  wait_for_completion = true
+  timeouts {
+    create = "5m"
+  }
+  depends_on = [kubernetes_job_v1.warehouse_init]
+  lifecycle {
+    replace_triggered_by = [terraform_data.every_apply, kubernetes_config_map_v1.postgres_roles]
+  }
+}
+
 resource "kubernetes_cron_job_v1" "platform_check" {
   metadata {
     name      = "platform-check"

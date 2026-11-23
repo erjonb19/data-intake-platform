@@ -36,6 +36,14 @@ name, SHA-256 of its text, time).
 4. **The upgrade workflow is the check.** It deploys the previous `main`, loads data, then
    deploys the PR: `warehouse-init` applies the new migrations to the previous release's
    database before the E2E runs again.
+5. **Leave the two append-only logs out of migrations (24.14).** After `warehouse-init`, the
+   `postgres-audit-owner` Job runs `infra/terraform/files/postgres-audit-owner.sql` as the
+   superuser. It gives `ops.audit_log`, `ops.model_call`, their trigger functions and the
+   `ops` schema to `dip_audit_owner`, a role nobody logs in as. `warehouse` keeps SELECT and
+   INSERT on the two logs, with the grant option, and USAGE and CREATE on `ops`. Migrations
+   run as `warehouse`, so they can still create tables in `ops` and grant other logins
+   SELECT or INSERT on the logs. A migration cannot alter these two tables, though: only
+   their owner can. Such a change goes in `postgres-audit-owner.sql`, run by the superuser.
 
 ## Earlier releases and rollbacks
 
