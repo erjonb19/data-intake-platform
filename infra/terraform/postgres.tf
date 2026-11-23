@@ -160,6 +160,8 @@ resource "kubernetes_config_map_v1" "postgres_roles" {
   data = {
     "roles.sql"     = file("${path.module}/files/postgres-roles.sql")
     "password.psql" = file("${path.module}/files/postgres-roles-password.psql")
+    # 24.14, run by the postgres-audit-owner Job (platform_check.tf) after the migrations.
+    "audit-owner.sql" = file("${path.module}/files/postgres-audit-owner.sql")
   }
 }
 

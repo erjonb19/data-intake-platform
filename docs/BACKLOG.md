@@ -539,7 +539,18 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   Done 2026-11-11: `MC_HOST_local` from the `minio-admin` Secret and each new user's password
   from `minio-user-passwords` (`$(NEW_USER_PASSWORD)` in the args, expanded by the kubelet);
   `tests/unit/test_job_secrets.py` fails on any password in a Job's spec.
-- [ ] **24.14 An append-only audit log no app login can rewrite** (Medium): a separate owner role for the `ops` schema, writers with INSERT only, the app connecting as a non-owner (with 14.3's migrations).
+- [x] **24.14 An append-only audit log no app login can rewrite** (Medium): a separate owner role for the `ops` schema, writers with INSERT only, the app connecting as a non-owner (with 14.3's migrations).
+  Done 2026-11-22: `infra/terraform/files/postgres-audit-owner.sql`, run as the superuser by
+  the `postgres-audit-owner` Job after `warehouse-init` on every apply, gives `ops.audit_log`,
+  `ops.model_call` (the spend meter, append-only for the same reason), their trigger functions
+  and the `ops` schema to `dip_audit_owner` (NOLOGIN). `warehouse` keeps SELECT and INSERT
+  on the logs with the grant option, so the migrations' `grant_*()` functions still work, and
+  it can no longer update, delete, truncate, drop, alter or disarm them.
+  `tests/integration/test_audit_owner.py` checks this as `warehouse`. The other logins
+  (MCP, approvals, agent runners, metrics) already had their own, with no UPDATE or DELETE.
+  Still open: `warehouse` owns the `warehouse` database, so it could drop the whole database
+  (when nobody else is connected). The nightly backups (14.1) cover that, and a database owned by
+  another role goes with moving the rest of the schema off `warehouse`.
 - [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
 - [ ] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
 - [ ] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
