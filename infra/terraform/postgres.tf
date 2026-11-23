@@ -63,7 +63,8 @@ resource "kubernetes_stateful_set_v1" "postgres" {
           run_as_user     = 70
           run_as_group    = 70
           run_as_non_root = true
-          fs_group        = 70
+          # No fs_group: on a volume type that honours it, the kubelet would make PGDATA
+          # group-writable, and Postgres refuses to start unless it is 0700 or 0750.
           seccomp_profile {
             type = "RuntimeDefault"
           }

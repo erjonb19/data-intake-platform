@@ -23,7 +23,7 @@ import subprocess
 import sys
 
 NAMESPACES = ("dip-data", "dip-airflow", "dip-obs")
-OURS = ("postgres-", "minio", "intake-api-", "mcp-", "approvals-", "dip-metrics-",
+OURS = ("postgres-", "minio-", "intake-api-", "mcp-", "approvals-", "dip-metrics-",
         "warehouse-backup-", "platform-check-", "warehouse-init-", "postgres-roles-",
         "postgres-audit-owner-", "airflow-mcp-viewer-")  # fmt: skip
 WARNED = re.compile(r"^Warning: (?P<pod>[a-z0-9][a-z0-9.-]*)(?: \(and \d+ other pods?\))?: ")
@@ -39,7 +39,10 @@ def main() -> int:
     for ns in NAMESPACES:
         got = kubectl("get", "namespace", ns, "-o", "json")
         if got.returncode:
-            print(f"{ns}: not deployed (profile off), skipped")
+            if ns != "dip-obs":  # only the observability profile can be switched off
+                failures.append(f"{ns}: not found: {got.stderr.strip()[-200:]}")
+            else:
+                print(f"{ns}: not deployed (observability profile off), skipped")
             continue
         labels = json.loads(got.stdout)["metadata"].get("labels", {})
         for mode, level in (("enforce", "baseline"), ("warn", "restricted"),
