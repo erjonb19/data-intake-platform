@@ -124,6 +124,7 @@ never committed, and only aggregate results are published. See
 ## Quick start
 
 Prerequisites: Docker (with about 8 GiB of memory available), kind, Terraform and kubectl.
+(The scripts call `terraform`; CI also validates the same code under OpenTofu.)
 Helm is optional, for debugging only. Check with:
 
 ```bash
@@ -223,7 +224,7 @@ docs/                contracts, research track, agents, runbooks, observability,
 
 ## CI
 
-- `ci` workflow: ruff, shellcheck, Terraform fmt and validate, unit tests, Postgres
+- `ci` workflow: ruff, shellcheck, Terraform fmt and validate, OpenTofu validate, unit tests, Postgres
   integration tests, and a fresh Synthea export pushed through the intake.
 - `e2e` workflow: creates a kind cluster with Terraform on a GitHub runner, deploys the
   stack with the observability profile, and runs the end-to-end tests (file feeds, FHIR,
@@ -272,19 +273,23 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Rolling updates with `maxUnavailable: 0` and `dip rollback SERVICE`; the kind E2E rolls
   the intake API out and back without dropping below one available pod (`dip/rollback.py`,
   `tests/e2e/rollback.py`; 13.2)
-- [ ] A bad-release drill with its runbook and incident eval case: not yet built (13.3). The
-  drill, its incident and the `ReleaseStalled` alert run in the kind E2E today
+- [x] A bad-release drill: `dip drill bad_release` stalls the intake API's rollout while the
+  old pod keeps serving, `PLATFORM.ROLLOUT_STALLED` and the `ReleaseStalled` alert fire, and
+  `dip rollback intake-api` undoes it in the kind E2E; runbook 13, the incident agent's
+  `platform_release` cause and its eval case (`docs/runbooks/13-bad-release.md`,
+  `tests/e2e/bad_release.py`; 13.3)
 - [x] Autoscaling: metrics-server and HPAs on the intake API and the MCP server, 1 to 3 pods
   and back, proved in the proof workflow's `scaling` job (`infra/terraform/autoscaling.tf`,
   `scripts/proof_scaling.py`; 13.4)
-- [ ] OpenTofu checked in CI: not yet built (13.5)
+- [x] OpenTofu: the same `infra/terraform/` code passes `tofu init` and `tofu validate` in
+  the `ci` lint job, next to Terraform's own check (`.github/workflows/ci.yml`; 13.5)
 - [x] Dependency updates (`.github/dependabot.yml`), Trivy scans of every image we build,
   failing on a fixable CRITICAL (`.github/workflows/security.yml`, `.trivyignore`), and
   CodeQL for Python and the workflows (`.github/workflows/codeql.yml`; 12.9); Dependabot
   alerts and grouped security updates, and private vulnerability reporting, on in the repo's
   settings (24.7). Branch protection on `main`: `lint`, `test`, `e2e`, `trivy` and both CodeQL
-  analyses required, for admins too, with force pushes and deletion blocked; requiring a pull
-  request is still the owner's step (24.6, `docs/OWNER_STEPS.md`)
+  analyses required, for admins too, with force pushes and deletion blocked, and every change
+  through a pull request (no approving review required; 24.6)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script

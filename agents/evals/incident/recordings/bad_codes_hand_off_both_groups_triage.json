@@ -2,7 +2,7 @@
  {
   "content": [
    {
-    "signature": "CAQSkQUKEAgTGAI4AUIIdGhpbmtpbmcSDDE6xibyyJ6cpY6wYxoMzNSVSPRlT3vuOOUxIjCM1vlTa27Vg0J3gKavfwGOgNZZHNzMwPyj5i+ZgJfAFQ6Yl9k/4h5CJXCgcrYbGNYqrgRnSxlr0bQmvb/iYImb3017pMxaqTRuI2jhJXgIPYIx5X96dXOtbDxtlf+oaibDBXoYZqRFcR4jrcCZ4p5EspIZbxo6B2r9TAdcbTtnxyQCUFFJVwXI17SXIzf0sDMw+zGESgwAaFzESgD+tbEGOkgpYrkoFesYS6eH3vYo9Da6ourNPrgpBLxCf2TuL2HHC9vcCWigp9PbGLNPdfdxyBs35ad0+255koNk18kwfq+n7/096XtovfdtOky4v7Y1C7fRnfZvDgFHY0jJVMsvsEuInvymYwgCaGPnU//OCNAhPbugsajOdXJQlIqMTdwsK21MFe/nMq+DEppBowE8GSiKpyeRmfq1zB8hT4y44VMxXWlPzzSmW3xcF+tfYHDEN9Pu4B1fUvoq5kqYjXO5c61XfRBYyCM1WKQSIAwzvzwzWMbZbziWHNRHm+I+Bufv+fsk56cADfJ6iPRa9zxR8bqSYYyXL3zh6p/Jmor0GIYYFYHdWgOJcvwQVYWARPtkrzaoLRlXZZec3uHAgTyMtVOmtvHdITlkHvOzRi1vv8IBG2GXcycLVd8KdOVHsi4zlXuN0FHBMVW3+Erh1UEyU936McH3NMjrR2/xiOYGLJc+HquacD6mT2cd9Z5Rf4/55gW28sVi3KIc6j8XN4It/ULsW3wAmgixxwsCtNAjMd3Cu4Vlx/v4WtjggrwlYRI5c/WreaHl8eiJ3stdCMpb+KE4zs+W+9ezJLAwOXwYr/wYAQ==",
+    "signature": "CAQStQUKEAgTGAI4AUIIdGhpbmtpbmcSDEq9rJB3SxxrDragZBoMKIJiebSGdQq43uGlIjBHYc5U7gey2O5TUeLjq1yGV92JKAqlFuA+ehkBgBOBueol/G2Wl+IOhGOLxd+9Vecq0gQdYOv51zgvenFqRWA1jZdQjexCD2hrvxCKQ2Y/Z/sawp8KFYw7N05F2igBy4anAik5G+28XzEEC6HGltfE+1cXpiEkeDDBkhOOgxxFVIcw9DYHWbfElweWxKiUCx8T9njtZHrL/9zlx3GoTeul2SW6WKkq303UGx67eeGahh6UwxDvubP/qA1OGvCB7e6flh1P2KjFHq4vKv5CyZ8ueer5dtaSp3+zKFMK54J/wWzIAB6MNXJSK9wHDZHAj5cT9jZwsw0BN8w2MBmmpmnDf2SG04k+5Rjj2vKTPI2KKm+80Y1xLMxvhiQ2qI4Xw0EstqxMC+daS6YXHx9Te7jFKr4IkLrr3/N439UiQFc9qUjPi07FruSeWuJoZ0/HzhrLyIrd8kPZQPebycz633gVOXuJ7cIZbHX9Sno2JtSshR7qqe322SLF5zTYKVLKE/7UUbzrhvcSX10eXIg+t1h3YmT71D6qHdLCsw9wFh3mTnMIUY3g0TYGohpyHcK+13+fsCxDYDqyidapsH+o5EM7Y460blL0RZD5DOHgKs1RwHy65B7WRb9SlcVhZ2Y51Kw2f9hmW3E2kW0eGnzMUZeMZ1hV0WtGNfZHpaJhNd/l+0IQE82ki32VI3kfYoH2CNh9i69L8070suxEtD1z9LQIm31EZNtHk5rMUJVGr/HlCLVUAcUeRsdF2W7o1Di8Ytc+0bk4s3jk7Y6srnMZfjaWdzhNnTot71UA+Js17ooq5/f2oJnUrNY+b+OKUgRTOuc83M+wamX3OrtRr9LMqUL8cUT76UAYAQ==",
     "thinking": "",
     "type": "thinking"
    },
@@ -10,7 +10,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01PBBxfVYQEPYWagTVkq11bN",
+    "id": "toolu_01LVyoDWxjz42V46ZGDFUFzS",
     "input": {
      "feed": "healthcare.eligibility"
     },
@@ -21,7 +21,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01Bz1rLMRSpmCpruyF2AxMV1",
+    "id": "toolu_015vTnbgbVAoBniKKxuQg3iL",
     "input": {
      "feed": "healthcare.eligibility"
     },
@@ -32,29 +32,30 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01C8SQHVVqsdQNxuLDQCFamz",
+    "id": "toolu_018ojJrh4ykZLwbzBfMucrW6",
     "input": {
-     "feed": "healthcare.eligibility"
+     "feed": "healthcare.eligibility",
+     "limit": 10
     },
     "name": "get_feed_history",
     "type": "tool_use"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "1e1039bec3231f5d45999902d278ee91ae68b607b4c96abfe8acf4002492e056",
+  "request_sha256": "b02def8363c5d0fb866de3ec89d7c6737f4cc5a36a90e5477b05febc4fa6301d",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
     "ephemeral_1h_input_tokens": 0,
-    "ephemeral_5m_input_tokens": 3051
+    "ephemeral_5m_input_tokens": 3034
    },
-   "cache_creation_input_tokens": 3051,
+   "cache_creation_input_tokens": 3034,
    "cache_read_input_tokens": 0,
    "inference_geo": "global",
    "input_tokens": 4,
-   "output_tokens": 193,
+   "output_tokens": 216,
    "output_tokens_details": {
-    "thinking_tokens": 20
+    "thinking_tokens": 21
    },
    "service_tier": "standard",
    "speed": "standard"
@@ -66,7 +67,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_015Nu4WbKCZYkfSYbAnFjn8r",
+    "id": "toolu_01NLtpoibZrkeZfA21kbjzSA",
     "input": {
      "group_id": "healthcare.eligibility|FILE.BAD_ROW_RATIO",
      "limit": 10
@@ -78,7 +79,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01BzfUgXH2TFHk3cPR4qSPzn",
+    "id": "toolu_01D6kYnLaP5vSTg7nbacRAHZ",
     "input": {
      "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code",
      "limit": 10
@@ -88,15 +89,15 @@
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "cb9080b8a826b1071fb24fb33566f6e2310411a9d634826fa12147e7e8b1d1c4",
+  "request_sha256": "5177534117fb03dc7fa5543ee68f54fb578708892bc6ce7fa856747cc07412c0",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
     "ephemeral_1h_input_tokens": 0,
-    "ephemeral_5m_input_tokens": 1416
+    "ephemeral_5m_input_tokens": 1439
    },
-   "cache_creation_input_tokens": 1416,
-   "cache_read_input_tokens": 3051,
+   "cache_creation_input_tokens": 1439,
+   "cache_read_input_tokens": 3034,
    "inference_geo": "global",
    "input_tokens": 2,
    "output_tokens": 205,
@@ -110,7 +111,7 @@
  {
   "content": [
    {
-    "signature": "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",
+    "signature": "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",
     "thinking": "",
     "type": "thinking"
    },
@@ -118,17 +119,17 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_016esEzznvQUfMLtsHPAk95b",
+    "id": "toolu_01LVUiaNotVx9VBgxQqwXFwY",
     "input": {
      "action": "request_resend",
      "confidence": 0.9,
      "group_id": "healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code",
-     "message_to_vendor": "Your file elig_20261021.csv (sha256 ba45d4b07cf1) was quarantined. Rows for member M000000002 and M000000004 have plan_code set to \"???\". The allowed values are HMO, PPO, EPO and HDHP. Please supply the correct plan_code for every row and resend the whole file under the same name convention (elig_YYYYMMDD.csv). The file must have at most 5% bad rows, so please check all rows before resending.",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected. In two rows (member_id M000000002 and M000000004) plan_code is \"???\". plan_code must be one of HMO, PPO, EPO, HDHP. Please correct those values from your source and resend the whole file. Because more than 5% of rows failed, the file as a whole was rejected.",
      "quarantine_ids": [
       2,
       3
      ],
-     "rationale": "Both rejected rows (member M000000002 and M000000004) have plan_code = \"???\", a placeholder rather than any allowed value (HMO, PPO, EPO, HDHP). The other rows in the same file use valid codes (HMO, EPO), so this looks like missing or unfilled data, not a deliberate new code, and the contract should not change. Feed history shows one file, v1 contract, 0 accepted. Ask the vendor to correct plan_code for these rows and resend.",
+     "rationale": "Both rejected rows (member M000000002 and M000000004) have plan_code = \"???\", a placeholder, not one of the contract's allowed values HMO, PPO, EPO, HDHP. The other two rows in the file carry valid codes (HMO, EPO), so the vendor's extract is failing on specific rows, not on the column's shape. Not a new contract question: \"???\" is junk, not a legitimate new code used consistently. The file's name and header match the contract.",
      "root_cause": "invalid_values"
     },
     "name": "propose_operation",
@@ -138,16 +139,16 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01PetSsLwxyJ4DJiVKr9V5eu",
+    "id": "toolu_01P1R34FV2MMyjm4c2JnoKPo",
     "input": {
      "action": "request_resend",
      "confidence": 0.9,
      "group_id": "healthcare.eligibility|FILE.BAD_ROW_RATIO",
-     "message_to_vendor": "Your file elig_20261021.csv (sha256 ba45d4b07cf1) was rejected as a whole because 2 of 4 rows had invalid plan_code values (\"???\"). Please correct plan_code for all rows (allowed: HMO, PPO, EPO, HDHP) and resend the complete file.",
+     "message_to_vendor": "Your file elig_20261021.csv was rejected as a whole because 2 of 4 rows had invalid plan_code values (\"???\"). Allowed values are HMO, PPO, EPO, HDHP. Please correct the plan_code values for members M000000002 and M000000004 and resend the complete file.",
      "quarantine_ids": [
       1
      ],
-     "rationale": "The file-level rejection is caused entirely by the plan_code problem: 2 of 4 rows (50%) failed against max_bad_row_ratio 0.05. The file start shows the same \"???\" values as the row-level group, and the other two rows are valid. Same action as the row group: the vendor must correct plan_code and resend. The file was not accepted for any rows, so no partial load to undo. Contract v1 is correct; no change needed.",
+     "rationale": "File-level rejection: 2 of 4 rows failed, above max_bad_row_ratio 0.05. The failing rows are the two plan_code = \"???\" rows that make up the VALUE.NOT_ALLOWED:plan_code group, so this takes that group's cause and action. The incident hypothesis is right on the facts (2 of 4 rows, plan_code outside the allowed set, no accepted rows). The sample file content shows the file starts with the correct header, so it is not a schema problem.",
      "root_cause": "invalid_values"
     },
     "name": "propose_operation",
@@ -155,7 +156,7 @@
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "c26a3a175a7b960e4d78658d5eb118d9f5bd6484fba1e3b07e2b3bf16118daf5",
+  "request_sha256": "10a8eabbd91cdb1bafb70706895bf807b9c74c04c77f953f408f82816f752b0f",
   "stop_reason": "tool_use",
   "usage": {
    "cache_creation": {
@@ -163,12 +164,12 @@
     "ephemeral_5m_input_tokens": 1043
    },
    "cache_creation_input_tokens": 1043,
-   "cache_read_input_tokens": 4467,
+   "cache_read_input_tokens": 4473,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 1351,
+   "output_tokens": 1416,
    "output_tokens_details": {
-    "thinking_tokens": 337
+    "thinking_tokens": 432
    },
    "service_tier": "standard",
    "speed": "standard"
@@ -177,23 +178,23 @@
  {
   "content": [
    {
-    "text": "Both groups are proposed as `request_resend` for a person to approve. Nothing has run yet.\n\n- **healthcare.eligibility|VALUE.NOT_ALLOWED:plan_code** (ids 2, 3): `invalid_values`, request_resend, confidence 0.9. Both rows have plan_code `???`, a placeholder rather than an allowed code. The other rows in the file use valid codes (HMO, EPO), so this is bad data, not a new code, and the contract should not change.\n- **healthcare.eligibility|FILE.BAD_ROW_RATIO** (id 1, elig_20261021.csv): `invalid_values`, request_resend, confidence 0.9. The whole-file rejection comes from the same two bad plan_code rows (2 of 4, above the 0.05 limit), so it shares that fix.\n\nThe incident hypothesis is right that the file was rejected for plan_code, but its reading of the cause is off: the values are `???` placeholders, not off-contract codes the vendor uses on purpose, so the fix is a corrected resend, not a contract change.",
+    "text": "Both groups come from one file, `elig_20261021.csv`, and both have a proposal waiting for approval. Nothing has been executed.\n\n- **VALUE.NOT_ALLOWED:plan_code (ids 2, 3): request_resend, invalid_values, confidence 0.9.** Rows M000000002 and M000000004 carry the placeholder \"???\" instead of HMO, PPO, EPO or HDHP. The other two rows are valid, so this is bad values, not a new code the contract should absorb.\n- **FILE.BAD_ROW_RATIO (id 1): request_resend, invalid_values, confidence 0.9.** The file was rejected whole because 2 of 4 rows failed against a 0.05 limit. It takes the same cause and action as the plan_code group.\n\nThe incident hypothesis is accurate on the facts: 2 of 4 rows, plan_code outside the allowed set, and no accepted rows from the file. The header matches the contract, so this is not schema drift. The file contained no instructions.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "b0eeafbdd408fd8b972daf680bfcf3dbc0e24f1855987f0948c4e63371c6a2c3",
+  "request_sha256": "45a3d244258c1c0b080564c1fd39f17b57193982169f25f85169a65287cc1ebe",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
     "ephemeral_1h_input_tokens": 0,
-    "ephemeral_5m_input_tokens": 1479
+    "ephemeral_5m_input_tokens": 1544
    },
-   "cache_creation_input_tokens": 1479,
-   "cache_read_input_tokens": 5510,
+   "cache_creation_input_tokens": 1544,
+   "cache_read_input_tokens": 5516,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 360,
+   "output_tokens": 338,
    "output_tokens_details": {
     "thinking_tokens": 0
    },

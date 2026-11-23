@@ -189,7 +189,7 @@ Incident: the bad release (runbook `13-bad-release.md`).
   ReadWriteOnce and a second pod could not mount them (the test allows Recreate only with a
   volume). `dip rollback SERVICE` (`dip/rollback.py`), kind-dip only. The kind E2E restarts
   the intake API and rolls it back, never below one available pod.
-- [ ] **13.3 The `bad_release` drill**, its alert, runbook 13 and an incident eval case.
+- [x] **13.3 The `bad_release` drill**, its alert, runbook 13 and an incident eval case.
   Prerequisite: the proof workflow's `gemini-recordings`, `claude-recordings` and
   `commit-results` jobs accept only `s11-*` branches; widen that to later stages' branches
   first, in its own PR
@@ -203,6 +203,10 @@ Incident: the bad release (runbook `13-bad-release.md`).
   `ReleaseStalled` fires; the undo is `dip rollback intake-api`. The kind E2E runs it last.
   Left for the recording (the owner's OK, `docs/OWNER_STEPS.md`): runbook 13, the incident
   agent's root cause and prompt line for the new kind, and its eval case.
+  Done 2026-11-18 (part 2): runbooks `13-bad-release.md` and `14-restore.md`, the incident
+  agent's `platform_release` cause (migration 0005 widens the diagnosis table's check) and
+  the `platform_bad_release` eval case; the incident cases re-recorded once for both
+  runbooks, Claude then Gemini (spend in `docs/PROGRESS.md`).
 - [x] **13.4 Autoscaling:** metrics-server in kind, behind an on/off value in its Helm
   values, with its memory on the laptop measured and reported; HPAs for the intake API and
   MCP server; the scaling proof in the proof workflow
@@ -211,8 +215,11 @@ Incident: the bad release (runbook `13-bad-release.md`).
   runs stateless HTTP so a second pod can answer any request. The E2E's peak memory went from
   5.0 to 5.1 GiB of 15.6 (run 43478136516). The proof workflow's `scaling` job (run
   43478066459): 1 to 3 pods in 40 s under load, back to 1 in 171 s after it.
-- [ ] **13.5 OpenTofu:** a CI job that runs `tofu init` and `tofu validate` on
-  `infra/terraform/` so the code works under the open-source fork; README names both
+- [x] **13.5 OpenTofu:** a CI job that runs `tofu init` and `tofu validate` on
+  `infra/terraform/` so the code works under the open-source fork; README names both.
+  Done 2026-11-13: the `ci` lint job installs OpenTofu 1.13.9 with `opentofu/setup-opentofu`
+  (SHA-pinned, the owner's choice) and runs `tofu init -backend=false` and `tofu validate` on
+  `infra/terraform/`, in its own data directory (`.tofu`), after Terraform's check.
 
 ## Stage 14: Backups and database migrations
 
@@ -233,6 +240,7 @@ Incident: the dropped table (runbook `14-restore.md`).
   - Runbook `14-restore.md` is deferred: `docs/runbooks/` is the incident agent's search
     input, so a new runbook changes the incident recordings, and that re-recording needs
     the user's approval first. The drill's steps are in `docs/backups.md` until then.
+    Added 2026-11-18 with 13.3's re-recording (`docs/runbooks/14-restore.md`).
 - [x] **14.3 Versioned migrations** for the warehouse schemas (numbered SQL files with a
   `schema_version` table, or Alembic), run by a Job before the services start; the upgrade
   CI job applies them on a copy of the previous release's database
@@ -490,13 +498,16 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   with the exact version in a comment (checkout v7.0.1, setup-python v7.1.0, cache v6.1.0,
   upload-artifact v7.0.2, download-artifact v8.0.2, codeql-action v4.39.3, setup-terraform v4.0.1);
   `tests/unit/test_actions_pinned.py` fails on a tag pin.
-- [ ] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
+- [x] **24.6 Branch protection on `main`** **(owner)** (Medium): a ruleset: PRs required; `lint`, `test` and `e2e` required; force push and deletion blocked (steps in #116).
   2026-11-11: classic branch protection is on for `main`: required checks `lint`, `test`,
   `e2e`, `trivy` and both CodeQL `analyze` jobs; force push and deletion blocked. Not set:
   required reviews, and the rules are not enforced for admins. Left open for the owner to say
   whether that is all 24.6 asks.
   2026-11-13: the rules now apply to admins too (`enforce_admins` on). Still not set: a
   required pull request, the owner's open step in `docs/OWNER_STEPS.md`.
+  Done by the owner 2026-11-19: a pull request is required on `main`, with 0 approving
+  reviews (Claude merges after its separate-agent review). Checked with
+  `gh api repos/erjonb19/data-intake-platform/branches/main/protection`.
 - [x] **24.7 Dependabot alerts and security updates on** **(owner)** (Medium): repo Settings, Advanced Security.
   Done by the owner 2026-11-11: alerts, grouped security updates and malware alerts on (checked
   through the API: `vulnerability-alerts` 204, `automated-security-fixes` enabled).

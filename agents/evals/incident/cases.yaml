@@ -313,3 +313,23 @@ cases:
       root_cause: [platform_capacity]
       handoff: false
       runbook: [12-stuck-queued]
+
+  - name: platform_bad_release
+    # 13.3: the bad_release drill. The intake API's new release names an app that does not
+    # exist, so its pod crashes at start and never gets Ready; with maxUnavailable 0 the old
+    # pod keeps serving, and after the 180 s progress deadline the platform check opens
+    # PLATFORM.ROLLOUT_STALLED. The Deployment is in dip-data, which get_k8s_events does
+    # not read (it reads dip-airflow, where nothing is wrong): the detail is the evidence.
+    incidents:
+      - feed: _platform
+        kind: PLATFORM.ROLLOUT_STALLED
+        target: intake-api
+        detail: 'the rollout of deployment dip-data/intake-api stalled: ReplicaSet "intake-api-6f8b9c7d54" has timed out progressing.'
+    k8s:
+      events: []
+      pods: []
+    incident: {feed: _platform, kind: PLATFORM.ROLLOUT_STALLED}
+    gold:
+      root_cause: [platform_release]
+      handoff: false
+      runbook: [13-bad-release]
