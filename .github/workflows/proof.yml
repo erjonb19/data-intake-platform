@@ -28,9 +28,9 @@ on:
         default: "0.25"
       job:
         # Stage 11 (S11.7): record the incident cases (and the demo) here, not on the laptop.
-        description: "proof (S10.6), stage-11-proof (S11.10), live-eval (S11.11), gemini- or claude-recordings, scaling (13.4)"
+        description: "proof (S10.6), stage-11-proof (S11.10), live-eval (S11.11), gemini- or claude-recordings, scaling (13.4), live-baseline (no key, $0)"
         type: choice
-        options: [proof, stage-11-proof, live-eval, gemini-recordings, claude-recordings, scaling]
+        options: [proof, stage-11-proof, live-eval, gemini-recordings, claude-recordings, scaling, live-baseline]
         default: proof
 
 permissions:
@@ -655,12 +655,80 @@ jobs:
           path: artifacts/live-eval/
           retention-days: 30
 
+  # The live eval's baseline (agents/evals/baseline.json) rewritten from the committed
+  # recordings, replayed (`scripts/live_eval.py baseline`). Re-recording a sampled case
+  # changes it, and tests/integration/test_live_eval.py fails until it is rewritten. Replays
+  # only: no model key in any step, no spend. Runs here because the laptop cannot hold the
+  # Postgres it needs (2026-11-18). commit-results commits it to the stage branch, so
+  # dispatch it on one (s11-* to s29-*): `gh workflow run proof.yml --ref <branch> -f job=live-baseline`.
+  live-baseline:
+    if: inputs.job == 'live-baseline'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dip
+          POSTGRES_PASSWORD: dip
+          POSTGRES_DB: dip_eval
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          pip install -q --require-hashes --no-deps -r requirements/build.txt && pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
+          pip install -q --no-deps --no-build-isolation -e .
+          pip check
+
+      - name: Replay the recordings into a new baseline
+        env:
+          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_eval
+          PYTHONUTF8: "1"
+        run: python scripts/live_eval.py baseline
+
+      # The baseline is checked as CI checks it (test_live_eval.py, on a fresh database), and
+      # for keys and auth headers like any file commit-results takes.
+      - name: Check the new baseline
+        env:
+          DIP_TEST_DSN: postgresql://dip:dip@localhost:5432/dip_test
+          PYTHONUTF8: "1"
+        run: |
+          PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database dip_test"
+          mkdir -p artifacts/commit
+          set -o pipefail
+          { echo "job: live-baseline (run $GITHUB_RUN_ID)"
+            python -I scripts/check_recordings.py agents/evals/baseline.json
+            if pytest -q -p no:cacheprovider tests/integration/test_live_eval.py >&2; then
+              echo "replay check: ok (test_live_eval.py: the baseline is the recordings replayed now)"
+            else
+              echo "replay check: FAILED"
+            fi
+          } | tee artifacts/commit/checks.md
+          ! grep -q FAILED artifacts/commit/checks.md
+
+      - name: Upload the baseline
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: live-baseline
+          path: |
+            agents/evals/baseline.json
+            artifacts/commit/checks.md
+          retention-days: 7
+
   # Stage 11: commit what the run made to the stage branch it was started from (s11-* to
   # s29-*; widened from s11-* for 13.3). See the header. Runs only when every job that ran
   # succeeded (every check in it passed). The `if` can only test a prefix; the step's regex
   # is the real check.
   commit-results:
-    needs: [proof, drills, fresh-clone, live-eval, gemini-recordings, claude-recordings]
+    needs: [proof, drills, fresh-clone, live-eval, gemini-recordings, claude-recordings, live-baseline]
     if: >-
       always() && github.ref_type == 'branch' &&
       (startsWith(github.ref_name, 's1') || startsWith(github.ref_name, 's2')) &&
@@ -680,6 +748,7 @@ jobs:
           LIVE: ${{ needs.live-eval.result }}
           GEMINI: ${{ needs.gemini-recordings.result }}
           CLAUDE: ${{ needs.claude-recordings.result }}
+          BASELINE: ${{ needs.live-baseline.result }}
         run: |
           [[ "$BRANCH" =~ ^s(1[1-9]|2[0-9])-[A-Za-z0-9._-]+$ ]] \
             || { echo "not a stage branch (s11-* to s29-*): $BRANCH"; exit 1; }
@@ -687,6 +756,7 @@ jobs:
             name=proof-commit
           elif [ "$GEMINI" = success ]; then name=gemini-incident-recordings
           elif [ "$CLAUDE" = success ]; then name=claude-incident-recordings
+          elif [ "$BASELINE" = success ]; then name=live-baseline
           else echo "nothing succeeded"; exit 1; fi
           echo "artifact=$name" >> "$GITHUB_OUTPUT"
 
@@ -708,7 +778,7 @@ jobs:
           IN: ${{ runner.temp }}/incoming
           ARTIFACT: ${{ steps.which.outputs.artifact }}
         run: |
-          allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|docs/demos/proof/run-[0-9]+/([A-Za-z0-9_.-]+\.(md|png)|(results|audit|live)\.json)|artifacts/commit/checks\.md)$'
+          allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|agents/evals/baseline\.json|docs/demos/proof/run-[0-9]+/([A-Za-z0-9_.-]+\.(md|png)|(results|audit|live)\.json)|artifacts/commit/checks\.md)$'
           (cd "$IN" && find . -type f | sed 's|^\./||') > "$RUNNER_TEMP/files"
           if grep -vE "$allowed" "$RUNNER_TEMP/files"; then echo "unexpected files (above)"; exit 1; fi
           grep -qx "artifacts/commit/checks.md" "$RUNNER_TEMP/files" || { echo "no checks.md"; exit 1; }
@@ -721,9 +791,15 @@ jobs:
           set -o pipefail  # a failed re-check stops here, before anything is copied in
           python -I scripts/check_recordings.py "$IN" | tee -a "$RUNNER_TEMP/checks.md"
           if grep -q FAILED "$RUNNER_TEMP/checks.md"; then echo "the re-check failed"; exit 1; fi
-          # a proof's results have no scrub; recordings must (decided by which job ran)
-          [ "$ARTIFACT" = proof-commit ] || grep -qx "scrub: ok" "$RUNNER_TEMP/checks.md" \
-            || { echo "no scrub: ok"; exit 1; }
+          # a proof's results and the baseline have no scrub; recordings must (decided by
+          # which job ran)
+          [ "$ARTIFACT" = proof-commit ] || [ "$ARTIFACT" = live-baseline ] \
+            || grep -qx "scrub: ok" "$RUNNER_TEMP/checks.md" || { echo "no scrub: ok"; exit 1; }
+          # the baseline job brings only baseline.json
+          if [ "$ARTIFACT" = live-baseline ] \
+             && [ "$(grep -v '^artifacts/' "$RUNNER_TEMP/files")" != agents/evals/baseline.json ]; then
+            echo "live-baseline must bring exactly agents/evals/baseline.json"; exit 1
+          fi
           grep -v '^artifacts/' "$RUNNER_TEMP/files" | while read -r f; do
             mkdir -p "$(dirname "$f")"; cp "$IN/$f" "$f"
           done
