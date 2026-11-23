@@ -288,8 +288,8 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   CodeQL for Python and the workflows (`.github/workflows/codeql.yml`; 12.9); Dependabot
   alerts and grouped security updates, and private vulnerability reporting, on in the repo's
   settings (24.7). Branch protection on `main`: `lint`, `test`, `e2e`, `trivy` and both CodeQL
-  analyses required, for admins too, with force pushes and deletion blocked; requiring a pull
-  request is still the owner's step (24.6, `docs/OWNER_STEPS.md`)
+  analyses required, for admins too, with force pushes and deletion blocked, and every change
+  through a pull request (no approving review required; 24.6)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script
