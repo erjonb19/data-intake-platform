@@ -125,9 +125,20 @@ def test_migrations_still_add_tables_to_ops_and_grants_still_apply(conn):
     assert scalar(conn, "select pg_get_userbyid(relowner) from pg_class"
                         " where oid = 'ops.migration_probe'::regclass") == "warehouse"  # fmt: skip
     run(conn, "drop table ops.migration_probe")
-    assert "grant_mcp_reader" in reapply_grants(conn)  # as the warehouse-init Job runs it
+    # Take the other logins' INSERT away, so what follows shows reapply_grants, run as
+    # warehouse (as the warehouse-init Job runs it), giving it back.
+    run(conn, "reset role")
+    run(conn, "revoke insert on ops.audit_log from dip_mcp, dip_approver, dip_agent_runner")
+    run(conn, "set role warehouse")
+    assert "grant_mcp_reader" in reapply_grants(conn)
     for login in ("dip_mcp", "dip_approver", "dip_agent_runner"):
         assert scalar(conn, "select has_table_privilege(%s, 'ops.audit_log', 'INSERT')", (login,))
+    # The next apply reruns the file while warehouse's grants to them exist (its REVOKE
+    # must not trip over them), and they survive it.
+    run(conn, "reset role")
+    run(conn, AUDIT_OWNER_SQL.read_text(encoding="utf-8"))
+    run(conn, "set role warehouse")
+    assert scalar(conn, "select has_table_privilege('dip_mcp', 'ops.audit_log', 'INSERT')")
     # A grant option passes on only what warehouse holds: never UPDATE or DELETE.
     with conn.cursor() as cur:
         cur.execute("grant update, delete on ops.audit_log to dip_mcp")  # a warning, no grant
