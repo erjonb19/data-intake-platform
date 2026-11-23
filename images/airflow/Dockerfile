@@ -12,10 +12,10 @@ FROM apache/airflow:3.4.0-python3.12@sha256:818f94affc5bd7ce0be0cc04f2ace09aa838
 # that record still said 6.12.115 (seen in the build, 2026-11-19). It is rewritten from
 # dpkg's own state, so it names what is installed; the build fails if that is below 6.12.117-1.
 # The base image also lists MariaDB's apt repository (for its MySQL client). On 2026-11-23
-# that repository's trixie Release file was gone (404 at archive.mariadb.org), and
-# `apt-get update` fails on a source it cannot read. We install nothing from it, so its
-# source entry is removed first. The client already installed stays. dip-ocr builds on
-# this image, so it inherits the removal.
+# its trixie Release file intermittently returned 404, and `apt-get update` fails on a
+# source it cannot read. We install nothing from it, so its source entry is removed first.
+# The client already installed stays. dip-ocr builds on this image, so it inherits the
+# removal.
 USER root
 RUN rm -f $(grep -l 'mariadb' /etc/apt/sources.list.d/* 2>/dev/null || true) \
  && apt-get update \
