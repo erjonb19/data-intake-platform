@@ -6,8 +6,11 @@ ARG BASE=dip-airflow:build
 FROM ${BASE}
 
 USER root
-# Debian's Tesseract 5 with the English model; no other language packs.
-RUN apt-get update \
+# Debian's Tesseract 5 with the English model; no other language packs. The MariaDB source
+# is already gone in the platform image (images/airflow/Dockerfile). This does it again in
+# case BASE is another image.
+RUN rm -f $(grep -l 'mariadb' /etc/apt/sources.list.d/* 2>/dev/null || true) \
+ && apt-get update \
  && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
  && rm -rf /var/lib/apt/lists/*
 USER airflow
