@@ -88,8 +88,9 @@ refusal is in the audit log too."
 
 **Live:** the approvals page shows the pending proposal, its payload, and the agent and model
 that made it. Click **Approve** with `owner` as Reviewer: `approvals_token` is the first
-approver's token, and the page refuses any other name with it (403). To show your own name, set
-`TF_VAR_approvers='["yourname"]'` before `up.sh`. **Recorded:** the demo approves
+approver's token, and the page refuses any other name with it (403). To show your own name,
+run `export TF_VAR_approvers='["yourname"]'` (PowerShell: `$env:TF_VAR_approvers = '["yourname"]'`)
+and then `up.sh` again. **Recorded:** the demo approves
 its proposal itself and prints the audit trail; show the approvals page from
 `docs/images/approvals-queue.png` while you speak.
 
