@@ -50,7 +50,19 @@ resource "kubernetes_deployment_v1" "minio" {
         container {
           name  = "minio"
           image = var.minio_image
-          args  = ["server", "/data", "--address", ":9000", "--console-address", ":9001"]
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 65532
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
+          args = ["server", "/data", "--address", ":9000", "--console-address", ":9001", "--certs-dir", "/tmp/certs"]
 
           env_from {
             secret_ref {
@@ -70,6 +82,11 @@ resource "kubernetes_deployment_v1" "minio" {
           volume_mount {
             name       = "data"
             mount_path = "/data"
+          }
+          # 24.15: the root filesystem is read-only; MinIO keeps its (empty) certs directory here.
+          volume_mount {
+            name       = "tmp"
+            mount_path = "/tmp"
           }
 
           readiness_probe {
@@ -94,6 +111,10 @@ resource "kubernetes_deployment_v1" "minio" {
           }
         }
 
+        volume {
+          name = "tmp"
+          empty_dir {}
+        }
         volume {
           name = "data"
           persistent_volume_claim {
@@ -174,7 +195,19 @@ resource "kubernetes_job_v1" "minio_buckets" {
         container {
           name  = "mc"
           image = var.minio_client_image
-          args  = concat(["mb", "--ignore-existing"], [for b in var.minio_buckets : "local/${b}"])
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 65532
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
+          args = concat(["mb", "--ignore-existing"], [for b in var.minio_buckets : "local/${b}"])
 
           env {
             name = "MC_HOST_local"
