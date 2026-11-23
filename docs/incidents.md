@@ -205,3 +205,25 @@ image and inherits it.
 record pass. The lesson for the next one: on a `+dhi0` base, an apt upgrade alone does not
 change what a scanner sees; look in `status.d` first. The step goes once Dependabot brings a
 base image that carries the fix.
+
+## 2026-11-23: a third-party apt repository failed intermittently and broke the image build (Stage 13)
+
+**What broke.** The kind E2E on #174, a docs-only PR, failed building the `dip-ocr` image.
+`apt-get update` stopped on MariaDB's trixie repository with "does not have a Release file"
+(404). The `apache/airflow` base image lists that repository for its MySQL client, and apt
+fails on any source it cannot read. It was intermittent: about 90 seconds earlier, in the
+same job, the Airflow image's own `apt-get update` fetched the same repository fine.
+Any image build that runs `apt-get update` could fail this way, whatever the PR changed.
+
+**How we knew.** The E2E's "Bring up stack" step. Its log names the source that failed.
+
+**How we fixed it.** Before `apt-get update`, `images/airflow/Dockerfile` and
+`images/ocr/Dockerfile` delete any apt source file that mentions MariaDB. We install nothing
+from it, and the MySQL client the base image already installed stays. The command,
+`rm -f $(grep -l ... || true)`, cannot fail when nothing matches. That matters because the
+base image's shell runs with errexit, so a grep that found nothing would otherwise stop the
+build.
+
+**What stops it coming back.** A repository we don't use no longer appears in the builds'
+apt sources, so its outages can't fail us. A source we do use that fails still fails the
+build visibly.
