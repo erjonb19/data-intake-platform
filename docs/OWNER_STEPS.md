@@ -10,27 +10,6 @@ Claude adds a step here whenever one comes up and ticks it when the owner says i
 
 ## Open
 
-### [ ] 24.6 Require a pull request on `main`
-
-**Why.** Branch protection on `main` is on: `lint`, `test`, `e2e`, `trivy` and both CodeQL
-analyses must pass, for admins too, and force pushes and deletion are blocked. What 24.6 still
-asks is that every change reach `main` through a pull request, so nobody (Claude included)
-can push to it directly and skip the review. Claude already works through PRs, so nothing
-else changes; no approving review is required (zero approvals), since Claude merges after its
-separate-agent review.
-
-**Steps (GitHub).** Repo **Settings**, **Branches**, the rule for `main`, **Edit**: tick
-**Require a pull request before merging**, set **Required approvals** to **0**, **Save
-changes**.
-
-**Check.**
-
-```powershell
-gh api repos/erjonb19/data-intake-platform/branches/main/protection --jq '.required_pull_request_reviews'
-```
-
-It prints an object (not nothing) once the rule is on. Tell Claude, and 24.6 is ticked.
-
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,
@@ -118,6 +97,20 @@ Upload the video wherever you keep it and tell Claude the link; it goes into the
 "What it looks like" section.
 
 ## Done
+
+### [x] 24.6 Require a pull request on `main` (2026-11-19)
+
+**Why.** Every change reaches `main` through a pull request, so nobody (Claude included) can
+push to it directly and skip the review. No approving review is required (zero approvals),
+since Claude merges after its separate-agent review.
+
+**Check.**
+
+```powershell
+gh api repos/erjonb19/data-intake-platform/branches/main/protection --jq '.required_pull_request_reviews.required_approving_review_count'
+```
+
+It prints `0`.
 
 ### [x] Settings PR #165 merged on the owner's word (2026-11-17)
 

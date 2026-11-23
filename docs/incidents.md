@@ -179,3 +179,29 @@ restarted by a liveness or startup probe during the run (the kubelet's `Killing`
 the check itself fails if it cannot read the events. The first green run printed `no container
 restarted by a liveness or startup probe`. 13.3's bad release crashes at start instead of
 failing a probe, so the drill and this check do not get in each other's way.
+
+## 2026-11-19: a CRITICAL the upgrade fixed, which the scanner still saw (Stage 13, #172)
+
+**What broke.** The required `trivy` check started failing every PR, and `main`, on
+CVE-2026-99306 (CRITICAL) in `linux-libc-dev` 6.12.115, in the `dip-airflow` and `dip-ocr`
+images. The package comes from the pinned base, `apache/airflow:3.4.0-python3.12`, which had
+not been rebuilt, and Debian had the fix (6.12.117-1 in trixie-security). Every merge was
+blocked behind it.
+
+**How we knew.** The Trivy job on an unrelated PR (#170). The first fix,
+`apt-get install --only-upgrade linux-libc-dev`, installed 6.12.117-1+dhi0 (the build log says
+so), yet Trivy still reported 6.12.115-2+dhi0. A temporary diagnostic step in the build showed
+why: `dpkg-query` said 6.12.117, but the base is a hardened build that also keeps one record per
+package in `/var/lib/dpkg/status.d/`, which apt does not update and which Trivy reads. That
+record still said 6.12.115.
+
+**How we fixed it.** `images/airflow/Dockerfile` upgrades the package, then rewrites its
+`status.d` record from dpkg's own state (`dpkg-query -s`), so the record names what is
+installed; and the build fails if the installed version is below 6.12.117-1. No `.trivyignore`
+entry: the scanner sees the real version, and the gate is unchanged. `dip-ocr` builds on the
+image and inherits it.
+
+**What stops it coming back.** The version check fails the build rather than letting a stale
+record pass. The lesson for the next one: on a `+dhi0` base, an apt upgrade alone does not
+change what a scanner sees; look in `status.d` first. The step goes once Dependabot brings a
+base image that carries the fix.
