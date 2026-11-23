@@ -273,8 +273,11 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Rolling updates with `maxUnavailable: 0` and `dip rollback SERVICE`; the kind E2E rolls
   the intake API out and back without dropping below one available pod (`dip/rollback.py`,
   `tests/e2e/rollback.py`; 13.2)
-- [ ] A bad-release drill with its runbook and incident eval case: not yet built (13.3). The
-  drill, its incident and the `ReleaseStalled` alert run in the kind E2E today
+- [x] A bad-release drill: `dip drill bad_release` stalls the intake API's rollout while the
+  old pod keeps serving, `PLATFORM.ROLLOUT_STALLED` and the `ReleaseStalled` alert fire, and
+  `dip rollback intake-api` undoes it in the kind E2E; runbook 13, the incident agent's
+  `platform_release` cause and its eval case (`docs/runbooks/13-bad-release.md`,
+  `tests/e2e/bad_release.py`; 13.3)
 - [x] Autoscaling: metrics-server and HPAs on the intake API and the MCP server, 1 to 3 pods
   and back, proved in the proof workflow's `scaling` job (`infra/terraform/autoscaling.tf`,
   `scripts/proof_scaling.py`; 13.4)
