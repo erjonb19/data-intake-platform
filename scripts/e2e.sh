@@ -167,6 +167,10 @@ kills="$(grep -iE 'failed (liveness|startup) probe' <<<"$events" || true)"
 $kills"
 log "no container restarted by a liveness or startup probe"
 
+# 24.16: the NetworkPolicies are enforced: a pod outside the platform's namespaces cannot
+# reach Postgres or MinIO, and a pod labelled as an Airflow task pod can.
+KUBECONFIG="$kubeconfig" "$py" "$REPO_ROOT/tests/e2e/network_policy.py"
+
 # 13.3: the bad_release drill, last: a release whose pod never gets Ready stalls with the
 # old pod serving, the platform check opens PLATFORM.ROLLOUT_STALLED (and ReleaseStalled
 # fires), and `dip rollback intake-api` closes it. After the liveness check above, though

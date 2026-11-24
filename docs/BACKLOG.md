@@ -552,7 +552,17 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   (when nobody else is connected). The nightly backups (14.1) cover that, and a database owned by
   another role goes with moving the rest of the schema off `warehouse`.
 - [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
-- [ ] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
+- [x] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
+  Done 2026-11-23: `infra/terraform/network_policies.tf`. Each namespace denies ingress from
+  other pods by default (probes and NodePorts, from outside the pod network or the node's
+  gateway address, stay open). Then the mapped flows are allowed: Postgres from Airflow,
+  Marquez and the dip-data pods that use it (not SFTP, MinIO or the intake API); MinIO's API
+  from Airflow and its dip-data clients; SFTP and MCP only from Airflow's task pods
+  (`component=worker`; MCP also the proof workflow's `run` pods); the scrape targets from
+  dip-obs; the api-server from MCP; Marquez from Airflow; dip-obs from MCP; and same-namespace
+  traffic in dip-airflow and dip-obs. Kind's kindnet enforces them, and
+  `tests/e2e/network_policy.py` proves it: a pod in `default` is refused by Postgres and
+  MinIO, and a task-labelled pod gets through.
 - [ ] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
 - [x] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
   Done 2026-11-11: `AgentCallsDenied` (`dip_agent_denied_calls_1h`, from the audit log;
