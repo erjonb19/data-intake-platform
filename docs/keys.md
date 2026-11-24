@@ -17,7 +17,9 @@ runner starts (24.10). Terraform generates all of them (`infra/terraform/mcp.tf`
 
 ## How
 
-One value replaces them all in a single apply, so no client keeps an old key:
+One value replaces them all in a single apply, so no client keeps an old key. Run it in the
+same PowerShell window you deploy from, with the same `TF_VAR_*` values as last time (the
+profiles, a model key). A fresh window without them would also switch those off:
 
 ```powershell
 $env:TF_VAR_mcp_key_generation = "2026-12"
@@ -36,8 +38,18 @@ What happens in that apply:
 - A chain that is running at that moment gets 401 on its next MCP call and fails. Run it
   again after the apply.
 
-To check it: `kubectl -n dip-data rollout status deploy/mcp` shows the rollout, and the next
-`agent_chain` run's audit rows show its calls allowed.
+To check it:
+
+```powershell
+$env:KUBECONFIG = terraform -chdir=infra/terraform output -raw kubeconfig_path
+kubectl -n dip-data rollout status deploy/mcp
+```
+
+The next `agent_chain` run's audit rows show its calls allowed. During the rollout, the old pod
+still answers for a few seconds and refuses the new keys (401).
+
+The first apply after 24.30 merged rotated every key once by itself, because the generation
+was new.
 
 ## What this does not rotate
 
