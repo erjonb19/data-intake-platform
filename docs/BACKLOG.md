@@ -584,7 +584,12 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
 - [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
-- [ ] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
+- [x] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
+  Done 2026-11-24: `Registry` starts each agent's hourly window (all tools, and per tool) from
+  the audit log's allowed calls in the last hour, read once per process (`_seed`), so a restarted
+  MCP server does not reset the counts. If they cannot be read, the call is refused (fail
+  closed). Migration 0006 lets `dip_mcp` read four audit columns (at, principal, tool, decision),
+  and nothing else of the log.
 - [ ] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
 - [ ] **24.33 Security headers on the approvals page** (Low): CSP with `frame-ancestors 'none'`, nosniff, no-referrer, no-store on `/api`.
 - [x] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
