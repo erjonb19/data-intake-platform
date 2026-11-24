@@ -34,8 +34,7 @@ Claude recommends **a**.
 are free and run only in CI.
 - **24.19 pip-audit** (PyPA's own auditor, `pip-audit` on PyPI): a CI step that fails on a
   known-vulnerable pin in the locks. Dependabot alerts already cover the same database;
-  this makes it a gate. (Its other half, Pillow 13.0.0 in the dev extra, needs no tool and
-  goes ahead.)
+  this makes it a gate. (Its other half, Pillow 13.0.0 in the dev extra, is already done.)
 - **24.20 gitleaks** (gitleaks/gitleaks, pinned by digest): a secret scan in pre-commit and
   CI with `--redact`, plus one full-history scan.
 - **24.21 zizmor** (zizmorcore/zizmor): a static check of the GitHub workflows in the

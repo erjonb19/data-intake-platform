@@ -561,7 +561,8 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   API's own `/metrics`, a new scrape job), with promtool tests. Routing waits for 16.3's
   Alertmanager: today they show on Prometheus's `/alerts` page, like the others.
 - [ ] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
-  pip-audit waits on the owner (a new tool, `docs/OWNER_STEPS.md`, 2026-11-23); the Pillow half goes ahead.
+  The Pillow half is already in place (`pyproject.toml` pins `pillow==13.0.0`, and the dev lock
+  has it). pip-audit waits on the owner (a new tool, `docs/OWNER_STEPS.md`, 2026-11-23).
 - [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
   Waiting on the owner (a new tool, `docs/OWNER_STEPS.md`, 2026-11-23).
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
