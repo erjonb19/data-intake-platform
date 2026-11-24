@@ -8,6 +8,9 @@
 # Traffic from outside the pod network is still allowed to every pod: the kubelet's probes
 # and the NodePorts (Airflow, MinIO, Postgres on 127.0.0.1) arrive from the node's address,
 # not a pod's. `kubectl port-forward` does not pass through NetworkPolicy at all.
+# A limit of this: a pod that connects to the node's own address and a NodePort (Postgres
+# 30432, MinIO 30900) may arrive masqueraded as that node address and so be let in. The
+# NodePorts exist for the laptop; the database and MinIO logins still apply.
 #
 # kind's own CNI (kindnet, kind v0.24 and later; CI runs v0.33) enforces NetworkPolicy. The
 # E2E checks this (tests/e2e/network_policy.py): a pod outside the platform is refused, and

@@ -35,8 +35,15 @@ def kubectl(*args: str, check: bool = True) -> str:
 
 def probe(namespace: str, name: str, labels: str, image: str) -> dict[str, str]:
     kubectl("-n", namespace, "delete", "pod", name, "--ignore-not-found", "--wait=true")
+    # At Pod Security's restricted level, so it still starts once a namespace enforces it.
+    spec = {"spec": {
+        "securityContext": {"runAsNonRoot": True, "runAsUser": 70,
+                            "seccompProfile": {"type": "RuntimeDefault"}},
+        "containers": [{"name": name, "image": image, "command": ["sh", "-c", SCRIPT],
+                        "securityContext": {"allowPrivilegeEscalation": False,
+                                            "capabilities": {"drop": ["ALL"]}}}]}}  # fmt: skip
     kubectl("-n", namespace, "run", name, f"--image={image}", "--restart=Never",
-            f"--labels={labels}", "--command", "--", "sh", "-c", SCRIPT)  # fmt: skip
+            f"--labels={labels}", f"--overrides={json.dumps(spec)}")  # fmt: skip
     deadline = time.monotonic() + 120
     while time.monotonic() < deadline:
         phase = kubectl("-n", namespace, "get", "pod", name, "-o", "jsonpath={.status.phase}")
