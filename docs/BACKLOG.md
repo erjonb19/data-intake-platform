@@ -583,7 +583,12 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
 - [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
-- [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
+- [x] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
+  Done 2026-11-24: `var.mcp_key_generation` is a `keepers` of the 8 MCP keys and the run token key,
+  so one new value replaces them all in one apply; the MCP server rolls and the runners' Secrets
+  update together. `docs/keys.md` has the schedule (monthly, at once on a leak, before sharing
+  access), the steps, what it does not rotate, and the short-lived audience-bound tokens a
+  hosted deployment needs instead (with 20.1).
 - [ ] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
 - [ ] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
 - [ ] **24.33 Security headers on the approvals page** (Low): CSP with `frame-ancestors 'none'`, nosniff, no-referrer, no-store on `/api`.
