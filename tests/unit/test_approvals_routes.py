@@ -31,7 +31,9 @@ def app_and_calls():
 
 def test_every_route_is_public_on_purpose_or_under_api():
     app, _ = app_and_calls()
-    paths = {r.path for r in app.routes if isinstance(r, APIRoute)}
+    # a Mount or a plain Starlette Route would skip FastAPI's dependencies, and this test
+    assert all(isinstance(r, APIRoute) for r in app.routes), [type(r) for r in app.routes]
+    paths = {r.path for r in app.routes}
     assert paths - PUBLIC, "no API routes found"
     for path in paths - PUBLIC:
         assert path.startswith("/api/"), f"{path}: not under /api, so not behind the token"
