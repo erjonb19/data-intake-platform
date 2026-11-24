@@ -303,8 +303,12 @@ class Registry:
             raise Denied(refusal)
         self._per_tool[(*key, name)] += 1
         now = time.monotonic()
-        self._window(policy.agent, "*").append(now)
-        self._window(policy.agent, name).append(now)
+        # Only the windows check() loaded (the limits this policy has): a window that no
+        # limit reads needs no count, and loading one here would read the audit log outside
+        # check()'s fail-closed path (24.31 review).
+        for scope in ("*", name):
+            if (window := self._recent.get((policy.agent, scope))) is not None:
+                window.append(now)
         started = time.monotonic()
         status, decision, reason, result = "ok", "allowed", None, None
         try:
