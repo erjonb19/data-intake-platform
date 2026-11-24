@@ -22,7 +22,9 @@ import sys
 # What each namespace enforces, and the only pods allowed to fall short of restricted there.
 ENFORCE = {"dip-data": "baseline", "dip-airflow": "restricted", "dip-obs": "baseline"}
 EXEMPT = {"dip-data": ("sftp-",), "dip-airflow": (), "dip-obs": ("marquez-",)}
-WARNED = re.compile(r"^Warning: (?P<pod>[a-z0-9][a-z0-9.-]*)(?: \(and \d+ other pods?\))?: ")
+WARNED = re.compile(
+    r"^Warning: (?P<pod>[a-z0-9][a-z0-9.-]*)(?: \(and (?P<more>\d+) other pods?\))?: "
+)
 
 
 def kubectl(*args: str) -> subprocess.CompletedProcess:
@@ -56,6 +58,15 @@ def main() -> int:
             if WARNED.match(line):
                 print(f"  {line}")
         failures += [f"{ns}/{p} fails restricted" for p in pods if not p.startswith(EXEMPT[ns])]
+        # The API server folds pods with the same violations into one line ("x (and N other
+        # pods)"), so a pod failing exactly as SFTP or Marquez does could hide behind their
+        # name. Count every pod the warnings cover against the exempt pods that exist.
+        covered = sum(1 + int(m["more"] or 0) for line in dry.stderr.splitlines()
+                      if (m := WARNED.match(line)))  # fmt: skip
+        names = kubectl("-n", ns, "get", "pods", "-o", "jsonpath={.items[*].metadata.name}")
+        exempt = sum(1 for n in names.stdout.split() if n.startswith(EXEMPT[ns]))
+        if covered > exempt and not any(f.startswith(f"{ns}/") for f in failures):
+            failures.append(f"{ns}: {covered} pods fail restricted, only {exempt} are exempt")
     for f in failures:
         print(f"FAIL: {f}")
     if failures:
