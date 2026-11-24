@@ -489,7 +489,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   `ANTHROPIC_API_KEY` GitHub secret updated.
 - [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
   Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
-  compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
+  compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.timestamp`);
   every `pip install` in the workflows and images reads one with `--require-hashes --no-deps`,
   and dip is built with the locked setuptools (`--no-build-isolation`). CI's lint job fails on a
   stale lock; `tests/unit/test_locks.py` fails on an unlocked install.
