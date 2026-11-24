@@ -26,6 +26,7 @@ decision needs the custom header and a JSON body, which a cross-site form cannot
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import hmac
 import re
@@ -128,6 +129,21 @@ def _provider(conn: Any, run_id: str | None) -> str | None:
     return row[0] or "unknown"
 
 
+def _csp(html: str) -> str:
+    """24.33: a Content-Security-Policy for the page. Nothing loads from anywhere: its one
+    inline script and one inline style are allowed by their SHA-256, and fetches go to this
+    server only. No framing (clickjacking), no <base> or form targets elsewhere."""
+
+    def digest(tag: str) -> str:
+        body = html.split(f"<{tag}>", 1)[1].split(f"</{tag}>", 1)[0]
+        sha = hashlib.sha256(body.encode("utf-8")).digest()
+        return f"'sha256-{base64.b64encode(sha).decode()}'"
+
+    return (f"default-src 'none'; script-src {digest('script')}; style-src {digest('style')};"
+            " connect-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none';"
+            " frame-ancestors 'none'")  # fmt: skip
+
+
 def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
                people: dict[str, str] | None = None) -> FastAPI:  # fmt: skip
     """`connect` opens a warehouse connection (one per request: the page is for a few
@@ -137,6 +153,22 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
     only (the CLI refuses to listen beyond loopback without them)."""
     app = FastAPI(title="dip approvals", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+    html = files("dip.agents").joinpath("approvals.html").read_text(encoding="utf-8")
+    csp = _csp(html)
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next: Callable[[Request], Any]) -> Any:
+        # 24.33: on every response. The API's answers (proposals, payloads, the audit log)
+        # are never cached by the browser or a proxy.
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = csp
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        response.headers["X-Frame-Options"] = "DENY"
+        if request.url.path.startswith("/api"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     app.state.connect = connect
     app.state.people = dict(people) if people else None
 
@@ -153,7 +185,7 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
 
     @app.get("/", response_class=HTMLResponse)
     def page() -> str:
-        return files("dip.agents").joinpath("approvals.html").read_text(encoding="utf-8")
+        return html
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
