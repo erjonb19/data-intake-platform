@@ -581,7 +581,10 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   Done 2026-11-11: `*.p12`, `*.pfx`, `*.jks`, `secrets/`, credential and service-account JSON,
   `.netrc`, `.pypirc`; `.claude/worktrees/` is in 24.42's PR with the settings it guards.
 - [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
-- [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
+- [x] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
+  Done 2026-11-24: `_pr_body` puts every model-written part (the rationale, the loosening
+  rows, the reviewer's reasons, a dbt error) in a code fence longer than any backtick run in it,
+  and the verdict heading takes only pass, revise or reject. `tests/unit/test_contract_pr_body.py`.
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
 - [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
 - [ ] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
