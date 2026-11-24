@@ -10,13 +10,59 @@ Claude adds a step here whenever one comes up and ticks it when the owner says i
 
 ## Open
 
+### [ ] Decide: what triage may see of PHI (24.17)
+
+**Why.** The security audit (Medium) found that the triage agent sees rejected rows' PHI
+values unmasked. It is the only agent policy without `mask_phi: true`. Today's data is
+synthetic, but on a MIMIC-backed warehouse that would send PHI to a model, and to the Gemini
+free tier as a fallback. Either fix changes what triage sends the model, so every triage
+recording has to be made again (CLAUDE.md, "Record last").
+
+**Options** (reply in chat with the letter and a recording cap):
+- **a.** `mask_phi: true` for triage. It needs the codes, not the values. Then re-record the
+  triage and demo cases: Claude under a cap you name (the last full re-recording cost
+  $0.0738), then Gemini at $0.
+- **b.** Keep the values, but refuse any live triage call unless the warehouse is
+  synthetic-only (the cohort reader's classifier already knows), and no free-tier fallback for
+  a step that sees PHI. Fewer recordings change, but the rule is harder to show.
+
+Claude recommends **a**.
+
+### [ ] Decide: three new security tools (24.19, 24.20, 24.21)
+
+**Why.** Each one adds a dependency, which needs your OK (CLAUDE.md directive 11). All three
+are free and run only in CI.
+- **24.19 pip-audit** (PyPA's own auditor, `pip-audit` on PyPI): a CI step that fails on a
+  known-vulnerable pin in the locks. Dependabot alerts already cover the same database;
+  this makes it a gate. (Its other half, Pillow 13.0.0 in the dev extra, needs no tool and
+  goes ahead.)
+- **24.20 gitleaks** (gitleaks/gitleaks, pinned by digest): a secret scan in pre-commit and
+  CI with `--redact`, plus one full-history scan.
+- **24.21 zizmor** (zizmorcore/zizmor): a static check of the GitHub workflows in the
+  `security` workflow.
+
+Reply in chat with which ones to add (for example "all three", or "24.20 only").
+
+### [ ] Decide: two changes that need new recordings (24.29, 24.35)
+
+**Why.** Both change what the agents see, so they come with a re-recording, and each
+re-recording needs your OK and a cap.
+- **24.29:** exfiltration and reviewer-injection evals. New eval cases with a canary that
+  must not appear in the agent's free text. Only the new cases are recorded.
+- **24.35:** generic errors to the model. MCP tool errors become a short message plus a
+  correlation id, with the full error logged on the server. Every recording whose tool
+  results include an error changes. The approvals gateway's half of 24.35 does not touch
+  the agents, and goes ahead without this.
+
+Reply in chat: "24.29 yes, cap $X" and/or "24.35 yes, cap $X", or "later".
+
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,
 diagnosed by an agent, approved by a person, fixed and reaching gold) is the quickest way for
 a hiring manager to see the project. The script, scene by scene, is
-`docs/demos/walkthrough.md`; below are the same commands for PowerShell. Record it when
-everything else is finished.
+`docs/demos/walkthrough.md`; below are the same commands for PowerShell. Record it after
+Thanksgiving (owner, 2026-11-23), when everything else is finished.
 
 **Before you start.**
 - Docker Desktop running, and `kind`, `terraform`, `kubectl` and `helm` on the PATH. Check:
@@ -97,6 +143,11 @@ Upload the video wherever you keep it and tell Claude the link; it goes into the
 "What it looks like" section.
 
 ## Done
+
+### [x] Settings PR #168 reviewed and merged by the owner (2026-11-23)
+
+The revised allows: `gh pr merge` and pushes to non-main branches allowed, workflow runs on
+ask, pushes to `main` denied.
 
 ### [x] 24.6 Require a pull request on `main` (2026-11-19)
 
