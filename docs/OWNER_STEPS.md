@@ -24,9 +24,9 @@ that creates the buckets, so a fresh cluster gets it too.
   days. Airflow's UI then shows "log not found" for those old tries.
 - **What it never touches:** `landing`, `raw`, `quarantine` (the files and what went wrong
   with them), `backups` (already pruned to the newest 7 dumps by the backup job), the
-  warehouse, and `ops.audit_log`. Incidents keep their own copy of the log lines they quote.
-- Why 30 days: an incident is diagnosed within a day or two and the weekly review looks back
-  one week, so 30 days leaves margin, and the laptop's disk stays small.
+  warehouse, and `ops.audit_log`.
+- Why 30 days: an incident is usually looked at within days, so a month leaves margin, and
+  the laptop's disk stays small.
 
 The audit's other half, a second copy of the newest backup on the host, deletes nothing; it
 comes with Stage 14's restore docs if you want it.
