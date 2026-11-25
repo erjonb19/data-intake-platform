@@ -349,7 +349,6 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `ops.schema_migration`, by the `warehouse-init` Job before the services start; tasks find the
   warehouse current and apply nothing (`dip/migrations.py`, `dip/sql/migrations/`,
   `docs/migrations.md`; 14.3)
-- [ ] Backpressure on a flood of files: not yet built (16.1)
 - [ ] Signed inbound webhooks: not yet built (16.2)
 - [ ] Measured scale: a volume generator, incremental dbt models, partitioned gold tables
   and a benchmark report: not yet built (19.1, 19.2, 19.3)

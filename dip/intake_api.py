@@ -113,7 +113,8 @@ def create_app(
         # 16.1: files waiting in landing, all feeds together (no feed names here). Left out
         # when MinIO cannot be listed, so a gap is not read as an empty queue.
         try:
-            waiting = len(store.list(BUCKET_LANDING, ""))
+            # Keys under `_` (onboarding samples) wait for no intake DAG.
+            waiting = sum(1 for k in store.list(BUCKET_LANDING, "") if not k.startswith("_"))
         except Exception:  # any storage error: no reading this scrape
             waiting = None
         if waiting is not None:
@@ -146,11 +147,6 @@ def create_app(
             raise HTTPException(403, f"feed {feed!r} does not accept the api channel")
         if not SAFE_NAME.match(filename) or ".." in filename:
             raise HTTPException(422, "filename: letters, digits, '.', '_' and '-' only")
-        # 16.1: backpressure. A feed whose intake is behind takes no more until it catches up.
-        if len(store.list(BUCKET_LANDING, f"{feed}/")) >= max_backlog:
-            refused["backlog"] += 1
-            raise HTTPException(429, f"{max_backlog} files of {feed!r} are waiting to be"
-                                " processed; send it later", {"Retry-After": "60"})  # fmt: skip
         # Counted only for an upload that would otherwise be taken (a typo does not use it up).
         if not per_client.hit(client.name):
             refused["rate_limited"] += 1
@@ -158,6 +154,12 @@ def create_app(
             raise HTTPException(
                 429, f"over {rate_per_minute} uploads a minute", {"Retry-After": wait}
             )
+        # 16.1: backpressure. A feed whose intake is behind takes no more until it catches up
+        # (after the rate check: a client over its rate costs no MinIO listing).
+        if len(store.list(BUCKET_LANDING, f"{feed}/")) >= max_backlog:
+            refused["backlog"] += 1
+            raise HTTPException(429, f"{max_backlog} files of {feed!r} are waiting to be"
+                                " processed; send it later", {"Retry-After": "60"})  # fmt: skip
         declared = request.headers.get("content-length")
         if declared and declared.isdigit() and int(declared) > max_bytes:
             raise HTTPException(413, f"over the {max_bytes}-byte limit")
