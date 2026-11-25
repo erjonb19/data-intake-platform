@@ -28,9 +28,11 @@ ships. Replace it when the Airflow image moves.
 
 ## The cooldown
 
-`cutoff.txt` holds a timestamp; nothing uploaded to PyPI after it is chosen (uv's
+`cutoff.timestamp` holds a timestamp; nothing uploaded to PyPI after it is chosen (uv's
 `--exclude-newer`). `python scripts/lock.py --refresh` moves it to 7 days ago, so a release has
 been public for a week before a lock can pick it up.
+It is not a `.txt` file on purpose: Dependabot's pip updater reads every `requirements/*.txt` as
+a requirements file, and a timestamp there failed every pip update (2026-11-23).
 
 ## Commands
 
