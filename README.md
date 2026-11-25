@@ -295,9 +295,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   analyses required, for admins too, with force pushes and deletion blocked, and every change
   through a pull request (no approving review required; 24.6)
 - [x] pip-audit checks every Python lock in `requirements/` against the PyPI advisory
-  database on each push and weekly, and fails on any known vulnerability
+  database on each PR, each push to main and weekly, and fails on any known vulnerability
   (`.github/workflows/security.yml`, `requirements/audit.txt`; 24.19)
-- [x] gitleaks scans the repository's whole history for secrets on each push and weekly,
+- [x] gitleaks scans the repository's whole history for secrets on each PR, each push to main and weekly,
   with redacted output (`.github/workflows/security.yml`, `.gitleaksignore`; 24.20)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)

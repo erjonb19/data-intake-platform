@@ -101,7 +101,7 @@ jobs:
           done
           exit "$status"
 
-  # 24.20: gitleaks over the repository's whole history, on every push and weekly, so a
+  # 24.20: gitleaks over the repository's whole history, on each PR, push to main and weekly, so a
   # secret committed anywhere (any branch merged in, any old commit) fails the job. Findings
   # are redacted in the log. A false positive goes in .gitleaksignore by its fingerprint,
   # with the reason beside it.
