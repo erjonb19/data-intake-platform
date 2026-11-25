@@ -232,11 +232,13 @@ jobs:
           for db in dip_replay_eval dip_test; do
             PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database $db"
           done
-          # The triage cases on Gemini: each recorded one replays with no policy violation.
+          # The triage cases recorded on Gemini in this run (a case kept from before 24.17 is
+          # not replayed: its tool results predate the masking): each replays with no policy
+          # violation.
           triage_cases=()
-          for f in agents/evals/triage/recordings/gemini/*.json; do
-            triage_cases+=(--case "$(basename "$f" .json)")
-          done
+          while read -r c; do
+            [ -n "$c" ] && triage_cases+=(--case "$c")
+          done < artifacts/gemini-triage/recorded.txt
           if ! python -m dip triage eval --provider gemini "${triage_cases[@]}" \
                --out artifacts/replay-triage; then
             echo "replay check: FAILED (triage on Gemini)" | tee -a artifacts/commit/checks.md
