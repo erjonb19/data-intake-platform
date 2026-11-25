@@ -569,7 +569,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   migration 0004 grants the exporter three of its columns) and `IntakeApiAuthFailures` (the
   API's own `/metrics`, a new scrape job), with promtool tests. Routing waits for 16.3's
   Alertmanager: today they show on Prometheus's `/alerts` page, like the others.
-- [ ] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
+- [x] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
 - [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
 - [x] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.

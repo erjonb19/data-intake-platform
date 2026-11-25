@@ -294,6 +294,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch protection on `main`: `lint`, `test`, `e2e`, `trivy` and both CodeQL
   analyses required, for admins too, with force pushes and deletion blocked, and every change
   through a pull request (no approving review required; 24.6)
+- [x] pip-audit checks every Python lock in `requirements/` against the PyPI advisory
+  database on each push and weekly, and fails on any known vulnerability
+  (`.github/workflows/security.yml`, `requirements/audit.txt`; 24.19)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script
