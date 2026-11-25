@@ -428,22 +428,33 @@ jobs:
           done
           T=agents/evals/triage
           mkdir -p reports
-          printf '%s\n' triage holdout rej act loop reviewer > reports/expected.txt
+          # The reviewer is replayed by test_review_evals (against its recorded verdicts:
+          # one good case was sent back when it was recorded), not by the every-case check.
+          printf '%s\n' triage holdout rej act loop > reports/expected.txt
           if python -m dip triage eval --out reports/triage \
              && python -m dip triage eval --cases-file $T/holdout.yaml --out reports/holdout \
              && python -m dip triage eval --cases-file $T/from_rejections.yaml --out reports/rej \
              && python -m dip triage act-eval --out reports/act \
              && python -m dip triage loop --out reports/loop \
-             && python -m dip contracts review-eval --out reports/reviewer \
              && python scripts/check_eval_reports.py reports \
              && pytest -q -p no:cacheprovider tests/integration/test_agents.py \
                tests/integration/test_act_tier.py tests/integration/test_break_loop.py \
-               tests/integration/test_model_calls.py; then
-            echo "replay check: ok (triage, held-out, from rejections, act, loop, reviewer; every case passed; test_agents, test_act_tier, test_break_loop, test_model_calls)" \
+               tests/integration/test_model_calls.py tests/integration/test_versions.py \
+               tests/integration/test_review_evals.py; then
+            echo "replay check: ok (triage, held-out, from rejections, act, loop: every case passed; test_agents, test_act_tier, test_break_loop, test_model_calls, test_versions, test_review_evals)" \
               | tee -a artifacts/commit/checks.md
           else
             echo "replay check: FAILED" | tee -a artifacts/commit/checks.md; exit 1
           fi
+
+      # The replayed eval reports, for the results/*.json files a person updates by hand.
+      - name: Upload the eval reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: claude-agent-eval-reports
+          path: reports/
+          retention-days: 7
 
       # Only when every step succeeded: a recording that holds the key, an auth header, or
       # does not replay is never uploaded, so never committed.

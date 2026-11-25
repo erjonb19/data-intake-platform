@@ -49,5 +49,8 @@ def test_recorded_review(case, tmp_path):
     path = review_evals.RECORDINGS / f"{case['name']}.json"
     r = review_evals.run_case(case, DSN, Recording(path), tmp_path)
     recorded = json.loads((review_evals.EVALS / "results" / "recorded.json").read_text("utf-8"))
-    want = next(c for c in recorded["cases"] if c["case"] == case["name"])
-    assert r.verdict == want["verdict"] and not r.violations, r
+    want = next((c for c in recorded["cases"] if c["case"] == case["name"]), None)
+    if want is None:  # 24.29: a case recorded after results/recorded.json must pass
+        assert r.verdict in case["expect"] and not r.violations, r
+    else:
+        assert r.verdict == want["verdict"] and not r.violations, r
