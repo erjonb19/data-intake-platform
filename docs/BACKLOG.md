@@ -294,6 +294,8 @@ Incident: the flood (runbook `15-flood.md`).
   metric and alert
 - [ ] **16.2 Inbound webhooks:** HMAC-signed "file ready" endpoint on the intake API, the
   key in a Kubernetes Secret, replay protection, every call audited
+  Waiting on the owner (2026-11-25): how the calls are audited without breaking 24.16's
+  boundary (the intake API cannot reach Postgres); options in `docs/OWNER_STEPS.md`.
 - [ ] **16.3 Alertmanager**, behind an on/off value in the Helm values, its memory on the
   laptop measured and reported, with a webhook receiver (a small local sink
   that opens or annotates an `ops.incident`), so "a run fails, a contract breaks, an eval
@@ -303,6 +305,8 @@ Incident: the flood (runbook `15-flood.md`).
   from a file landing to its rows in gold (95th percentile), the intake API's availability,
   and each feed's quarantine rate. Prometheus recording rules, burn-rate alerts (fast and
   slow windows) tested with `promtool`, and an error-budget panel in Grafana.
+  Blocked (2026-11-24): its targets come from Stage 19's numbers, and Stage 19 is on hold;
+  the owner's choice is in `docs/OWNER_STEPS.md`.
 
 ## Stage 17: Chaos and on-call simulation
 
@@ -438,6 +442,8 @@ Incident: a copy of a member's data the first deletion run missed, found by its 
   from landing, bronze, silver, gold and quarantine (and any copy the export holds), with an
   `ops.audit_log` row; a retention period per layer with a scheduled purge; a test that no
   trace of the member remains
+  Waiting on the owner (2026-11-24): how raw copies, backups and extracts are handled, and
+  the retention periods; the recommendation is in `docs/OWNER_STEPS.md`.
 
 ## Stage 23: Showcase
 
@@ -576,14 +582,19 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   `tests/e2e/network_policy.py` proves it: a pod in `default` is refused by Postgres and
   MinIO, and a task-labelled pod gets through.
 - [ ] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
+  Decided by the owner (2026-11-24): option a, with one recording cap of $1.00 for 24.17, 24.29 and 24.35.
 - [x] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
   Done 2026-11-11: `AgentCallsDenied` (`dip_agent_denied_calls_1h`, from the audit log;
   migration 0004 grants the exporter three of its columns) and `IntakeApiAuthFailures` (the
   API's own `/metrics`, a new scrape job), with promtool tests. Routing waits for 16.3's
   Alertmanager: today they show on Prometheus's `/alerts` page, like the others.
 - [ ] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
+  The Pillow half is already in place (`pyproject.toml` pins `pillow==13.0.0`, and the dev lock
+  has it). pip-audit approved by the owner (2026-11-24), CI only.
 - [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
+  Approved by the owner (2026-11-24), CI only.
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
+  Approved by the owner (2026-11-24), CI only.
 - [x] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
   Done 2026-11-11: the Airflow base, Postgres, Marquez and Marquez web pinned by digest (resolved
   from Docker Hub); `tests/unit/test_image_digests.py` fails on a tag-only image.
@@ -605,6 +616,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
 - [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
+  Approved by the owner (2026-11-24), under the night's $1.00 recording cap.
 - [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
 - [ ] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
 - [ ] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
@@ -612,6 +624,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [x] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
   Done 2026-11-11: `openapi_url=None`; a test checks `/openapi.json`, `/docs` and `/redoc` are 404.
 - [ ] **24.35 Generic errors to callers and the model** (Low): a correlation id back, the full error logged on the server (`mcp_server.py:134`, `gateway.py`).
+  The MCP half approved by the owner (2026-11-24); the approvals gateway's half goes ahead.
 - [x] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
   Done 2026-11-11: the intake API's name rule and a 50 MiB limit (the largest feed's), checked from the listing before
   reading (and the read stops one byte past it); a refused file stays on the server, reported.
@@ -626,6 +639,8 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   defaults. Before the gate: scan the charts rendered with the repo's `infra/helm-values`
   (`helm template -f`, or Trivy's `--helm-values`) and mount `.trivyignore` (`--ignorefile`).
 - [ ] **24.41 Retention and a second backup copy** (Low): MinIO lifecycle rules for `airflow-logs` (per-layer retention is 22.2); optionally a host copy of the newest dump.
+  Waiting on the owner (2026-11-24): the delete rule's retention period (proposed 30 days for
+  `airflow-logs`) in `docs/OWNER_STEPS.md`.
 - [x] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).
   Done 2026-11-12: the audit's `.claude/settings.json`, plus denies the owner added on
   2026-11-11 (`git tag`, pushes to `main`, tag pushes, for Bash and PowerShell);
