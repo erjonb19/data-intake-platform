@@ -77,7 +77,7 @@ def run_team(cap: str) -> dict:
             "--dag-run-id",
             "s10.6-proof",
         ],  # fmt: skip
-        # The later source wins: the run's key over the DAG Secret's empty one.
+        # The run's own key Secret (24.39: the DAG Secret holds no model key).
         "envFrom": [
             {"secretRef": {"name": "dip-intake-team"}},  # 24.9: the team's own Secret
             {"secretRef": {"name": "dip-proof-model"}},

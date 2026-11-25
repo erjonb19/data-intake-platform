@@ -116,7 +116,7 @@ def run_chain(incident_id: int, drill: str, cap: str) -> dict:
             "--dag-run-id",
             f"s11.10-proof-{drill}",
         ],  # fmt: skip
-        # The later source wins: the run's key over the DAG Secret's empty one.
+        # The run's own key Secret (24.39: the DAG Secret holds no model key).
         "envFrom": [
             {"secretRef": {"name": "dip-agent-chain"}},
             {"secretRef": {"name": "dip-proof-model"}},
