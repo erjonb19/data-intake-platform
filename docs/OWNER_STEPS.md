@@ -39,8 +39,9 @@ Reply in chat: "24.41 yes, 30 days" (or another number of days), or "no".
 API's availability, each feed's quarantine rate) come from Stage 19's measured numbers, "not
 guessed". Stage 19 is on hold (owner, 2026-11-24), so 16.4 is skipped.
 
-**Claude recommends** building 16.4 on the numbers CI already measures in every kind E2E
-(landing-to-gold times per feed, and the quarantine rates of its cases). Each target would be
+**Claude recommends** building 16.4 on numbers the kind E2E on a GitHub runner can measure
+(landing-to-gold time per feed and the quarantine rates of its cases, added to the E2E's
+report). Each target would be
 marked "provisional, from the E2E on a GitHub runner" until Stage 19 measures at scale. Or wait
 for Stage 19.
 
