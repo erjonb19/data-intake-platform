@@ -6,7 +6,9 @@ one kind proof; CI's kind E2E covers every Stage 9 item on every push.
 
 ```bash
 export TF_VAR_profiles='["core", "observability"]'
-export TF_VAR_anthropic_api_key=...        # from .env; the cluster's only paid key
+export ANTHROPIC_API_KEY=...        # from .env; the cluster's only paid key (24.39: up.sh
+                                    # writes it to the dip-model-keys Secret, not Terraform;
+                                    # this run, in 2026-10, used TF_VAR_anthropic_api_key)
 bash scripts/up.sh && bash scripts/smoke.sh && bash scripts/e2e.sh
 # port-forwards: Grafana 3000, Marquez UI 3001, the approvals page 8081
 python scripts/screenshots.py docs/images

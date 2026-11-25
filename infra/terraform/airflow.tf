@@ -3,9 +3,9 @@ locals {
 
   # What both scheduled agent runners get (dip-agent-chain, dip-intake-team).
   agent_runner_env = {
-    DIP_MCP_URL       = "http://mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local:8765/mcp"
-    ANTHROPIC_API_KEY = var.anthropic_api_key
-    GEMINI_API_KEY    = var.gemini_api_key
+    DIP_MCP_URL = "http://mcp.${kubernetes_namespace_v1.data.metadata[0].name}.svc.cluster.local:8765/mcp"
+    # 24.39: no model key here. scripts/up.sh writes them into the dip-model-keys Secret
+    # from its own environment, so they never enter Terraform's state.
     # 24.3: both caps, so a paid key never runs uncapped (the runners refuse without them).
     DIP_SPEND_CAP_USD   = var.agent_spend_cap_usd
     DIP_MONTHLY_CAP_USD = var.agent_monthly_cap_usd

@@ -10,6 +10,26 @@ Claude adds a step here whenever one comes up and ticks it when the owner says i
 
 ## Open
 
+### [ ] Clear a model key out of old Terraform state (24.39)
+
+**Why.** Before 24.39, a model key passed with `TF_VAR_anthropic_api_key` was kept in plain
+text in `infra/terraform/terraform.tfstate`. After 24.39 the next `up.sh` writes a state
+without it, but `terraform.tfstate.backup` (the state before that run) still has it. Skip this
+step if you never passed a model key to `up.sh`.
+
+**Do.** Run `up.sh` twice with the key in the environment (the second run replaces the backup
+with a state that has no key), then check:
+
+```powershell
+Remove-Item Env:TF_VAR_anthropic_api_key -ErrorAction SilentlyContinue
+$env:ANTHROPIC_API_KEY = Read-Host "Anthropic key" -MaskInput
+& "$env:ProgramFiles\Gitinash.exe" scripts/up.sh
+& "$env:ProgramFiles\Gitinash.exe" scripts/up.sh
+Select-String -Path infra/terraform/terraform.tfstate* -Pattern "sk-ant-" -List
+```
+
+**Check.** The last command prints nothing.
+
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,

@@ -57,6 +57,27 @@ fi
 log "deploying the stack"
 tf apply -input=false -auto-approve
 
+# 24.39: the model keys go from this shell's environment (ANTHROPIC_API_KEY, GEMINI_API_KEY)
+# straight into the dip-model-keys Secret, which only the agent runners' pods mount. They
+# never pass through Terraform, so its state holds no model key. Through stdin, never an
+# argument. A run without them empties the Secret: the runners then claim nothing.
+model_keys_secret() {
+  local name value
+  printf 'apiVersion: v1\nkind: Secret\nmetadata:\n  name: dip-model-keys\n  namespace: dip-airflow\n'
+  printf 'type: Opaque\ndata:\n'
+  for name in ANTHROPIC_API_KEY GEMINI_API_KEY; do
+    value="${!name:-}"
+    if [[ -n "$value" ]]; then
+      printf '  %s: %s\n' "$name" "$(printf '%s' "$value" | base64 | tr -d '\n')"
+    fi
+  done
+}
+if [[ -z "${ANTHROPIC_API_KEY:-}${GEMINI_API_KEY:-}" ]]; then
+  log "no model key in the environment: the agent runners will claim nothing"
+fi
+require kubectl
+model_keys_secret | kubectl --kubeconfig "$(tf output -raw kubeconfig_path)" apply -f - >/dev/null
+
 log "stack is up"
 cat <<EOF
   Airflow UI     $(tf output -raw airflow_url)   (user: admin, password: bash scripts/creds.sh)

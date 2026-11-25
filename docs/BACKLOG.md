@@ -605,7 +605,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   reading (and the read stops one byte past it); a refused file stays on the server, reported.
 - [ ] **24.37 The approvals negative test covers every route** (Low): loop over `app.routes`, 401 for every `/api` path without the token.
 - [ ] **24.38 TLS and encryption at rest in the cluster** (Low): a self-signed CA, Postgres `sslmode=verify-full`, MinIO TLS and SSE; needed before anything is hosted.
-- [ ] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
+- [x] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
 - [ ] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
   2026-11-11: built in report mode (the `security` workflow's `iac` job, its findings in the job
   summary). Not ticked: it becomes a failing gate on CRITICAL once its first findings are fixed or
