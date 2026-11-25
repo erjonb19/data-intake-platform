@@ -158,10 +158,13 @@ def test_phi_is_masked_for_a_masking_policy_only_in_what_it_returns():
     assert _masked_detail("x", "SCHEMA.MISSING_COLUMN:member_id", c) == "x"
 
 
-def test_the_reader_policy_masks_phi_and_triage_does_not():
-    from dip.agents.registry import Policy
+def test_every_agent_policy_masks_phi():
+    from dip.agents.registry import POLICY_DIR, Policy
 
-    assert Policy.load("reader").mask_phi and not Policy.load("triage").mask_phi
+    # 24.17: triage too. An agent added later must say mask_phi: true, or change this test.
+    names = sorted(p.stem for p in POLICY_DIR.glob("*.yaml"))
+    assert "triage" in names and "reader" in names
+    assert [n for n in names if not Policy.load(n).mask_phi] == []
 
 
 @pytest.mark.parametrize(

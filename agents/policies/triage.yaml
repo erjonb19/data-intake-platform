@@ -7,6 +7,10 @@ description: >
   approve. Reads quarantine, contracts and feed history; proposes; and (Stage 6) executes
   an operation only after a person approved it.
 max_tier: act
+# 24.17 (owner, 2026-11-24): values of PHI columns are hidden in quarantine details and
+# samples, as for every other agent (dip/agents/tools.py). Triage groups by reason code,
+# column and file, which stay visible; the free Gemini fallback then sees no PHI either.
+mask_phi: true
 tools:
   - list_quarantine_groups
   - get_quarantine_sample

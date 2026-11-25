@@ -28,9 +28,9 @@ on:
         default: "0.25"
       job:
         # Stage 11 (S11.7): record the incident cases (and the demo) here, not on the laptop.
-        description: "proof (S10.6), stage-11-proof (S11.10), live-eval (S11.11), gemini- or claude-recordings, scaling (13.4), live-baseline (no key, $0)"
+        description: "proof (S10.6), stage-11-proof (S11.10), live-eval (S11.11), gemini- or claude-recordings, claude-agent-recordings (24.17), scaling (13.4), live-baseline (no key, $0)"
         type: choice
-        options: [proof, stage-11-proof, live-eval, gemini-recordings, claude-recordings, scaling, live-baseline]
+        options: [proof, stage-11-proof, live-eval, gemini-recordings, claude-recordings, claude-agent-recordings, scaling, live-baseline]
         default: proof
 
 permissions:
@@ -164,7 +164,7 @@ jobs:
   gemini-recordings:
     if: inputs.job == 'gemini-recordings'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 120   # 24.17: the triage cases too, one at a time, with rate-limit waits
     services:
       postgres:
         image: postgres:17
@@ -206,6 +206,22 @@ jobs:
           } | tee artifacts/commit/checks.md
           ! grep -q FAILED artifacts/commit/checks.md
 
+      # 24.17: the triage cases Gemini has recordings for, again (what triage sees changed).
+      - name: Record the triage cases on Gemini, one at a time
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_eval
+          PYTHONUTF8: "1"
+        run: |
+          set -o pipefail  # the recording's own exit status, not tee's
+          bash scripts/record_gemini_triage.sh 2>&1 | tee artifacts-gemini-triage.log
+          { grep -hE "^(PASS|FAIL) " artifacts/gemini-triage/*.log || true
+            grep -x "scrub: ok" artifacts-gemini-triage.log
+            python -I scripts/check_recordings.py --key-env GEMINI_API_KEY \
+              agents/evals/triage/recordings/gemini
+          } | tee -a artifacts/commit/checks.md
+          ! grep -q FAILED artifacts/commit/checks.md
+
       # The new recordings replay, without a key, as CI's test job replays them.
       - name: Replay the new recordings
         env:
@@ -216,6 +232,16 @@ jobs:
           for db in dip_replay_eval dip_test; do
             PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database $db"
           done
+          # The triage cases on Gemini: each recorded one replays with no policy violation.
+          triage_cases=()
+          for f in agents/evals/triage/recordings/gemini/*.json; do
+            triage_cases+=(--case "$(basename "$f" .json)")
+          done
+          if ! python -m dip triage eval --provider gemini "${triage_cases[@]}" \
+               --out artifacts/replay-triage; then
+            echo "replay check: FAILED (triage on Gemini)" | tee -a artifacts/commit/checks.md
+            exit 1
+          fi
           # Every case replays (a mismatch raises before report.json is written) with no
           # policy violation. A Gemini case may score FAIL: its scores are its own (a wrong
           # cause is a known limitation, docs/agents/EVALS.md), as record_gemini_incidents.sh
@@ -232,7 +258,7 @@ jobs:
                 f" {s.get('policy_violations')}")
           sys.exit(0 if s.get("cases") == want and s.get("policy_violations") == 0 else 1)
           PY
-            echo "replay check: ok (every case replays, no policy violation; test_fallback_chain.py)" \
+            echo "replay check: ok (every incident case and Gemini triage recording replays, no policy violation; test_fallback_chain.py)" \
               | tee -a artifacts/commit/checks.md
           else
             echo "replay check: FAILED" | tee -a artifacts/commit/checks.md; exit 1
@@ -246,6 +272,7 @@ jobs:
           name: gemini-incident-recordings
           path: |
             agents/evals/incident/recordings/gemini/*.json
+            agents/evals/triage/recordings/gemini/*.json
             artifacts/commit/checks.md
           retention-days: 7
 
@@ -330,6 +357,105 @@ jobs:
           path: |
             agents/evals/incident/recordings/*.json
             agents/evals/demo/recordings/*.json
+            artifacts/commit/checks.md
+          retention-days: 7
+
+  # 24.17: the triage agent's own evals on Claude (the triage cases, the held-out set, the
+  # cases made from rejections, Act mode, the break-and-fix loop) and any reviewer case not
+  # yet recorded, in one process under one cap (spend_cap_usd, 0.60 or less here). Same
+  # rules as claude-recordings: scrubbed, checked for the key and auth headers, replayed.
+  claude-agent-recordings:
+    if: inputs.job == 'claude-agent-recordings'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: dip
+          POSTGRES_PASSWORD: dip
+          POSTGRES_DB: dip_eval
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U dip" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          pip install -q --require-hashes --no-deps -r requirements/build.txt && pip install -q --require-hashes --no-deps --no-build-isolation -r requirements/dev.txt
+          pip install -q --no-deps --no-build-isolation -e .
+          pip check
+
+      - name: Record the triage evals (and new reviewer cases) on Claude
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DIP_SPEND_CAP_USD: ${{ inputs.spend_cap_usd }}
+          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_eval
+          PYTHONUTF8: "1"
+        run: |
+          test -n "$ANTHROPIC_API_KEY" || { echo "the ANTHROPIC_API_KEY secret is not set"; exit 1; }
+          python -c "import os,sys; sys.exit(float(os.environ['DIP_SPEND_CAP_USD']) > 0.60)" \
+            || { echo "claude-agent-recordings takes spend_cap_usd 0.60 or less"; exit 1; }
+          set -o pipefail  # the recording's own exit status, not tee's
+          bash scripts/record_claude_agents.sh 2>&1 | tee artifacts-claude.log
+          mkdir -p artifacts/commit
+          { echo "job: claude-agent-recordings (run $GITHUB_RUN_ID)"
+            grep -E "^(PASS|FAIL) |spent " artifacts-claude.log || true
+            grep -x "scrub: ok" artifacts-claude.log
+            python -I scripts/check_recordings.py --key-env ANTHROPIC_API_KEY \
+              agents/evals/triage/recordings/*.json agents/evals/triage_act/recordings \
+              agents/evals/break_loop/recordings agents/evals/reviewer/recordings
+          } | tee artifacts/commit/checks.md
+          ! grep -q FAILED artifacts/commit/checks.md
+
+      # The new recordings replay, without a key, as CI's test job and the nightly evals
+      # replay them; every case must pass.
+      - name: Replay the new recordings
+        env:
+          DIP_EVAL_DSN: postgresql://dip:dip@localhost:5432/dip_replay_eval
+          DIP_TEST_DSN: postgresql://dip:dip@localhost:5432/dip_test
+          PYTHONUTF8: "1"
+        run: |
+          for db in dip_replay_eval dip_test; do
+            PGPASSWORD=dip psql -h localhost -U dip -d dip_eval -c "create database $db"
+          done
+          T=agents/evals/triage
+          mkdir -p reports
+          printf '%s\n' triage holdout rej act loop reviewer > reports/expected.txt
+          if python -m dip triage eval --out reports/triage \
+             && python -m dip triage eval --cases-file $T/holdout.yaml --out reports/holdout \
+             && python -m dip triage eval --cases-file $T/from_rejections.yaml --out reports/rej \
+             && python -m dip triage act-eval --out reports/act \
+             && python -m dip triage loop --out reports/loop \
+             && python -m dip contracts review-eval --out reports/reviewer \
+             && python scripts/check_eval_reports.py reports \
+             && pytest -q -p no:cacheprovider tests/integration/test_agents.py \
+               tests/integration/test_act_tier.py tests/integration/test_break_loop.py \
+               tests/integration/test_model_calls.py; then
+            echo "replay check: ok (triage, held-out, from rejections, act, loop, reviewer; every case passed; test_agents, test_act_tier, test_break_loop, test_model_calls)" \
+              | tee -a artifacts/commit/checks.md
+          else
+            echo "replay check: FAILED" | tee -a artifacts/commit/checks.md; exit 1
+          fi
+
+      # Only when every step succeeded: a recording that holds the key, an auth header, or
+      # does not replay is never uploaded, so never committed.
+      - name: Upload the recordings
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: claude-agent-recordings
+          path: |
+            agents/evals/triage/recordings/*.json
+            agents/evals/triage_act/recordings/*.json
+            agents/evals/break_loop/recordings/*.json
+            agents/evals/reviewer/recordings/*.json
             artifacts/commit/checks.md
           retention-days: 7
 
@@ -728,7 +854,8 @@ jobs:
   # succeeded (every check in it passed). The `if` can only test a prefix; the step's regex
   # is the real check.
   commit-results:
-    needs: [proof, drills, fresh-clone, live-eval, gemini-recordings, claude-recordings, live-baseline]
+    needs: [proof, drills, fresh-clone, live-eval, gemini-recordings, claude-recordings,
+            claude-agent-recordings, live-baseline]
     if: >-
       always() && github.ref_type == 'branch' &&
       (startsWith(github.ref_name, 's1') || startsWith(github.ref_name, 's2')) &&
@@ -748,6 +875,7 @@ jobs:
           LIVE: ${{ needs.live-eval.result }}
           GEMINI: ${{ needs.gemini-recordings.result }}
           CLAUDE: ${{ needs.claude-recordings.result }}
+          AGENTS: ${{ needs.claude-agent-recordings.result }}
           BASELINE: ${{ needs.live-baseline.result }}
         run: |
           [[ "$BRANCH" =~ ^s(1[1-9]|2[0-9])-[A-Za-z0-9._-]+$ ]] \
@@ -756,6 +884,7 @@ jobs:
             name=proof-commit
           elif [ "$GEMINI" = success ]; then name=gemini-incident-recordings
           elif [ "$CLAUDE" = success ]; then name=claude-incident-recordings
+          elif [ "$AGENTS" = success ]; then name=claude-agent-recordings
           elif [ "$BASELINE" = success ]; then name=live-baseline
           else echo "nothing succeeded"; exit 1; fi
           echo "artifact=$name" >> "$GITHUB_OUTPUT"
@@ -778,7 +907,7 @@ jobs:
           IN: ${{ runner.temp }}/incoming
           ARTIFACT: ${{ steps.which.outputs.artifact }}
         run: |
-          allowed='^(agents/evals/(incident|demo)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|agents/evals/baseline\.json|docs/demos/proof/run-[0-9]+/([A-Za-z0-9_.-]+\.(md|png)|(results|audit|live)\.json)|artifacts/commit/checks\.md)$'
+          allowed='^(agents/evals/(incident|demo|triage|triage_act|break_loop|reviewer)/recordings/(gemini/)?[A-Za-z0-9_.-]+\.json|agents/evals/baseline\.json|docs/demos/proof/run-[0-9]+/([A-Za-z0-9_.-]+\.(md|png)|(results|audit|live)\.json)|artifacts/commit/checks\.md)$'
           (cd "$IN" && find . -type f | sed 's|^\./||') > "$RUNNER_TEMP/files"
           if grep -vE "$allowed" "$RUNNER_TEMP/files"; then echo "unexpected files (above)"; exit 1; fi
           grep -qx "artifacts/commit/checks.md" "$RUNNER_TEMP/files" || { echo "no checks.md"; exit 1; }
