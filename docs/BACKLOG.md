@@ -294,6 +294,8 @@ Incident: the flood (runbook `15-flood.md`).
   metric and alert
 - [ ] **16.2 Inbound webhooks:** HMAC-signed "file ready" endpoint on the intake API, the
   key in a Kubernetes Secret, replay protection, every call audited
+  Waiting on the owner (2026-11-25): how the calls are audited without breaking 24.16's
+  boundary (the intake API cannot reach Postgres); options in `docs/OWNER_STEPS.md`.
 - [ ] **16.3 Alertmanager**, behind an on/off value in the Helm values, its memory on the
   laptop measured and reported, with a webhook receiver (a small local sink
   that opens or annotates an `ops.incident`), so "a run fails, a contract breaks, an eval

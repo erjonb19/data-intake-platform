@@ -93,6 +93,27 @@ gh api repos/erjonb19/data-intake-platform/branches/main/protection/required_sta
 
 lists the three with the others.
 
+### [ ] Decide: where 16.2's signed webhooks are audited
+
+**Why.** 16.2 asks for an HMAC-signed "file ready" endpoint on the intake API, with every call
+audited. The audit trail is `ops.audit_log` in Postgres, but since 24.16 the intake API cannot
+reach Postgres at all (its NetworkPolicy, by design: it only writes files to MinIO). Auditing
+there means opening that path, so it is a least-privilege trade-off for you to make.
+
+**Options:**
+- **a.** A new login, `dip_webhook`, that may only INSERT into a new `ops.webhook_event`
+  table (append-only, like the audit log), and one more NetworkPolicy flow from the intake API
+  to Postgres for it. A webhook then triggers the feed's intake DAG through the api-server
+  (one more flow), or an Airflow sensor picks the row up.
+- **b.** No database: each accepted or refused call is written as a small JSON object in
+  MinIO (`landing/_webhooks/...`), which the next `sftp_sync` run reads, audits into
+  `ops.audit_log` and acts on. No new network flow, but up to one `sftp_sync` interval of delay.
+
+**Claude recommends b**: it keeps 24.16's boundaries, and the delay matches how files arrive
+today.
+
+Reply in chat: "16.2 a" or "16.2 b".
+
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,
