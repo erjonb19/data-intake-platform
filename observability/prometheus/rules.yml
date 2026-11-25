@@ -44,6 +44,15 @@ groups:
           description: >-
             The warehouse exporter cannot run this query (a table not created yet, or a
             missing grant to dip_metrics).
+      # 16.1: files keep arriving faster than the intake DAGs take them. The intake API
+      # refuses a feed at 50 waiting (429); this fires before most feeds get there.
+      - alert: IntakeBacklogHigh
+        expr: max(dip_intake_backlog_files) > 40
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "{{ $value | printf \"%.0f\" }} files have waited in landing for 30 minutes"
+          description: "The intake DAGs are not keeping up: check that sftp_sync and the feed DAGs run, and the dip_dbt pool's queue in Airflow."
   - name: dip-airflow
     rules:
       - alert: DagRunFailing

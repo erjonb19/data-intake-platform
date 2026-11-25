@@ -299,4 +299,19 @@ tests:
             exp_annotations:
               summary: "30 intake API uploads with no or a wrong key in 15 minutes"
               description: "Someone is trying keys against the intake API, or a vendor's key was rotated without them."
-
+  # 16.1: a landing backlog over 40 for 30 minutes; a short burst does not fire.
+  - interval: 1m
+    input_series:
+      - series: "dip_intake_backlog_files"
+        values: "45x60"
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: IntakeBacklogHigh
+        exp_alerts: []
+      - eval_time: 40m
+        alertname: IntakeBacklogHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: "45 files have waited in landing for 30 minutes"
+              description: "The intake DAGs are not keeping up: check that sftp_sync and the feed DAGs run, and the dip_dbt pool's queue in Airflow."

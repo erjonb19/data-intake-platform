@@ -298,6 +298,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   in flight on the intake API, 429 for an address that keeps sending bad keys or tokens
   (intake API, MCP server, approvals page), and a connection cap on each (`dip/ratelimit.py`;
   24.32)
+- [x] Backpressure: the intake API refuses a feed whose landing queue is full (429 with
+  `Retry-After`), the backlog is a metric with an alert, and feed dbt builds share an Airflow
+  pool (`dags/feed_intake.py`, `infra/terraform/airflow.tf`; 16.1)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script

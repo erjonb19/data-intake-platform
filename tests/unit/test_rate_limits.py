@@ -123,3 +123,35 @@ def test_the_approvals_page_and_mcp_server_carry_the_failed_auth_limit():
     for mod in ("dip/agents/gateway.py", "dip/agents/mcp_server.py"):
         src = (ROOT / mod).read_text("utf-8")
         assert "add_middleware(FailedAuthLimit, limit=auth_fails_per_minute)" in src, mod
+
+
+# 16.1: backpressure.
+def test_a_feed_with_a_full_landing_queue_is_refused_until_it_drains(tmp_path):
+    c = _intake(tmp_path, max_backlog=2)
+    assert [_send(c, f"elig_{i}.csv").status_code for i in range(2)] == [202, 202]
+    r = _send(c, "elig_2.csv")
+    assert r.status_code == 429 and r.headers["retry-after"] == "60"
+    assert "waiting to be processed" in r.json()["detail"]
+    metrics = c.get("/metrics").text
+    assert "dip_intake_backlog_files 2" in metrics
+    assert 'dip_intake_api_refused_total{reason="backlog"} 1' in metrics
+
+
+def test_the_backlog_metric_is_left_out_when_storage_cannot_be_listed(tmp_path):
+    store = LocalStore(tmp_path)
+
+    def broken(bucket: str, prefix: str = "") -> list[str]:
+        raise OSError("minio down")
+
+    store.list = broken  # type: ignore[method-assign]
+    spec = {"sha256": hashlib.sha256(KEY.encode()).hexdigest(), "feeds": ["healthcare.*"]}
+    app = create_app(store, load_contracts(), load_clients(json.dumps({"vendor": spec})))
+    text = TestClient(app).get("/metrics").text
+    assert "dip_intake_api_refused_total" in text and "dip_intake_backlog_files" not in text
+
+
+def test_feed_dbt_builds_run_in_the_dip_dbt_pool_terraform_creates():
+    dag = (ROOT / "dags" / "feed_intake.py").read_text("utf-8")
+    assert '@task(pool="dip_dbt")' in dag
+    tf = (ROOT / "infra" / "terraform" / "airflow.tf").read_text("utf-8")
+    assert '"airflow", "pools", "set", "dip_dbt"' in tf

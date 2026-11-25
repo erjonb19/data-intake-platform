@@ -286,3 +286,67 @@ resource "helm_release" "airflow" {
     }
   }
 }
+
+# 16.1: the dip_dbt pool, which every feed's dbt build (dags/feed_intake.py, `transform`)
+# runs in, so a burst of feeds queues in Airflow instead of running every build against
+# Postgres at once. Each feed DAG already runs one at a time (max_active_runs = 1).
+# `airflow pools set` creates the pool or updates its slots; the Job is renamed when they change.
+resource "kubernetes_job_v1" "airflow_pools" {
+  metadata {
+    name      = "airflow-pools-${substr(sha256(tostring(var.dbt_pool_slots)), 0, 8)}"
+    namespace = local.airflow_ns
+  }
+  spec {
+    backoff_limit = 5
+    template {
+      metadata {}
+      spec {
+        restart_policy = "OnFailure"
+        container {
+          name  = "pools"
+          image = "${var.airflow_image_repository}:${var.airflow_image_tag}"
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 50000
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = false
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
+          command = ["airflow", "pools", "set", "dip_dbt", tostring(var.dbt_pool_slots),
+          "dbt builds of the feed DAGs that run at once (16.1)"]
+          env {
+            name = "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN"
+            value_from {
+              secret_key_ref {
+                name = "airflow-metadata"
+                key  = "connection"
+              }
+            }
+          }
+          volume_mount {
+            name       = "config"
+            mount_path = "/opt/airflow/airflow.cfg"
+            sub_path   = "airflow.cfg"
+            read_only  = true
+          }
+        }
+        volume {
+          name = "config"
+          config_map {
+            name = "airflow-config"
+          }
+        }
+      }
+    }
+  }
+  wait_for_completion = true
+  timeouts {
+    create = "5m"
+  }
+  depends_on = [helm_release.airflow]
+}
