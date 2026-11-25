@@ -303,6 +303,8 @@ Incident: the flood (runbook `15-flood.md`).
   from a file landing to its rows in gold (95th percentile), the intake API's availability,
   and each feed's quarantine rate. Prometheus recording rules, burn-rate alerts (fast and
   slow windows) tested with `promtool`, and an error-budget panel in Grafana.
+  Blocked (2026-11-24): its targets come from Stage 19's numbers, and Stage 19 is on hold;
+  the owner's choice is in `docs/OWNER_STEPS.md`.
 
 ## Stage 17: Chaos and on-call simulation
 
