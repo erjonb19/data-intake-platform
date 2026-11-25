@@ -79,7 +79,8 @@ checks block a merge. Branch protection is a repository setting, so it is yours 
 Do it once all three have passed on `main`.
 
 **Do.** GitHub, Settings, Branches, the rule for `main`, "Require status checks to pass":
-add `pip-audit`, `gitleaks` and `zizmor` beside the five already there. Or in PowerShell:
+add `pip-audit`, `gitleaks` and `zizmor` beside the six already there (`lint`, `test`,
+`e2e`, `trivy`, `analyze (python)`, `analyze (actions)`). Or in PowerShell:
 
 ```powershell
 gh api repos/erjonb19/data-intake-platform/branches/main/protection/required_status_checks/contexts -X POST -f "contexts[]=pip-audit" -f "contexts[]=gitleaks" -f "contexts[]=zizmor"
@@ -93,7 +94,7 @@ gh api repos/erjonb19/data-intake-platform/branches/main/protection/required_sta
 
 lists the three with the others.
 
-### [ ] Decide: where 16.2's signed webhooks are audited
+### [ ] Decide: where signed webhooks are audited (16.2)
 
 **Why.** 16.2 asks for an HMAC-signed "file ready" endpoint on the intake API, with every call
 audited. The audit trail is `ops.audit_log` in Postgres, but since 24.16 the intake API cannot
