@@ -167,6 +167,9 @@ kills="$(grep -iE 'failed (liveness|startup) probe' <<<"$events" || true)"
 $kills"
 log "no container restarted by a liveness or startup probe"
 
+# 24.15: every namespace enforces Pod Security baseline, and no pod this repo defines would
+# fail restricted. The pods that still would (SFTP, Marquez, the charts' pods) are printed.
+KUBECONFIG="$kubeconfig" "$py" "$REPO_ROOT/tests/e2e/pod_security.py"
 # 24.16: the NetworkPolicies are enforced: a pod outside the platform's namespaces cannot
 # reach Postgres or MinIO, and a pod labelled as an Airflow task pod can.
 KUBECONFIG="$kubeconfig" "$py" "$REPO_ROOT/tests/e2e/network_policy.py"

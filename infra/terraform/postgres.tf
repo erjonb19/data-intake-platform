@@ -56,9 +56,34 @@ resource "kubernetes_stateful_set_v1" "postgres" {
       }
 
       spec {
+        # 24.15: as the image's postgres user (70), never root. The entrypoint runs
+        # without root and skips its chown: the data directory already belongs to 70
+        # (written by earlier pods), or initdb creates it in an empty volume.
+        security_context {
+          run_as_user     = 70
+          run_as_group    = 70
+          run_as_non_root = true
+          # No fs_group: on a volume type that honours it, the kubelet would make PGDATA
+          # group-writable, and Postgres refuses to start unless it is 0700 or 0750.
+          seccomp_profile {
+            type = "RuntimeDefault"
+          }
+        }
         container {
           name  = "postgres"
           image = var.postgres_image
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 70
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
 
           port {
             name           = "postgres"
@@ -88,6 +113,15 @@ resource "kubernetes_stateful_set_v1" "postgres" {
             mount_path = "/docker-entrypoint-initdb.d"
             read_only  = true
           }
+          # 24.15: the root filesystem is read-only; the socket directory and /tmp are not.
+          volume_mount {
+            name       = "run"
+            mount_path = "/var/run/postgresql"
+          }
+          volume_mount {
+            name       = "tmp"
+            mount_path = "/tmp"
+          }
 
           readiness_probe {
             exec {
@@ -113,6 +147,14 @@ resource "kubernetes_stateful_set_v1" "postgres" {
           }
         }
 
+        volume {
+          name = "run"
+          empty_dir {}
+        }
+        volume {
+          name = "tmp"
+          empty_dir {}
+        }
         volume {
           name = "init"
           config_map {
@@ -177,8 +219,20 @@ resource "kubernetes_job_v1" "postgres_roles" {
       spec {
         restart_policy = "Never"
         container {
-          name    = "psql"
-          image   = var.postgres_image
+          name  = "psql"
+          image = var.postgres_image
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 70
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
           command = ["psql", "-v", "ON_ERROR_STOP=1", "-f", "/sql/roles.sql", "-f", "/sql/password.psql"]
           env {
             name  = "PGHOST"

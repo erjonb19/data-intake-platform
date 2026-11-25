@@ -489,7 +489,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   `ANTHROPIC_API_KEY` GitHub secret updated.
 - [x] **24.4 Locked, hashed Python installs with a release-age cooldown** (High): a committed lock (uv, or `--generate-hashes` requirements with `pip install --require-hashes`) for CI, the proof jobs and every image, including the agent venv, and a 7-day cooldown (`exclude-newer`, or pip `--uploaded-prior-to P7D`). Moving to uv is a new tool: approved by the owner 2026-11-11.
   Done 2026-11-11 (uv approved by the owner): ten hashed universal locks in `requirements/`,
-  compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.txt`);
+  compiled by `scripts/lock.py` with uv 0.13.5 at a cutoff 7 days back (`requirements/cutoff.timestamp`);
   every `pip install` in the workflows and images reads one with `--require-hashes --no-deps`,
   and dip is built with the locked setuptools (`--no-build-isolation`). CI's lint job fails on a
   stale lock; `tests/unit/test_locks.py` fails on an unlocked install.
@@ -552,6 +552,16 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   (when nobody else is connected). The nightly backups (14.1) cover that, and a database owned by
   another role goes with moving the rest of the schema off `warehouse`.
 - [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
+  Part 1, 2026-11-23: every namespace enforces `baseline` and warns and audits at `restricted`
+  (`cluster.tf`). Every pod this repo's Terraform defines, except SFTP and Marquez, runs at
+  restricted: non-root by number, no capabilities, RuntimeDefault seccomp, no privilege
+  escalation. Postgres (as uid 70), MinIO and the setup Jobs also have read-only root
+  filesystems. The Airflow and OCR images end in `USER 50000`. `tests/e2e/pod_security.py`
+  fails if one of those pods would fail restricted, and prints the ones that still would.
+  Part 2, still open: `restricted` enforced on `dip-airflow` and `dip-obs`, once the
+  Airflow chart's pods, the DAGs' task pods and the Prometheus and Grafana charts' pods are
+  set for it. The E2E's list is the work. Marquez's two pods stay at baseline in `dip-obs`
+  until then.
 - [x] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
   Done 2026-11-23: `infra/terraform/network_policies.tf`. Each namespace denies ingress from
   other pods by default (probes and NodePorts, from outside the pod network or the node's

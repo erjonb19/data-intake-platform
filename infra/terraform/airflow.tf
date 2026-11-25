@@ -117,7 +117,19 @@ resource "kubernetes_job_v1" "airflow_minio_user" {
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
-            args  = init_container.value
+            security_context {
+              run_as_non_root            = true
+              run_as_user                = 65532
+              allow_privilege_escalation = false
+              read_only_root_filesystem  = true
+              capabilities {
+                drop = ["ALL"]
+              }
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
+            }
+            args = init_container.value
             env {
               name = "NEW_USER_PASSWORD"
               value_from {
@@ -154,7 +166,19 @@ resource "kubernetes_job_v1" "airflow_minio_user" {
         container {
           name  = "mc-3-attach"
           image = var.minio_client_image
-          args  = ["admin", "policy", "attach", "local", local.airflow_minio_user, "--user", local.airflow_minio_user]
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 65532
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
+          args = ["admin", "policy", "attach", "local", local.airflow_minio_user, "--user", local.airflow_minio_user]
           env {
             name = "MC_HOST_local"
             value_from {

@@ -9,6 +9,9 @@ duplicate of the first (same SHA-256), and it does not reach gold again.
 
 ## Before recording (not on camera, about 15 minutes)
 
+On Windows, use the PowerShell versions of these commands in `docs/OWNER_STEPS.md` (the
+walkthrough step).
+
 ```bash
 TF_VAR_profiles='["core", "observability"]' bash scripts/up.sh   # the stack on kind
 tf() { terraform -chdir=infra/terraform "$@"; }
@@ -84,7 +87,10 @@ refusal is in the audit log too."
 ## Scene 4, 1:50 to 2:30: a person approves
 
 **Live:** the approvals page shows the pending proposal, its payload, and the agent and model
-that made it. Click **Approve** with your own name as Reviewer. **Recorded:** the demo approves
+that made it. Click **Approve** with `owner` as Reviewer: `approvals_token` is the first
+approver's token, and the page refuses any other name with it (403). To show your own name,
+run `export TF_VAR_approvers='["yourname"]'` (PowerShell: `$env:TF_VAR_approvers = '["yourname"]'`)
+and then `up.sh` again. **Recorded:** the demo approves
 its proposal itself and prints the audit trail; show the approvals page from
 `docs/images/approvals-queue.png` while you speak.
 
