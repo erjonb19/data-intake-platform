@@ -23,7 +23,6 @@ import hashlib
 import hmac
 import json
 import logging
-import secrets
 from collections.abc import Callable
 from typing import Any
 
@@ -36,9 +35,8 @@ from mcp.server.lowlevel.server import Server
 from mcp.server.transport_security import TransportSecuritySettings
 
 from dip.agents import run_token
-from dip.agents.approvals import ApprovalError
+from dip.agents.errors import for_the_model, hidden
 from dip.agents.registry import Denied, Policy, Registry
-from dip.contracts import ContractError
 
 log = logging.getLogger("dip.mcp")
 
@@ -173,22 +171,13 @@ def _error(text: str) -> types.CallToolResult:
     return types.CallToolResult(content=[types.TextContent(type="text", text=text)], is_error=True)
 
 
-# 24.35: the errors a tool raises on purpose, with a message written for the model (a bad
-# argument, nothing configured, an approval it may not run, a contract rule). The model needs
-# their text to correct its next call. KeyError and IndexError are LookupErrors too, but
-# carry a raw key or index from inside the code, so they are not among them.
-_FOR_THE_MODEL = (ValueError, LookupError, ApprovalError, ContractError)
-
-
 def tool_error(tool: str, exc: Exception) -> types.CallToolResult:
     """Any other error (a database or network failure, a bug) reaches the model only as
     `internal error (error <id>)`; the full error is in the server's log under the same id,
     so its text (hosts, SQL, file paths, values) never enters a prompt or a recording."""
-    if isinstance(exc, _FOR_THE_MODEL) and not isinstance(exc, (KeyError, IndexError)):
+    if for_the_model(exc):
         return _error(f"{type(exc).__name__}: {exc}")
-    error_id = secrets.token_hex(6)
-    log.error("tool %s failed (error %s)", tool, error_id, exc_info=exc)
-    return _error(f"internal error (error {error_id})")
+    return _error(hidden(log, f"tool {tool}", exc))
 
 
 def http_app(

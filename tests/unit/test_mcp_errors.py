@@ -60,3 +60,20 @@ def test_an_error_raised_for_the_model_keeps_its_message(exc, caplog):
     assert result.is_error
     assert result.content[0].text == f"{type(exc).__name__}: {exc}"
     assert not caplog.records
+
+
+def test_an_approval_that_fails_unexpectedly_keeps_only_an_id(caplog):
+    """approvals.execute (an agent can run it through execute_approved_operation) uses the
+    same rule: its stored and raised error is an id unless the error is for the model."""
+    import inspect
+
+    from dip.agents import approvals
+    from dip.agents.errors import for_the_model, hidden
+
+    src = inspect.getsource(approvals.execute)
+    assert "for_the_model(exc)" in src and "hidden(log" in src
+    assert for_the_model(ApprovalError("x")) and not for_the_model(RuntimeError("x"))
+    with caplog.at_level(logging.ERROR, logger="dip.approvals"):
+        text = hidden(approvals.log, "approval 7", RuntimeError(SECRET_DETAIL))
+    assert re.fullmatch(r"internal error \(error [0-9a-f]{12}\)", text)
+    assert SECRET_DETAIL not in text and caplog.records[0].exc_info
