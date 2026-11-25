@@ -563,7 +563,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   set for it. The E2E's list is the work. Marquez's two pods stay at baseline in `dip-obs`
   until then.
 - [ ] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
-- [ ] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
+- [x] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
 - [x] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
   Done 2026-11-11: `AgentCallsDenied` (`dip_agent_denied_calls_1h`, from the audit log;
   migration 0004 grants the exporter three of its columns) and `IntakeApiAuthFailures` (the
@@ -592,7 +592,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   `.netrc`, `.pypirc`; `.claude/worktrees/` is in 24.42's PR with the settings it guards.
 - [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
 - [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
-- [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
+- [x] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
 - [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
 - [ ] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
 - [ ] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
