@@ -551,17 +551,19 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   Still open: `warehouse` owns the `warehouse` database, so it could drop the whole database
   (when nobody else is connected). The nightly backups (14.1) cover that, and a database owned by
   another role goes with moving the rest of the schema off `warehouse`.
-- [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
+- [x] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
   Part 1, 2026-11-23: every namespace enforces `baseline` and warns and audits at `restricted`
   (`cluster.tf`). Every pod this repo's Terraform defines, except SFTP and Marquez, runs at
   restricted: non-root by number, no capabilities, RuntimeDefault seccomp, no privilege
   escalation. Postgres (as uid 70), MinIO and the setup Jobs also have read-only root
   filesystems. The Airflow and OCR images end in `USER 50000`. `tests/e2e/pod_security.py`
   fails if one of those pods would fail restricted, and prints the ones that still would.
-  Part 2, still open: `restricted` enforced on `dip-airflow` and `dip-obs`, once the
-  Airflow chart's pods, the DAGs' task pods and the Prometheus and Grafana charts' pods are
-  set for it. The E2E's list is the work. Marquez's two pods stay at baseline in `dip-obs`
-  until then.
+  Part 2, 2026-11-23: `dip-airflow` enforces `restricted`. The Airflow chart's global
+  security contexts (and statsd's own) cover its components, Jobs and the KubernetesExecutor's
+  task pods; the proof workflow's `kubectl run` pods set theirs. Prometheus's server and its
+  reload sidecar are at restricted too, and Grafana already was. `dip-obs` stays at
+  baseline because Marquez's two upstream images run as root, and `dip-data` stays at baseline
+  for SFTP. The E2E fails if any other pod would fail restricted.
 - [x] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
   Done 2026-11-23: `infra/terraform/network_policies.tf`. Each namespace denies ingress from
   other pods by default (probes and NodePorts, from outside the pod network or the node's
