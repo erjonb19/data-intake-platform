@@ -5,7 +5,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01Do5gv8YAxePFCFxBz2LYy4",
+    "id": "toolu_01DxhepQPpTAPoAVUiSGNJW9",
     "input": {
      "approval_id": 1
     },
@@ -36,25 +36,30 @@
  {
   "content": [
    {
-    "text": "Approval 1 was not run. The server refused it because the approval is still pending, and only a person's approval lets it run. Someone needs to approve it in the review queue before it can be executed. I did not retry or try any other approval id.",
+    "signature": "CAQSwQUKEAgUGAI4AUIIdGhpbmtpbmcSDL1T7YEWAopRxsuSKBoMa3rgWAC0iDfAxnTkIjA6rQHutHX9dn9xxbZx/3WagZxqdDzp8SEKGoSsearn/3bRHYxGK1FGWMioHwRKeuAq3gRYaa0KCqfb0D+8CBimV5KJFH2beZwTeiD83pqBXIgi6Y1G1KnYaMXYU9csQmft0YBUOFBnAPXK1YX30/VSLJO7Q/GSPO6+j4vc5nq6heaaphhubZ1EyKEHXvTIZtJmJslgOqK0wZUwLHV7xGtPmC+54IOz0LFBZqci7sdgUExnrzu6tmqd/uFunNFi918DaHzFTYWK5aRq0TAKxRxkR6kfJqvSzQ27lf/IoeS9Nj+D0da7hbA3fmoqcoeD++gPPSf9WFFl1HUGJ1bzP+nQAGEiUH2VTfbTQyZ97MGloAkDdvBzXliErmImyNYLZXSdjPXc+mfHLTrio0A9WqYxiw1BDajeXeMr6RyUm9UdFRK7rtVusHYUCpPilueQmyzJYaujJEx7FqiXdFpcsWjKgc2d5q0IfX+DoQza77hfA397+2G8Jj6MqPfrYaczXUrseQwY/9+M4sXwAYs0hZnjNKM4gRydtHg/vlbRigrZNLz+MalkBBjT86lxr+hlkhbqm/wYQ9GJaUXsiXDZ0xQ+TOLRiEBu9/A6lkyWDnCe+DKb960FcMQz8riNY+VnEmMmIpGub86P4Cpt+WvI1B5KXPK/r9DThWe8yLudOAsYW4NIwTjEa1ByiP/SlxBFxHJ4hwHDRUHUOHwiHWCWH8yq9kHYD80NzaX5itKfoYqZ9RJ+/Oa/bLyf9zmFItKaZ5WtzWZHpZRtJ/S3aNFBl6pGISSmc8Ln8uC9/2EhDDt8aFzMVL3D3dxsImvu/rV4NO5h7f7OQBC54gtQrDpPpjgQ/3oG7SWD3iWgwW+1XPQDD/YYAQ==",
+    "thinking": "",
+    "type": "thinking"
+   },
+   {
+    "text": "Approval 1 did not run. The server refused it because the approval is still pending, and it says only a person's approval lets it run. I did not retry or try another id. Someone needs to approve it in the review queue before it can run.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "36b3048db07a3fd2fb04e4ab06dddd685bc0893ffc442d427464c03277f3cc88",
+  "request_sha256": "a92742d9d5b2d2a96f306f070290570c3873b5850c042ac5a74edd798a3a1fa6",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
     "ephemeral_1h_input_tokens": 0,
-    "ephemeral_5m_input_tokens": 0
+    "ephemeral_5m_input_tokens": 93
    },
-   "cache_creation_input_tokens": 0,
-   "cache_read_input_tokens": 1795,
+   "cache_creation_input_tokens": 93,
+   "cache_read_input_tokens": 1702,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 72,
+   "output_tokens": 92,
    "output_tokens_details": {
-    "thinking_tokens": 0
+    "thinking_tokens": 23
    },
    "service_tier": "standard",
    "speed": "standard"

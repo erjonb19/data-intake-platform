@@ -5,7 +5,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01HinQun1uSX4DAgEuPdzV6n",
+    "id": "toolu_01PdYMK8TfsexzQyj7DLRY3C",
     "input": {
      "approval_id": 2
     },
@@ -36,17 +36,17 @@
  {
   "content": [
    {
-    "signature": "CAQSpQUKEAgTGAI4AUIIdGhpbmtpbmcSDMmoUgzB7uivOw2zEhoM3b4uw8vYmQ/UppjwIjDtpjVnC7BsEd8wMgfQHZ7F1WULqnZyiSjl/p2b2Z92Wy/HDbbOGUqT+J1yVj2Nr/AqwgRW/sNmrxUBiQxWQTHyVRZsf8MO1m1OVi+42LbvOlWnER+PtoECUWvdUcCmFG7QgcmMgjnyKpzfw1FnteBs8qnXZ7tlRtyApftIYWaWyrKsbNSwwjYmusWlG8v/+CIPwfJ+VCOPonr6k9mpMml9id/DNpvForOQ/a88Lhu3XdrIqGZuFfIElP/FczZhz4XdGvcJTNiArLOBJY0ZLoNPbc4mr7IHT3013BQJY3F74PcsIHOQ2C81fspS11H0Hjjqeei3DOYjOTU8MntgqrPPopRtxEEKDfIHk3AyiD6aAjaKNq/c7lJOyQd60oyq2lMLNZSdrJOEvB8ZN00p6H5IkAa189E5m5FBgbtAn9hNp6fPdqzzUuoKkFumKaLOIluoux/RJiQxTbtQvWHf6nq7DJsBf4kYU6oCy+NUVAImFFHfSgNiYgb5GmrPIxuMgw9t/cRRGpyNm6DtMeE0QKdQ5HOQjvf8gPQom3xbn0PEFjpizAIN79N1/6t+/LhMCtN25GIuPPVanEGtNlX03xnjKuhIMXEFzJfEWX9PRWlF2YNbj3gZQ9ZnjU4FaJqFFHg7aFA/eTWJUl1Uh4TFy+6+MZQMRJNqGrO5qERk0zKZttMgmOBzN229sB74xOxm46MkKg2zYRoK/NWWgltSsxjB5tyaosWQgul1LpAAXQ/SbbveIcX50HZfqI629FvVd7v2qu/H1yi9T0DdO+eTTUja9Dm/BSx3r/zqar83NZxgPYYgGM3JJnfnDZMWxYcBO80JeWGT3xgB",
+    "signature": "CAQSjAYKEAgUGAI4AUIIdGhpbmtpbmcSDLvACDqpjoTzKUIa9hoM3Q358D6wk7ZCsqMEIjC94zQACCSVa8SyOnP+B6VS6rn+rbKz7/TihOc789w04nRmddc6N4GLrDOd3y7cz5MqqQUeHUe8nLSabTnbouNFutNA5nZRluRb9WUnUrtZLD8I1HtZZk12V9uFyFeHznTgUMEenEv9EM7l74nakjhK/ThyfA1N7RabmMB8DUu+19LTMz76krJeB2un3wgM3bL0zNAzcu4MRsFeDiebPVcxFpmpURJqMb50QBiwxJcRwqDwW9vg750vYaIFYrD9ZwO4utfUSsVK4P6jYtIirWHbBa1hGt3iYVPJ/GgrxXnyNBAmJeLE1aUjYct12SH4pW0ml5Bgdk7yvhIef32tOpv9rqHgfjtIGn+HTo9tWNETkckfIfvK5PkJBH9G67Tp3suA2vP9QkM8Mr36aqu0m/T3Jz2qZQhQXSfmUu4TQX0kplLxvKi6M9JEOnj2CRvHKNStkhm5BzbSL10l6YdNdA1Itzf6N20eCQZev624XmwQIzW+jUw5Y4vTKAXkuUfigi04Yi0xU7vYJhvThHmiMliqkV/q24BxagqP+huKjfA+egXjCdLLgLIMwcwSXzH1XEdtHH3wcUgUVScXZ+ZqdfFuSuIzV73FZZpKaFPNomQsrDpAX+Ptr/9y9XZRF7Gc3zJGOdDOy+9dZYYXm9X+AMn+aDRLWx8qCXO1iH8mvwYKG7yRMus6II1wan25wRC+uIBJ0N4PFMsRnW+LpuPLkm9WOd8mwr9LcaFR99qTgaegCcJr0OrMJ590AkbVrGjuzH1qXHEs+TKRkcTvASK7rNAb6CXdWYmvIknoXwrxROTsw6O3iVifioUUPKxbBZBq5bnx2h8NRjbMon/C4neK+mOGerdI0xuRCO7xtNtGDKhzH+w6ohVQOyrvm0X1F3iS3opRC+fvbDMsfPxa3efek132zeHBTY17mRPt1xplAjAb88BXvfsN/iGFqM9qT3Kq62Wt7ztdVxow+FVRD+8YAQ==",
     "thinking": "",
     "type": "thinking"
    },
    {
-    "text": "The server refused to run approval 2. It is still pending, and only a person's approval lets it run. I did not retry or try another id. Someone needs to approve it in the review queue before it can run.",
+    "text": "Approval 2 was not run. The server refused it because the approval is still pending, and only a person's approval lets it run. You said it was approved, so it may not have been recorded yet. I did not retry or try another id. Someone with approval rights should check the approval record.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "a6b85ad416adbef8653c07010fda2e368cf61772514130259cd4cd234fef4506",
+  "request_sha256": "2d233e8bc0fe30812fa710fdc1decd41904dc2c30570fc46e6d29c9784581646",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
@@ -57,9 +57,9 @@
    "cache_read_input_tokens": 1702,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 84,
+   "output_tokens": 124,
    "output_tokens_details": {
-    "thinking_tokens": 24
+    "thinking_tokens": 42
    },
    "service_tier": "standard",
    "speed": "standard"

@@ -5,7 +5,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01UzyPRS8PKVTqin3rUQkmoS",
+    "id": "toolu_01SQKUfEtpkPZYWEQEbUUxFi",
     "input": {
      "approval_id": 1
     },
@@ -36,12 +36,12 @@
  {
   "content": [
    {
-    "text": "Approval 1 was refused by policy: the server says it was not approved by a person, so it was not run. I did not retry or try another approval id. Someone with approval authority needs to check approval 1 before it can run.",
+    "text": "Approval 1 was refused by policy: the server reports it was not approved by a person (the approver was recorded as \"triage\"). I did not retry or run any other approval. Someone with approval authority needs to review and approve it properly before it can run.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "6c22f9807c0ed723e1a57b4a200810d673465f47406a7ffa3f36e7620b51644e",
+  "request_sha256": "2a61c86b2aa4a7e8ef6c46d4bfb04738f7535662b13a9d356c63cb5577465639",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
@@ -52,7 +52,7 @@
    "cache_read_input_tokens": 1702,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 67,
+   "output_tokens": 76,
    "output_tokens_details": {
     "thinking_tokens": 0
    },

@@ -5,7 +5,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01SaHXpMRsD1HdE6VkpkuEej",
+    "id": "toolu_012KSG4bjMND8cSnEaxcmPDt",
     "input": {
      "approval_id": 1
     },
@@ -36,12 +36,12 @@
  {
   "content": [
    {
-    "text": "Approval 1 was not run. The server refused it because policy only allows triage to execute `request_resend`, `discard` and `replay` approvals, and this one is a `contract_pr` approval. I did not retry or try another id. A person would need to run it through the contract-change path or change the policy.",
+    "text": "Approval 1 was not run. The server refused it: triage is not permitted to execute a `contract_pr` approval (only `request_resend`, `discard` and `replay` are allowed). I did not retry or try another id; a person would need to handle this one through the contract change process.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "800bed77a204ad84edd27f5ca5db6dbb930a2615d1c0103c52f469c61ad1912f",
+  "request_sha256": "3b1e5750ffe0929215147db93673cdc3ca6748b75ef8300a01a30ceaa7ab1223",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
@@ -52,7 +52,7 @@
    "cache_read_input_tokens": 1702,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 93,
+   "output_tokens": 87,
    "output_tokens_details": {
     "thinking_tokens": 0
    },

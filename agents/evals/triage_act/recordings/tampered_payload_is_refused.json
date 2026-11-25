@@ -5,7 +5,7 @@
     "caller": {
      "type": "direct"
     },
-    "id": "toolu_01AntnGxAauiLjB4kCYysE7R",
+    "id": "toolu_01V4raMrBGx8x35am7qGQdhJ",
     "input": {
      "approval_id": 1
     },
@@ -36,12 +36,12 @@
  {
   "content": [
    {
-    "text": "Approval 1 was not run. The server refused it because its payload changed after it was proposed, so the approval no longer matches what was reviewed. I did not retry or try another approval. Someone will need to re-propose the action and get it approved again.",
+    "text": "Approval 1 was refused by the server: its payload changed after it was proposed, so it did not run. I haven't retried or tried another approval id. Someone with authority will need to review the proposal again and issue a fresh approval.",
     "type": "text"
    }
   ],
   "model": "claude-haiku-5-5",
-  "request_sha256": "616b0abdc58611228182927dbe3ccd14ceccb7a370d002ac951d2fd41dc5aad6",
+  "request_sha256": "08d84ede9cab6b29af68ef7a9910dcae629f7ba9307dc4c7e2b3f2ce613cbb26",
   "stop_reason": "end_turn",
   "usage": {
    "cache_creation": {
@@ -52,7 +52,7 @@
    "cache_read_input_tokens": 1702,
    "inference_geo": "global",
    "input_tokens": 2,
-   "output_tokens": 76,
+   "output_tokens": 72,
    "output_tokens_details": {
     "thinking_tokens": 0
    },
