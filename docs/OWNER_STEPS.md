@@ -22,7 +22,8 @@ with a state that has no key), then check:
 
 ```powershell
 Remove-Item Env:TF_VAR_anthropic_api_key -ErrorAction SilentlyContinue
-$env:ANTHROPIC_API_KEY = Read-Host "Anthropic key" -MaskInput
+$k = Read-Host "Anthropic key" -AsSecureString   # typed, not shown
+$env:ANTHROPIC_API_KEY = [Net.NetworkCredential]::new("", $k).Password
 & "$env:ProgramFiles\Gitinash.exe" scripts/up.sh
 & "$env:ProgramFiles\Gitinash.exe" scripts/up.sh
 Select-String -Path infra/terraform/terraform.tfstate* -Pattern "sk-ant-" -List
