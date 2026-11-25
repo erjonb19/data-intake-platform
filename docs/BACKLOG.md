@@ -570,7 +570,8 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   API's own `/metrics`, a new scrape job), with promtool tests. Routing waits for 16.3's
   Alertmanager: today they show on Prometheus's `/alerts` page, like the others.
 - [x] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
-- [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
+- [x] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
+  CI only (owner, 2026-11-24): no pre-commit hook. The CI job scans the full history on every run.
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
 - [x] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
   Done 2026-11-11: the Airflow base, Postgres, Marquez and Marquez web pinned by digest (resolved
