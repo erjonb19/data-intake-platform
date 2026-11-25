@@ -24,7 +24,8 @@ RUN rm -f $(grep -l 'mariadb' /etc/apt/sources.list.d/* 2>/dev/null || true) \
  && dpkg --compare-versions "$(dpkg-query -W -f='${Version}' linux-libc-dev)" ge 6.12.117-1 \
  && if [ -f /var/lib/dpkg/status.d/linux-libc-dev ]; then \
       dpkg-query -s linux-libc-dev > /var/lib/dpkg/status.d/linux-libc-dev; fi
-USER airflow
+# The base image's own user, by number, so a pod with runAsNonRoot can check it (24.15).
+USER 50000
 
 # 24.4: every pip install reads a hashed lock from requirements/ (scripts/lock.py) with
 # --require-hashes --no-deps, so no unpinned or unhashed file is ever downloaded.

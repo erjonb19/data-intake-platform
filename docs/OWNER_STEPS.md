@@ -155,7 +155,7 @@ Start-Job -ArgumentList $kc { param($kc) kubectl --kubeconfig $kc -n dip-data po
 Start-Job -ArgumentList $kc { param($kc) kubectl --kubeconfig $kc -n dip-obs port-forward svc/grafana 3000:80 }
 Start-Job -ArgumentList $kc { param($kc) kubectl --kubeconfig $kc -n dip-obs port-forward svc/marquez-web 3001:3000 }
 tf output -raw grafana_admin_password    # Grafana, user admin
-tf output -raw approvals_token           # paste into the approvals page once
+tf output -raw approvals_token           # paste into the approvals page once; Reviewer: owner
 ```
 
 Browser tabs: Airflow (the `airflow_url` above), the approvals page `http://127.0.0.1:8081`,

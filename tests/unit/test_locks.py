@@ -73,6 +73,13 @@ def test_the_cutoff_is_a_timestamp() -> None:
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", lock.cutoff())
 
 
+def test_every_txt_in_requirements_is_a_lock():
+    """Dependabot's pip updater reads every requirements/*.txt as a requirements file, and
+    one that is not (the cutoff, once cutoff.txt) fails every pip update (2026-11-23)."""
+    txts = {p.name for p in (ROOT / "requirements").glob("*.txt")}
+    assert txts == set(lock.LOCKS), sorted(txts ^ set(lock.LOCKS))
+
+
 def test_no_locked_install_builds_in_isolation():
     """24.4 review: a lock entry that is an sdist (dbt-core-experimental-parser has no
     wheel) is built at install time. With build isolation pip would fetch the build's own
