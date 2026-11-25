@@ -440,6 +440,8 @@ Incident: a copy of a member's data the first deletion run missed, found by its 
   from landing, bronze, silver, gold and quarantine (and any copy the export holds), with an
   `ops.audit_log` row; a retention period per layer with a scheduled purge; a test that no
   trace of the member remains
+  Waiting on the owner (2026-11-24): how raw copies, backups and extracts are handled, and
+  the retention periods; the recommendation is in `docs/OWNER_STEPS.md`.
 
 ## Stage 23: Showcase
 

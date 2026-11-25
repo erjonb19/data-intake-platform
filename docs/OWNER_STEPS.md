@@ -47,6 +47,31 @@ for Stage 19.
 
 Reply in chat: "16.4 provisional" or "16.4 waits".
 
+### [ ] Decide: how `dip forget` and per-layer retention delete data (22.2)
+
+**Why.** 22.2 deletes data twice over: `dip forget --member <id>` on request, and a scheduled
+purge per layer. Both are yours to decide (CLAUDE.md: ask before deleting data). Three things
+in the platform make "no trace of the member remains" a design choice, not only code:
+- **Raw copies** (`raw/<feed>/<day>/<sha256>`) are whole vendor files, many members each,
+  named by their hash. Removing one member means rewriting the file under a new hash, and
+  bronze, `ops.intake_file` and quarantine all point at the old one.
+- **Backups** (the newest 7 nightly dumps in `backups`) hold the member until they age out.
+- **Research extracts** (`data/extracts/<version>/`) are immutable by design.
+
+**Claude recommends:**
+- `forget` deletes the member's rows from bronze, quarantine (the `.rejected.ndjson` lines,
+  too) and every gold, OMOP and shareable table. It rewrites each raw file that holds the
+  member without its rows, with the old hash and the new one recorded in a new
+  `ops.forget_request` table. It deletes any extract version that holds the member's
+  pseudonym. One `ops.audit_log` row is written per request, with the member id hashed,
+  never in clear.
+- Backups are not edited: the request is done when the last dump older than it has been
+  pruned (7 days), and `dip forget --status` says so.
+- Per-layer retention: no scheduled purge until you name the periods (for example raw 1
+  year, quarantine 90 days). Until then the setting is empty and the purge does nothing.
+
+Reply in chat: "22.2 as recommended, retention <periods or none>", or what to change.
+
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,
