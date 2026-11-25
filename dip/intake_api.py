@@ -12,6 +12,10 @@
   409  landing already holds an unprocessed file of that name
   413  the body is over the size limit (DIP_API_MAX_BYTES, default 20 MB)
   422  a missing or unsafe filename (only letters, digits, `.`, `_` and `-`; no paths)
+  429  24.32, with Retry-After: the client sent more than DIP_API_RATE_PER_MIN uploads (60)
+       in the last minute; or DIP_API_MAX_INFLIGHT uploads (4) are being received already,
+       which bounds the memory they take; or this address had DIP_API_AUTH_FAILS_PER_MIN
+       (20) requests refused with 401 in the last minute (dip/ratelimit.py)
 
   GET /healthz   200 {"status": "ok"}
 
@@ -37,6 +41,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 
 from dip import BUCKET_LANDING, CHANNEL_KEY
 from dip.contracts import Contract
+from dip.ratelimit import FailedAuthLimit, Window
 from dip.storage import ObjectStore
 
 SAFE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$")
@@ -76,6 +81,9 @@ def create_app(
     contracts: dict[str, Contract],
     clients: list[Client],
     max_bytes: int = DEFAULT_MAX_BYTES,
+    rate_per_minute: int = 60,
+    max_inflight: int = 4,
+    auth_fails_per_minute: int = 20,
 ) -> FastAPI:
     # 24.34: no /docs, /redoc or /openapi.json: they answer without a key and list every
     # route and parameter to anyone who can reach the Service.
@@ -83,7 +91,10 @@ def create_app(
                   openapi_url=None)  # fmt: skip
     # 24.18: refused requests, by why, for Prometheus (the IntakeApiAuthFailures alert).
     # In this process only: a restart starts them at zero, which increase() handles.
-    refused = {"unauthorized": 0, "forbidden": 0}
+    refused = {"unauthorized": 0, "forbidden": 0, "rate_limited": 0, "busy": 0}
+    app.add_middleware(FailedAuthLimit, limit=auth_fails_per_minute)
+    per_client = Window(rate_per_minute, 60.0)
+    inflight = {"n": 0}
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
@@ -114,6 +125,12 @@ def create_app(
         if not client.may_send(feed):
             refused["forbidden"] += 1
             raise HTTPException(403, f"client {client.name!r} may not send {feed!r}")
+        if not per_client.hit(client.name):
+            refused["rate_limited"] += 1
+            wait = str(per_client.retry_after(client.name) or 60)
+            raise HTTPException(
+                429, f"over {rate_per_minute} uploads a minute", {"Retry-After": wait}
+            )
         contract = contracts.get(feed)
         if contract is None:
             raise HTTPException(404, f"no contract for feed {feed!r}")
@@ -124,29 +141,40 @@ def create_app(
         declared = request.headers.get("content-length")
         if declared and declared.isdigit() and int(declared) > max_bytes:
             raise HTTPException(413, f"over the {max_bytes}-byte limit")
-        body = bytearray()
-        async for chunk in request.stream():
-            body.extend(chunk)
-            if len(body) > max_bytes:
-                raise HTTPException(413, f"over the {max_bytes}-byte limit")
-        key = f"{feed}/{filename}"
-        data = bytes(body)
-        del body
-        try:
-            # Conditional: two uploads of one name at once cannot overwrite each other.
-            store.put(BUCKET_LANDING, key, data, if_absent=True,
-                      metadata={CHANNEL_KEY: "api", "dip-api-client": client.name})  # fmt: skip
-        except FileExistsError:
-            raise HTTPException(409, f"{key} is waiting to be processed; send it later") from None
-        return JSONResponse(
-            {
-                "feed": feed,
-                "key": key,
-                "sha256": hashlib.sha256(data).hexdigest(),
-                "bytes": len(data),
-            },
-            status_code=202,
-        )
+        # 24.32: each upload is held in memory until it is stored, so only so many at once.
+        if inflight["n"] >= max_inflight:
+            refused["busy"] += 1
+            raise HTTPException(429, "too many uploads in progress; send it again shortly",
+                                {"Retry-After": "5"})  # fmt: skip
+        inflight["n"] += 1
+        try:  # the slot is held until the file is stored, while its bytes are in memory
+            body = bytearray()
+            async for chunk in request.stream():
+                body.extend(chunk)
+                if len(body) > max_bytes:
+                    raise HTTPException(413, f"over the {max_bytes}-byte limit")
+            data = bytes(body)
+            del body
+            key = f"{feed}/{filename}"
+            try:
+                # Conditional: two uploads of one name at once cannot overwrite each other.
+                store.put(BUCKET_LANDING, key, data, if_absent=True,
+                          metadata={CHANNEL_KEY: "api", "dip-api-client": client.name})  # fmt: skip
+            except FileExistsError:
+                raise HTTPException(
+                    409, f"{key} is waiting to be processed; send it later"
+                ) from None
+            return JSONResponse(
+                {
+                    "feed": feed,
+                    "key": key,
+                    "sha256": hashlib.sha256(data).hexdigest(),
+                    "bytes": len(data),
+                },
+                status_code=202,
+            )
+        finally:
+            inflight["n"] -= 1
 
     return app
 
@@ -169,4 +197,7 @@ def app_from_env() -> FastAPI:  # pragma: no cover - wiring for the container
         load_contracts(),
         load_clients(os.environ["DIP_API_CLIENTS"]),
         int(os.environ.get("DIP_API_MAX_BYTES", DEFAULT_MAX_BYTES)),
+        rate_per_minute=int(os.environ.get("DIP_API_RATE_PER_MIN", "60")),
+        max_inflight=int(os.environ.get("DIP_API_MAX_INFLIGHT", "4")),
+        auth_fails_per_minute=int(os.environ.get("DIP_API_AUTH_FAILS_PER_MIN", "20")),
     )

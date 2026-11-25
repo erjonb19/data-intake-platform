@@ -595,7 +595,13 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
 - [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
 - [ ] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
-- [ ] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
+- [x] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
+  Done 2026-11-24 (`dip/ratelimit.py`): the intake API takes at most 60 uploads a minute per
+  client and 4 at once (429 with `Retry-After`; the 4 bound the memory uploads take); every
+  address with 20 refused keys (401) in a minute gets 429 on the intake API, the MCP server
+  and the approvals page; uvicorn caps open connections on all three (503). Limits are per
+  pod. Not done: streaming an upload to MinIO as it arrives (the conditional put needs the
+  whole object); the in-flight cap bounds memory instead. 16.1's queue-depth limit is next.
 - [ ] **24.33 Security headers on the approvals page** (Low): CSP with `frame-ancestors 'none'`, nosniff, no-referrer, no-store on `/api`.
 - [x] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
   Done 2026-11-11: `openapi_url=None`; a test checks `/openapi.json`, `/docs` and `/redoc` are 404.

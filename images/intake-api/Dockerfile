@@ -22,4 +22,5 @@ ENV DIP_CONTRACT_DIRS=/app/packs/healthcare/contracts:/app/packs/finance/contrac
 
 USER 10001
 EXPOSE 8000
-CMD ["uvicorn", "dip.intake_api:app_from_env", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-server-header"]
+# 24.32: past 16 open connections, uvicorn answers 503.
+CMD ["uvicorn", "dip.intake_api:app_from_env", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-server-header", "--limit-concurrency", "16"]

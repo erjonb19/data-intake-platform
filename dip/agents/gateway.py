@@ -43,6 +43,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from dip.agents import approvals
 from dip.agents.registry import Registry, chain_of, human_policy
+from dip.ratelimit import FailedAuthLimit
 
 REVIEWER = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 STATUSES = ("pending", "approved", "rejected", "expired", "executed", "failed")
@@ -129,14 +130,17 @@ def _provider(conn: Any, run_id: str | None) -> str | None:
 
 
 def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
-               people: dict[str, str] | None = None) -> FastAPI:  # fmt: skip
+               people: dict[str, str] | None = None,
+               auth_fails_per_minute: int = 20) -> FastAPI:  # fmt: skip
     """`connect` opens a warehouse connection (one per request: the page is for a few
     people, and a dropped connection never outlives a request). With `people` (name ->
     SHA-256 of that person's token), every /api route needs one of the tokens as a bearer
     token, and a decision is recorded as its owner's; without, the server is for a laptop
-    only (the CLI refuses to listen beyond loopback without them)."""
+    only (the CLI refuses to listen beyond loopback without them). 24.32: an address that got
+    `auth_fails_per_minute` 401s in the last minute gets 429 (dip/ratelimit.py)."""
     app = FastAPI(title="dip approvals", docs_url=None, redoc_url=None, openapi_url=None)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+    app.add_middleware(FailedAuthLimit, limit=auth_fails_per_minute)
     app.state.connect = connect
     app.state.people = dict(people) if people else None
 
