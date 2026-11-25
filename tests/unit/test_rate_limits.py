@@ -116,13 +116,37 @@ def test_every_server_caps_its_open_connections():
     main = (ROOT / "dip" / "__main__.py").read_text("utf-8")
     assert main.count('limit_concurrency=int(os.environ.get("DIP_HTTP_MAX_CONCURRENCY"') == 2
     docker = (ROOT / "images" / "intake-api" / "Dockerfile").read_text("utf-8")
-    assert '"--limit-concurrency", "16"' in docker
+    assert '"--limit-concurrency", "64"' in docker
 
 
 def test_the_approvals_page_and_mcp_server_carry_the_failed_auth_limit():
     for mod in ("dip/agents/gateway.py", "dip/agents/mcp_server.py"):
         src = (ROOT / mod).read_text("utf-8")
         assert "add_middleware(FailedAuthLimit, limit=auth_fails_per_minute)" in src, mod
+
+
+def test_probes_and_scrapes_are_never_blocked():
+    app = FastAPI()
+
+    @app.get("/x")
+    def x() -> dict:
+        raise HTTPException(401, "no")
+
+    @app.get("/healthz")
+    def healthz() -> dict:
+        return {"status": "ok"}
+
+    app.add_middleware(FailedAuthLimit, limit=1)
+    c = TestClient(app)
+    assert c.get("/x").status_code == 401
+    assert c.get("/x").status_code == 429
+    assert c.get("/healthz").status_code == 200
+
+
+def test_a_refused_upload_does_not_use_up_the_clients_rate(tmp_path):
+    c = _intake(tmp_path, rate_per_minute=1)
+    assert _send(c, "../bad").status_code == 422
+    assert _send(c, "elig_1.csv").status_code == 202
 
 
 # 16.1: backpressure.
