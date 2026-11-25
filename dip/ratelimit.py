@@ -80,9 +80,12 @@ def _client_address(scope: dict[str, Any]) -> str:
 
 class FailedAuthLimit:
     """ASGI middleware: an address that got `limit` 401 answers in the last minute gets 429
-    for every request until the oldest of them is a minute old. Behind a NodePort, kind's
-    clients can share the node's address, so a guesser there can lock out the others for a
-    minute: the cost of slowing it down on a laptop cluster."""
+    for every request until the oldest of them is a minute old. Clients that reach a pod
+    through the same address (a port-forward, a proxy) share one count, so a guesser among
+    them can lock the others out for a minute. `/healthz` and `/metrics` are never blocked:
+    the kubelet's probes and Prometheus's scrapes must not depend on who else is calling."""
+
+    EXEMPT = ("/healthz", "/metrics")
 
     def __init__(self, app: Any, limit: int = 20, window: Window | None = None):
         self.app = app
@@ -93,7 +96,7 @@ class FailedAuthLimit:
             await self.app(scope, receive, send)
             return
         addr = _client_address(scope)
-        if self.window.blocked(addr):
+        if scope.get("path") not in self.EXEMPT and self.window.blocked(addr):
             wait = str(self.window.retry_after(addr) or 60)
             await send({"type": "http.response.start", "status": 429,
                         "headers": [(b"content-type", b"text/plain; charset=utf-8"),

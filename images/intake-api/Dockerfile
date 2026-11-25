@@ -22,5 +22,6 @@ ENV DIP_CONTRACT_DIRS=/app/packs/healthcare/contracts:/app/packs/finance/contrac
 
 USER 10001
 EXPOSE 8000
-# 24.32: past 16 open connections, uvicorn answers 503.
-CMD ["uvicorn", "dip.intake_api:app_from_env", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-server-header", "--limit-concurrency", "16"]
+# 24.32: past 64 open connections, uvicorn answers 503 (the in-flight cap of 4 uploads,
+# in the app, is what bounds memory; 64 leaves room for probes and the scaling proof).
+CMD ["uvicorn", "dip.intake_api:app_from_env", "--factory", "--host", "0.0.0.0", "--port", "8000", "--no-server-header", "--limit-concurrency", "64"]

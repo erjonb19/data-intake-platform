@@ -125,12 +125,6 @@ def create_app(
         if not client.may_send(feed):
             refused["forbidden"] += 1
             raise HTTPException(403, f"client {client.name!r} may not send {feed!r}")
-        if not per_client.hit(client.name):
-            refused["rate_limited"] += 1
-            wait = str(per_client.retry_after(client.name) or 60)
-            raise HTTPException(
-                429, f"over {rate_per_minute} uploads a minute", {"Retry-After": wait}
-            )
         contract = contracts.get(feed)
         if contract is None:
             raise HTTPException(404, f"no contract for feed {feed!r}")
@@ -138,6 +132,13 @@ def create_app(
             raise HTTPException(403, f"feed {feed!r} does not accept the api channel")
         if not SAFE_NAME.match(filename) or ".." in filename:
             raise HTTPException(422, "filename: letters, digits, '.', '_' and '-' only")
+        # Counted only for an upload that would otherwise be taken (a typo does not use it up).
+        if not per_client.hit(client.name):
+            refused["rate_limited"] += 1
+            wait = str(per_client.retry_after(client.name) or 60)
+            raise HTTPException(
+                429, f"over {rate_per_minute} uploads a minute", {"Retry-After": wait}
+            )
         declared = request.headers.get("content-length")
         if declared and declared.isdigit() and int(declared) > max_bytes:
             raise HTTPException(413, f"over the {max_bytes}-byte limit")
