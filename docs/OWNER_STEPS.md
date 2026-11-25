@@ -10,13 +10,118 @@ Claude adds a step here whenever one comes up and ticks it when the owner says i
 
 ## Open
 
+### [ ] Decide: how long Airflow task logs are kept (24.41)
+
+**Why.** Airflow writes every task's log to the MinIO bucket `airflow-logs`, and nothing ever
+removes them, so the bucket grows without limit. The audit (Low) asks for a lifecycle rule. A
+rule that expires objects deletes data, so it is your call (CLAUDE.md: ask before deleting
+data). Nothing is added until you decide.
+
+**Proposal.** One MinIO lifecycle rule on `airflow-logs` only: expire objects **30 days**
+after they were written. Set by Terraform with `mc ilm rule add --expire-days 30`, in the Job
+that creates the buckets, so a fresh cluster gets it too.
+- **What it deletes:** Airflow task logs (each task try's stdout and stderr) older than 30
+  days. Airflow's UI then shows "log not found" for those old tries.
+- **What it never touches:** `landing`, `raw`, `quarantine` (the files and what went wrong
+  with them), `backups` (already pruned to the newest 7 dumps by the backup job), the
+  warehouse, and `ops.audit_log`.
+- Why 30 days: an incident is usually looked at within days, so a month leaves margin, and
+  the laptop's disk stays small.
+
+The audit's other half, a second copy of the newest backup on the host, deletes nothing; it
+comes with Stage 14's restore docs if you want it.
+
+Reply in chat: "24.41 yes, 30 days" (or another number of days), or "no".
+
+### [ ] Decide: SLO targets without Stage 19 (16.4)
+
+**Why.** 16.4 says its targets (the 95th percentile time from landing to gold, the intake
+API's availability, each feed's quarantine rate) come from Stage 19's measured numbers, "not
+guessed". Stage 19 is on hold (owner, 2026-11-24), so 16.4 is skipped.
+
+**Claude recommends** building 16.4 on numbers the kind E2E on a GitHub runner can measure
+(landing-to-gold time per feed and the quarantine rates of its cases, added to the E2E's
+report). Each target would be
+marked "provisional, from the E2E on a GitHub runner" until Stage 19 measures at scale. Or wait
+for Stage 19.
+
+Reply in chat: "16.4 provisional" or "16.4 waits".
+
+### [ ] Decide: how `dip forget` and per-layer retention delete data (22.2)
+
+**Why.** 22.2 deletes data twice over: `dip forget --member <id>` on request, and a scheduled
+purge per layer. Both are yours to decide (CLAUDE.md: ask before deleting data). Three things
+in the platform make "no trace of the member remains" a design choice, not only code:
+- **Raw copies** (`raw/<feed>/<day>/<sha256>`) are whole vendor files, many members each,
+  named by their hash. Removing one member means rewriting the file under a new hash, and
+  bronze, `ops.intake_file` and quarantine all point at the old one.
+- **Backups** (the newest 7 nightly dumps in `backups`) hold the member until they age out.
+- **Research extracts** (`data/extracts/<version>/`) are immutable by design.
+
+**Claude recommends:**
+- `forget` deletes the member's rows from bronze, quarantine (the `.rejected.ndjson` lines,
+  too) and every gold, OMOP and shareable table. It rewrites each raw file that holds the
+  member without its rows, with the old hash and the new one recorded in a new
+  `ops.forget_request` table. It deletes any extract version that holds the member's
+  pseudonym. One `ops.audit_log` row is written per request, with the member id hashed,
+  never in clear.
+- Backups are not edited: the request is done when the last dump older than it has been
+  pruned (7 days), and `dip forget --status` says so.
+- Per-layer retention: no scheduled purge until you name the periods (for example raw 1
+  year, quarantine 90 days). Until then the setting is empty and the purge does nothing.
+
+Reply in chat: "22.2 as recommended, retention <periods or none>", or what to change.
+
+### [ ] Make pip-audit, gitleaks and zizmor required checks (after 24.19 to 24.21 merge)
+
+**Why.** The three new jobs in the `security` workflow run on every PR, but only required
+checks block a merge. Branch protection is a repository setting, so it is yours to change.
+Do it once all three have passed on `main`.
+
+**Do.** GitHub, Settings, Branches, the rule for `main`, "Require status checks to pass":
+add `pip-audit`, `gitleaks` and `zizmor` beside the six already there (`lint`, `test`,
+`e2e`, `trivy`, `analyze (python)`, `analyze (actions)`). Or in PowerShell:
+
+```powershell
+gh api repos/erjonb19/data-intake-platform/branches/main/protection/required_status_checks/contexts -X POST -f "contexts[]=pip-audit" -f "contexts[]=gitleaks" -f "contexts[]=zizmor"
+```
+
+**Check.**
+
+```powershell
+gh api repos/erjonb19/data-intake-platform/branches/main/protection/required_status_checks --jq '.contexts'
+```
+
+lists the three with the others.
+
+### [ ] Decide: where signed webhooks are audited (16.2)
+
+**Why.** 16.2 asks for an HMAC-signed "file ready" endpoint on the intake API, with every call
+audited. The audit trail is `ops.audit_log` in Postgres, but since 24.16 the intake API cannot
+reach Postgres at all (its NetworkPolicy, by design: it only writes files to MinIO). Auditing
+there means opening that path, so it is a least-privilege trade-off for you to make.
+
+**Options:**
+- **a.** A new login, `dip_webhook`, that may only INSERT into a new `ops.webhook_event`
+  table (append-only, like the audit log), and one more NetworkPolicy flow from the intake API
+  to Postgres for it. A webhook then triggers the feed's intake DAG through the api-server
+  (one more flow), or an Airflow sensor picks the row up.
+- **b.** No database: each accepted or refused call is written as a small JSON object in
+  MinIO (`landing/_webhooks/...`), which the next `sftp_sync` run reads, audits into
+  `ops.audit_log` and acts on. No new network flow, but up to one `sftp_sync` interval of delay.
+
+**Claude recommends b**: it keeps 24.16's boundaries, and the delay matches how files arrive
+today.
+
+Reply in chat: "16.2 a" or "16.2 b".
+
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,
 diagnosed by an agent, approved by a person, fixed and reaching gold) is the quickest way for
 a hiring manager to see the project. The script, scene by scene, is
-`docs/demos/walkthrough.md`; below are the same commands for PowerShell. Record it when
-everything else is finished.
+`docs/demos/walkthrough.md`; below are the same commands for PowerShell. Record it after
+Thanksgiving (owner, 2026-11-23), when everything else is finished.
 
 **Before you start.**
 - Docker Desktop running, and `kind`, `terraform`, `kubectl` and `helm` on the PATH. Check:
@@ -50,7 +155,7 @@ Start-Job -ArgumentList $kc { param($kc) kubectl --kubeconfig $kc -n dip-data po
 Start-Job -ArgumentList $kc { param($kc) kubectl --kubeconfig $kc -n dip-obs port-forward svc/grafana 3000:80 }
 Start-Job -ArgumentList $kc { param($kc) kubectl --kubeconfig $kc -n dip-obs port-forward svc/marquez-web 3001:3000 }
 tf output -raw grafana_admin_password    # Grafana, user admin
-tf output -raw approvals_token           # paste into the approvals page once
+tf output -raw approvals_token           # paste into the approvals page once; Reviewer: owner
 ```
 
 Browser tabs: Airflow (the `airflow_url` above), the approvals page `http://127.0.0.1:8081`,
@@ -97,6 +202,21 @@ Upload the video wherever you keep it and tell Claude the link; it goes into the
 "What it looks like" section.
 
 ## Done
+
+### [x] Decisions for tonight's work (owner, 2026-11-24)
+
+- **24.17:** option a, `mask_phi: true` for triage.
+- **24.19, 24.20, 24.21:** add pip-audit, gitleaks and zizmor, in CI only, pinned like the
+  other actions (no pre-commit hook).
+- **24.29 and the MCP half of 24.35:** yes.
+- **Recordings:** one cap of $1.00 for the night across 24.17, 24.29 and 24.35. Claude first,
+  then Gemini at $0, in one re-recording pass.
+- **24.41:** no delete rule tonight; the proposal is above.
+
+### [x] Settings PR #168 reviewed and merged by the owner (2026-11-23)
+
+The revised allows: `gh pr merge` and pushes to non-main branches allowed, workflow runs on
+ask, pushes to `main` denied.
 
 ### [x] 24.6 Require a pull request on `main` (2026-11-19)
 

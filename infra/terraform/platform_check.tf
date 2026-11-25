@@ -145,8 +145,20 @@ resource "kubernetes_job_v1" "warehouse_init" {
         container {
           # As the DAGs run it (Airflow's own environment has psycopg2; dip is installed
           # there without its dependencies, so not `python -m dip db-init`).
-          name    = "db-init"
-          image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
+          name  = "db-init"
+          image = "${var.airflow_image_repository}:${var.airflow_image_tag}"
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 50000
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
           command = ["python", "-c", "import os, psycopg2; from dip.migrations import migrate, reapply_grants; c = psycopg2.connect(os.environ['DIP_WAREHOUSE_DSN']); n = migrate(c); g = reapply_grants(c); print('applied: ' + (', '.join(n) or 'none, the warehouse is current') + '; grants: ' + ', '.join(g))"]
           env {
             name = "DIP_WAREHOUSE_DSN"
@@ -190,8 +202,20 @@ resource "kubernetes_job_v1" "postgres_audit_owner" {
       spec {
         restart_policy = "Never"
         container {
-          name    = "psql"
-          image   = var.postgres_image
+          name  = "psql"
+          image = var.postgres_image
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 70
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
           command = ["psql", "-v", "ON_ERROR_STOP=1", "-1", "-f", "/sql/audit-owner.sql"]
           env {
             name  = "PGHOST"
@@ -287,7 +311,15 @@ resource "kubernetes_cron_job_v1" "platform_check" {
                 limits   = { memory = "256Mi" }
               }
               security_context {
+                run_as_non_root            = true
+                run_as_user                = 50000 # airflow in the Airflow image
                 allow_privilege_escalation = false
+                capabilities {
+                  drop = ["ALL"]
+                }
+                seccomp_profile {
+                  type = "RuntimeDefault"
+                }
               }
             }
           }
