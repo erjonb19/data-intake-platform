@@ -115,20 +115,6 @@ today.
 
 Reply in chat: "16.2 a" or "16.2 b".
 
-### [ ] Decide: encryption at rest in MinIO (24.38)
-
-**Why.** 24.38 asks for TLS inside the cluster and MinIO server-side encryption (SSE). TLS
-needs nothing new. SSE does: MinIO encrypts objects with keys from a key service, KES, which
-would be a new service in `dip-data` (no new services tonight, owner, 2026-11-24), under the
-12 GB memory rule and behind an on/off value. Without it, the kind node's disk holds objects
-in the clear, as it does today.
-
-**Claude recommends** TLS first (Postgres `verify-full`, then MinIO over HTTPS, from one
-self-signed CA made by Terraform), and SSE with KES only before anything is hosted. On a
-laptop cluster, the node's disk is the laptop's own.
-
-Reply in chat: "24.38 TLS only for now", or "24.38 with KES".
-
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,
