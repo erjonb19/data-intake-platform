@@ -52,16 +52,37 @@ provider "helm" {
   }
 }
 
+# 24.15: Pod Security Admission on every namespace the platform creates.
+# - enforce = baseline: the API server refuses privileged pods, host namespaces, host paths
+#   and added capabilities.
+# - warn and audit = restricted: every pod that is not yet at the restricted level is
+#   reported at admission. The kind E2E prints that list (`kubectl label --dry-run=server`,
+#   tests/e2e/pod_security.py).
+# Why only baseline: dip-data runs the SFTP server, which needs root to chroot its users,
+# and the Airflow and observability charts' pods are not configured for restricted.
+# Every pod this Terraform defines itself, except SFTP and Marquez's two, already runs at
+# restricted.
+locals {
+  pod_security_labels = {
+    "pod-security.kubernetes.io/enforce"         = "baseline"
+    "pod-security.kubernetes.io/enforce-version" = "v1.35"
+    "pod-security.kubernetes.io/warn"            = "restricted"
+    "pod-security.kubernetes.io/warn-version"    = "v1.35"
+    "pod-security.kubernetes.io/audit"           = "restricted"
+    "pod-security.kubernetes.io/audit-version"   = "v1.35"
+  }
+}
+
 resource "kubernetes_namespace_v1" "data" {
   metadata {
     name   = "dip-data"
-    labels = { "app.kubernetes.io/part-of" = "data-intake-platform" }
+    labels = merge({ "app.kubernetes.io/part-of" = "data-intake-platform" }, local.pod_security_labels)
   }
 }
 
 resource "kubernetes_namespace_v1" "airflow" {
   metadata {
     name   = "dip-airflow"
-    labels = { "app.kubernetes.io/part-of" = "data-intake-platform" }
+    labels = merge({ "app.kubernetes.io/part-of" = "data-intake-platform" }, local.pod_security_labels)
   }
 }

@@ -76,7 +76,19 @@ resource "kubernetes_job_v1" "backup_minio_user" {
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
-            args  = init_container.value
+            security_context {
+              run_as_non_root            = true
+              run_as_user                = 65532
+              allow_privilege_escalation = false
+              read_only_root_filesystem  = true
+              capabilities {
+                drop = ["ALL"]
+              }
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
+            }
+            args = init_container.value
             env {
               name = "NEW_USER_PASSWORD"
               value_from {
@@ -113,6 +125,18 @@ resource "kubernetes_job_v1" "backup_minio_user" {
         container {
           name  = "mc-3-attach"
           image = var.minio_client_image
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 65532
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
           args = ["admin", "policy", "attach", "local", "warehouse-backup-${local.backup_minio_suffix}",
           "--user", local.backup_minio_user]
           env {
@@ -216,6 +240,9 @@ resource "kubernetes_cron_job_v1" "backup" {
             automount_service_account_token = false
             security_context {
               run_as_non_root = true
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
             }
             init_container {
               name  = "dump"
@@ -253,8 +280,15 @@ resource "kubernetes_cron_job_v1" "backup" {
                 limits   = { memory = "256Mi" }
               }
               security_context {
+                run_as_non_root            = true
                 run_as_user                = 70 # postgres in the Alpine image
                 allow_privilege_escalation = false
+                capabilities {
+                  drop = ["ALL"]
+                }
+                seccomp_profile {
+                  type = "RuntimeDefault"
+                }
               }
             }
             container {
@@ -284,7 +318,15 @@ resource "kubernetes_cron_job_v1" "backup" {
                 limits   = { memory = "384Mi" }
               }
               security_context {
+                run_as_non_root            = true
+                run_as_user                = 50000 # airflow in the Airflow image
                 allow_privilege_escalation = false
+                capabilities {
+                  drop = ["ALL"]
+                }
+                seccomp_profile {
+                  type = "RuntimeDefault"
+                }
               }
             }
             volume {
