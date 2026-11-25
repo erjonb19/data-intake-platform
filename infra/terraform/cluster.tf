@@ -58,10 +58,11 @@ provider "helm" {
 # - warn and audit = restricted: every pod that is not yet at the restricted level is
 #   reported at admission. The kind E2E prints that list (`kubectl label --dry-run=server`,
 #   tests/e2e/pod_security.py).
-# Why only baseline: dip-data runs the SFTP server, which needs root to chroot its users,
-# and the Airflow and observability charts' pods are not configured for restricted.
-# Every pod this Terraform defines itself, except SFTP and Marquez's two, already runs at
-# restricted.
+# dip-airflow enforces restricted (24.15 part 2): the Airflow chart's pods, its Jobs, the
+# KubernetesExecutor's task pods (infra/helm-values/airflow.yaml) and the proof workflow's
+# `kubectl run` pods are all at that level. dip-data stays at baseline for the SFTP server,
+# which needs root to chroot its users. dip-obs stays at baseline for Marquez's two
+# upstream images, which run as root. Prometheus and Grafana there are at restricted.
 locals {
   pod_security_labels = {
     "pod-security.kubernetes.io/enforce"         = "baseline"
@@ -82,7 +83,8 @@ resource "kubernetes_namespace_v1" "data" {
 
 resource "kubernetes_namespace_v1" "airflow" {
   metadata {
-    name   = "dip-airflow"
-    labels = merge({ "app.kubernetes.io/part-of" = "data-intake-platform" }, local.pod_security_labels)
+    name = "dip-airflow"
+    labels = merge({ "app.kubernetes.io/part-of" = "data-intake-platform" }, local.pod_security_labels,
+    { "pod-security.kubernetes.io/enforce" = "restricted" })
   }
 }
