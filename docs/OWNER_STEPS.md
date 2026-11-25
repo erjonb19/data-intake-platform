@@ -72,6 +72,27 @@ in the platform make "no trace of the member remains" a design choice, not only 
 
 Reply in chat: "22.2 as recommended, retention <periods or none>", or what to change.
 
+### [ ] Make pip-audit, gitleaks and zizmor required checks (after 24.19 to 24.21 merge)
+
+**Why.** The three new jobs in the `security` workflow run on every PR, but only required
+checks block a merge. Branch protection is a repository setting, so it is yours to change.
+Do it once all three have passed on `main`.
+
+**Do.** GitHub, Settings, Branches, the rule for `main`, "Require status checks to pass":
+add `pip-audit`, `gitleaks` and `zizmor` beside the five already there. Or in PowerShell:
+
+```powershell
+gh api repos/erjonb19/data-intake-platform/branches/main/protection/required_status_checks/contexts -X POST -f "contexts[]=pip-audit" -f "contexts[]=gitleaks" -f "contexts[]=zizmor"
+```
+
+**Check.**
+
+```powershell
+gh api repos/erjonb19/data-intake-platform/branches/main/protection/required_status_checks --jq '.contexts'
+```
+
+lists the three with the others.
+
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
 **Why.** A short video of one bad file going through the platform (detected, quarantined,
