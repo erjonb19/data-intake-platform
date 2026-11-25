@@ -10,50 +10,28 @@ Claude adds a step here whenever one comes up and ticks it when the owner says i
 
 ## Open
 
-### [ ] Decide: what triage may see of PHI (24.17)
+### [ ] Decide: how long Airflow task logs are kept (24.41)
 
-**Why.** The security audit (Medium) found that the triage agent sees rejected rows' PHI
-values unmasked. It is the only agent policy without `mask_phi: true`. Today's data is
-synthetic, but on a MIMIC-backed warehouse that would send PHI to a model, and to the Gemini
-free tier as a fallback. Either fix changes what triage sends the model, so every triage
-recording has to be made again (CLAUDE.md, "Record last").
+**Why.** Airflow writes every task's log to the MinIO bucket `airflow-logs`, and nothing ever
+removes them, so the bucket grows without limit. The audit (Low) asks for a lifecycle rule. A
+rule that expires objects deletes data, so it is your call (CLAUDE.md: ask before deleting
+data). Nothing is added until you decide.
 
-**Options** (reply in chat with the letter and a recording cap):
-- **a.** `mask_phi: true` for triage. It needs the codes, not the values. Then re-record the
-  triage and demo cases: Claude under a cap you name (the last full re-recording cost
-  $0.0738), then Gemini at $0.
-- **b.** Keep the values, but refuse any live triage call unless the warehouse is
-  synthetic-only (the cohort reader's classifier already knows), and no free-tier fallback for
-  a step that sees PHI. Fewer recordings change, but the rule is harder to show.
+**Proposal.** One MinIO lifecycle rule on `airflow-logs` only: expire objects **30 days**
+after they were written. Set by Terraform with `mc ilm rule add --expire-days 30`, in the Job
+that creates the buckets, so a fresh cluster gets it too.
+- **What it deletes:** Airflow task logs (each task try's stdout and stderr) older than 30
+  days. Airflow's UI then shows "log not found" for those old tries.
+- **What it never touches:** `landing`, `raw`, `quarantine` (the files and what went wrong
+  with them), `backups` (already pruned to the newest 7 dumps by the backup job), the
+  warehouse, and `ops.audit_log`. Incidents keep their own copy of the log lines they quote.
+- Why 30 days: an incident is diagnosed within a day or two and the weekly review looks back
+  one week, so 30 days leaves margin, and the laptop's disk stays small.
 
-Claude recommends **a**.
+The audit's other half, a second copy of the newest backup on the host, deletes nothing; it
+comes with Stage 14's restore docs if you want it.
 
-### [ ] Decide: three new security tools (24.19, 24.20, 24.21)
-
-**Why.** Each one adds a dependency, which needs your OK (CLAUDE.md directive 11). All three
-are free and run only in CI.
-- **24.19 pip-audit** (PyPA's own auditor, `pip-audit` on PyPI): a CI step that fails on a
-  known-vulnerable pin in the locks. Dependabot alerts already cover the same database;
-  this makes it a gate. (Its other half, Pillow 13.0.0 in the dev extra, is already done.)
-- **24.20 gitleaks** (gitleaks/gitleaks, pinned by digest): a secret scan in pre-commit and
-  CI with `--redact`, plus one full-history scan.
-- **24.21 zizmor** (zizmorcore/zizmor): a static check of the GitHub workflows in the
-  `security` workflow.
-
-Reply in chat with which ones to add (for example "all three", or "24.20 only").
-
-### [ ] Decide: two changes that need new recordings (24.29, 24.35)
-
-**Why.** Both change what the agents see, so they come with a re-recording, and each
-re-recording needs your OK and a cap.
-- **24.29:** exfiltration and reviewer-injection evals. New eval cases with a canary that
-  must not appear in the agent's free text. Only the new cases are recorded.
-- **24.35:** generic errors to the model. MCP tool errors become a short message plus a
-  correlation id, with the full error logged on the server. Every recording whose tool
-  results include an error changes. The approvals gateway's half of 24.35 does not touch
-  the agents, and goes ahead without this.
-
-Reply in chat: "24.29 yes, cap $X" and/or "24.35 yes, cap $X", or "later".
+Reply in chat: "24.41 yes, 30 days" (or another number of days), or "no".
 
 ### [ ] Last: record the three-minute walkthrough (23.2)
 
@@ -142,6 +120,16 @@ Upload the video wherever you keep it and tell Claude the link; it goes into the
 "What it looks like" section.
 
 ## Done
+
+### [x] Decisions for tonight's work (owner, 2026-11-24)
+
+- **24.17:** option a, `mask_phi: true` for triage.
+- **24.19, 24.20, 24.21:** add pip-audit, gitleaks and zizmor, in CI only, pinned like the
+  other actions (no pre-commit hook).
+- **24.29 and the MCP half of 24.35:** yes.
+- **Recordings:** one cap of $1.00 for the night across 24.17, 24.29 and 24.35. Claude first,
+  then Gemini at $0, in one re-recording pass.
+- **24.41:** no delete rule tonight; the proposal is above.
 
 ### [x] Settings PR #168 reviewed and merged by the owner (2026-11-23)
 
