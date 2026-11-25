@@ -29,7 +29,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import logging
 import re
+import secrets
 import time
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -38,7 +40,7 @@ from importlib.resources import files
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -65,6 +67,14 @@ def _db(request: Request) -> Iterator[Any]:
 
 
 Conn = Annotated[Any, Depends(_db)]
+
+log = logging.getLogger("dip.approvals")
+
+
+def _error_id() -> str:
+    """24.35: what a caller gets back for an error we don't explain: an id that finds the
+    full error in the server's log, and nothing about the database or the code."""
+    return secrets.token_hex(6)
 
 
 def _authorized(request: Request) -> None:
@@ -156,18 +166,31 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
     html = files("dip.agents").joinpath("approvals.html").read_text(encoding="utf-8")
     csp = _csp(html)
 
-    @app.middleware("http")
-    async def security_headers(request: Request, call_next: Callable[[Request], Any]) -> Any:
+    def secure(response: Any, path: str) -> Any:
         # 24.33: on every response. The API's answers (proposals, payloads, the audit log)
         # are never cached by the browser or a proxy.
-        response = await call_next(request)
         response.headers["Content-Security-Policy"] = csp
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
-        if request.url.path.startswith("/api"):
+        if path.startswith("/api"):
             response.headers["Cache-Control"] = "no-store"
         return response
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next: Callable[[Request], Any]) -> Any:
+        return secure(await call_next(request), request.url.path)
+
+    @app.exception_handler(Exception)
+    async def internal_error(request: Request, exc: Exception) -> JSONResponse:
+        # 24.35: anything unexpected (a dropped connection, a bug): a generic answer and an
+        # id; the traceback goes to the log only. This handler answers outside the
+        # middleware above, so it sets the same headers itself.
+        eid = _error_id()
+        log.error("%s %s failed (error %s)", request.method, request.url.path, eid,
+                  exc_info=exc)  # fmt: skip
+        response = JSONResponse({"detail": f"internal error (error {eid})"}, status_code=500)
+        return secure(response, request.url.path)
 
     app.state.connect = connect
     app.state.people = dict(people) if people else None
@@ -181,7 +204,10 @@ def create_app(connect: Callable[[], Any], allowed_hosts: list[str],
         try:
             yield
         except (psycopg.errors.UndefinedTable, psycopg.errors.InsufficientPrivilege) as exc:
-            raise HTTPException(503, f"warehouse not ready: {exc.diag.message_primary}") from exc
+            # 24.35: Postgres's own message (table names, grants) stays in the log.
+            eid = _error_id()
+            log.warning("warehouse not ready (error %s): %s", eid, exc)
+            raise HTTPException(503, f"warehouse not ready (error {eid})") from exc
 
     @app.get("/", response_class=HTMLResponse)
     def page() -> str:

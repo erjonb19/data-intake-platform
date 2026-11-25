@@ -628,7 +628,10 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [x] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
   Done 2026-11-11: `openapi_url=None`; a test checks `/openapi.json`, `/docs` and `/redoc` are 404.
 - [ ] **24.35 Generic errors to callers and the model** (Low): a correlation id back, the full error logged on the server (`mcp_server.py:134`, `gateway.py`).
-  The MCP half approved by the owner (2026-11-24); the approvals gateway's half goes ahead.
+  The approvals gateway's half, 2026-11-23: an unexpected error answers `internal error (error
+  <id>)` and "warehouse not ready" no longer echoes Postgres's message; the full error goes to
+  the server's log under the same id (`tests/unit/test_approvals_errors.py`). The MCP half was
+  approved by the owner (2026-11-24) and is its own PR.
 - [x] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
   Done 2026-11-11: the intake API's name rule and a 50 MiB limit (the largest feed's), checked from the listing before
   reading (and the read stops one byte past it); a refused file stays on the server, reported.
