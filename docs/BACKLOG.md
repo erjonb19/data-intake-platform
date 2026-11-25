@@ -608,13 +608,18 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [ ] **24.37 The approvals negative test covers every route** (Low): loop over `app.routes`, 401 for every `/api` path without the token.
 - [ ] **24.38 TLS and encryption at rest in the cluster** (Low): a self-signed CA, Postgres `sslmode=verify-full`, MinIO TLS and SSE; needed before anything is hosted.
 - [ ] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
-- [ ] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
+- [x] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
   2026-11-11: built in report mode (the `security` workflow's `iac` job, its findings in the job
   summary). Not ticked: it becomes a failing gate on CRITICAL once its first findings are fixed or
   accepted in `.trivyignore`, most of them expected under 24.15 and 24.16.
   2026-11-13: first run 18 HIGH, 0 CRITICAL, all in the vendored Airflow chart at its own
   defaults. Before the gate: scan the charts rendered with the repo's `infra/helm-values`
   (`helm template -f`, or Trivy's `--helm-values`) and mount `.trivyignore` (`--ignorefile`).
+  Done 2026-11-25: the `iac` job renders the Airflow chart with `infra/helm-values/airflow.yaml`
+  (`--helm-values`) and fails on HIGH or CRITICAL (`--exit-code 1`). Rendered so, 11 HIGH
+  remained, all the chart's own: read-only root filesystems on Airflow's containers (KSV-0014)
+  and its pod-launcher Role's `pods/exec` (KSV-0053), accepted by path with reasons in
+  `.trivyignore.iac.yaml`. Any other finding, including KSV-0014 on our own containers, fails.
 - [ ] **24.41 Retention and a second backup copy** (Low): MinIO lifecycle rules for `airflow-logs` (per-layer retention is 22.2); optionally a host copy of the newest dump.
 - [x] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).
   Done 2026-11-12: the audit's `.claude/settings.json`, plus denies the owner added on

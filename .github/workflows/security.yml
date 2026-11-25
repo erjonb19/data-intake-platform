@@ -66,9 +66,7 @@ jobs:
           exit "$status"
 
   # 24.40: the Terraform and Helm values under infra/ against Trivy's misconfiguration checks
-  # (the same pinned image). Report only for now: its findings overlap 24.15 (pod security)
-  # and 24.16 (network policies), and it becomes a failing gate on CRITICAL once those land.
-  # Its own job, so a finding never hides the image scan's result.
+  # (the same pinned image). Its own job, so a finding never hides the image scan's result.
   iac:
     runs-on: ubuntu-latest
     timeout-minutes: 15

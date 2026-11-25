@@ -16,9 +16,10 @@ misconfigurations:
       - "helm-charts/airflow-1.22.0.tgz:templates/dag-processor/*"
       - "helm-charts/airflow-1.22.0.tgz:templates/jobs/*"
     statement: "Airflow writes under its home; the chart gives it no writable mounts there (24.15 covers the rest)"
-  # The KubernetesExecutor's pod-launcher Role (namespace dip-airflow only) includes
-  # pods/exec: the chart grants it so the scheduler can manage the task pods it launches.
+  # The chart's pod-launcher Role, which the KubernetesExecutor's components use to start and
+  # watch task pods, includes pods/exec. It is a Role, so it holds only in dip-airflow, where
+  # every pod is the platform's own and Pod Security is restricted (24.15).
   - id: KSV-0053
     paths:
       - "helm-charts/airflow-1.22.0.tgz:templates/rbac/pod-launcher-role.yaml"
-    statement: "The chart's KubernetesExecutor launcher role; scoped to dip-airflow"
+    statement: "The Airflow chart's launcher Role, namespaced to dip-airflow"
