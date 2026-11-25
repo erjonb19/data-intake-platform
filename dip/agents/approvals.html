@@ -8,6 +8,7 @@
      requests. Everything an agent wrote (payloads, rationales, diffs) is set with
      textContent, never as HTML. -->
 <style>
+.spacer { flex: 1; }
   :root { --bg: #f7f7f5; --fg: #1d1d1b; --muted: #6b6b66; --line: #dcdcd6; --card: #fff;
           --ok: #1f7a3a; --no: #a3261f; --accent: #2a5db0; }
   @media (prefers-color-scheme: dark) {
@@ -54,7 +55,7 @@
     <button role="tab" id="tab-proposals" aria-selected="true">Proposals</button>
     <button role="tab" id="tab-audit" aria-selected="false">Audit log</button>
   </nav>
-  <span style="flex:1"></span>
+  <span class="spacer"></span>
   <label>Token <input id="token" type="password" size="14" placeholder="approvals token" autocomplete="off"></label>
   <label>Reviewer <input id="reviewer" size="14" placeholder="your name" autocomplete="off"></label>
 </header>

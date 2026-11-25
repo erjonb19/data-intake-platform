@@ -301,6 +301,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch protection on `main`: `lint`, `test`, `e2e`, `trivy` and both CodeQL
   analyses required, for admins too, with force pushes and deletion blocked, and every change
   through a pull request (no approving review required; 24.6)
+- [x] The approvals page sends a strict Content-Security-Policy (its own inline code by hash,
+  no framing), nosniff and no-referrer, and its API answers are never cached
+  (`dip/agents/gateway.py`, `tests/unit/test_approvals_headers.py`; 24.33)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script
