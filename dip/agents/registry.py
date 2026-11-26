@@ -247,15 +247,47 @@ class Registry:
             return f"action {args.get('action')!r} is not one {policy.agent} may propose"
         for scope, limit in (("*", policy.limits.get("max_calls_per_hour")),
                              (name, tool_limits.get("max_per_hour"))):  # fmt: skip
-            if limit is not None and len(self._window(policy.agent, scope)) >= limit:
+            if limit is None:
+                continue
+            try:
+                window = self._window(policy.agent, scope)
+            except Exception:  # fail closed: an unknown count is not under the limit
+                if self.conn is not None:
+                    self.conn.rollback()
+                return "the last hour's calls could not be counted"
+            if len(window) >= limit:
                 return f"over {limit} {'' if scope == '*' else name + ' '}calls in the last hour"
         return None
 
     def _window(self, principal: str, scope: str) -> deque[float]:
-        q = self._recent.setdefault((principal, scope), deque())
+        q = self._recent.get((principal, scope))
+        if q is None:
+            q = self._recent[(principal, scope)] = deque(self._seed(principal, scope))
         while q and q[0] < time.monotonic() - 3600:
             q.popleft()
         return q
+
+    def _seed(self, principal: str, scope: str) -> list[float]:
+        """24.31: a window starts from the audit log's allowed calls in the last hour, so a
+        restarted server (a new pod, a rollout) does not start every agent's hourly count at
+        zero. Times come back as ages from the database's clock, placed on this process's
+        monotonic clock. The MCP login may read only these columns of the log (migration
+        0006)."""
+        if self.conn is None:
+            return []
+        sql = ("select extract(epoch from clock_timestamp() - at)::float8 from ops.audit_log"
+               " where principal = %s and decision = 'allowed'"
+               " and at > clock_timestamp() - interval '1 hour'")  # fmt: skip
+        params: list[Any] = [principal]
+        if scope != "*":
+            sql += " and tool = %s"
+            params.append(scope)
+        with self.conn.cursor() as cur:
+            cur.execute(sql + " order by at", params)
+            ages = [row[0] for row in cur.fetchall()]
+        self.conn.commit()
+        now = time.monotonic()
+        return [now - age for age in ages]
 
     def call(self, policy: Policy, run_id: str | None, name: str, args: dict[str, Any]) -> Any:
         with self._lock:
@@ -271,8 +303,12 @@ class Registry:
             raise Denied(refusal)
         self._per_tool[(*key, name)] += 1
         now = time.monotonic()
-        self._window(policy.agent, "*").append(now)
-        self._window(policy.agent, name).append(now)
+        # Only the windows check() loaded (the limits this policy has): a window that no
+        # limit reads needs no count, and loading one here would read the audit log outside
+        # check()'s fail-closed path (24.31 review).
+        for scope in ("*", name):
+            if (window := self._recent.get((policy.agent, scope))) is not None:
+                window.append(now)
         started = time.monotonic()
         status, decision, reason, result = "ok", "allowed", None, None
         try:

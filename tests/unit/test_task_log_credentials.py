@@ -22,6 +22,35 @@ from dip.agents.read_tools import _PLATFORM_LOG, _mask_credentials
     ("pwd: /opt/airflow", "pwd: /opt/airflow"),
     ("loaded healthcare.eligibility/a.csv accepted=2 rejected=0 []",
      "loaded healthcare.eligibility/a.csv accepted=2 rejected=0 []"),
+    # 24.27: secret-named keys, Authorization headers, tokens known by their prefix
+    ("Authorization: Bearer abc.def-123 sent", "Authorization: Bearer *** sent"),
+    ('{"authorization": "Basic dXNlcjpwdw=="}', '{"authorization": "Basic ***"}'),
+    ("x-api-key: zzz9", "x-api-key: ***"),
+    ("api_key=AAA client_secret: bbb", "api_key=*** client_secret: ***"),
+    ("accessToken: tt clientSecret=ss", "accessToken: *** clientSecret=***"),
+    ("x-auth-token: q", "x-auth-token: ***"),
+    # the platform's own keys (24.27 review)
+    ("DIP_TRIAGE_KEY=abc DIP_DEID_KEY=k", "DIP_TRIAGE_KEY=*** DIP_DEID_KEY=***"),
+    ("DIP_AGENT_KEYS=xyz DIP_APPROVER_TOKENS=q", "DIP_AGENT_KEYS=*** DIP_APPROVER_TOKENS=***"),
+    ('access_token=xyz refresh_token: "q w"', "access_token=*** refresh_token: ***"),
+    ("DIP_RUN_TOKEN_KEY=abc", "DIP_RUN_TOKEN_KEY=***"),
+    ("AIRFLOW__CORE__FERNET_KEY=zz", "AIRFLOW__CORE__FERNET_KEY=***"),
+    ("aws_secret_access_key=wJalr", "aws_secret_access_key=***"),
+    # Made-up values in real shapes; gitleaks:allow keeps the secret scan (24.20) quiet on them.
+    ("key sk-ant-api03-ABCDEFGHIJKLMNOPQRST in env", "key *** in env"),  # gitleaks:allow
+    ("GEMINI_API_KEY=AIzaSyA1234567890abcdefghijklmnopqrstu", "GEMINI_API_KEY=***"),  # noqa: E501 gitleaks:allow
+    ("using AIzaSyA1234567890abcdefghijklmnopqrstu now", "using *** now"),  # gitleaks:allow
+    ("id AKIAABCDEFGHIJKLMNOP", "id ***"),  # gitleaks:allow
+    ("ghp_abcdefghijklmnopqrstuvwxyz0123456789", "***"),  # gitleaks:allow
+    ("jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.abc", "jwt ***"),  # gitleaks:allow
+    # not credentials: token counts, object keys, the refused-login line (S11.8 shows it)
+    ("input_tokens=12 token_count: 3 tokens: 5", "input_tokens=12 token_count: 3 tokens: 5"),
+    ("object_key=landing/a.csv", "object_key=landing/a.csv"),
+    # prose: a bare secret or token names what failed, and the diagnosis needs it
+    ("Mounting secret: dip-agent-chain", "Mounting secret: dip-agent-chain"),
+    ("refresh token: 401 Unauthorized", "refresh token: 401 Unauthorized"),
+    ('password authentication failed for user "warehouse"',
+     'password authentication failed for user "warehouse"'),
 ])  # fmt: skip
 def test_credentials_are_masked(line, want):
     assert _mask_credentials(line) == want
@@ -114,3 +143,13 @@ def test_a_non_list_error_detail_does_not_hide_the_exception_list():
     got = {"content": [{"event": "e", "error_detail": "x",
                         "exception": [{"exc_type": "E", "exc_value": "v"}]}]}  # fmt: skip
     assert _log_lines(got) == ["e", "E: v"]
+
+
+def test_a_long_line_is_masked_in_linear_time():
+    """24.27 review: an unbounded URI scheme made "x-x-x-..." quadratic (5 s at 50 KB)."""
+    import time
+
+    for line in ("x-" * 100_000, "a." * 50_000 + "://", "pass_" * 20_000 + "=1"):
+        started = time.monotonic()
+        _mask_credentials(line)
+        assert time.monotonic() - started < 1.0, line[:20]

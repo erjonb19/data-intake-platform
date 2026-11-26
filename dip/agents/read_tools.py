@@ -164,18 +164,59 @@ _PLATFORM_LOG = re.compile(
     r" \([0-9A-Fa-f.:]+\), port \d+ failed: FATAL:\s+password authentication failed"
     r' for user "[A-Za-z0-9_]+"$'
 )
-# A credential in a log line, as a connection URI's password or a password pair (key=value,
-# key: value, "key": "value", PGPASSWORD=...): masked in every line the tool returns,
-# before any policy's filter (S11.8). An agent cannot repeat what it never saw.
+# A credential in a log line, masked in every line the tool returns, before any policy's
+# filter (S11.8). An agent cannot repeat what it never saw. Four shapes:
+#   - a connection URI's password (scheme://user:PASSWORD@host);
+#   - a secret-named pair (key=value, key: value, "key": "value", PGPASSWORD=...): a key
+#     with password or passwd anywhere in it, or one that ends in token, secret, api key,
+#     access key, secret key, private key, Fernet key or credential(s), optionally followed by
+#     `_key` (DIP_RUN_TOKEN_KEY) (24.27). Only at the end, so `input_tokens=12`,
+#     `token_count: 3` or `object_key=landing/a.csv` are left alone;
+#   - an Authorization header's Bearer, Basic or Token value (24.27);
+#   - a token recognisable by its own prefix wherever it appears (24.27): Anthropic and
+#     OpenAI keys (sk-...), Google API keys (AIza...), GitHub tokens (ghp_, gho_, ghs_, ghu_,
+#     ghr_, github_pat_), AWS access key ids (AKIA...), Slack tokens (xox?-), GitLab tokens
+#     (glpat-), and JWTs (eyJ...).
+_SECRET_KEY = (
+    # password or passwd anywhere in the key (a lookahead, so a long word is read once)
+    r"(?=\w*?pass(?:word|wd))\w+"
+    # a key that names a key: api_key, x-api-key, AWS_SECRET_ACCESS_KEY, fernet_key...
+    r"|(?:\w*?[_-])?(?:api[_-]?key|apikey|access[_-]?key|secret[_-]?key|private[_-]?key"
+    r"|fernet[_-]?key)"
+    # a token, secret or credentials with a name before it (access_token, clientSecret,
+    # auth-token, DIP_RUN_TOKEN_KEY): a bare `secret:` or `token:` is prose more often than
+    # not ("Mounting secret: dip-agent-chain"), so it is left alone
+    r"|\w+?[_-]?(?:token|secret|credentials?)(?:[_-]keys?)?"
+    # the platform's own: DIP_TRIAGE_KEY, DIP_DEID_KEY, DIP_AGENT_KEYS, DIP_APPROVER_TOKENS
+    r"|dip_\w*?_(?:keys?|tokens?)"
+)
+_TOKEN_PREFIX = (
+    r"sk-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z_-]{30,}|gh[pousr]_[A-Za-z0-9]{20,}"
+    r"|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}"
+    r"|glpat-[A-Za-z0-9_-]{16,}|eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]+"
+)
 _CREDENTIAL = re.compile(
-    r"(\b[a-z][a-z0-9+.-]*://[^\s:/@?#]*:)[^\s@/?#]+(@)"
-    r"|(\b\w*(?:password|passwd)\w*[\"']?\s*[=:]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;&}]+)",
+    # bounded: a scheme is short, and an unbounded one made a long line like "x-x-x-..."
+    # take quadratic time (each "x" starts a match that ran to the end of the line)
+    r"(\b[a-z][a-z0-9+.-]{0,31}://[^\s:/@?#]{0,256}:)[^\s@/?#]+(@)"
+    r"|(\bauthorization[\"']?\s*[=:]\s*[\"']?(?:bearer|basic|token)\s+)[^\s\"',;]+"
+    rf"|(\b(?:{_SECRET_KEY})\b[\"']?\s*[=:]\s*)(\"[^\"]*\"|'[^']*'|[^\s,;&}}]+)"
+    rf"|\b(?:{_TOKEN_PREFIX})",
     re.I,
 )
 
 
 def _mask_credentials(line: str) -> str:
-    return _CREDENTIAL.sub(lambda m: f"{m[1]}***{m[2]}" if m[1] else f"{m[3]}***", line)
+    def mask(m: re.Match[str]) -> str:
+        if m[1]:
+            return f"{m[1]}***{m[2]}"
+        if m[3]:
+            return f"{m[3]}***"
+        if m[4]:
+            return f"{m[4]}***"
+        return "***"
+
+    return _CREDENTIAL.sub(mask, line)
 
 
 def _log_lines(got: Any) -> list[str]:

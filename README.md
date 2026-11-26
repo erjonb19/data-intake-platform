@@ -268,6 +268,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   `dip-obs` (Marquez) enforce baseline; every other pod runs non-root with no capabilities,
   RuntimeDefault seccomp and no privilege escalation, and Postgres and MinIO have read-only root
   filesystems (`infra/terraform/cluster.tf`, `tests/e2e/pod_security.py`; 24.15)
+- [x] NetworkPolicies: each namespace denies ingress from other pods by default and allows
+  only the flows the platform uses; kind's CNI enforces them (`infra/terraform/network_policies.tf`,
+  `tests/e2e/network_policy.py`; 24.16)
 - [x] No password in any Job's spec: MinIO root and new users' passwords come from Secrets
   (`infra/terraform/minio.tf`, `tests/unit/test_job_secrets.py`; 24.13)
 - [x] An audit log no app login can rewrite: `ops.audit_log`, `ops.model_call` and the `ops`
@@ -298,6 +301,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   settings (24.7). Branch protection on `main`: `lint`, `test`, `e2e`, `trivy` and both CodeQL
   analyses required, for admins too, with force pushes and deletion blocked, and every change
   through a pull request (no approving review required; 24.6)
+- [x] The approvals page sends a strict Content-Security-Policy (its own inline code by hash,
+  no framing), nosniff and no-referrer, and its API answers are never cached
+  (`dip/agents/gateway.py`, `tests/unit/test_approvals_headers.py`; 24.33)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script

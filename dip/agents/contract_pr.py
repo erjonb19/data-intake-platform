@@ -152,6 +152,16 @@ def _dbt_files(payload: dict[str, Any], contract: Any, root: Path,
     return files, dbt_gen.stale_files(contract.feed, files, models)
 
 
+def _fenced(text: str) -> list[str]:
+    """24.28: model-written text in a PR body goes inside a code fence, so GitHub renders it
+    as plain text: no images that call out, no links, no HTML, no @mentions that notify, and
+    no headings that pass for the platform's own words. The fence is longer than any run of
+    backticks in the text, so the text cannot close it."""
+    longest = max((len(r) for r in re.findall(r"`+", text)), default=0)
+    fence = "`" * max(3, longest + 1)
+    return [f"{fence}text", text.rstrip("\n"), fence]
+
+
 def _pr_body(payload: dict[str, Any], approval_id: int, by: str) -> str:
     v = payload.get("validation", {})
     loose = payload.get("loosening", [])
@@ -159,8 +169,8 @@ def _pr_body(payload: dict[str, Any], approval_id: int, by: str) -> str:
         f"Contract for `{payload['feed']}` ({payload.get('mode', 'drift')}), proposed by the "
         f"contract-author agent and approved by {by} (approval {approval_id}).",
         "",
-        "## Why",
-        payload.get("rationale", "")[:4000],
+        "## Why (the agent's words)",
+        *_fenced(payload.get("rationale", "")[:4000]),
         "",
         "## Dry run on the sample file",
         f"- accepted {v.get('accepted')}, rejected {v.get('rejected')}, "
@@ -169,17 +179,23 @@ def _pr_body(payload: dict[str, Any], approval_id: int, by: str) -> str:
         "",
         "## What it loosens",
     ]
-    lines += [f"- `{x['where']}`: {x['rule']} {x['from']!r} -> {x['to']!r}" for x in loose]
-    lines += ["- nothing"] if not loose else []
+    if loose:
+        rows = [f"{x['where']}: {x['rule']} {x['from']!r} -> {x['to']!r}" for x in loose]
+        lines += _fenced("\n".join(rows))
+    else:
+        lines += ["- nothing"]
     if files := payload.get("dbt_files"):
         lines += ["", "## dbt models generated from the contract (dip/dbt_gen.py)"]
         lines += [f"- `{p}`" for p in sorted(files)]
     if review := payload.get("review"):
-        lines += ["", f"## The reviewer agent's verdict: {review.get('verdict')}"]
-        lines += [f"- {r['issue']}: {r['detail']}" for r in review.get("reasons", [])]
+        verdict = review.get("verdict")
+        verdict = verdict if verdict in ("pass", "revise", "reject") else "unrecognised"
+        lines += ["", f"## The reviewer agent's verdict: {verdict}"]
+        if reasons := review.get("reasons", []):
+            lines += _fenced("\n".join(f"- {r['issue']}: {r['detail']}" for r in reasons))
         lines += ["", "(Advice from the intake team's reviewer; the decision is yours.)"]
     if err := payload.get("dbt_error"):
-        lines += ["", f"**No dbt models were generated:** {err}"]
+        lines += ["", "**No dbt models were generated:**", *_fenced(str(err))]
     if affected := payload.get("dbt_affected"):
         lines += ["", "## Hand-written models to fix (they read a removed or renamed column)"]
         lines += [f"- `{m}`" for m in affected]
