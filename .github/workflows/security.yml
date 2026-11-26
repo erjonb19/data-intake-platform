@@ -66,29 +66,33 @@ jobs:
           exit "$status"
 
   # 24.40: the Terraform and Helm values under infra/ against Trivy's misconfiguration checks
-  # (the same pinned image). Report only for now: its findings overlap 24.15 (pod security)
-  # and 24.16 (network policies), and it becomes a failing gate on CRITICAL once those land.
-  # Its own job, so a finding never hides the image scan's result.
+  # (the same pinned image). Its own job, so a finding never hides the image scan's result.
   iac:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Scan infra/ (report only)
+      # 24.40: a gate now that 24.15 and 24.16 are in. The vendored Airflow chart is rendered
+      # with this repo's values (--helm-values), so the scan sees what is deployed, not the
+      # chart's defaults (which turn on Redis, a bundled Postgres and Celery workers). A
+      # HIGH or CRITICAL finding fails the job; one that is accepted goes in
+      # .trivyignore.iac.yaml with its path and the reason.
+      - name: Scan infra/ (fails on HIGH or CRITICAL)
         run: |
           set -uo pipefail
           docker run --rm -v "$PWD:/src:ro" -v trivy-cache:/root/.cache \
-            "$TRIVY_IMAGE" config --quiet --severity HIGH,CRITICAL --exit-code 0 \
+            "$TRIVY_IMAGE" config --quiet --severity HIGH,CRITICAL --exit-code 1 \
+            --helm-values /src/infra/helm-values/airflow.yaml \
+            --ignorefile /src/.trivyignore.iac.yaml \
             --format table /src/infra | tee "$RUNNER_TEMP/iac.txt"
           rc=${PIPESTATUS[0]}
           {
-            echo "## Trivy IaC scan of infra/ (report only, 24.40)"
+            echo "## Trivy IaC scan of infra/ (24.40)"
             echo
-            # A scan that did not run must not read as "no findings".
-            if [ "$rc" -ne 0 ]; then echo "**Trivy exited $rc: no results, see the log.**"; echo; fi
+            if [ "$rc" -ne 0 ]; then echo "**Trivy exited $rc: a finding, or no results; see the log.**"; echo; fi
             echo '```'
             tail -c 60000 "$RUNNER_TEMP/iac.txt"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          if [ "$rc" -ne 0 ]; then echo "::warning::trivy config exited $rc"; fi
+          exit "$rc"

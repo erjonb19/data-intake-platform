@@ -1,0 +1,25 @@
+# Trivy misconfiguration findings accepted in infra/ (24.40), each with where it applies and
+# why. The security workflow's iac job fails on any other HIGH or CRITICAL finding. Paths are
+# as Trivy names them: the vendored Airflow chart, rendered with infra/helm-values/airflow.yaml.
+misconfigurations:
+  # A read-only root filesystem on Airflow's own containers (api-server, scheduler,
+  # dag-processor, their wait-for-migrations and log-groomer sidecars, the migration and
+  # create-user Jobs). Airflow writes under its home (logs, pid files, compiled DAG caches)
+  # and the chart mounts no emptyDir for those paths; forcing it read-only breaks them. Every
+  # other 24.15 control holds there: restricted Pod Security (non-root by number, no
+  # capabilities, RuntimeDefault seccomp, no privilege escalation). Our own containers are
+  # not covered by this entry: a KSV-0014 anywhere else still fails the job.
+  - id: KSV-0014
+    paths:
+      - "helm-charts/airflow-1.22.0.tgz:templates/api-server/*"
+      - "helm-charts/airflow-1.22.0.tgz:templates/scheduler/*"
+      - "helm-charts/airflow-1.22.0.tgz:templates/dag-processor/*"
+      - "helm-charts/airflow-1.22.0.tgz:templates/jobs/*"
+    statement: "Airflow writes under its home; the chart gives it no writable mounts there (24.15 covers the rest)"
+  # The chart's pod-launcher Role, which the KubernetesExecutor's components use to start and
+  # watch task pods, includes pods/exec. It is a Role, so it holds only in dip-airflow, where
+  # every pod is the platform's own and Pod Security is restricted (24.15).
+  - id: KSV-0053
+    paths:
+      - "helm-charts/airflow-1.22.0.tgz:templates/rbac/pod-launcher-role.yaml"
+    statement: "The Airflow chart's launcher Role, namespaced to dip-airflow"
