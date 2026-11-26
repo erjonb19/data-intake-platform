@@ -639,7 +639,13 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   MCP server does not reset the counts. If they cannot be read, the call is refused (fail
   closed). Migration 0006 lets `dip_mcp` read four audit columns (at, principal, tool, decision),
   and nothing else of the log.
-- [ ] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
+- [x] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
+  Done 2026-11-24 (`dip/ratelimit.py`): the intake API takes at most 60 uploads a minute per
+  client and 4 at once (429 with `Retry-After`; the 4 bound the memory uploads take); every
+  address with 20 refused keys (401) in a minute gets 429 on the intake API, the MCP server
+  and the approvals page; uvicorn caps open connections on all three (503). Limits are per
+  pod. Not done: streaming an upload to MinIO as it arrives (the conditional put needs the
+  whole object); the in-flight cap bounds memory instead. 16.1's queue-depth limit is next.
 - [x] **24.33 Security headers on the approvals page** (Low): CSP with `frame-ancestors 'none'`, nosniff, no-referrer, no-store on `/api`.
   Done 2026-11-23: every response from `dip/agents/gateway.py` carries a CSP (`default-src 'none'`,
   the page's one inline script and one inline style allowed by SHA-256, `connect-src 'self'`,

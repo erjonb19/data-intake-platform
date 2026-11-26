@@ -25,7 +25,10 @@ def app_and_calls():
         calls.append(1)
         raise AssertionError("a refused request opened a database connection")
 
-    app = create_app(connect, [HOST], {"owner": hashlib.sha256(b"t").hexdigest()})
+    # 24.32's failed-auth limit would answer 429 after 20 refusals from one address; this
+    # test is about the token check on every route, so the limit is set out of reach.
+    app = create_app(connect, [HOST], {"owner": hashlib.sha256(b"t").hexdigest()},
+                     auth_fails_per_minute=10_000)  # fmt: skip
     return app, calls
 
 

@@ -37,6 +37,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from dip.agents import run_token
 from dip.agents.errors import for_the_model, hidden
 from dip.agents.registry import Denied, Policy, Registry
+from dip.ratelimit import FailedAuthLimit
 
 log = logging.getLogger("dip.mcp")
 
@@ -181,15 +182,20 @@ def tool_error(tool: str, exc: Exception) -> types.CallToolResult:
 
 
 def http_app(
-    server: Server, key_hashes: dict[str, str], url: str, allowed_hosts: list[str] | None = None
+    server: Server,
+    key_hashes: dict[str, str],
+    url: str,
+    allowed_hosts: list[str] | None = None,
+    auth_fails_per_minute: int = 20,
 ) -> Any:
     """The Starlette app: Streamable HTTP at /mcp, bearer API keys required.
 
     DNS-rebinding protection is on, for the hosts in `allowed_hosts` (default: localhost);
     a server reached by another name must list it. API keys are not OAuth tokens with an
-    audience, so the resource-indicator check is off."""
+    audience, so the resource-indicator check is off. 24.32: an address that got
+    `auth_fails_per_minute` 401s in the last minute gets 429 (dip/ratelimit.py)."""
     hosts = allowed_hosts or ["127.0.0.1:*", "localhost:*", "[::1]:*"]
-    return server.streamable_http_app(
+    app = server.streamable_http_app(
         # 13.4: no session state in the pod. Every request carries its own bearer key and
         # needs no Mcp-Session-Id, so any of the HPA's 1 to 3 pods can answer it, and a
         # scale-down drops no one's session (review of #163: in-memory sessions behind a
@@ -203,3 +209,5 @@ def http_app(
             allowed_origins=[f"http://{h}" for h in hosts],
         ),
     )
+    app.add_middleware(FailedAuthLimit, limit=auth_fails_per_minute)
+    return app
