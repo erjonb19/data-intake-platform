@@ -39,6 +39,7 @@ COOLDOWN = timedelta(days=7)
 LOCKS: dict[str, tuple[list[str], list[str]]] = {
     "dev.txt": (["pyproject.toml", "requirements/build.in"], ["--extra", "dev"]),
     "tools.txt": (["requirements/tools.in"], []),
+    "audit.txt": (["requirements/audit.in"], []),
     "build.txt": (["requirements/build.in"], []),
     "e2e.txt": (["requirements/e2e.in"], []),
     "agent.txt": (["requirements/agent.in"], []),

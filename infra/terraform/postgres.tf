@@ -211,7 +211,8 @@ resource "kubernetes_stateful_set_v1" "postgres" {
           name = "tls-src"
           secret {
             secret_name = kubernetes_secret_v1.postgres_tls.metadata[0].name
-            # Readable by user 70 only for the copy above; Postgres reads the 0600 copy.
+            # Readable by user 70 only for the copy above; Postgres reads the 0600 copy. Every
+            # container in this pod can read it, so no sidecar may join this pod.
             default_mode = "0444"
           }
         }

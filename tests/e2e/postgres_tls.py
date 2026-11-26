@@ -33,7 +33,10 @@ def main() -> int:
         failures.append(f"the default login is not over TLS 1.2+: ssl={ssl} {version}")
     ca = os.environ.get("DIP_CA_FILE")
     if ca:
-        psycopg.connect(dsn, sslmode="verify-full", sslrootcert=ca, connect_timeout=10).close()
+        try:
+            psycopg.connect(dsn, sslmode="verify-full", sslrootcert=ca, connect_timeout=10).close()
+        except psycopg.OperationalError as e:
+            failures.append(f"verify-full against the cluster's CA failed: {e}")
     for f in failures:
         print(f"FAIL: {f}", file=sys.stderr)
     if not failures:

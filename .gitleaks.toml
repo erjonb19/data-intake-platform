@@ -1,0 +1,16 @@
+# gitleaks (24.20): the default rules, plus one allowlist for the repo's own test values.
+# gitleaks reads this file from the scanned repository's root.
+[extend]
+useDefault = true
+
+# Fixed, public test passwords and keys for throwaway CI databases: every one starts with
+# `ci-` and sits under tests/ (for example tests/integration/test_mcp_read.py's PASSWORD).
+# Plus the literal "abcdef123456" that tests/unit/test_check_recordings.py feeds the
+# auth-header check. Both conditions must hold, so the same value anywhere else, or any other
+# value under tests/, is still reported.
+[[allowlists]]
+description = "fixed CI test values under tests/"
+condition = "AND"
+paths = ['''^tests/''']
+regexTarget = "secret"
+regexes = ['''^ci-[A-Za-z0-9-]+$''', '''^abcdef123456$''']

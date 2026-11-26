@@ -30,12 +30,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from contextvars import ContextVar
 from datetime import UTC, datetime, timedelta
 from pathlib import PurePosixPath
 from typing import Any
 
 from dip import BUCKET_LANDING, BUCKET_RAW
+from dip.agents.errors import for_the_model, hidden
 from dip.incidents import close_quarantine_incidents
 from dip.storage import ObjectStore
 
@@ -46,7 +48,12 @@ ACTIONS = (*OPERATIONS, "contract_pr")
 TTL = timedelta(days=7)
 
 
+log = logging.getLogger("dip.approvals")
+
+
 class ApprovalError(RuntimeError):
+    for_the_model = True  # 24.35: written for whoever runs the approval, agent or person
+
     pass
 
 
@@ -233,7 +240,10 @@ def execute(conn: Any, store: ObjectStore, approval_id: int, by: str,
         conn.rollback()
         for key in landed:  # replay: undo what reached landing, the database did not change
             store.delete(BUCKET_LANDING, key)
-        error = f"{type(exc).__name__}: {exc}"
+        # 24.35: an agent may run this (execute_approved_operation), so an unexpected error is
+        # kept as an id; the full error is in the log under it.
+        error = (f"{type(exc).__name__}: {exc}" if for_the_model(exc)
+                 else hidden(log, f"approval {approval_id}", exc))  # fmt: skip
         a = _get(conn, approval_id, lock=True)
         if a["status"] == "approved":
             with conn.cursor() as cur:
