@@ -312,6 +312,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] zizmor audits every workflow on each PR, each push to main and weekly, and fails on a finding; no
   checkout keeps the job's git credentials except the one job that pushes recordings
   (`.github/workflows/security.yml`; 24.21)
+- [x] Generic errors: the approvals page and the MCP server answer an unexpected error with an
+  id only, and log the full error under it; errors written for the agent keep their text
+  (`dip/agents/errors.py`, `dip/agents/gateway.py`, `dip/agents/mcp_server.py`; 24.35)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script

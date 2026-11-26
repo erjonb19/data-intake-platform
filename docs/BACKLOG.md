@@ -647,11 +647,17 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   are `no-store`. `tests/unit/test_approvals_headers.py`.
 - [x] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
   Done 2026-11-11: `openapi_url=None`; a test checks `/openapi.json`, `/docs` and `/redoc` are 404.
-- [ ] **24.35 Generic errors to callers and the model** (Low): a correlation id back, the full error logged on the server (`mcp_server.py:134`, `gateway.py`).
+- [x] **24.35 Generic errors to callers and the model** (Low): a correlation id back, the full error logged on the server (`mcp_server.py:134`, `gateway.py`).
   The approvals gateway's half, 2026-11-23: an unexpected error answers `internal error (error
   <id>)` and "warehouse not ready" no longer echoes Postgres's message; the full error goes to
-  the server's log under the same id (`tests/unit/test_approvals_errors.py`). The MCP half was
-  approved by the owner (2026-11-24) and is its own PR.
+  the server's log under the same id (`tests/unit/test_approvals_errors.py`). The MCP half,
+  2026-11-24: a tool's unexpected error reaches the model as `internal error (error <id>)` and
+  is logged in full under that id; the errors a tool raises for the model (ValueError,
+  LookupError but not KeyError or IndexError, ApprovalError, ContractError) keep their text
+  (`tests/unit/test_mcp_errors.py`). An approval that fails unexpectedly stores and raises only
+  the id too (`dip/agents/errors.py`, used by both). The id is a hash of the failure, so the same
+  failure gets the same id and a recorded run replays. One incident case met a hidden error (a
+  missing table in the eval database) and was recorded again.
 - [x] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
   Done 2026-11-11: the intake API's name rule and a 50 MiB limit (the largest feed's), checked from the listing before
   reading (and the read stops one byte past it); a refused file stays on the server, reported.
