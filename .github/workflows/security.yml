@@ -65,6 +65,40 @@ jobs:
           done
           exit "$status"
 
+  # 24.19: every Python lock in requirements/ against the PyPI advisory database. Fails on
+  # any known vulnerability. pip-audit runs from its own hashed lock (requirements/audit.txt)
+  # in a venv of its own, and reads each lock without pip (no install, no resolution). The
+  # weekly run catches new advisories in unchanged locks. The packages Airflow's image
+  # ships (its constraints file) are left to the image scan above.
+  pip-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: |
+          python -m venv "$RUNNER_TEMP/audit"
+          "$RUNNER_TEMP/audit/bin/pip" install --quiet --require-hashes --no-deps -r requirements/audit.txt
+
+      - name: Audit every lock (fails on a known vulnerability)
+        run: |
+          set -uo pipefail
+          status=0
+          for lock in requirements/*.txt; do
+            echo "::group::$lock"
+            # A finding with no fix yet goes here as --ignore-vuln <id>, with its reason.
+            "$RUNNER_TEMP/audit/bin/pip-audit" --requirement "$lock" --require-hashes \
+              --no-deps --disable-pip --progress-spinner off --strict \
+              || { status=1; echo "::error::$lock has a known vulnerability"; }
+            echo "::endgroup::"
+          done
+          exit "$status"
+
   # 24.40: the Terraform and Helm values under infra/ against Trivy's misconfiguration checks
   # (the same pinned image). Report only for now: its findings overlap 24.15 (pod security)
   # and 24.16 (network policies), and it becomes a failing gate on CRITICAL once those land.
