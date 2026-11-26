@@ -34,6 +34,10 @@ def test_an_unexpected_error_is_generic_with_an_id_and_logged_in_full(caplog):
     m = re.fullmatch(r"internal error \(error ([0-9a-f]{12})\)", detail)
     assert m, detail
     assert any(m.group(1) in rec.getMessage() and rec.exc_info for rec in caplog.records)
+    # 24.33's headers too, though this answer comes from outside the headers middleware.
+    assert "default-src 'none'" in r.headers["content-security-policy"]
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["cache-control"] == "no-store"
 
 
 class _NoTable:

@@ -5,7 +5,7 @@ Every Python install in CI, the proof jobs and the images reads one of these loc
 the whole dependency tree. uv resolves them (`uv pip compile --universal --generate-hashes`)
 for Python 3.12, the version CI and every image run, on every platform.
 
-The cooldown: nothing uploaded after the cutoff in requirements/cutoff.txt is chosen
+The cooldown: nothing uploaded after the cutoff in requirements/cutoff.timestamp is chosen
 (`--exclude-newer`). `--refresh` moves the cutoff to 7 days ago before compiling, so a
 release must have been public for a week before a lock can pick it up.
 
@@ -30,7 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 REQ = ROOT / "requirements"
-CUTOFF = REQ / "cutoff.txt"
+CUTOFF = REQ / "cutoff.timestamp"
 AIRFLOW_CONSTRAINTS = "requirements/airflow-3.4.0-py3.12.constraints"
 PYTHON = "3.12"
 COOLDOWN = timedelta(days=7)
@@ -39,6 +39,7 @@ COOLDOWN = timedelta(days=7)
 LOCKS: dict[str, tuple[list[str], list[str]]] = {
     "dev.txt": (["pyproject.toml", "requirements/build.in"], ["--extra", "dev"]),
     "tools.txt": (["requirements/tools.in"], []),
+    "audit.txt": (["requirements/audit.in"], []),
     "build.txt": (["requirements/build.in"], []),
     "e2e.txt": (["requirements/e2e.in"], []),
     "agent.txt": (["requirements/agent.in"], []),

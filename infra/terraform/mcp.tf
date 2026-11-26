@@ -32,25 +32,33 @@ locals {
   mcp_airflow_user = "mcp-viewer"
 }
 
+# 24.30: every MCP key below, and the run token key, is replaced when var.mcp_key_generation
+# changes. The new keys reach the MCP server's Secret (it rolls: dip/config-sha) and the
+# runners' Secrets (dip-agent-chain, dip-intake-team) in the same apply, so no client is left
+# holding an old key. The schedule and the steps are in docs/keys.md.
 # 24.10: signs chain run ids (dip/agents/run_token.py). The MCP server checks them; the
 # scheduled runners (dip-agent-chain) sign the chains they start. No agent or model sees it.
 resource "random_password" "run_token_key" {
+  keepers = { generation = var.mcp_key_generation } # 24.30: rotation
   length  = 48
   special = false
 }
 
 resource "random_password" "mcp_reader_key" {
+  keepers = { generation = var.mcp_key_generation } # 24.30: rotation
   length  = 40
   special = false
 }
 
 resource "random_password" "mcp_triage_key" {
+  keepers = { generation = var.mcp_key_generation } # 24.30: rotation
   length  = 40
   special = false
 }
 
 # Stage 9 (S9.1): the incident agent's key, used by the agent_chain DAG's pods.
 resource "random_password" "mcp_incident_key" {
+  keepers = { generation = var.mcp_key_generation } # 24.30: rotation
   length  = 40
   special = false
 }
@@ -58,6 +66,7 @@ resource "random_password" "mcp_incident_key" {
 # Stage 10 (S10.6): the intake team's keys (dags/agent_chain.py, the intake_jobs task).
 resource "random_password" "mcp_team_key" {
   for_each = toset(["profile", "contract_author", "validator", "reviewer", "intake_orchestrator"])
+  keepers  = { generation = var.mcp_key_generation } # 24.30: rotation
   length   = 40
   special  = false
 }
@@ -90,7 +99,19 @@ resource "kubernetes_job_v1" "mcp_minio_user" {
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
-            args  = init_container.value
+            security_context {
+              run_as_non_root            = true
+              run_as_user                = 65532
+              allow_privilege_escalation = false
+              read_only_root_filesystem  = true
+              capabilities {
+                drop = ["ALL"]
+              }
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
+            }
+            args = init_container.value
             env {
               name = "NEW_USER_PASSWORD"
               value_from {
@@ -127,6 +148,18 @@ resource "kubernetes_job_v1" "mcp_minio_user" {
         container {
           name  = "mc-3-attach"
           image = var.minio_client_image
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 65532
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
           args = ["admin", "policy", "attach", "local", "mcp-read-${local.mcp_minio_suffix}",
           "--user", local.mcp_minio_user]
           env {
@@ -182,8 +215,20 @@ resource "kubernetes_job_v1" "mcp_airflow_viewer" {
       spec {
         restart_policy = "OnFailure"
         container {
-          name    = "create-viewer"
-          image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
+          name  = "create-viewer"
+          image = "${var.airflow_image_repository}:${var.airflow_image_tag}"
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 50000
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = false
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
           command = ["bash", "-c"]
           args = [<<-EOT
             set -euo pipefail
@@ -349,6 +394,12 @@ resource "kubernetes_deployment_v1" "mcp" {
             run_as_user                = 10001
             allow_privilege_escalation = false
             read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
           }
           resources {
             requests = { cpu = "20m", memory = "96Mi" }

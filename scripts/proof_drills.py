@@ -137,7 +137,13 @@ def run_chain(incident_id: int, drill: str, cap: str) -> dict:
             "limits": {"cpu": "1", "memory": "512Mi"},
         },  # fmt: skip
     }
-    overrides = {"apiVersion": "v1", "spec": {"containers": [container]}}
+    # 24.15: Pod Security's restricted level, which dip-airflow enforces.
+    container["securityContext"] = {"allowPrivilegeEscalation": False,
+                                    "capabilities": {"drop": ["ALL"]}}  # fmt: skip
+    overrides = {"apiVersion": "v1", "spec": {
+        "securityContext": {"runAsNonRoot": True, "runAsUser": 50000,
+                            "seccompProfile": {"type": "RuntimeDefault"}},
+        "containers": [container]}}  # fmt: skip
     try:
         image = f"--image={os.environ['AIRFLOW_IMAGE']}"
         pd.kubectl("-n", NS, "run", pod, "--restart=Never", image,
