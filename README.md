@@ -309,6 +309,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   (`.github/workflows/security.yml`, `requirements/audit.txt`; 24.19)
 - [x] gitleaks scans the repository's whole history for secrets on each PR, each push to main and weekly,
   with redacted output (`.github/workflows/security.yml`, `.gitleaksignore`; 24.20)
+- [x] zizmor audits every workflow on each PR, each push to main and weekly, and fails on a finding; no
+  checkout keeps the job's git credentials except the one job that pushes recordings
+  (`.github/workflows/security.yml`; 24.21)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script
