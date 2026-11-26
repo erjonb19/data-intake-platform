@@ -13,7 +13,8 @@ RUN rm -f $(grep -l 'mariadb' /etc/apt/sources.list.d/* 2>/dev/null || true) \
  && apt-get update \
  && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng \
  && rm -rf /var/lib/apt/lists/*
-USER airflow
+# The base image's own user, by number, so a pod with runAsNonRoot can check it (24.15).
+USER 50000
 
 # Each version was at least two weeks old when chosen. Pillow 13.0.0 (2026-10-16) fixes
 # the CRITICAL findings the 12.9 Trivy scan reported in 12.3.0 (CVE-2026-112393 and others).
