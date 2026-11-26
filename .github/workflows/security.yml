@@ -118,7 +118,7 @@ jobs:
         run: |
           docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo:ro" \
             -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
-            "$GITLEAKS_IMAGE" git /repo --redact --no-banner --exit-code 1 \
+            "$GITLEAKS_IMAGE" git /repo --redact --verbose --no-banner --exit-code 1 \
             --gitleaks-ignore-path /repo/.gitleaksignore
 
   # 24.40: the Terraform and Helm values under infra/ against Trivy's misconfiguration checks
