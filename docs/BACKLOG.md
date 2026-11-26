@@ -591,8 +591,8 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [x] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
   The Pillow half is already in place (`pyproject.toml` pins `pillow==13.0.0`, and the dev lock
   has it). pip-audit approved by the owner (2026-11-24), CI only.
-- [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
-  Approved by the owner (2026-11-24), CI only.
+- [x] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
+  CI only (owner, 2026-11-24): no pre-commit hook. The CI job scans the full history on every run.
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
   Approved by the owner (2026-11-24), CI only.
 - [x] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
