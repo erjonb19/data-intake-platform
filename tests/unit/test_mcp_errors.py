@@ -39,10 +39,13 @@ def test_an_unexpected_error_is_an_id_for_the_model_and_logged_in_full(exc, capl
     assert record.exc_info and record.exc_info[1] is exc
 
 
-def test_each_error_gets_its_own_id():
-    a = tool_error("t", RuntimeError("x")).content[0].text
-    b = tool_error("t", RuntimeError("x")).content[0].text
-    assert a != b
+def test_the_id_is_the_same_for_the_same_failure_and_differs_otherwise():
+    # Deterministic, so a recorded agent run that met a hidden error replays.
+    same = {tool_error("t", RuntimeError("x")).content[0].text for _ in range(3)}
+    assert len(same) == 1
+    assert tool_error("t", RuntimeError("y")).content[0].text not in same
+    assert tool_error("u", RuntimeError("x")).content[0].text not in same
+    assert tool_error("t", OSError("x")).content[0].text not in same
 
 
 @pytest.mark.parametrize(

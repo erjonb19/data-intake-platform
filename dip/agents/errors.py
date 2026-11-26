@@ -6,8 +6,8 @@ an id, and the server's log has the full error under it."""
 
 from __future__ import annotations
 
+import hashlib
 import logging
-import secrets
 
 
 def for_the_model(exc: BaseException) -> bool:
@@ -20,7 +20,12 @@ def for_the_model(exc: BaseException) -> bool:
 
 
 def hidden(log: logging.Logger, what: str, exc: BaseException) -> str:
-    """Log `exc` in full under a new id; return the text the model may see instead."""
-    error_id = secrets.token_hex(6)
+    """Log `exc` in full under an id; return the text the model may see instead.
+
+    The id is the first 12 hex digits of a SHA-256 of what failed, the error's type and its
+    message: nothing of them can be read back from it, the same failure always gets the same
+    id (repeats group in the log), and a recorded agent run that met it replays."""
+    seed = f"{what}|{type(exc).__module__}.{type(exc).__qualname__}|{exc}"
+    error_id = hashlib.sha256(seed.encode("utf-8", "replace")).hexdigest()[:12]
     log.error("%s failed (error %s)", what, error_id, exc_info=exc)
     return f"internal error (error {error_id})"

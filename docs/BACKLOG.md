@@ -655,8 +655,9 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   is logged in full under that id; the errors a tool raises for the model (ValueError,
   LookupError but not KeyError or IndexError, ApprovalError, ContractError) keep their text
   (`tests/unit/test_mcp_errors.py`). An approval that fails unexpectedly stores and raises only
-  the id too (`dip/agents/errors.py`, used by both). No recording holds a tool exception, so
-  none changed.
+  the id too (`dip/agents/errors.py`, used by both). The id is a hash of the failure, so the same
+  failure gets the same id and a recorded run replays. One incident case met a hidden error (a
+  missing table in the eval database) and was recorded again.
 - [x] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
   Done 2026-11-11: the intake API's name rule and a 50 MiB limit (the largest feed's), checked from the listing before
   reading (and the read stops one byte past it); a refused file stays on the server, reported.
