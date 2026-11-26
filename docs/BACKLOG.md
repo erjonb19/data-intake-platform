@@ -628,7 +628,12 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   and the verdict heading takes only pass, revise or reject. `tests/unit/test_contract_pr_body.py`.
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
   Approved by the owner (2026-11-24), under the night's $1.00 recording cap.
-- [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
+- [x] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
+  Done 2026-11-24: `var.mcp_key_generation` is a `keepers` of the 8 MCP keys and the run token key,
+  so one new value replaces them all in one apply; the MCP server rolls and the runners' Secrets
+  update together. `docs/keys.md` has the schedule (monthly, at once on a leak, before sharing
+  access), the steps, what it does not rotate, and the short-lived audience-bound tokens a
+  hosted deployment needs instead (with 20.1).
 - [x] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
   Done 2026-11-24: `Registry` starts each agent's hourly window (all tools, and per tool) from
   the audit log's allowed calls in the last hour, read once per process (`_seed`), so a restarted
