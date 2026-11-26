@@ -15,6 +15,7 @@ then installed from the checkout with `--no-deps --no-build-isolation`.
 | --- | --- | --- |
 | `dev.txt` | `pyproject.toml` (the `dev` extra) and `build.in` | the `ci` test job, `evals.yml`, the proof jobs, a laptop |
 | `tools.txt` | `tools.in` (ruff, uv) | the `ci` lint job |
+| `audit.txt` | `audit.in` (pip-audit) | the `security` workflow's `pip-audit` job, which audits every lock here |
 | `e2e.txt` | `e2e.in` | the kind E2E driver (`e2e.yml`, `upgrade.yml`, `proof.yml`) |
 | `build.txt` | `build.in` (setuptools) | the Airflow image's throwaway venv that builds dip's wheel |
 | `agent.txt` | `agent.in` | the Airflow image's agent venv |

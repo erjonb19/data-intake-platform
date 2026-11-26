@@ -118,7 +118,9 @@ def test_the_quarantine_tools_work_as_the_mcp_login(reader):
     "update ops.approvals set payload = '{}'::jsonb",
     "delete from ops.approvals",
     "update ops.quarantine set status = 'discarded'",
-    "select count(*) from ops.audit_log",
+    # 24.31: it reads when, who, which tool and the decision (its hourly windows), no more
+    "select reason from ops.audit_log",
+    "select args_sha256, run_id, result_sha256 from ops.audit_log",
     "delete from ops.quarantine",
     "update ops.audit_log set decision = 'allowed'",
 ])  # fmt: skip
@@ -128,6 +130,16 @@ def test_the_mcp_login_reads_nothing_else_and_cannot_rewrite_the_audit_or_approv
     _, conn = reader
     with pytest.raises(psycopg.errors.InsufficientPrivilege), conn.cursor() as cur:
         cur.execute(sql)
+    conn.rollback()
+
+
+def test_the_mcp_login_reads_the_audit_columns_its_hourly_limits_need(reader):
+    call, conn = reader
+    call("list_quarantine_groups")
+    with conn.cursor() as cur:
+        cur.execute("select at, principal, tool, decision from ops.audit_log"
+                    " where principal = 'reader' and decision = 'allowed'")  # fmt: skip
+        assert cur.fetchall()
     conn.rollback()
 
 
