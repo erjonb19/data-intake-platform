@@ -249,7 +249,13 @@ def _mcp_serve(args: argparse.Namespace) -> int:
     shown = "127.0.0.1" if args.host in ("0.0.0.0", "::") else args.host
     url = os.environ.get("DIP_MCP_PUBLIC_URL") or f"http://{shown}:{args.port}"
     app = http_app(server, keys, url, args.allowed_host)
-    uvicorn.run(app, host=args.host, port=args.port)
+    # 24.32: past this many open connections, uvicorn answers 503.
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        limit_concurrency=int(os.environ.get("DIP_HTTP_MAX_CONCURRENCY", "32")),
+    )
     return 0
 
 
@@ -271,7 +277,13 @@ def _approvals_serve(args: argparse.Namespace) -> int:
         raise SystemExit("approvals-serve beyond loopback needs DIP_APPROVER_TOKENS")
     hosts = args.allowed_host or ["127.0.0.1", "localhost"]
     app = create_app(lambda: psycopg.connect(dsn), hosts, people)
-    uvicorn.run(app, host=args.host, port=args.port)
+    # 24.32: past this many open connections, uvicorn answers 503 (one DB connection each).
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        limit_concurrency=int(os.environ.get("DIP_HTTP_MAX_CONCURRENCY", "16")),
+    )
     return 0
 
 

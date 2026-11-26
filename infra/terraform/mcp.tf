@@ -32,25 +32,33 @@ locals {
   mcp_airflow_user = "mcp-viewer"
 }
 
+# 24.30: every MCP key below, and the run token key, is replaced when var.mcp_key_generation
+# changes. The new keys reach the MCP server's Secret (it rolls: dip/config-sha) and the
+# runners' Secrets (dip-agent-chain, dip-intake-team) in the same apply, so no client is left
+# holding an old key. The schedule and the steps are in docs/keys.md.
 # 24.10: signs chain run ids (dip/agents/run_token.py). The MCP server checks them; the
 # scheduled runners (dip-agent-chain) sign the chains they start. No agent or model sees it.
 resource "random_password" "run_token_key" {
+  keepers = { generation = var.mcp_key_generation } # 24.30: rotation
   length  = 48
   special = false
 }
 
 resource "random_password" "mcp_reader_key" {
+  keepers = { generation = var.mcp_key_generation } # 24.30: rotation
   length  = 40
   special = false
 }
 
 resource "random_password" "mcp_triage_key" {
+  keepers = { generation = var.mcp_key_generation } # 24.30: rotation
   length  = 40
   special = false
 }
 
 # Stage 9 (S9.1): the incident agent's key, used by the agent_chain DAG's pods.
 resource "random_password" "mcp_incident_key" {
+  keepers = { generation = var.mcp_key_generation } # 24.30: rotation
   length  = 40
   special = false
 }
@@ -58,6 +66,7 @@ resource "random_password" "mcp_incident_key" {
 # Stage 10 (S10.6): the intake team's keys (dags/agent_chain.py, the intake_jobs task).
 resource "random_password" "mcp_team_key" {
   for_each = toset(["profile", "contract_author", "validator", "reviewer", "intake_orchestrator"])
+  keepers  = { generation = var.mcp_key_generation } # 24.30: rotation
   length   = 40
   special  = false
 }
