@@ -1,16 +1,13 @@
 """24.15: Pod Security Admission on the deployed stack.
 
-  1. Each platform namespace enforces `baseline` and warns and audits at `restricted`
-     (infra/terraform/cluster.tf).
+  1. dip-airflow enforces `restricted`; dip-data and dip-obs enforce `baseline`. All three
+     warn and audit at `restricted` (infra/terraform/cluster.tf).
   2. `kubectl label --dry-run=server` asks the API server which running pods would fail
-     `restricted`, without changing the namespace. The list is printed: it is the work left
-     before a namespace can enforce restricted.
-  3. None of them is a pod this repo's Terraform defines and hardens. Postgres, MinIO, the
-     intake API, the MCP server, the approvals page, the metrics exporter, the backup and
-     platform-check CronJobs and the setup Jobs all run non-root, drop every capability,
-     use the RuntimeDefault seccomp profile and allow no privilege escalation. What may still
-     be listed: SFTP (root, to chroot its users), Marquez, and the Airflow, Prometheus and
-     Grafana charts' pods.
+     `restricted`, without changing the namespace. The list is printed.
+  3. The only pods allowed on that list: SFTP in dip-data (root, to chroot its users) and
+     Marquez's two in dip-obs (upstream images that run as root). Every other pod, from
+     this repo's Terraform or from the Airflow, Prometheus and Grafana charts, is at
+     restricted.
 
 Env: KUBECONFIG (the kind cluster's).
 """
@@ -22,11 +19,12 @@ import re
 import subprocess
 import sys
 
-NAMESPACES = ("dip-data", "dip-airflow", "dip-obs")
-OURS = ("postgres-", "minio-", "intake-api-", "mcp-", "approvals-", "dip-metrics-",
-        "warehouse-backup-", "platform-check-", "warehouse-init-", "postgres-roles-",
-        "postgres-audit-owner-", "airflow-mcp-viewer-")  # fmt: skip
-WARNED = re.compile(r"^Warning: (?P<pod>[a-z0-9][a-z0-9.-]*)(?: \(and \d+ other pods?\))?: ")
+# What each namespace enforces, and the only pods allowed to fall short of restricted there.
+ENFORCE = {"dip-data": "baseline", "dip-airflow": "restricted", "dip-obs": "baseline"}
+EXEMPT = {"dip-data": ("sftp-",), "dip-airflow": (), "dip-obs": ("marquez-",)}
+WARNED = re.compile(
+    r"^Warning: (?P<pod>[a-z0-9][a-z0-9.-]*)(?: \(and (?P<more>\d+) other pods?\))?: "
+)
 
 
 def kubectl(*args: str) -> subprocess.CompletedProcess:
@@ -36,7 +34,7 @@ def kubectl(*args: str) -> subprocess.CompletedProcess:
 
 def main() -> int:
     failures = []
-    for ns in NAMESPACES:
+    for ns in ENFORCE:
         got = kubectl("get", "namespace", ns, "-o", "json")
         if got.returncode:
             if ns != "dip-obs":  # only the observability profile can be switched off
@@ -45,7 +43,7 @@ def main() -> int:
                 print(f"{ns}: not deployed (observability profile off), skipped")
             continue
         labels = json.loads(got.stdout)["metadata"].get("labels", {})
-        for mode, level in (("enforce", "baseline"), ("warn", "restricted"),
+        for mode, level in (("enforce", ENFORCE[ns]), ("warn", "restricted"),
                             ("audit", "restricted")):  # fmt: skip
             if labels.get(f"pod-security.kubernetes.io/{mode}") != level:
                 failures.append(f"{ns}: pod-security {mode} is not {level}")
@@ -59,12 +57,21 @@ def main() -> int:
         for line in dry.stderr.splitlines():
             if WARNED.match(line):
                 print(f"  {line}")
-        failures += [f"{ns}/{p} is ours and fails restricted" for p in pods if p.startswith(OURS)]
+        failures += [f"{ns}/{p} fails restricted" for p in pods if not p.startswith(EXEMPT[ns])]
+        # The API server folds pods with the same violations into one line ("x (and N other
+        # pods)"), so a pod failing exactly as SFTP or Marquez does could hide behind their
+        # name. Count every pod the warnings cover against the exempt pods that exist.
+        covered = sum(1 + int(m["more"] or 0) for line in dry.stderr.splitlines()
+                      if (m := WARNED.match(line)))  # fmt: skip
+        names = kubectl("-n", ns, "get", "pods", "-o", "jsonpath={.items[*].metadata.name}")
+        exempt = sum(1 for n in names.stdout.split() if n.startswith(EXEMPT[ns]))
+        if covered > exempt and not any(f.startswith(f"{ns}/") for f in failures):
+            failures.append(f"{ns}: {covered} pods fail restricted, only {exempt} are exempt")
     for f in failures:
         print(f"FAIL: {f}")
     if failures:
         return 1
-    print("pod security: baseline enforced, and every pod this repo defines is at restricted")
+    print("pod security: enforced, and every pod but SFTP and Marquez is at restricted")
     return 0
 
 
