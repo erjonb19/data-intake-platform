@@ -11,6 +11,24 @@ images:
     # repository/tag are set by Terraform from the image loaded into kind.
     pullPolicy: IfNotPresent
 
+# 24.15: every pod the chart makes (the components, its Jobs, and the KubernetesExecutor's
+# task pods, from the chart's pod template) at Pod Security's restricted level, which
+# dip-airflow enforces (infra/terraform/cluster.tf). The chart already runs them as uid
+# 50000 with no privilege escalation and no capabilities; these add the two it leaves out.
+# Setting `pod` replaces the chart's default (runAsUser: uid, fsGroup: gid), so both are
+# repeated here.
+securityContexts:
+  pod:
+    runAsUser: 50000
+    fsGroup: 0
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+
 # External, shared Postgres (dip-data/postgres). No Redis: KubernetesExecutor needs no broker.
 postgresql:
   enabled: false
@@ -105,6 +123,18 @@ triggerer:
 # Enabled by Terraform with the observability profile (Prometheus scrapes it).
 statsd:
   enabled: false
+  # 24.15: statsd has its own security contexts (the global ones above don't reach it);
+  # 65534 is the chart's default uid for it.
+  securityContexts:
+    pod:
+      runAsUser: 65534
+      runAsNonRoot: true
+      seccompProfile:
+        type: RuntimeDefault
+    container:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]
   resources:
     requests: { cpu: 10m, memory: 32Mi }
     limits: { memory: 96Mi }
