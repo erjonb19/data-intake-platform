@@ -319,6 +319,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
   in flight on the intake API, 429 for an address that keeps sending bad keys or tokens
   (intake API, MCP server, approvals page), and a connection cap on each (`dip/ratelimit.py`;
   24.32)
+- [x] Postgres inside the cluster takes logins only over TLS, with a certificate from the
+  cluster's own CA (`infra/terraform/tls.tf`, `tests/e2e/postgres_tls.py`; 24.38 part 1;
+  clients checking it, MinIO over HTTPS and encryption at rest are still to come)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script

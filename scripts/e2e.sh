@@ -174,6 +174,13 @@ KUBECONFIG="$kubeconfig" "$py" "$REPO_ROOT/tests/e2e/pod_security.py"
 # reach Postgres or MinIO, and a pod labelled as an Airflow task pod can.
 KUBECONFIG="$kubeconfig" "$py" "$REPO_ROOT/tests/e2e/network_policy.py"
 
+# 24.38: Postgres takes TCP logins only over TLS, and its certificate checks out against the
+# cluster's CA for localhost.
+ca_file="$(mktemp)"
+tf output -raw ca_cert_pem > "$ca_file"
+WAREHOUSE_DSN="$WAREHOUSE_DSN" DIP_CA_FILE="$ca_file" "$py" "$REPO_ROOT/tests/e2e/postgres_tls.py"
+rm -f "$ca_file"
+
 # 13.3: the bad_release drill, last: a release whose pod never gets Ready stalls with the
 # old pod serving, the platform check opens PLATFORM.ROLLOUT_STALLED (and ReleaseStalled
 # fires), and `dip rollback intake-api` closes it. After the liveness check above, though

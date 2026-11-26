@@ -30,7 +30,7 @@ resource "kubernetes_config_map_v1" "marquez" {
             port: 5001
       db:
         driverClass: org.postgresql.Driver
-        url: jdbc:postgresql://${local.postgres_host}:5432/marquez
+        url: jdbc:postgresql://${local.postgres_host}:5432/marquez?sslmode=require
         user: marquez
         password: $${POSTGRES_PASSWORD}
       migrateOnStartup: true

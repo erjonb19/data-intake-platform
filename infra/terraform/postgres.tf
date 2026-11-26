@@ -52,6 +52,9 @@ resource "kubernetes_stateful_set_v1" "postgres" {
         annotations = {
           # Roll the pod if the init script changes (only matters on a fresh volume).
           "dip/init-sha" = sha256(file("${path.module}/files/postgres-init.sh"))
+          # 24.38: a new certificate or pg_hba.conf takes effect on a restart.
+          "dip/tls-sha" = sha256(join("", [tls_locally_signed_cert.postgres.cert_pem,
+          kubernetes_config_map_v1.postgres_hba.data["pg_hba.conf"]]))
         }
       }
 
@@ -69,9 +72,42 @@ resource "kubernetes_stateful_set_v1" "postgres" {
             type = "RuntimeDefault"
           }
         }
+        # 24.38: Postgres refuses a key file that others can read, and a Secret volume's
+        # files belong to root without an fs_group (above). This copies the key into the
+        # pod's own emptyDir, as user 70 and mode 0600.
+        init_container {
+          name    = "tls"
+          image   = var.postgres_image
+          command = ["sh", "-c", "install -m 0600 /tls-src/tls.key /tls/server.key && install -m 0644 /tls-src/tls.crt /tls/server.crt"]
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 70
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
+          volume_mount {
+            name       = "tls-src"
+            mount_path = "/tls-src"
+            read_only  = true
+          }
+          volume_mount {
+            name       = "tls"
+            mount_path = "/tls"
+          }
+        }
         container {
           name  = "postgres"
           image = var.postgres_image
+          # 24.38: TLS on, and logins over TCP only with it (pg_hba.conf from tls.tf).
+          args = ["postgres", "-c", "ssl=on", "-c", "ssl_cert_file=/tls/server.crt",
+            "-c", "ssl_key_file=/tls/server.key", "-c", "ssl_min_protocol_version=TLSv1.2",
+          "-c", "hba_file=/etc/dip-pg/pg_hba.conf"]
           security_context {
             run_as_non_root            = true
             run_as_user                = 70
@@ -122,6 +158,16 @@ resource "kubernetes_stateful_set_v1" "postgres" {
             name       = "tmp"
             mount_path = "/tmp"
           }
+          volume_mount {
+            name       = "tls"
+            mount_path = "/tls"
+            read_only  = true
+          }
+          volume_mount {
+            name       = "hba"
+            mount_path = "/etc/dip-pg"
+            read_only  = true
+          }
 
           readiness_probe {
             exec {
@@ -154,6 +200,27 @@ resource "kubernetes_stateful_set_v1" "postgres" {
         volume {
           name = "tmp"
           empty_dir {}
+        }
+        volume {
+          name = "tls"
+          empty_dir {
+            medium = "Memory"
+          }
+        }
+        volume {
+          name = "tls-src"
+          secret {
+            secret_name = kubernetes_secret_v1.postgres_tls.metadata[0].name
+            # Readable by user 70 only for the copy above; Postgres reads the 0600 copy. Every
+            # container in this pod can read it, so no sidecar may join this pod.
+            default_mode = "0444"
+          }
+        }
+        volume {
+          name = "hba"
+          config_map {
+            name = kubernetes_config_map_v1.postgres_hba.metadata[0].name
+          }
         }
         volume {
           name = "init"
