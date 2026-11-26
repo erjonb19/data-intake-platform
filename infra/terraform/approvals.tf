@@ -107,6 +107,12 @@ resource "kubernetes_deployment_v1" "approvals" {
             run_as_user                = 10001
             allow_privilege_escalation = false
             read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
           }
           resources {
             requests = { cpu = "10m", memory = "64Mi" }

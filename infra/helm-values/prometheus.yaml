@@ -17,6 +17,20 @@ rbac:
 
 server:
   retention: "1d"
+  # 24.15: Pod Security's restricted level, which dip-obs enforces. The chart's pod default
+  # (uid 65534, runAsNonRoot) is kept; the seccomp profile and the container settings are
+  # added. configmapReload below is the server pod's sidecar.
+  securityContext:
+    runAsUser: 65534
+    runAsNonRoot: true
+    runAsGroup: 65534
+    fsGroup: 65534
+    seccompProfile:
+      type: RuntimeDefault
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
   persistentVolume:
     enabled: false
   global:
@@ -50,3 +64,10 @@ scrapeConfigs:
   intake-api:
     static_configs:
       - targets: ["intake-api.dip-data.svc.cluster.local:8000"]
+
+configmapReload:
+  prometheus:
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: ["ALL"]

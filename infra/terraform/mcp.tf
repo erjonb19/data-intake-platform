@@ -99,7 +99,19 @@ resource "kubernetes_job_v1" "mcp_minio_user" {
           content {
             name  = "mc-${init_container.key}"
             image = var.minio_client_image
-            args  = init_container.value
+            security_context {
+              run_as_non_root            = true
+              run_as_user                = 65532
+              allow_privilege_escalation = false
+              read_only_root_filesystem  = true
+              capabilities {
+                drop = ["ALL"]
+              }
+              seccomp_profile {
+                type = "RuntimeDefault"
+              }
+            }
+            args = init_container.value
             env {
               name = "NEW_USER_PASSWORD"
               value_from {
@@ -136,6 +148,18 @@ resource "kubernetes_job_v1" "mcp_minio_user" {
         container {
           name  = "mc-3-attach"
           image = var.minio_client_image
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 65532
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
           args = ["admin", "policy", "attach", "local", "mcp-read-${local.mcp_minio_suffix}",
           "--user", local.mcp_minio_user]
           env {
@@ -191,8 +215,20 @@ resource "kubernetes_job_v1" "mcp_airflow_viewer" {
       spec {
         restart_policy = "OnFailure"
         container {
-          name    = "create-viewer"
-          image   = "${var.airflow_image_repository}:${var.airflow_image_tag}"
+          name  = "create-viewer"
+          image = "${var.airflow_image_repository}:${var.airflow_image_tag}"
+          security_context {
+            run_as_non_root            = true
+            run_as_user                = 50000
+            allow_privilege_escalation = false
+            read_only_root_filesystem  = false
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
+          }
           command = ["bash", "-c"]
           args = [<<-EOT
             set -euo pipefail
@@ -358,6 +394,12 @@ resource "kubernetes_deployment_v1" "mcp" {
             run_as_user                = 10001
             allow_privilege_escalation = false
             read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
           }
           resources {
             requests = { cpu = "20m", memory = "96Mi" }
