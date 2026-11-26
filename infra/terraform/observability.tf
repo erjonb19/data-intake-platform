@@ -14,7 +14,7 @@ resource "kubernetes_namespace_v1" "obs" {
   count = local.observability ? 1 : 0
   metadata {
     name   = local.obs_ns
-    labels = { "app.kubernetes.io/part-of" = "data-intake-platform" }
+    labels = merge({ "app.kubernetes.io/part-of" = "data-intake-platform" }, local.pod_security_labels)
   }
 }
 
@@ -99,6 +99,12 @@ resource "kubernetes_deployment_v1" "metrics" {
             run_as_user                = 50000
             allow_privilege_escalation = false
             read_only_root_filesystem  = true
+            capabilities {
+              drop = ["ALL"]
+            }
+            seccomp_profile {
+              type = "RuntimeDefault"
+            }
           }
           resources {
             requests = { cpu = "10m", memory = "48Mi" }
