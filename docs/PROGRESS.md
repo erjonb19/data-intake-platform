@@ -16,6 +16,7 @@ Anthropic Console against about $3.51 metered). Cap: $5 per calendar month on th
 |---|---|---|---|
 | 2026-11-05 | about $4.07 ($3.51 to 2026-10-31, plus $0.561 for Stage 11) | at most $0.561 (Stage 11 started 2026-10-31, so part of it was October) | S11.11 live eval, run 41618947945, $0.0354 |
 | 2026-11-18 | about $4.14 | at most $0.635 | 13.3 `claude-recordings`, run 44245351125, $0.0738 (cap $0.10); `gemini-recordings`, run 44245868851, $0 |
+| 2026-11-26 | about $4.39 | at most $0.884 | 24.35 `claude-recordings`, run 45865512578, $0.0759 (cap $0.10). With 24.17 and 24.29's $0.1728 (their own PR), the night's total is $0.2487 of the owner's $1.00 cap |
 
 ## Finished items
 
