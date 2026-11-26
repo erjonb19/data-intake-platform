@@ -613,7 +613,15 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [x] **24.26 More `.gitignore` patterns** (Low): `*.p12`, `secrets/`, credential JSON, and `.claude/worktrees/`.
   Done 2026-11-11: `*.p12`, `*.pfx`, `*.jks`, `secrets/`, credential and service-account JSON,
   `.netrc`, `.pypirc`; `.claude/worktrees/` is in 24.42's PR with the settings it guards.
-- [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
+- [x] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
+  Done 2026-11-24: `_CREDENTIAL` in `dip/agents/read_tools.py` also masks the values of
+  secret-named keys (password anywhere; api, access, secret, private and Fernet keys; a token,
+  secret or credentials with a name before it, as `access_token` or `clientSecret`; the platform's
+  own `DIP_*_KEY(S)` and `DIP_*_TOKENS`), Authorization header values, and tokens known by
+  their prefix (sk-, AIza, GitHub, AKIA, Slack, GitLab, JWTs). A bare `secret:` or `token:` is
+  prose ("Mounting secret: dip-agent-chain") and stays. The URI scheme is bounded, so a long
+  line no longer takes quadratic time. No line in any recording or eval fixture changes
+  (checked against every string), so no re-recording.
 - [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
   Approved by the owner (2026-11-24), under the night's $1.00 recording cap.
