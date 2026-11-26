@@ -227,3 +227,11 @@ variable "agents_write_disabled" {
   type        = bool
   default     = false
 }
+
+# 24.30: change it to rotate every MCP key and the run token key (docs/keys.md). Any new
+# value works; the date of the rotation reads best, e.g. "2026-12".
+variable "mcp_key_generation" {
+  description = "Rotation generation for the MCP agents' keys and the run token key; a new value replaces them all."
+  type        = string
+  default     = "1"
+}

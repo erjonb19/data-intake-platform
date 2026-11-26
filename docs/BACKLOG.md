@@ -294,6 +294,8 @@ Incident: the flood (runbook `15-flood.md`).
   metric and alert
 - [ ] **16.2 Inbound webhooks:** HMAC-signed "file ready" endpoint on the intake API, the
   key in a Kubernetes Secret, replay protection, every call audited
+  Waiting on the owner (2026-11-25): how the calls are audited without breaking 24.16's
+  boundary (the intake API cannot reach Postgres); options in `docs/OWNER_STEPS.md`.
 - [ ] **16.3 Alertmanager**, behind an on/off value in the Helm values, its memory on the
   laptop measured and reported, with a webhook receiver (a small local sink
   that opens or annotates an `ops.incident`), so "a run fails, a contract breaks, an eval
@@ -303,6 +305,8 @@ Incident: the flood (runbook `15-flood.md`).
   from a file landing to its rows in gold (95th percentile), the intake API's availability,
   and each feed's quarantine rate. Prometheus recording rules, burn-rate alerts (fast and
   slow windows) tested with `promtool`, and an error-budget panel in Grafana.
+  Blocked (2026-11-24): its targets come from Stage 19's numbers, and Stage 19 is on hold;
+  the owner's choice is in `docs/OWNER_STEPS.md`.
 
 ## Stage 17: Chaos and on-call simulation
 
@@ -438,6 +442,8 @@ Incident: a copy of a member's data the first deletion run missed, found by its 
   from landing, bronze, silver, gold and quarantine (and any copy the export holds), with an
   `ops.audit_log` row; a retention period per layer with a scheduled purge; a test that no
   trace of the member remains
+  Waiting on the owner (2026-11-24): how raw copies, backups and extracts are handled, and
+  the retention periods; the recommendation is in `docs/OWNER_STEPS.md`.
 
 ## Stage 23: Showcase
 
@@ -551,27 +557,44 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   Still open: `warehouse` owns the `warehouse` database, so it could drop the whole database
   (when nobody else is connected). The nightly backups (14.1) cover that, and a database owned by
   another role goes with moving the rest of the schema off `warehouse`.
-- [ ] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
+- [x] **24.15 Pod security baseline** (Medium): `pod-security.kubernetes.io/enforce: restricted` per namespace (baseline for SFTP); runAsNonRoot, drop ALL, seccomp RuntimeDefault, read-only root filesystem for Postgres, MinIO and the setup Jobs.
   Part 1, 2026-11-23: every namespace enforces `baseline` and warns and audits at `restricted`
   (`cluster.tf`). Every pod this repo's Terraform defines, except SFTP and Marquez, runs at
   restricted: non-root by number, no capabilities, RuntimeDefault seccomp, no privilege
   escalation. Postgres (as uid 70), MinIO and the setup Jobs also have read-only root
   filesystems. The Airflow and OCR images end in `USER 50000`. `tests/e2e/pod_security.py`
   fails if one of those pods would fail restricted, and prints the ones that still would.
-  Part 2, still open: `restricted` enforced on `dip-airflow` and `dip-obs`, once the
-  Airflow chart's pods, the DAGs' task pods and the Prometheus and Grafana charts' pods are
-  set for it. The E2E's list is the work. Marquez's two pods stay at baseline in `dip-obs`
-  until then.
-- [ ] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
+  Part 2, 2026-11-23: `dip-airflow` enforces `restricted`. The Airflow chart's global
+  security contexts (and statsd's own) cover its components, Jobs and the KubernetesExecutor's
+  task pods; the proof workflow's `kubectl run` pods set theirs. Prometheus's server and its
+  reload sidecar are at restricted too, and Grafana already was. `dip-obs` stays at
+  baseline because Marquez's two upstream images run as root, and `dip-data` stays at baseline
+  for SFTP. The E2E fails if any other pod would fail restricted.
+- [x] **24.16 NetworkPolicies** (Medium): default-deny ingress per namespace and the known flows allowed; check with a test pod that kind's CNI enforces them.
+  Done 2026-11-23: `infra/terraform/network_policies.tf`. Each namespace denies ingress from
+  other pods by default (probes and NodePorts, from outside the pod network or the node's
+  gateway address, stay open). Then the mapped flows are allowed: Postgres from Airflow,
+  Marquez and the dip-data pods that use it (not SFTP, MinIO or the intake API); MinIO's API
+  from Airflow and its dip-data clients; SFTP and MCP only from Airflow's task pods
+  (`component=worker`; MCP also the proof workflow's `run` pods); the scrape targets from
+  dip-obs; the api-server from MCP; Marquez from Airflow; dip-obs from MCP; and same-namespace
+  traffic in dip-airflow and dip-obs. Kind's kindnet enforces them, and
+  `tests/e2e/network_policy.py` proves it: a pod in `default` is refused by Postgres and
+  MinIO, and a task-labelled pod gets through.
 - [ ] **24.17 PHI masked for the triage agent** (Medium): `mask_phi: true` in `agents/policies/triage.yaml`, or no live call unless the warehouse is synthetic-only; no free-tier fallback for steps that see PHI. Changes what triage sees, so its recordings change **(ask)**.
+  Decided by the owner (2026-11-24): option a, with one recording cap of $1.00 for 24.17, 24.29 and 24.35.
 - [x] **24.18 Alerts on security events** (Medium): counters for denied agent calls and intake API auth failures, spike rules with promtool tests, routed through 16.3's receiver.
   Done 2026-11-11: `AgentCallsDenied` (`dip_agent_denied_calls_1h`, from the audit log;
   migration 0004 grants the exporter three of its columns) and `IntakeApiAuthFailures` (the
   API's own `/metrics`, a new scrape job), with promtool tests. Routing waits for 16.3's
   Alertmanager: today they show on Prometheus's `/alerts` page, like the others.
 - [x] **24.19 pip-audit in CI; Pillow 13.0.0 in the dev extra** (Low): a failing pip-audit step; `pyproject.toml:36`.
+  The Pillow half is already in place (`pyproject.toml` pins `pillow==13.0.0`, and the dev lock
+  has it). pip-audit approved by the owner (2026-11-24), CI only.
 - [ ] **24.20 gitleaks in pre-commit and CI** (Low): pinned; `--redact`; one full-history scan.
+  Approved by the owner (2026-11-24), CI only.
 - [ ] **24.21 zizmor on the workflows** (Low): in the `security` workflow.
+  Approved by the owner (2026-11-24), CI only.
 - [x] **24.22 Digest pins for every image** (Low): `images/airflow/Dockerfile:3`; Postgres and Marquez in `infra/terraform/variables.tf`.
   Done 2026-11-11: the Airflow base, Postgres, Marquez and Marquez web pinned by digest (resolved
   from Docker Hub); `tests/unit/test_image_digests.py` fails on a tag-only image.
@@ -590,20 +613,53 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
 - [x] **24.26 More `.gitignore` patterns** (Low): `*.p12`, `secrets/`, credential JSON, and `.claude/worktrees/`.
   Done 2026-11-11: `*.p12`, `*.pfx`, `*.jks`, `secrets/`, credential and service-account JSON,
   `.netrc`, `.pypirc`; `.claude/worktrees/` is in 24.42's PR with the settings it guards.
-- [ ] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
-- [ ] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
+- [x] **24.27 Wider credential masking in task logs** (Low): tokens, API keys, Authorization headers and known key prefixes in `_CREDENTIAL`, with tests.
+  Done 2026-11-24: `_CREDENTIAL` in `dip/agents/read_tools.py` also masks the values of
+  secret-named keys (password anywhere; api, access, secret, private and Fernet keys; a token,
+  secret or credentials with a name before it, as `access_token` or `clientSecret`; the platform's
+  own `DIP_*_KEY(S)` and `DIP_*_TOKENS`), Authorization header values, and tokens known by
+  their prefix (sk-, AIza, GitHub, AKIA, Slack, GitLab, JWTs). A bare `secret:` or `token:` is
+  prose ("Mounting secret: dip-agent-chain") and stays. The URI scheme is bounded, so a long
+  line no longer takes quadratic time. No line in any recording or eval fixture changes
+  (checked against every string), so no re-recording.
+- [x] **24.28 Sanitize model-written Markdown in contract PR bodies** (Low): strip images and links, escape HTML, or fence the text (`contract_pr.py`).
+  Done 2026-11-24: `_pr_body` puts every model-written part (the rationale, the loosening
+  rows, the reviewer's reasons, a dbt error) in a code fence longer than any backtick run in it,
+  and the verdict heading takes only pass, revise or reject. `tests/unit/test_contract_pr_body.py`.
 - [ ] **24.29 Exfiltration and reviewer-injection evals** (Low): canary cases scored on the canary's absence from free text; a reviewer injection case. New recordings **(ask)**.
-- [ ] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
-- [ ] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
+  Approved by the owner (2026-11-24), under the night's $1.00 recording cap.
+- [x] **24.30 MCP key rotation** (Low): a rotation schedule; short-lived tokens with an audience before anything is hosted.
+  Done 2026-11-24: `var.mcp_key_generation` is a `keepers` of the 8 MCP keys and the run token key,
+  so one new value replaces them all in one apply; the MCP server rolls and the runners' Secrets
+  update together. `docs/keys.md` has the schedule (monthly, at once on a leak, before sharing
+  access), the steps, what it does not rotate, and the short-lived audience-bound tokens a
+  hosted deployment needs instead (with 20.1).
+- [x] **24.31 Per-agent hourly limits that survive a restart** (Low): counted from `ops.audit_log`.
+  Done 2026-11-24: `Registry` starts each agent's hourly window (all tools, and per tool) from
+  the audit log's allowed calls in the last hour, read once per process (`_seed`), so a restarted
+  MCP server does not reset the counts. If they cannot be read, the call is refused (fail
+  closed). Migration 0006 lets `dip_mcp` read four audit columns (at, principal, tool, decision),
+  and nothing else of the log.
 - [ ] **24.32 Rate and concurrency limits on the HTTP services** (Low): per-key and per-IP limits, uvicorn `--limit-concurrency`, uploads streamed to MinIO (with 16.1).
-- [ ] **24.33 Security headers on the approvals page** (Low): CSP with `frame-ancestors 'none'`, nosniff, no-referrer, no-store on `/api`.
+- [x] **24.33 Security headers on the approvals page** (Low): CSP with `frame-ancestors 'none'`, nosniff, no-referrer, no-store on `/api`.
+  Done 2026-11-23: every response from `dip/agents/gateway.py` carries a CSP (`default-src 'none'`,
+  the page's one inline script and one inline style allowed by SHA-256, `connect-src 'self'`,
+  `frame-ancestors 'none'`), nosniff, no-referrer and `X-Frame-Options: DENY`; `/api` answers
+  are `no-store`. `tests/unit/test_approvals_headers.py`.
 - [x] **24.34 No unauthenticated `/openapi.json` on the intake API** (Low): `openapi_url=None`.
   Done 2026-11-11: `openapi_url=None`; a test checks `/openapi.json`, `/docs` and `/redoc` are 404.
 - [ ] **24.35 Generic errors to callers and the model** (Low): a correlation id back, the full error logged on the server (`mcp_server.py:134`, `gateway.py`).
+  The approvals gateway's half, 2026-11-23: an unexpected error answers `internal error (error
+  <id>)` and "warehouse not ready" no longer echoes Postgres's message; the full error goes to
+  the server's log under the same id (`tests/unit/test_approvals_errors.py`). The MCP half was
+  approved by the owner (2026-11-24) and is its own PR.
 - [x] **24.36 SFTP sync: size cap and name check** (Low): `st_size` checked before reading; `SAFE_NAME` applied (`sftp_sync.py:101`).
   Done 2026-11-11: the intake API's name rule and a 50 MiB limit (the largest feed's), checked from the listing before
   reading (and the read stops one byte past it); a refused file stays on the server, reported.
-- [ ] **24.37 The approvals negative test covers every route** (Low): loop over `app.routes`, 401 for every `/api` path without the token.
+- [x] **24.37 The approvals negative test covers every route** (Low): loop over `app.routes`, 401 for every `/api` path without the token.
+  Done 2026-11-24: `tests/unit/test_approvals_routes.py` walks `app.routes`. Every route is
+  `/` or `/healthz` or under `/api/`, and every `/api` route and method answers 401 to five kinds
+  of bad token, before it opens a database connection.
 - [ ] **24.38 TLS and encryption at rest in the cluster** (Low): a self-signed CA, Postgres `sslmode=verify-full`, MinIO TLS and SSE; needed before anything is hosted.
 - [ ] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
 - [ ] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
@@ -614,6 +670,8 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   defaults. Before the gate: scan the charts rendered with the repo's `infra/helm-values`
   (`helm template -f`, or Trivy's `--helm-values`) and mount `.trivyignore` (`--ignorefile`).
 - [ ] **24.41 Retention and a second backup copy** (Low): MinIO lifecycle rules for `airflow-logs` (per-layer retention is 22.2); optionally a host copy of the newest dump.
+  Waiting on the owner (2026-11-24): the delete rule's retention period (proposed 30 days for
+  `airflow-logs`) in `docs/OWNER_STEPS.md`.
 - [x] **24.42 Claude Code project settings** **(owner)** (Low): the reviewed `.claude/settings.json` proposed in the audit report, after `.claude/worktrees/` is gitignored (24.26).
   Done 2026-11-12: the audit's `.claude/settings.json`, plus denies the owner added on
   2026-11-11 (`git tag`, pushes to `main`, tag pushes, for Bash and PowerShell);

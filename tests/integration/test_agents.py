@@ -181,6 +181,32 @@ def test_hourly_cap_ignores_the_run_id(setup):
         reg.call(policy, "c", "get_feed_history", {"feed": "healthcare.eligibility"})
 
 
+def test_the_hourly_caps_survive_a_restart(setup):
+    """24.31: a new registry (a restarted MCP server) counts the last hour from the audit
+    log, so the cap does not start again at zero. Denied calls do not count."""
+    wh, store, reg = setup
+    policy = Policy.load("triage")
+    policy.limits["max_calls_per_hour"] = 3
+    policy.limits["get_feed_history"] = {"max_per_hour": 2}
+    for run in ("a", "b"):
+        reg.call(policy, run, "get_feed_history", {"feed": "healthcare.eligibility"})
+    restarted = build_registry(wh.conn, store, load_contracts())
+    with pytest.raises(Denied, match="over 2 get_feed_history calls in the last hour"):
+        restarted.call(policy, "c", "get_feed_history", {"feed": "healthcare.eligibility"})
+    restarted.call(policy, "c", "list_quarantine_groups", {})  # third call overall: allowed
+    again = build_registry(wh.conn, store, load_contracts())
+    with pytest.raises(Denied, match="over 3 calls in the last hour"):
+        again.call(policy, "d", "list_quarantine_groups", {})
+    # an older call is outside the window
+    with wh.conn.cursor() as cur:
+        cur.execute("alter table ops.audit_log disable trigger audit_log_append_only")
+        cur.execute("update ops.audit_log set at = at - interval '2 hours'")
+        cur.execute("alter table ops.audit_log enable trigger audit_log_append_only")
+    wh.conn.commit()
+    fresh = build_registry(wh.conn, store, load_contracts())
+    fresh.call(policy, "e", "get_feed_history", {"feed": "healthcare.eligibility"})
+
+
 def test_an_expired_approval_never_runs(setup):
     wh, store, reg = setup
     approval_id, _ = _propose(reg)
