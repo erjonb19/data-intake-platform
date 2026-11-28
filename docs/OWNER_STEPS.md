@@ -10,6 +10,27 @@ Claude adds a step here whenever one comes up and ticks it when the owner says i
 
 ## Open
 
+### [ ] Clear a model key out of old Terraform state (24.39)
+
+**Why.** Before 24.39, a model key passed with `TF_VAR_anthropic_api_key` (or
+`TF_VAR_gemini_api_key`) was kept in plain text in `infra/terraform/terraform.tfstate`. After
+24.39 the next `up.sh` writes a state without it, but `terraform.tfstate.backup` (the state
+before that run) still has it. Skip this step if you never passed a model key to `up.sh`.
+
+**Do.** Run `up.sh` twice in a window with no model key set (no key, so nothing can spend;
+the second run replaces the backup with a state that has no key), then check:
+
+```powershell
+Remove-Item Env:TF_VAR_anthropic_api_key, Env:TF_VAR_gemini_api_key -ErrorAction SilentlyContinue
+Remove-Item Env:ANTHROPIC_API_KEY, Env:GEMINI_API_KEY -ErrorAction SilentlyContinue
+& "$env:ProgramFiles\Git\bin\bash.exe" scripts/up.sh
+& "$env:ProgramFiles\Git\bin\bash.exe" scripts/up.sh
+Select-String -Path infra/terraform/terraform.tfstate* -Pattern "sk-ant-", "AIza" -List
+```
+
+**Check.** The last command prints nothing. Set the key again (`$env:ANTHROPIC_API_KEY`) only
+when you next want the agents to run live.
+
 ### [ ] Decide: how long Airflow task logs are kept (24.41)
 
 **Why.** Airflow writes every task's log to the MinIO bucket `airflow-logs`, and nothing ever

@@ -200,7 +200,7 @@ tested here:
 | `dip-data` | SFTP server, intake API | Vendor channels (Stage 2) |
 | `dip-data` | MCP server | The `reader`, `triage` and `incident` agents' door: Read, Propose and Act tiers behind per-agent keys and policies (Stages 3 to 7) |
 | `dip-data` | Approvals page | Proposals to approve or reject, and the audit log, in a browser (Stage 9, S9.2): `kubectl -n dip-data port-forward svc/approvals 8081`, then http://127.0.0.1:8081 with the token from `terraform output -raw approvals_token`. Its own login (`dip_approver`) can decide but never execute |
-| `dip-airflow` | `agent_chain` DAG | Every 5 minutes, the incident -> triage chain on open incidents, each run its own pod with resource limits (Stage 9, S9.1). Claims are recorded in `ops.agent_run`; with no model key in the `dip-agent-chain` Secret (Terraform `anthropic_api_key` / `gemini_api_key`, default empty) it claims nothing and the DAG stays green, so incidents wait for a key; a claim a dead pod left `running` is taken back after 30 minutes |
+| `dip-airflow` | `agent_chain` DAG | Every 5 minutes, the incident -> triage chain on open incidents, each run its own pod with resource limits (Stage 9, S9.1). Claims are recorded in `ops.agent_run`; with no model key in the `dip-model-keys` Secret (written by `scripts/up.sh` from `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` in its environment, 24.39) it claims nothing and the DAG stays green, so incidents wait for a key; a claim a dead pod left `running` is taken back after 30 minutes |
 | `dip-obs` | Prometheus, Grafana, Marquez | The `observability` profile only (Stage 3) |
 
 ## Repo layout
@@ -322,6 +322,9 @@ built** and name the [docs/BACKLOG.md](docs/BACKLOG.md) item that builds them.
 - [x] Postgres inside the cluster takes logins only over TLS, with a certificate from the
   cluster's own CA (`infra/terraform/tls.tf`, `tests/e2e/postgres_tls.py`; 24.38 part 1;
   clients checking it, MinIO over HTTPS and encryption at rest are still to come)
+- [x] No model key in Terraform's state: `scripts/up.sh` writes `ANTHROPIC_API_KEY` and
+  `GEMINI_API_KEY` from its environment into the `dip-model-keys` Secret, which only the agent
+  runners' pods mount; `TF_VAR_anthropic_api_key` now fails the plan (24.39)
 - [x] The intake API serves no OpenAPI schema or docs pages (`dip/intake_api.py`; 24.34)
 - [x] Credential files (`*.p12`, any secrets folder, credential JSON, `.netrc`) are gitignored (24.26)
 - [x] No `${{ }}` expression inlined into a workflow's shell script

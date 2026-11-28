@@ -678,7 +678,7 @@ Delivers: the repo measured against `docs/SECURITY_STANDARDS.md`, the owner's st
   need no change; Marquez's JDBC URL asks for it. `tests/e2e/postgres_tls.py` checks it. Still
   open: clients checking the certificate (`verify-full`, the CA mounted in every pod), MinIO
   over HTTPS, and SSE.
-- [ ] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
+- [x] **24.39 Model API keys out of Terraform state** (Low): the model-key Secret created with kubectl from the environment, or OpenTofu state encryption (13.5).
 - [ ] **24.40 IaC scan in CI** (Low): `trivy config infra/` beside the image scan.
   2026-11-11: built in report mode (the `security` workflow's `iac` job, its findings in the job
   summary). Not ticked: it becomes a failing gate on CRITICAL once its first findings are fixed or

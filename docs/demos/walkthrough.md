@@ -41,7 +41,8 @@ Open these browser tabs: Airflow (the `airflow_url` above), the approvals page
   the real intake, MCP server, policies and graph, on a throwaway Postgres with its own invented
   file. It is a separate cut, not this cluster's incident.
 - **Live, in this cluster** (a model call costs a few cents: ask the owner first). Pass a model
-  key to `scripts/up.sh` (`TF_VAR_anthropic_api_key`) and unpause the `agent_chain` DAG in
+  key to `scripts/up.sh` in its environment (`ANTHROPIC_API_KEY`; in PowerShell,
+  `$env:ANTHROPIC_API_KEY`, never in a file you commit) and unpause the `agent_chain` DAG in
   Airflow before scene 1; it runs every 5 minutes and diagnoses the incident scene 2 opens.
 
 ## Scene 1, 0:00 to 0:30: a vendor sends a broken file

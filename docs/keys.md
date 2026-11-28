@@ -19,7 +19,8 @@ runner starts (24.10). Terraform generates all of them (`infra/terraform/mcp.tf`
 
 One value replaces them all in a single apply, so no client keeps an old key. Run it in the
 same PowerShell window you deploy from, with the same `TF_VAR_*` values as last time (the
-profiles, a model key). A fresh window without them would also switch those off:
+profiles) and the same model key in `ANTHROPIC_API_KEY` (24.39). A fresh window without them
+would also switch those off:
 
 ```powershell
 $env:TF_VAR_mcp_key_generation = "2026-12"
