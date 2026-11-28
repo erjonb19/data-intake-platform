@@ -310,9 +310,9 @@ def main() -> int:
     # Stage 9 (S9.1): the agent chain's DAG parses, its pod starts with the pod_override
     # and the dip-agent-chain Secret, and its agent venv imports the chain. Without a
     # model key (CI) it claims nothing and must still succeed; with one (a local run with
-    # TF_VAR_anthropic_api_key) the chain runs, and no incident may end `failed` (a chain
-    # run without a key would). `running` is not checked: with a key, a scheduled run may
-    # still be working when this looks.
+    # ANTHROPIC_API_KEY set for up.sh, 24.39) the chain runs, and no incident may end
+    # `failed` (a chain run without a key would). `running` is not checked: with a key, a
+    # scheduled run may still be working when this looks.
     trigger_and_wait(body["access_token"], "agent_chain", failures)
     with psycopg.connect(os.environ["WAREHOUSE_DSN"]) as conn, conn.cursor() as cur:
         cur.execute("select incident_id, status, left(reason, 200) from ops.agent_run"

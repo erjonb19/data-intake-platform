@@ -27,6 +27,10 @@ concurrency:
 env:
   # Pinned by digest; 0.76.1 (2026-10-21).
   TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+  # 24.20, pinned by digest; 8.30.1 (2026-03-21).
+  GITLEAKS_IMAGE: zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+  # 24.21, pinned by digest; 1.32.0 (2026-11-02).
+  ZIZMOR_IMAGE: ghcr.io/zizmorcore/zizmor:1.32.0@sha256:3014cc8f68f663935f69b3c3e0e41f5ce102b268d97db13db0f62208747f860d
 
 jobs:
   trivy:
@@ -34,6 +38,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Build the images
         if: inputs.image == ''
@@ -65,6 +71,81 @@ jobs:
           done
           exit "$status"
 
+  # 24.19: every Python lock in requirements/ against the PyPI advisory database. Fails on
+  # any known vulnerability. pip-audit runs from its own hashed lock (requirements/audit.txt)
+  # in a venv of its own, and reads each lock without pip (no install, no resolution). The
+  # weekly run catches new advisories in unchanged locks. The packages Airflow's image
+  # ships (its constraints file) are left to the image scan above.
+  pip-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: |
+          python -m venv "$RUNNER_TEMP/audit"
+          "$RUNNER_TEMP/audit/bin/pip" install --quiet --require-hashes --no-deps -r requirements/audit.txt
+
+      - name: Audit every lock (fails on a known vulnerability)
+        run: |
+          set -uo pipefail
+          status=0
+          for lock in requirements/*.txt; do
+            echo "::group::$lock"
+            # A finding with no fix yet goes here as --ignore-vuln <id>, with its reason.
+            "$RUNNER_TEMP/audit/bin/pip-audit" --requirement "$lock" --require-hashes \
+              --no-deps --disable-pip --progress-spinner off --strict \
+              || { status=1; echo "::error::$lock has a known vulnerability"; }
+            echo "::endgroup::"
+          done
+          exit "$status"
+
+  # 24.20: gitleaks over the repository's whole history, on each PR, push to main and weekly, so a
+  # secret committed anywhere (any branch merged in, any old commit) fails the job. Findings
+  # are listed, redacted, in the log. The repo's fixed CI test values are allowed by
+  # .gitleaks.toml (by shape and path); a one-off false positive goes in .gitleaksignore by
+  # its fingerprint, with the reason beside it.
+  gitleaks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0   # every commit, not only the last
+          persist-credentials: false
+
+      - name: Scan the full history (fails on a finding)
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo:ro" \
+            -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory -e GIT_CONFIG_VALUE_0='*' \
+            "$GITLEAKS_IMAGE" git /repo --redact --verbose --no-banner --exit-code 1 \
+            --gitleaks-ignore-path /repo/.gitleaksignore
+
+  # 24.21: zizmor's checks on every workflow in .github/workflows (template injection,
+  # credentials left in the checkout, permissions wider than needed, unpinned actions, known
+  # vulnerable action versions). Fails on any finding. The online checks read the GitHub API
+  # with this job's read-only token.
+  zizmor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Audit the workflows (fails on a finding)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          docker run --rm -v "$PWD:/src:ro" -e GH_TOKEN "$ZIZMOR_IMAGE" --format plain /src
+
   # 24.40: the Terraform and Helm values under infra/ against Trivy's misconfiguration checks
   # (the same pinned image). Report only for now: its findings overlap 24.15 (pod security)
   # and 24.16 (network policies), and it becomes a failing gate on CRITICAL once those land.
@@ -74,6 +155,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Scan infra/ (report only)
         run: |

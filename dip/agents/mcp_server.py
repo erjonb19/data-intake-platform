@@ -22,6 +22,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -34,8 +35,11 @@ from mcp.server.lowlevel.server import Server
 from mcp.server.transport_security import TransportSecuritySettings
 
 from dip.agents import run_token
+from dip.agents.errors import for_the_model, hidden
 from dip.agents.registry import Denied, Policy, Registry
 from dip.ratelimit import FailedAuthLimit
+
+log = logging.getLogger("dip.mcp")
 
 INSTRUCTIONS = (
     "Data intake platform tools. Read tools have no side effects. propose_operation writes a "
@@ -149,7 +153,7 @@ def build_server(
         except Denied as exc:
             return _error(f"denied by policy: {exc}")
         except Exception as exc:  # a tool error is a result for the model, not a crash
-            return _error(f"{type(exc).__name__}: {exc}")
+            return tool_error(params.name, exc)
         return types.CallToolResult(
             content=[types.TextContent(type="text", text=json.dumps(result, default=str))],
             is_error=bool(isinstance(result, dict) and "error" in result),
@@ -166,6 +170,15 @@ def build_server(
 
 def _error(text: str) -> types.CallToolResult:
     return types.CallToolResult(content=[types.TextContent(type="text", text=text)], is_error=True)
+
+
+def tool_error(tool: str, exc: Exception) -> types.CallToolResult:
+    """Any other error (a database or network failure, a bug) reaches the model only as
+    `internal error (error <id>)`; the full error is in the server's log under the same id,
+    so its text (hosts, SQL, file paths, values) never enters a prompt or a recording."""
+    if for_the_model(exc):
+        return _error(f"{type(exc).__name__}: {exc}")
+    return _error(hidden(log, f"tool {tool}", exc))
 
 
 def http_app(

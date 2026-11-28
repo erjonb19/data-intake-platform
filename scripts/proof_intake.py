@@ -77,7 +77,7 @@ def run_team(cap: str) -> dict:
             "--dag-run-id",
             "s10.6-proof",
         ],  # fmt: skip
-        # The later source wins: the run's key over the DAG Secret's empty one.
+        # The run's own key Secret (24.39: the DAG Secret holds no model key).
         "envFrom": [
             {"secretRef": {"name": "dip-intake-team"}},  # 24.9: the team's own Secret
             {"secretRef": {"name": "dip-proof-model"}},
@@ -98,7 +98,13 @@ def run_team(cap: str) -> dict:
             "limits": {"cpu": "1", "memory": "512Mi"},
         },  # fmt: skip
     }
-    overrides = {"apiVersion": "v1", "spec": {"containers": [container]}}
+    # 24.15: Pod Security's restricted level, which dip-airflow enforces.
+    container["securityContext"] = {"allowPrivilegeEscalation": False,
+                                    "capabilities": {"drop": ["ALL"]}}  # fmt: skip
+    overrides = {"apiVersion": "v1", "spec": {
+        "securityContext": {"runAsNonRoot": True, "runAsUser": 50000,
+                            "seccompProfile": {"type": "RuntimeDefault"}},
+        "containers": [container]}}  # fmt: skip
     try:
         kubectl("-n", NS, "run", POD, "--restart=Never", f"--image={os.environ['AIRFLOW_IMAGE']}",
                 f"--overrides={json.dumps(overrides)}")  # fmt: skip

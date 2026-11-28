@@ -123,3 +123,10 @@ output "run_token_key" {
   value       = random_password.run_token_key.result
   sensitive   = true
 }
+
+# 24.38: the CA that signed Postgres's certificate (a certificate, not a secret), for a
+# client that checks the server (sslmode=verify-full; tests/e2e/postgres_tls.py).
+output "ca_cert_pem" {
+  description = "The cluster's self-signed CA certificate (PEM)."
+  value       = tls_self_signed_cert.ca.cert_pem
+}

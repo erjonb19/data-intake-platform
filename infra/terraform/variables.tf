@@ -153,15 +153,19 @@ variable "mcp_image_tag" {
   default     = "build"
 }
 
-# Stage 9 (S9.1): a model key for the agent_chain DAG's pods. Both default to empty, and
-# with neither set the DAG records every incident as skipped and stays green: the
-# cluster never needs a paid key. Pass one with TF_VAR_anthropic_api_key (never in a
-# tfvars file that is committed).
+# 24.39: the model keys no longer pass through Terraform, whose state would keep them in
+# plain text. scripts/up.sh writes ANTHROPIC_API_KEY and GEMINI_API_KEY from its own
+# environment into the dip-model-keys Secret. These two variables stay only to stop an old
+# habit: a value here fails the plan with what to do instead.
 variable "anthropic_api_key" {
-  description = "Anthropic key for the agent_chain DAG (empty: the chain is skipped)."
+  description = "Not used (24.39): set ANTHROPIC_API_KEY in the environment of scripts/up.sh."
   type        = string
   default     = ""
   sensitive   = true
+  validation {
+    condition     = var.anthropic_api_key == ""
+    error_message = "24.39: model keys no longer go through Terraform (its state would keep them). Unset TF_VAR_anthropic_api_key and set ANTHROPIC_API_KEY for scripts/up.sh instead."
+  }
 }
 
 # 24.3: the scheduled agents' spend caps, in the dip-agent-chain Secret. Per process (one
@@ -179,10 +183,14 @@ variable "agent_monthly_cap_usd" {
   default     = "5"
 }
 variable "gemini_api_key" {
-  description = "Gemini key for the agent_chain DAG, used when no Anthropic key is set."
+  description = "Not used (24.39): set GEMINI_API_KEY in the environment of scripts/up.sh."
   type        = string
   default     = ""
   sensitive   = true
+  validation {
+    condition     = var.gemini_api_key == ""
+    error_message = "24.39: model keys no longer go through Terraform (its state would keep them). Unset TF_VAR_gemini_api_key and set GEMINI_API_KEY for scripts/up.sh instead."
+  }
 }
 
 # Stage 14 (14.1): the nightly warehouse backup (backups.tf).
@@ -226,6 +234,14 @@ variable "agents_write_disabled" {
   description = "Switch off the agents' write tools (DIP_AGENTS_WRITE_DISABLED)."
   type        = bool
   default     = false
+}
+
+# 24.30: change it to rotate every MCP key and the run token key (docs/keys.md). Any new
+# value works; the date of the rotation reads best, e.g. "2026-12".
+variable "mcp_key_generation" {
+  description = "Rotation generation for the MCP agents' keys and the run token key; a new value replaces them all."
+  type        = string
+  default     = "1"
 }
 
 # 16.1: how many feed dbt builds run at once (the dip_dbt Airflow pool, airflow.tf).

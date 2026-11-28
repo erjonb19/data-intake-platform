@@ -27,13 +27,15 @@ def _executor_config(secret: str) -> dict:
     before Terraform has created it; a task then fails in _agent_dsn, on purpose) and limits
     an agent run cannot exceed. 24.9:
     run_chain mounts dip-agent-chain (the incident and triage keys), intake_jobs mounts
-    dip-intake-team (the team's keys); neither holds the other's."""
+    dip-intake-team (the team's keys); neither holds the other's. 24.39: both also mount
+    dip-model-keys, which scripts/up.sh writes from its environment (no model key passes
+    through Terraform's state); without it, or empty, the runners claim nothing."""
     from kubernetes.client import models as k8s
 
     return {"pod_override": k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(
         name="base",
-        env_from=[k8s.V1EnvFromSource(
-            secret_ref=k8s.V1SecretEnvSource(name=secret, optional=True))],
+        env_from=[k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=s, optional=True))
+                  for s in (secret, "dip-model-keys")],
         resources=k8s.V1ResourceRequirements(
             requests={"cpu": "100m", "memory": "256Mi"},
             limits={"cpu": "1", "memory": "512Mi"}),
