@@ -71,7 +71,8 @@ def fhir_intake():
             statuses.append(o.status)
         return {s: statuses.count(s) for s in sorted(set(statuses))}
 
-    @task(executor_config=_deid_key_pod())
+    # 16.1: in the dip_dbt pool with the file feeds' builds (feed_intake.py).
+    @task(executor_config=_deid_key_pod(), pool="dip_dbt")
     def transform(intake_summary: dict) -> None:
         import os
 

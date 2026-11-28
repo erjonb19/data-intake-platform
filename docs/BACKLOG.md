@@ -289,9 +289,16 @@ nothing is lost. A signed webhook starts a feed's run; an unsigned one is reject
 audited.
 Incident: the flood (runbook `15-flood.md`).
 
-- [ ] **16.1 Backpressure:** a queue-depth limit on the intake API (429 with
+- [x] **16.1 Backpressure:** a queue-depth limit on the intake API (429 with
   `Retry-After`), per-feed Airflow pools and `max_active_runs`, a `dip_intake_backlog`
   metric and alert
+  Done 2026-11-24: the intake API refuses a feed with 50 files already waiting in landing
+  (`DIP_API_MAX_BACKLOG`; 429, `Retry-After: 60`). `dip_intake_backlog_files` on its
+  `/metrics` (all feeds together: that endpoint names no feeds) and the `IntakeBacklogHigh`
+  alert (over 40 for 30 minutes, promtool-tested). Each feed DAG already runs one at a time
+  (`max_active_runs=1`); rather than a pool per feed, every feed's dbt build shares one
+  `dip_dbt` pool (2 slots, `dbt_pool_slots`), made by Terraform's `airflow_pools` Job, so a
+  burst queues in Airflow instead of in Postgres.
 - [ ] **16.2 Inbound webhooks:** HMAC-signed "file ready" endpoint on the intake API, the
   key in a Kubernetes Secret, replay protection, every call audited
   Waiting on the owner (2026-11-25): how the calls are audited without breaking 24.16's

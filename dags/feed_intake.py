@@ -101,7 +101,9 @@ def build(feed: str, format_type: str):
                 conn.close()
             return {s: statuses.count(s) for s in sorted(set(statuses))}
 
-        @task
+        # 16.1: dbt builds share the dip_dbt pool (Terraform's airflow_pools Job), so a burst
+        # of feeds queues there instead of running every build against Postgres at once.
+        @task(pool="dip_dbt")
         def transform(intake_summary: dict) -> None:
             from dip.dbt_runner import connection_dsn, run_dbt
 

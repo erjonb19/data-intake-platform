@@ -70,6 +70,7 @@ Alerts (`observability/prometheus/rules.yml`) appear on Prometheus's `/alerts` p
 - **AgentCallsDenied**: 5 or more tool calls refused in an hour for one agent, or for people
   together (`principal="human"`) (24.18)
 - **IntakeApiAuthFailures**: over 20 uploads with no or a wrong key in 15 minutes (24.18)
+- **IntakeBacklogHigh**: over 40 files waiting in landing for 30 minutes (16.1, `dip_intake_backlog_files` from the intake API)
 
 The thresholds suit the demo feeds. The E2E quarantines files on purpose, so after a run
 QuarantineRateHigh fires for those feeds. Nothing is sent anywhere, since there is no

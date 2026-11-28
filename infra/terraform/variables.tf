@@ -243,3 +243,14 @@ variable "mcp_key_generation" {
   type        = string
   default     = "1"
 }
+
+# 16.1: how many feed dbt builds run at once (the dip_dbt Airflow pool, airflow.tf).
+variable "dbt_pool_slots" {
+  description = "Slots of the dip_dbt Airflow pool: feed dbt builds that run at once."
+  type        = number
+  default     = 2
+  validation {
+    condition     = var.dbt_pool_slots >= 1
+    error_message = "dbt_pool_slots must be at least 1, or no feed's dbt build ever runs."
+  }
+}

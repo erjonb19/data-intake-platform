@@ -15,7 +15,8 @@
   429  24.32, with Retry-After: the client sent more than DIP_API_RATE_PER_MIN uploads (60)
        in the last minute; or DIP_API_MAX_INFLIGHT uploads (4) are being received already,
        which bounds the memory they take; or this address had DIP_API_AUTH_FAILS_PER_MIN
-       (20) requests refused with 401 in the last minute (dip/ratelimit.py)
+       (20) requests refused with 401 in the last minute (dip/ratelimit.py); or (16.1)
+       DIP_API_MAX_BACKLOG files (50) of this feed are already waiting in landing
 
   GET /healthz   200 {"status": "ok"}
 
@@ -84,6 +85,7 @@ def create_app(
     rate_per_minute: int = 60,
     max_inflight: int = 4,
     auth_fails_per_minute: int = 20,
+    max_backlog: int = 50,
 ) -> FastAPI:
     # 24.34: no /docs, /redoc or /openapi.json: they answer without a key and list every
     # route and parameter to anyone who can reach the Service.
@@ -91,7 +93,7 @@ def create_app(
                   openapi_url=None)  # fmt: skip
     # 24.18: refused requests, by why, for Prometheus (the IntakeApiAuthFailures alert).
     # In this process only: a restart starts them at zero, which increase() handles.
-    refused = {"unauthorized": 0, "forbidden": 0, "rate_limited": 0, "busy": 0}
+    refused = {"unauthorized": 0, "forbidden": 0, "rate_limited": 0, "busy": 0, "backlog": 0}
     app.add_middleware(FailedAuthLimit, limit=auth_fails_per_minute)
     per_client = Window(rate_per_minute, 60.0)
     inflight = {"n": 0}
@@ -108,6 +110,19 @@ def create_app(
             "# TYPE dip_intake_api_refused_total counter",
         ]
         lines += [f'dip_intake_api_refused_total{{reason="{k}"}} {v}' for k, v in refused.items()]
+        # 16.1: files waiting in landing, all feeds together (no feed names here). Left out
+        # when MinIO cannot be listed, so a gap is not read as an empty queue.
+        try:
+            # Keys under `_` (onboarding samples) wait for no intake DAG.
+            waiting = sum(1 for k in store.list(BUCKET_LANDING, "") if not k.startswith("_"))
+        except Exception:  # any storage error: no reading this scrape
+            waiting = None
+        if waiting is not None:
+            lines += [
+                "# HELP dip_intake_backlog_files Files in landing waiting for their intake DAG.",
+                "# TYPE dip_intake_backlog_files gauge",
+                f"dip_intake_backlog_files {waiting}",
+            ]
         return "\n".join(lines) + "\n"
 
     @app.post("/v1/feeds/{feed}/files", status_code=202)
@@ -139,6 +154,12 @@ def create_app(
             raise HTTPException(
                 429, f"over {rate_per_minute} uploads a minute", {"Retry-After": wait}
             )
+        # 16.1: backpressure. A feed whose intake is behind takes no more until it catches up
+        # (after the rate check: a client over its rate costs no MinIO listing).
+        if len(store.list(BUCKET_LANDING, f"{feed}/")) >= max_backlog:
+            refused["backlog"] += 1
+            raise HTTPException(429, f"{max_backlog} files of {feed!r} are waiting to be"
+                                " processed; send it later", {"Retry-After": "60"})  # fmt: skip
         declared = request.headers.get("content-length")
         if declared and declared.isdigit() and int(declared) > max_bytes:
             raise HTTPException(413, f"over the {max_bytes}-byte limit")
@@ -201,4 +222,5 @@ def app_from_env() -> FastAPI:  # pragma: no cover - wiring for the container
         rate_per_minute=int(os.environ.get("DIP_API_RATE_PER_MIN", "60")),
         max_inflight=int(os.environ.get("DIP_API_MAX_INFLIGHT", "4")),
         auth_fails_per_minute=int(os.environ.get("DIP_API_AUTH_FAILS_PER_MIN", "20")),
+        max_backlog=int(os.environ.get("DIP_API_MAX_BACKLOG", "50")),
     )
